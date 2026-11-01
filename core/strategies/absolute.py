@@ -388,11 +388,8 @@ class AbsoluteStrategy(BaseStrategy):
                     delta_str = f"+{delta:,.2f}" if delta >= 0 else f"{delta:,.2f}"
                     print(f"  [Leaf #{leaf_count:,} | Decision #{tally:,}] [NEW BEST] Net Interest = {net_intr:,.2f} LKR ({delta_str} vs Greedy)")
                 else:
+                    # Defer alternative reporting until the search has finished.
                     alternative_leaf_net_interests.append(net_intr)
-                    best_net = best_final_val - total_capital
-                    diff = net_intr - best_net
-                    diff_str = f"{diff:,.2f}" if diff < 0 else f"+{diff:,.2f}"
-                    print(f"  [Leaf #{leaf_count:,} | Decision #{tally:,}] Leaf Net Interest = {net_intr:,.2f} LKR (diff vs best: {diff_str:>9})")
                 return
 
             # 4. Upper bound pruning
@@ -554,6 +551,23 @@ class AbsoluteStrategy(BaseStrategy):
         root_node = SearchTreeNode(parent=None, action=None, today=start)
         search(start, init_bal, (), root_node)
         elapsed = time.time() - t0
+
+        best_net_interest = best_final_val - total_capital
+        top_alternatives = sorted(
+            alternative_leaf_net_interests,
+            reverse=True,
+        )[:10]
+        print("  [Absolute Strategy] Top 10 alternative leaves (excluding the best):")
+        if not top_alternatives:
+            print("    No alternative completed leaves were recorded.")
+        else:
+            for rank, net_interest in enumerate(top_alternatives, start=1):
+                difference = net_interest - best_net_interest
+                difference_str = f"{difference:,.2f}" if difference < 0 else f"+{difference:,.2f}"
+                print(
+                    f"    #{rank:02d} Net Interest = {net_interest:,.2f} LKR "
+                    f"(diff vs best: {difference_str} LKR)"
+                )
 
         print(f"  [Absolute Search Complete] {tally:,} total decisions evaluated ({leaf_count:,} leaves reached, {pruned_count:,} pruned by branch-and-bound) in {elapsed:.2f}s")
 
