@@ -345,6 +345,29 @@ def build_fd_options(
     return result
 
 
+def normalize_inflow_schedule(
+    schedule: dict[date, float] | dict[date, dict[str, float]],
+    default_account_id: str,
+) -> dict[date, dict[str, float]]:
+    """Normalize legacy date->amount schedules and account-targeted schedules."""
+    normalized: dict[date, dict[str, float]] = {}
+    for inflow_date, value in schedule.items():
+        entries = value if isinstance(value, dict) else {default_account_id: value}
+        day_entries: dict[str, float] = {}
+        for account_id, amount in entries.items():
+            account_id = str(account_id).strip()
+            amount = float(amount)
+            if not account_id:
+                raise ValueError(f"Inflow on {inflow_date} has an empty account_id")
+            if amount < 0:
+                raise ValueError(f"Inflow on {inflow_date} cannot be negative")
+            if amount:
+                day_entries[account_id] = day_entries.get(account_id, 0.0) + amount
+        if day_entries:
+            normalized[inflow_date] = day_entries
+    return normalized
+
+
 def load_options_from_json(
     filepath: str | Path = "options.json",
     bank_key: Optional[str] = None,
