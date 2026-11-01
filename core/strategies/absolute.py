@@ -318,10 +318,13 @@ class AbsoluteStrategy(BaseStrategy):
 
             return liquid_cash + pf_cash + fin_cash + liquid_intr + pf_intr + fin_intr
 
+        total_capital = sum(inflow_schedule.values()) + sum(a.balance for a in accounts)
         best_leaf: Optional[SearchTreeNode] = None
         tally: int = 0
+        leaf_count: int = 0
         pruned_count: int = 0
         memo_visited: dict[tuple[date, BalanceTuple, FlowsTuple], float] = {}
+        alternative_leaf_net_interests: list[float] = []
 
         print(f"  [Absolute Strategy] Initializing global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
 
@@ -331,13 +334,13 @@ class AbsoluteStrategy(BaseStrategy):
             pending_flows: FlowsTuple,
             parent_node: Optional[SearchTreeNode],
         ) -> None:
-            nonlocal best_final_val, best_leaf, tally, pruned_count
+            nonlocal best_final_val, best_leaf, tally, leaf_count, pruned_count
 
             tally += 1
 
             # Decision progress tally reporting
             if tally % 25_000 == 0:
-                print(f"  [Decision Tally: #{tally:,}] Evaluated {tally:,} branches ({pruned_count:,} pruned) | Current best final value: {best_final_val:,.2f}")
+                print(f"  [Decision Tally: #{tally:,}] Evaluated {tally:,} branches ({leaf_count:,} leaves reached, {pruned_count:,} pruned) | Current best final value: {best_final_val:,.2f}")
 
             # 1. Apply today's inflows
             bal = balances
@@ -359,8 +362,9 @@ class AbsoluteStrategy(BaseStrategy):
                     break
             active_pf = pending_flows[pf_future_start:]
 
-            # 3. Base case (today >= end)
+            # 3. Base case (today >= end) - Leaf node reached
             if today >= end:
+                leaf_count += 1
                 final_bal = dict(bal)
                 for aid, b in bal:
                     if aid == consol_acc_id or b <= 0.001:
@@ -370,12 +374,20 @@ class AbsoluteStrategy(BaseStrategy):
                         final_bal[consol_acc_id] += (b - fee)
                         final_bal[aid] = 0.0
                 terminal_val = final_bal.get(consol_acc_id, 0.0)
+                net_intr = terminal_val - total_capital
+
                 if terminal_val > best_final_val:
                     best_final_val = terminal_val
                     best_leaf = parent_node
                     delta = best_final_val - initial_greedy_final
                     delta_str = f"+{delta:,.2f}" if delta >= 0 else f"{delta:,.2f}"
-                    print(f"  [Decision #{tally:,}] New Best Path: {best_final_val:,.2f} LKR ({delta_str} vs Greedy)")
+                    print(f"  [Leaf #{leaf_count:,} | Decision #{tally:,}] [NEW BEST] Net Interest = {net_intr:,.2f} LKR ({delta_str} vs Greedy)")
+                else:
+                    alternative_leaf_net_interests.append(net_intr)
+                    best_net = best_final_val - total_capital
+                    diff = net_intr - best_net
+                    diff_str = f"{diff:,.2f}" if diff < 0 else f"+{diff:,.2f}"
+                    print(f"  [Leaf #{leaf_count:,} | Decision #{tally:,}] Leaf Net Interest = {net_intr:,.2f} LKR (diff vs best: {diff_str:>9})")
                 return
 
             # 4. Upper bound pruning
@@ -538,7 +550,7 @@ class AbsoluteStrategy(BaseStrategy):
         search(start, init_bal, (), root_node)
         elapsed = time.time() - t0
 
-        print(f"  [Absolute Search Complete] {tally:,} total decisions evaluated ({pruned_count:,} pruned by branch-and-bound) in {elapsed:.2f}s")
+        print(f"  [Absolute Search Complete] {tally:,} total decisions evaluated ({leaf_count:,} leaves reached, {pruned_count:,} pruned by branch-and-bound) in {elapsed:.2f}s")
 
         best_path: list[tuple[date, DailyAction]] = best_leaf.get_path() if best_leaf is not None else []
 
@@ -553,6 +565,7 @@ class AbsoluteStrategy(BaseStrategy):
             fee_config=fee_config,
             consolidation_account_id=consolidation_account_id,
             total_decisions_evaluated=tally,
+            alternative_leaf_net_interests=alternative_leaf_net_interests,
         )
 
     # ----------------------------------------------------------------
@@ -571,6 +584,7 @@ class AbsoluteStrategy(BaseStrategy):
         fee_config: TransferFeeConfig,
         consolidation_account_id: str,
         total_decisions_evaluated: Optional[int] = None,
+        alternative_leaf_net_interests: Optional[list[float]] = None,
     ) -> SimResult:
         accounts_map = {
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
@@ -889,6 +903,7 @@ class AbsoluteStrategy(BaseStrategy):
             accounts=accounts_map,
             total_transfer_fees=total_transfer_fees,
             total_decisions_evaluated=total_decisions_evaluated,
+            alternative_leaf_net_interests=alternative_leaf_net_interests or [],
         )
 
     @staticmethod

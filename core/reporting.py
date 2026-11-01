@@ -209,6 +209,19 @@ def print_simulation(
             delta_str = f"+{delta:,.2f}" if delta >= 0 else f"{delta:,.2f}"
             print(f"    - {strat_name:<16} : {other_net:>14,.2f}  (diff vs current: {delta_str:>10})")
 
+    # -- Alternative leaf outcomes (non-best terminal paths) --
+    if result.alternative_leaf_net_interests:
+        print()
+        alt_leaves = result.alternative_leaf_net_interests
+        unique_nets = sorted(set(alt_leaves), reverse=True)
+        print(f"  Alternative Leaf Net Interests ({len(alt_leaves):,} non-best completed paths evaluated, {len(unique_nets):,} distinct outcomes):")
+        for rank, net in enumerate(unique_nets[:10], 1):
+            diff = net - result.net_interest
+            diff_str = f"{diff:,.2f}" if diff < 0 else f"+{diff:,.2f}"
+            print(f"    - Leaf #{rank:02d} Net Interest : {net:>14,.2f} LKR  (diff vs best: {diff_str:>10})")
+        if len(unique_nets) > 10:
+            print(f"      ... and {len(unique_nets) - 10} more distinct leaf outcomes down to {min(unique_nets):,.2f} LKR")
+
     if result.accounts:
         print()
         print("  Ending Balances by Account:")
