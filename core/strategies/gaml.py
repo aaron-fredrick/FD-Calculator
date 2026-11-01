@@ -282,7 +282,7 @@ def _pick_daily_gaml_plan(
         # the next event. Future cash for accounts whose current balance is
         # deployed is projected separately, as it remains outside today's FD.
         if plan["type"] == "CARRY":
-            for acc in active_accounts:
+            for acc in all_accounts.values():
                 pooled = acc.balance + next_event_cash.get(acc.id, 0.0)
                 value += project_cash(pooled, acc.bank_key, next_event_date)
         else:
