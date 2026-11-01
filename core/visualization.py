@@ -69,11 +69,11 @@ def _portfolio_series(
     dates = _date_range(start, end)
     liquid = {account.id: float(account.balance) for account in accounts}
     values = {account.id: [] for account in accounts}
-    events_by_date = {
-        day: [event for event in events if start <= event.on_date <= end]
-        for events in result.timeline.values()
-        for day in [events[0].on_date] if events
-    }
+    events_by_date: dict[date, list] = {}
+    for events in result.timeline.values():
+        for event in events:
+            if start <= event.on_date <= end:
+                events_by_date.setdefault(event.on_date, []).append(event)
 
     for day in dates:
         # Reconcile liquid account balances from the actual simulated event log.
