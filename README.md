@@ -1,6 +1,6 @@
 # FD Calculator
 
-Simulate fixed-deposit (FD) investment plans across multiple banks. Compare a fast Greedy strategy with an Absolute search for the best feasible plan.
+Simulate fixed-deposit (FD) investment plans across multiple banks. Compare a fast Greedy heuristic, a horizon-aware Goal-Aware Maturity Ladder (GAML), and the broader Absolute search.
 
 ## 1. Run it
 
@@ -17,6 +17,7 @@ Useful commands:
 | `uv run fd_cal.py` | Run using `config.json` and its configured strategy |
 | `uv run fd_cal.py --strategy greedy` | Run the Greedy strategy for this run |
 | `uv run fd_cal.py --strategy absolute` | Run the Absolute strategy for this run |
+| `uv run fd_cal.py --strategy gaml` | Run the Goal-Aware Maturity Ladder strategy |
 | `uv run fd_cal.py --config my-config.json` | Use another configuration file |
 | `uv run fd_cal.py --config my-config.json --strategy greedy` | Choose both a config file and strategy |
 | `uv run fd_cal.py --help` | Show command-line options |
@@ -26,9 +27,10 @@ The command-line strategy overrides `strategy` in the config for that run only; 
 ## 2. Strategies
 
 - **Greedy:** Quickly chooses a good available action at each decision point. Useful for fast runs, but it does not guarantee the best overall result.
+- **GAML (Goal-Aware Maturity Ladder):** Uses a lightweight look-ahead to compare projected value at the investment end date, rather than ranking deposits by annual rate alone. It considers each product's cash-flow schedule, likely reinvestment opportunities from the configured options, minimum deposits, maturity dates, and transfer fees. It is a heuristic, not a proof of global optimality.
 - **Absolute:** Searches across feasible investment decisions to maximise the final result. It can take longer, especially with many FD options and a long investment period. It also runs Greedy as a baseline for comparison.
 
-Both strategies use the same dates, accounts, inflows, FD options, fees, and interest settings.
+All strategies use the same dates, accounts, inflows, FD options, fees, and interest settings. GAML treats the investment end date as its default planning target and maximises estimated end value when no explicit monetary goal is configured. Future reinvestment estimates use the rates in `options.json`; they do not forecast future rate changes.
 
 ## 3. Configure `config.json`
 
