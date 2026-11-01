@@ -120,10 +120,6 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     inflow_data = config.get("inflows", [])
     if not isinstance(inflow_data, list):
         raise ValueError("'inflows' must be a list")
-    inflow_account_id = str(config.get("inflow_account_id") or accounts[0].id).strip()
-    if inflow_account_id not in account_ids:
-        raise ValueError(f"inflow_account_id {inflow_account_id!r} is not a configured account")
-
     inflow_schedule: dict[date, dict[str, float]] = {}
     inflow_summaries: list[dict[str, Any]] = []
     for index, entry in enumerate(inflow_data):
@@ -201,10 +197,6 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     ):
         raise ValueError("Transfer fees must be finite and non-negative")
 
-    consolidation_account_id = str(config.get("consolidation_account_id") or inflow_account_id).strip()
-    if consolidation_account_id not in account_ids:
-        raise ValueError(f"consolidation_account_id {consolidation_account_id!r} is not a configured account")
-
     strategy = str(config.get("strategy", "absolute")).strip().lower()
     if strategy not in {"absolute", "greedy"}:
         raise ValueError(f"Unsupported strategy {strategy!r}; use 'absolute' or 'greedy'")
@@ -219,8 +211,6 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "end": end,
         "inflow_schedule": inflow_schedule,
         "inflow_summaries": inflow_summaries,
-        "inflow_account_id": inflow_account_id,
-        "consolidation_account_id": consolidation_account_id,
         "fee_config": fee_config,
         "compound": bool(config.get("compound", False)),
         "actual_leap_year": bool(config.get("actual_leap_year", True)),
