@@ -42,7 +42,9 @@ Each entry in `inflows` describes one recurring contribution:
 - `account_id`: destination account ID
 - `name`: optional label for reporting
 
-Multiple inflows can use different amounts, intervals, dates, and destination accounts. Contributions on the same date to the same account are combined.
+Each inflow defines its own destination; there is no global `inflow_account_id`. Multiple inflows can use different amounts, intervals, dates, and destination accounts. Contributions on the same date to the same account are combined.
+
+The final consolidation target is no longer configured separately. For backward-compatible strategy behavior, the first account in `accounts` is used as the default target for final consolidation and legacy scalar inflow schedules.
 
 ### Dates
 
