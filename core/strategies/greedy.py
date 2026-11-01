@@ -613,7 +613,7 @@ class GreedyStrategy(BaseStrategy):
                     ),
                 )
 
-        total_principal = sum(inflow_schedule.values())
+        total_principal = sum(inflow_schedule.values()) + sum(a.balance for a in accounts)
 
         return SimResult(
             strategy_name=self.name,

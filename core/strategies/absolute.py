@@ -884,7 +884,7 @@ class AbsoluteStrategy(BaseStrategy):
             strategy_name=self.name,
             timeline=timeline,
             bookings=bookings,
-            total_principal=sum(inflow_schedule.values()),
+            total_principal=sum(inflow_schedule.values()) + sum(a.balance for a in accounts),
             end_date=end,
             accounts=accounts_map,
             total_transfer_fees=total_transfer_fees,
