@@ -19,8 +19,6 @@
       "balance": 0.0
     }
   ],
-  "inflow_account_id": "com",
-  "consolidation_account_id": "com",
   "inflows": [
     {
       "name": "Monthly new savings",
