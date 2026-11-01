@@ -42,8 +42,6 @@ class ConfigurationTests(unittest.TestCase):
                 "label": "Cash",
                 "balance": 2500.0,
             }],
-            "inflow_account_id": "cash",
-            "consolidation_account_id": "cash",
             "inflows": [{
                 "name": "Monthly saving",
                 "amount": 500.0,
