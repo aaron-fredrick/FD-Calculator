@@ -56,7 +56,7 @@ def _account_labels(accounts: Sequence[Account]) -> dict[str, str]:
 def _portfolio_series(
     result: SimResult,
     accounts: Sequence[Account],
-    inflow_schedule: dict[date, float],
+    inflow_schedule: dict[date, float] | dict[date, dict[str, float]],
     inflow_account_id: str,
     start: date,
     end: date,
@@ -77,8 +77,14 @@ def _portfolio_series(
 
     for day in dates:
         # Reconcile liquid account balances from the actual simulated event log.
-        if day in inflow_schedule and inflow_account_id in liquid:
-            liquid[inflow_account_id] += inflow_schedule[day]
+        if day in inflow_schedule:
+            scheduled = inflow_schedule[day]
+            if isinstance(scheduled, dict):
+                for account_id, amount in scheduled.items():
+                    if account_id in liquid:
+                        liquid[account_id] += amount
+            elif inflow_account_id in liquid:
+                liquid[inflow_account_id] += scheduled
 
         day_events = events_by_date.get(day, [])
         for event in day_events:
@@ -105,7 +111,8 @@ def _portfolio_series(
         if inflow_account_id in liquid:
             for event in day_events:
                 if event.event_type == EventType.INFLOW and event.amount and day not in inflow_schedule:
-                    liquid[inflow_account_id] += event.amount
+                    target_id = event.account_id if event.account_id in liquid else inflow_account_id
+                    liquid[target_id] += event.amount
 
         marked = dict(liquid)
         for booking in result.bookings:
@@ -205,7 +212,7 @@ def plot_strategy_results(
     *,
     comparison: Optional[SimResult] = None,
     accounts: Sequence[Account],
-    inflow_schedule: dict[date, float],
+    inflow_schedule: dict[date, float] | dict[date, dict[str, float]],
     inflow_account_id: str,
     start: date,
     end: date,
@@ -264,7 +271,7 @@ def plot_strategy_results(
     value_file = output_path / f"{primary.strategy_name.lower()}_account_values.png"
     fig.savefig(value_file, dpi=160, bbox_inches="tight")
     saved.append(value_file)
-    plt.close(fig)
+    value_fig = fig  # Keep open so plt.show() displays both saved figures.
 
     timeline_results = [primary]
     styles = {primary.strategy_name: {"color": _COLORS[0], "alpha": 0.95}}
@@ -285,8 +292,10 @@ def plot_strategy_results(
     timeline_file = output_path / f"{primary.strategy_name.lower()}_decision_timeline.png"
     fig.savefig(timeline_file, dpi=160, bbox_inches="tight")
     saved.append(timeline_file)
+    timeline_fig = fig
 
     if show:
         plt.show()
-    plt.close(fig)
+    plt.close(value_fig)
+    plt.close(timeline_fig)
     return saved

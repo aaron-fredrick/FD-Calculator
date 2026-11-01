@@ -13,6 +13,7 @@ from core.models import (
     FDOption,
     SimResult,
     TransferFeeConfig,
+    normalize_inflow_schedule,
 )
 from core.strategies.base import BaseStrategy
 
@@ -216,7 +217,7 @@ class AbsoluteStrategy(BaseStrategy):
         options: list[FDOption],
         start: date,
         end: date,
-        inflow_schedule: dict[date, float],
+        inflow_schedule: dict[date, float] | dict[date, dict[str, float]],
         accounts: Optional[list[Account]] = None,
         inflow_account_id: Optional[str] = None,
         fee_config: Optional[TransferFeeConfig] = None,
@@ -238,6 +239,7 @@ class AbsoluteStrategy(BaseStrategy):
         if consolidation_account_id is None:
             consolidation_account_id = inflow_account_id
 
+        inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
         accounts_meta: dict[str, Account] = {
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
             for acc in accounts
@@ -266,7 +268,7 @@ class AbsoluteStrategy(BaseStrategy):
         fitting_rates = [o.annual_rate for o in effective_options if o.fits_before(start, end)]
         max_rate: float = (max(fitting_rates, default=11.0)) / 100.0
 
-        fixed_inflows: dict[date, float] = {d: amt for d, amt in inflow_schedule.items() if d <= end}
+        fixed_inflows: dict[date, dict[str, float]] = {d: amounts for d, amounts in inflow_schedule.items() if d <= end}
         sorted_inflow_dates: list[date] = sorted(fixed_inflows)
 
         # Cash-flow generation cache
@@ -311,14 +313,15 @@ class AbsoluteStrategy(BaseStrategy):
 
             fin_cash = 0.0
             fin_intr = 0.0
-            for dt, amt in fixed_inflows.items():
+            for dt, amounts in fixed_inflows.items():
                 if dt > today:
+                    amt = sum(amounts.values())
                     fin_cash += amt
                     fin_intr += amt * max_rate * ((end - dt).days / 365.0)
 
             return liquid_cash + pf_cash + fin_cash + liquid_intr + pf_intr + fin_intr
 
-        total_capital = sum(inflow_schedule.values()) + sum(a.balance for a in accounts)
+        total_capital = sum(amount for amounts in inflow_schedule.values() for amount in amounts.values()) + sum(a.balance for a in accounts)
         best_leaf: Optional[SearchTreeNode] = None
         tally: int = 0
         leaf_count: int = 0
@@ -344,9 +347,11 @@ class AbsoluteStrategy(BaseStrategy):
 
             # 1. Apply today's inflows
             bal = balances
-            inflow_today = fixed_inflows.get(today)
-            if inflow_today:
-                bal = _bal_add(bal, inflow_account_id, inflow_today)
+            inflow_today = fixed_inflows.get(today, {})
+            for account_id, amount in inflow_today.items():
+                if account_id not in accounts_meta:
+                    raise ValueError(f"Inflow destination account {account_id!r} is not configured")
+                bal = _bal_add(bal, account_id, amount)
 
             # 2. Apply pending flows arriving today
             pf_future_start = 0
@@ -383,11 +388,8 @@ class AbsoluteStrategy(BaseStrategy):
                     delta_str = f"+{delta:,.2f}" if delta >= 0 else f"{delta:,.2f}"
                     print(f"  [Leaf #{leaf_count:,} | Decision #{tally:,}] [NEW BEST] Net Interest = {net_intr:,.2f} LKR ({delta_str} vs Greedy)")
                 else:
+                    # Defer alternative reporting until the search has finished.
                     alternative_leaf_net_interests.append(net_intr)
-                    best_net = best_final_val - total_capital
-                    diff = net_intr - best_net
-                    diff_str = f"{diff:,.2f}" if diff < 0 else f"+{diff:,.2f}"
-                    print(f"  [Leaf #{leaf_count:,} | Decision #{tally:,}] Leaf Net Interest = {net_intr:,.2f} LKR (diff vs best: {diff_str:>9})")
                 return
 
             # 4. Upper bound pruning
@@ -550,6 +552,23 @@ class AbsoluteStrategy(BaseStrategy):
         search(start, init_bal, (), root_node)
         elapsed = time.time() - t0
 
+        best_net_interest = best_final_val - total_capital
+        top_alternatives = sorted(
+            alternative_leaf_net_interests,
+            reverse=True,
+        )[:10]
+        print("  [Absolute Strategy] Top 10 alternative leaves (excluding the best):")
+        if not top_alternatives:
+            print("    No alternative completed leaves were recorded.")
+        else:
+            for rank, net_interest in enumerate(top_alternatives, start=1):
+                difference = net_interest - best_net_interest
+                difference_str = f"{difference:,.2f}" if difference < 0 else f"+{difference:,.2f}"
+                print(
+                    f"    #{rank:02d} Net Interest = {net_interest:,.2f} LKR "
+                    f"(diff vs best: {difference_str} LKR)"
+                )
+
         print(f"  [Absolute Search Complete] {tally:,} total decisions evaluated ({leaf_count:,} leaves reached, {pruned_count:,} pruned by branch-and-bound) in {elapsed:.2f}s")
 
         best_path: list[tuple[date, DailyAction]] = best_leaf.get_path() if best_leaf is not None else []
@@ -578,7 +597,7 @@ class AbsoluteStrategy(BaseStrategy):
         options: list[FDOption],
         start: date,
         end: date,
-        inflow_schedule: dict[date, float],
+        inflow_schedule: dict[date, float] | dict[date, dict[str, float]],
         accounts: list[Account],
         inflow_account_id: str,
         fee_config: TransferFeeConfig,
@@ -595,22 +614,25 @@ class AbsoluteStrategy(BaseStrategy):
         booking_counter = 0
         total_transfer_fees: float = 0.0
 
-        for inflow_num, (inflow_date, amount) in enumerate(
-            sorted(inflow_schedule.items()), start=1
-        ):
+        inflow_num = 0
+        for inflow_date, account_amounts in sorted(inflow_schedule.items()):
             if inflow_date > end:
                 continue
-            self._add_event(
-                timeline,
-                Event(
-                    event_type=EventType.INFLOW,
-                    on_date=inflow_date,
-                    amount=amount,
-                    label=f"Inflow {inflow_num:02d}",
-                    account_id=inflow_account_id,
-                    bank_key=accounts_map[inflow_account_id].bank_key,
-                ),
-            )
+            for account_id, amount in sorted(account_amounts.items()):
+                if account_id not in accounts_map:
+                    raise ValueError(f"Inflow destination account {account_id!r} is not configured")
+                inflow_num += 1
+                self._add_event(
+                    timeline,
+                    Event(
+                        event_type=EventType.INFLOW,
+                        on_date=inflow_date,
+                        amount=amount,
+                        label=f"Inflow {inflow_num:02d}",
+                        account_id=account_id,
+                        bank_key=accounts_map[account_id].bank_key,
+                    ),
+                )
 
         start_key = int(start.strftime("%Y%m%d"))
         if start_key not in timeline and any(acc.balance > 0.001 for acc in accounts_map.values()):
@@ -898,7 +920,7 @@ class AbsoluteStrategy(BaseStrategy):
             strategy_name=self.name,
             timeline=timeline,
             bookings=bookings,
-            total_principal=sum(inflow_schedule.values()) + sum(a.balance for a in accounts),
+            total_principal=sum(amount for amounts in inflow_schedule.values() for amount in amounts.values()) + sum(a.balance for a in accounts),
             end_date=end,
             accounts=accounts_map,
             total_transfer_fees=total_transfer_fees,
