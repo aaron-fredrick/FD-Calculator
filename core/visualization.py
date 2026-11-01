@@ -184,6 +184,14 @@ def _plot_decision_timeline(ax, results: Sequence[SimResult], styles: dict[str, 
         )
 
     ax.set_yticks(list(range(len(rows))), labels)
+    # Keep strategy identity visible in the left-side labels as well as the bars.
+    tick_labels = ax.get_yticklabels()
+    for tick, (strategy, _) in zip(tick_labels, rows):
+        tick.set_color("#56b4e9" if strategy.lower() == "absolute" else _MUTED)
+    absolute_count = sum(1 for strategy, _ in rows if strategy.lower() == "absolute")
+    if 0 < absolute_count < len(rows):
+        # Visually separate Absolute decisions from the Greedy comparison below.
+        ax.axhline(absolute_count - 0.5, color=_GRID, linewidth=1.2, alpha=0.95, zorder=4)
     ax.invert_yaxis()
     ax.set_xlabel("Date")
     ax.set_title("FD booking and maturity timeline", loc="left", fontweight="bold", pad=10)
@@ -203,6 +211,7 @@ def plot_strategy_results(
     end: date,
     output_dir: str | Path = "plots",
     show: bool = True,
+    consolidation_account_id: Optional[str] = None,
 ) -> list[Path]:
     """Save dark-theme account-value and booking-timeline charts.
 
@@ -229,9 +238,12 @@ def plot_strategy_results(
             comparison, accounts, inflow_schedule, inflow_account_id, start, end
         )
         for account_id, values in comparison_series.items():
+            # The Greedy consolidation account stays solid; other Greedy
+            # accounts use dashed lines to distinguish them from Absolute.
+            greedy_style = "-" if account_id == consolidation_account_id else "--"
             ax.plot(
-                dates, values, color=_GREEDY_PALE, linestyle="--",
-                linewidth=1.35, alpha=0.48,
+                dates, values, color=_GREEDY_PALE, linestyle=greedy_style,
+                linewidth=1.55 if greedy_style == "-" else 1.35, alpha=0.62,
                 label=f"Greedy · {labels.get(account_id, account_id)}",
                 zorder=1,
             )
