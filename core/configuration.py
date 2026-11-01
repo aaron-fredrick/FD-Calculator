@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -82,8 +83,8 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
             raise ValueError(f"accounts[{index}].bank_key must not be empty")
         if account_id in account_ids:
             raise ValueError(f"Duplicate account id {account_id!r}")
-        if balance < 0:
-            raise ValueError(f"Starting balance for account {account_id!r} cannot be negative")
+        if not isfinite(balance) or balance < 0:
+            raise ValueError(f"Starting balance for account {account_id!r} must be finite and non-negative")
         account_ids.add(account_id)
         if bank_key not in bank_keys:
             bank_keys.append(bank_key)
@@ -136,8 +137,8 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
             amount = float(entry["amount"])
         except (KeyError, TypeError, ValueError) as exc:
             raise ValueError(f"Inflow {name!r} requires a numeric amount") from exc
-        if amount <= 0:
-            raise ValueError(f"Inflow {name!r} amount must be greater than zero")
+        if not isfinite(amount) or amount <= 0:
+            raise ValueError(f"Inflow {name!r} amount must be finite and greater than zero")
         interval = str(entry.get("interval", "")).strip().lower()
         # Validate interval once, before constructing the schedule.
         try:
@@ -181,7 +182,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         from_bank = str(item.get("from_bank", "")).strip().lower()
         to_bank = str(item.get("to_bank", "")).strip().lower()
         fee = float(item.get("amount", 0.0))
-        if not from_bank or not to_bank or fee < 0:
+        if not from_bank or not to_bank or not isfinite(fee) or fee < 0:
             raise ValueError(f"Invalid custom transfer fee at index {index}")
         custom_fees[(from_bank, to_bank)] = fee
 
@@ -190,8 +191,13 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         same_bank_fee=float(fees_data.get("same_bank_fee", 0.0)),
         custom_fees=custom_fees,
     )
-    if fee_config.default_inter_bank_fee < 0 or fee_config.same_bank_fee < 0:
-        raise ValueError("Transfer fees cannot be negative")
+    if (
+        not isfinite(fee_config.default_inter_bank_fee)
+        or not isfinite(fee_config.same_bank_fee)
+        or fee_config.default_inter_bank_fee < 0
+        or fee_config.same_bank_fee < 0
+    ):
+        raise ValueError("Transfer fees must be finite and non-negative")
 
     consolidation_account_id = str(config.get("consolidation_account_id") or inflow_account_id).strip()
     if consolidation_account_id not in account_ids:
