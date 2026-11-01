@@ -66,9 +66,8 @@ class ConfigurationTests(unittest.TestCase):
     def test_resolves_today_and_account_targeted_recurring_inflows(self) -> None:
         loaded = load_configuration(self.config_path)
         self.assertEqual(loaded["start"], date.today())
-        self.assertEqual(loaded["inflow_summaries"][0]["start_date"], date.today().replace(
-            year=date.today().year + 1
-        ) if False else loaded["inflow_summaries"][0]["start_date"])
+        from core.interest import add_period
+        self.assertEqual(loaded["inflow_summaries"][0]["start_date"], add_period(date.today(), "1m"))
         summary = loaded["inflow_summaries"][0]
         self.assertEqual(summary["account_id"], "cash")
         self.assertEqual(summary["amount"], 500.0)
