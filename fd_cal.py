@@ -22,8 +22,9 @@ def main(
     accounts = config["accounts"]
     options = config["options"]
     inflow_schedule = config["inflow_schedule"]
-    inflow_account_id = config["inflow_account_id"]
-    consolidation_account_id = config["consolidation_account_id"]
+    # Legacy scalar inflow schedules and final consolidation default to the first
+    # configured account. New inflows specify their own destination in config.json.
+    default_account_id = accounts[0].id
     fee_config = config["fee_config"]
     compound = config["compound"]
     actual_leap_year = config["actual_leap_year"]
@@ -91,9 +92,9 @@ def main(
         end=end,
         inflow_schedule=inflow_schedule,
         accounts=accounts,
-        inflow_account_id=inflow_account_id,
+        inflow_account_id=default_account_id,
         fee_config=fee_config,
-        consolidation_account_id=consolidation_account_id,
+        consolidation_account_id=default_account_id,
     )
     result = strategy.simulate(**common_kwargs)
 
@@ -119,12 +120,12 @@ def main(
             comparison=comparison_result,
             accounts=accounts,
             inflow_schedule=inflow_schedule,
-            inflow_account_id=inflow_account_id,
+            inflow_account_id=default_account_id,
             start=start,
             end=end,
             output_dir=output_dir,
             show=True,
-            consolidation_account_id=consolidation_account_id,
+            consolidation_account_id=default_account_id,
         )
         print("\n  Charts saved:")
         for chart_path in chart_paths:
