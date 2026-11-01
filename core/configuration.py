@@ -143,8 +143,10 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         # Validate interval once, before constructing the schedule.
         try:
             delta = parse_period_delta(interval)
+            if delta.years <= 0 and delta.months <= 0 and delta.days <= 0:
+                raise ValueError("interval must be positive")
         except (AttributeError, ValueError) as exc:
-            raise ValueError(f"Inflow {name!r} has invalid interval {interval!r}; supported formats include '30d', '1m', and '1y'") from exc
+            raise ValueError(f"Inflow {name!r} has invalid interval {interval!r}; use a positive period such as '30d', '1m', or '1y'") from exc
         first_date_value = entry.get("start_date")
         first_date = (
             add_period(start, interval)
