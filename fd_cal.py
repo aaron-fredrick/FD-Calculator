@@ -28,6 +28,8 @@ def main(
     compound = config["compound"]
     actual_leap_year = config["actual_leap_year"]
     selected_strategy = (strategy_override or config["strategy"]).strip().lower()
+    if selected_strategy not in {"absolute", "greedy"}:
+        raise ValueError(f"Unsupported strategy {selected_strategy!r}; use 'absolute' or 'greedy'")
 
     days = (end - start).days + 1
     total_new_money = sum(
