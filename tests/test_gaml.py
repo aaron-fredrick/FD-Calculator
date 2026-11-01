@@ -4,6 +4,7 @@ import unittest
 from core.models import FDOption
 from core.strategies.gaml import (
     _best_option_by_projection,
+    _pick_daily_gaml_plan,
     _project_cash_to_end,
 )
 
@@ -58,6 +59,52 @@ class GAMLProjectionTests(unittest.TestCase):
         self.assertIsNotNone(selected)
         self.assertEqual(selected.bank_key, "dfcc")
         self.assertEqual(selected.label, "DFCC 1m")
+
+    def test_wait_action_can_pool_cash_with_next_event(self):
+        today = date(2026, 1, 1)
+        next_event = date(2026, 2, 1)
+        end = date(2026, 5, 1)
+        account = __import__("core.models", fromlist=["Account"]).Account(
+            id="a", bank_key="bank_a", label="A", balance=10000.0
+        )
+        options = [
+            FDOption("1 month", "1m", 1.0, 10000.0, bank_key="bank_a"),
+            FDOption("3 months", "3m", 40.0, 20000.0, bank_key="bank_a"),
+        ]
+
+        plan = _pick_daily_gaml_plan(
+            all_accounts={"a": account},
+            options=options,
+            today=today,
+            end=end,
+            fee_config=__import__("core.models", fromlist=["TransferFeeConfig"]).TransferFeeConfig(),
+            consolidation_account_id="a",
+            compound=False,
+            actual_leap_year=True,
+            next_event_date=next_event,
+            next_event_cash={"a": 10000.0},
+        )
+
+        self.assertEqual(plan["type"], "CARRY")
+        self.assertEqual(plan["wait_until"], next_event)
+        self.assertGreater(plan["projected_terminal_value"], 20000.0)
+
+    def test_projection_never_uses_another_banks_rate(self):
+        today = date(2026, 1, 1)
+        end = date(2026, 4, 1)
+        options = [
+            FDOption("Bank A 1m", "1m", 30.0, 1000.0, bank_key="bank_a"),
+            FDOption("Bank B 1m", "1m", 1.0, 1000.0, bank_key="bank_b"),
+        ]
+
+        result_a = _project_cash_to_end(
+            10000.0, "bank_a", today, end, options, False, True
+        )
+        result_b = _project_cash_to_end(
+            10000.0, "bank_b", today, end, options, False, True
+        )
+
+        self.assertGreater(result_a, result_b)
 
 
 if __name__ == "__main__":
