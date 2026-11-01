@@ -140,6 +140,7 @@ def _plot_account_lines(ax, dates, series, labels) -> None:
 
 def _plot_decision_timeline(ax, results: Sequence[SimResult], styles: dict[str, dict]) -> None:
     """Show FD booking-to-maturity intervals as a date-based horizontal timeline."""
+    import matplotlib.dates as mdates
     rows = [
         (result.strategy_name, booking)
         for result in results
@@ -166,8 +167,8 @@ def _plot_decision_timeline(ax, results: Sequence[SimResult], styles: dict[str, 
     for y, (strategy, booking) in enumerate(rows):
         style = styles.get(strategy, {})
         color = style.get("color", _COLORS[y % len(_COLORS)])
-        start_num = booking.start.toordinal()
-        end_num = max(booking.end.toordinal(), start_num + 1)
+        start_num = mdates.date2num(booking.start)
+        end_num = max(mdates.date2num(booking.end), start_num + 1)
         ax.barh(
             y, end_num - start_num, left=start_num, height=0.68,
             color=color, alpha=style.get("alpha", 0.95),
