@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from datetime import date
 
 from typing import Optional
@@ -67,7 +68,7 @@ SHOW_PLOTS: bool         = True    # save and display dark-theme Matplotlib char
 PLOT_OUTPUT_DIR: str     = "plots"
 
 
-def main():
+def main(strategy_override: Optional[str] = None):
     start = date.fromisoformat(INVESTMENT_START_DATE) if INVESTMENT_START_DATE else date.today()
     end = date.fromisoformat(INVESTMENT_END_DATE)
     if FIRST_INFLOW_DATE:
@@ -94,7 +95,7 @@ def main():
     print(f"  Designated Inflow Account: {INFLOW_ACCOUNT_ID} | Inter-Bank Transfer Fee: {TRANSFER_FEES.default_inter_bank_fee:,.2f} LKR (Same-Bank: {TRANSFER_FEES.same_bank_fee:,.2f} LKR)")
     print(f"  Periodic Inflow: {PERIODIC_NEW_INFLOW_AMOUNT:,.2f} every {PERIODIC_INFLOW_INTERVAL} starting {first_inflow} | Total Capital: {total_capital:,.2f} ({len(inflow_schedule)} inflows)")
 
-    selected_strategy = STRATEGY.strip().lower()
+    selected_strategy = (strategy_override or STRATEGY).strip().lower()
     if selected_strategy == "absolute":
         strategy = AbsoluteStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
         compare_strategy = GreedyStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
@@ -143,6 +144,7 @@ def main():
             end=end,
             output_dir=PLOT_OUTPUT_DIR,
             show=True,
+            consolidation_account_id=CONSOLIDATION_ACCOUNT_ID,
         )
         print("\n  Charts saved:")
         for chart_path in chart_paths:
@@ -150,4 +152,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Multi-bank fixed-deposit investment calculator")
+    parser.add_argument(
+        "-s", "--strategy",
+        choices=("greedy", "absolute"),
+        default=STRATEGY.strip().lower(),
+        help=f"strategy to run (default: {STRATEGY.strip().lower()})",
+    )
+    args = parser.parse_args()
+    main(strategy_override=args.strategy)
