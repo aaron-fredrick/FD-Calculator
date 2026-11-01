@@ -6,6 +6,8 @@ import unittest
 from datetime import date
 from pathlib import Path
 
+from core.interest import add_period
+
 from core.configuration import load_configuration
 
 
@@ -32,7 +34,7 @@ class ConfigurationTests(unittest.TestCase):
             "options_file": "options.json",
             "investment": {
                 "start_date": "today",
-                "end_date": "2027-12-31",
+                "end_date": "investment_start+1y",
             },
             "accounts": [{
                 "id": "cash",
@@ -66,7 +68,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_resolves_today_and_account_targeted_recurring_inflows(self) -> None:
         loaded = load_configuration(self.config_path)
         self.assertEqual(loaded["start"], date.today())
-        from core.interest import add_period
+        self.assertEqual(loaded["end"], add_period(date.today(), "1y"))
         self.assertEqual(loaded["inflow_summaries"][0]["start_date"], add_period(date.today(), "1m"))
         summary = loaded["inflow_summaries"][0]
         self.assertEqual(summary["account_id"], "cash")
