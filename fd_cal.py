@@ -52,7 +52,7 @@ FIRST_INFLOW_DATE: Optional[str]  = "2026-11-30"  # or None to dynamically start
 # --- Investment Horizon ---
 # Dynamically loads today's date (or set an explicit ISO string e.g. "2026-11-01")
 INVESTMENT_START_DATE: Optional[str] = date.today().isoformat()
-INVESTMENT_END_DATE: str             = "2027-06-30"
+INVESTMENT_END_DATE: str             = "2029-06-30"
 
 # --- Options Configuration ---
 OPTIONS_FILE: str                 = "options.json"
