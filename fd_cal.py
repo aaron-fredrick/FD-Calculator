@@ -144,7 +144,7 @@ def main():
             output_dir=PLOT_OUTPUT_DIR,
             show=True,
         )
-        print("\\n  Charts saved:")
+        print("\n  Charts saved:")
         for chart_path in chart_paths:
             print(f"    - {chart_path}")
 
