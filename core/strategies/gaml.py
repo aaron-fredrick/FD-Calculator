@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from functools import lru_cache
 from typing import Optional
 
 from core.models import (
@@ -30,43 +31,47 @@ def _project_cash_to_end(
     compound: bool,
     actual_leap_year: bool,
 ) -> float:
-    """Estimate terminal value by repeatedly choosing the best horizon-aware cumulative FD.
+    """Return the best terminal value for one cash balance under configured FDs.
 
-    This is a lightweight look-ahead, not a forecast of future bank rates. It uses
-    the configured rates for reinvestment and leaves cash liquid when no product
-    can mature by the simulation end.
+    This is an exact finite-horizon search for a single reinvestable cash balance:
+    each eligible cumulative FD is considered, and its maturity proceeds are
+    recursively optimised. Cash can always remain liquid. The cache avoids
+    recalculating identical (rounded amount, date) states.
     """
-    cash = principal
-    cursor = today
-    cumulative = [
+    if principal <= 0.001 or today >= end:
+        return max(0.0, principal)
+
+    eligible_options = tuple(
         option for option in options
         if (not option.bank_key or option.bank_key == bank_key)
         and option.payout_type == "cumulative"
-    ]
-    while cursor < end and cash > 0.001:
-        eligible = [o for o in cumulative if o.can_invest(cash, cursor, end)]
-        if not eligible:
-            break
-        candidates = []
-        for option in eligible:
+        and option.days > 0
+    )
+
+    @lru_cache(maxsize=100_000)
+    def best_value(amount_cents: int, cursor_ordinal: int) -> float:
+        cash = amount_cents / 100.0
+        cursor = date.fromordinal(cursor_ordinal)
+        best = cash  # Explicit HOLD action: liquid cash is always feasible.
+        if cursor >= end or cash <= 0.001:
+            return best
+
+        for option in eligible_options:
+            if cash + 1e-9 < option.min_amount:
+                continue
             maturity = option.maturity_date(cursor)
+            # Strict advancement prevents zero-day loops; never book past horizon.
+            if maturity <= cursor or maturity > end:
+                continue
             proceeds = cash + option.total_interest_on(
                 cash, cursor, compound, actual_leap_year
             )
-            remaining_days = (end - maturity).days
-            future_rates = [
-                o.annual_rate for o in cumulative
-                if o.min_amount <= proceeds and o.maturity_date(maturity) <= end
-            ]
-            reinvest_rate = max(future_rates, default=0.0)
-            # Estimate the next reinvestment leg so a short high-rate FD is not
-            # automatically preferred over a better whole-horizon outcome.
-            future_value = proceeds * (
-                1.0 + reinvest_rate * max(0, remaining_days) / 36500.0
-            )
-            candidates.append((future_value, proceeds, maturity, option))
-        _, cash, cursor, _ = max(candidates, key=lambda item: (item[0], item[1], -item[3].days))
-    return cash
+            future = best_value(round(proceeds * 100), maturity.toordinal())
+            if future > best:
+                best = future
+        return best
+
+    return best_value(round(principal * 100), today.toordinal())
 
 
 def _project_option_terminal_value(
@@ -78,20 +83,23 @@ def _project_option_terminal_value(
     compound: bool,
     actual_leap_year: bool,
 ) -> float:
-    """Project all contractual payouts to the common end-date horizon."""
+    """Project an FD's contractual payouts to the common end-date horizon."""
     flows = option.generate_cash_flows(
         principal=principal,
         start=today,
         compound=compound,
         actual_leap_year=actual_leap_year,
     )
-    return sum(
-        amount if flow_date >= end else _project_cash_to_end(
-            amount, option.bank_key, flow_date, end, options,
-            compound, actual_leap_year,
-        )
-        for flow_date, amount in flows
-    )
+    terminal_value = 0.0
+    for flow_date, amount in flows:
+        if flow_date >= end:
+            terminal_value += amount
+        else:
+            terminal_value += _project_cash_to_end(
+                amount, option.bank_key, flow_date, end, options,
+                compound, actual_leap_year,
+            )
+    return terminal_value
 
 
 def _best_option_by_projection(
@@ -103,20 +111,23 @@ def _best_option_by_projection(
     compound: bool,
     actual_leap_year: bool,
 ) -> Optional[FDOption]:
+    """Choose the eligible option with the best projected terminal value."""
     eligible = [
-        o for o in options
-        if (not o.bank_key or o.bank_key == bank_key) and o.can_invest(cash, today, end)
+        option for option in options
+        if (not option.bank_key or option.bank_key == bank_key)
+        and option.can_invest(cash, today, end)
+        and option.maturity_date(today) > today
     ]
     if not eligible:
         return None
     return max(
         eligible,
-        key=lambda o: (
+        key=lambda option: (
             _project_option_terminal_value(
-                cash, o, today, end, options, compound, actual_leap_year
+                cash, option, today, end, options, compound, actual_leap_year
             ),
-            -o.days,
-            o.annual_rate,
+            -option.days,
+            option.annual_rate,
         ),
     )
 
@@ -130,190 +141,175 @@ def _pick_daily_gaml_plan(
     consolidation_account_id: str,
     compound: bool,
     actual_leap_year: bool,
+    next_event_date: Optional[date] = None,
+    next_event_cash: Optional[dict[str, float]] = None,
 ) -> dict:
-    """
-    Goal-aware maturity-ladder decision engine.
-    Evaluates:
-      1. Split / Local execution (each account with positive cash invests locally if possible).
-      2. Consolidation to target account T (for each candidate T, pulling cash in from other accounts).
-    Compares plans based on:
-      - Highest projected terminal value.
-      - Profitability after transfer fees (net interest > 0, and transfer fees covered).
-      - Shortest tenure as tie-breaker for equal rates.
-      - Lowest fees / highest net interest as tie-breaker for equal rate and tenure.
+    """Compare local investment, consolidation, and an explicit wait action.
+
+    Candidate values use actual configured cash-flow and interest calculations.
+    Transfer fees are deducted exactly once, using the fees the simulator will
+    execute. The wait action holds current balances until the next known event,
+    allowing them to pool with cash arriving at that event.
     """
     active_accounts = [a for a in all_accounts.values() if a.balance > 0.001]
     if not active_accounts:
         return {"type": "CARRY", "carries": []}
 
-    consol_acc = all_accounts.get(consolidation_account_id)
-    consol_bank = consol_acc.bank_key if consol_acc else ""
+    next_event_date = next_event_date or end
+    if next_event_date <= today or next_event_date > end:
+        next_event_date = end
+    next_event_cash = next_event_cash or {}
 
-    # ── 1. Evaluate Split / Local Plan ───────────────────────────────
+    def project_cash(amount: float, bank: str, on_date: date) -> float:
+        return _project_cash_to_end(
+            amount, bank, on_date, end, options, compound, actual_leap_year
+        )
+
+    candidates: list[dict] = []
+
+    # Candidate A: invest each account locally where eligible; carry the rest.
     split_bookings = []
     split_carries = []
-    split_gross_interest = 0.0
-
     for acc in active_accounts:
-        best_opt = _best_option_by_projection(
+        option = _best_option_by_projection(
             options, acc.balance, acc.bank_key, today, end, compound, actual_leap_year
         )
-        if best_opt is not None:
-
-            intr = best_opt.total_interest_on(acc.balance, today, compound, actual_leap_year)
+        if option is None:
+            split_carries.append(acc)
+        else:
             split_bookings.append({
                 "account": acc,
-                "option": best_opt,
+                "option": option,
                 "principal": acc.balance,
-                "interest": intr,
-                "rate": best_opt.annual_rate,
-                "days": best_opt.days,
+                "interest": option.total_interest_on(
+                    acc.balance, today, compound, actual_leap_year
+                ),
+                "rate": option.annual_rate,
+                "days": option.days,
             })
-            split_gross_interest += intr
-        else:
-            split_carries.append(acc)
-
-    plan_split: Optional[dict] = None
     if split_bookings:
-        max_rate = max(b["rate"] for b in split_bookings)
-        min_days = min(b["days"] for b in split_bookings)
-        plan_split = {
+        candidates.append({
             "type": "SPLIT",
             "bookings": split_bookings,
             "transfers": [],
             "carries": split_carries,
-            "rate": max_rate,
-            "days": min_days,
             "fees_today": 0.0,
-            "fees_eval": 0.0,
-            "gross_interest": split_gross_interest,
-            "net_interest": split_gross_interest,
-        }
-
-    # ── 2. Evaluate Consolidation Plans for each target account ──────
-    consol_plans: list[dict] = []
-
-    for tgt_acc in all_accounts.values():
-        tgt_bank = tgt_acc.bank_key
-        transfers_to_tgt = []
-        total_deployable = 0.0
-        fees_today = 0.0
-        fees_eval = 0.0
-        carries = []
-
-        for src_acc in all_accounts.values():
-            if src_acc.balance <= 0.001:
-                continue
-            if src_acc.id == tgt_acc.id:
-                total_deployable += src_acc.balance
-            else:
-                fee = fee_config.get_fee(src_acc.bank_key, tgt_bank)
-                if src_acc.balance > fee:
-                    net_amt = src_acc.balance - fee
-                    total_deployable += net_amt
-                    fees_today += fee
-
-                    # Strategic decision evaluation fee:
-                    # - If going OUT of CONSOLIDATION_ACCOUNT_ID: double the transfer fee
-                    # - If going INTO CONSOLIDATION_ACCOUNT_ID: single transfer fee
-                    if src_acc.id == consolidation_account_id:
-                        eval_fee = 2.0 * fee
-                    elif tgt_acc.id == consolidation_account_id:
-                        eval_fee = 1.0 * fee
-                    else:
-                        eval_fee = 2.0 * fee
-                    fees_eval += eval_fee
-
-                    transfers_to_tgt.append({
-                        "src": src_acc,
-                        "tgt": tgt_acc,
-                        "amount": src_acc.balance,
-                        "fee": fee,
-                        "net": net_amt,
-                    })
-                else:
-                    carries.append(src_acc)
-
-        if not transfers_to_tgt:
-            continue
-
-        best_tgt_opt = _best_option_by_projection(
-            options, total_deployable, tgt_bank, today, end, compound, actual_leap_year
-        )
-        if best_tgt_opt is None:
-            continue
-
-        gross_intr = best_tgt_opt.total_interest_on(total_deployable, today, compound, actual_leap_year)
-        net_intr = gross_intr - fees_eval
-
-        if net_intr <= 0.0:
-            continue
-
-        consol_plans.append({
-            "type": "CONSOLIDATE",
-            "target_account": tgt_acc,
-            "option": best_tgt_opt,
-            "transfers": transfers_to_tgt,
-            "booking": {
-                "account": tgt_acc,
-                "option": best_tgt_opt,
-                "principal": total_deployable,
-            },
-            "carries": carries,
-            "rate": best_tgt_opt.annual_rate,
-            "days": best_tgt_opt.days,
-            "fees_today": fees_today,
-            "fees_eval": fees_eval,
-            "gross_interest": gross_intr,
-            "net_interest": net_intr,
+            "gross_interest": sum(item["interest"] for item in split_bookings),
+            "net_interest": sum(item["interest"] for item in split_bookings),
         })
 
-    # ── 3. Filter and Select the Winning Plan ────────────────────────
-    candidates: list[dict] = []
-    if plan_split is not None:
-        candidates.append(plan_split)
-    candidates.extend(consol_plans)
+    # Candidate B: consolidate cash into each possible target account.
+    for target in all_accounts.values():
+        transfers = []
+        deployable = 0.0
+        fees_today = 0.0
+        carries = []
+        for source in all_accounts.values():
+            if source.balance <= 0.001:
+                continue
+            if source.id == target.id:
+                deployable += source.balance
+                continue
+            fee = fee_config.get_fee(source.bank_key, target.bank_key)
+            if source.balance <= fee:
+                carries.append(source)
+                continue
+            net_amount = source.balance - fee
+            deployable += net_amount
+            fees_today += fee
+            transfers.append({
+                "src": source,
+                "tgt": target,
+                "amount": source.balance,
+                "fee": fee,
+                "net": net_amount,
+            })
+        if not transfers:
+            continue
 
-    if not candidates:
-        return {"type": "CARRY", "carries": active_accounts}
+        option = _best_option_by_projection(
+            options, deployable, target.bank_key, today, end, compound, actual_leap_year
+        )
+        if option is None:
+            continue
+        interest = option.total_interest_on(
+            deployable, today, compound, actual_leap_year
+        )
+        candidates.append({
+            "type": "CONSOLIDATE",
+            "target_account": target,
+            "option": option,
+            "transfers": transfers,
+            "booking": {"account": target, "option": option, "principal": deployable},
+            "carries": carries,
+            "fees_today": fees_today,
+            "gross_interest": interest,
+            "net_interest": interest - fees_today,
+        })
+
+    # Candidate C: hold until the next scheduled event. Estimate the next-event
+    # state using known incoming cash so the planner can value pooling.
+    candidates.append({
+        "type": "CARRY",
+        "carries": active_accounts,
+        "fees_today": 0.0,
+        "gross_interest": 0.0,
+        "net_interest": 0.0,
+        "wait_until": next_event_date,
+    })
 
     def projected_plan_value(plan: dict) -> float:
         value = 0.0
+        deployed_ids: set[str] = set()
         if plan["type"] == "SPLIT":
             for booking in plan["bookings"]:
+                acc = booking["account"]
+                deployed_ids.add(acc.id)
                 value += _project_option_terminal_value(
                     booking["principal"], booking["option"], today, end,
                     options, compound, actual_leap_year,
                 )
-            for account in plan["carries"]:
-                value += _project_cash_to_end(
-                    account.balance, account.bank_key, today, end,
-                    options, compound, actual_leap_year,
-                )
-        else:
+        elif plan["type"] == "CONSOLIDATE":
             booking = plan["booking"]
+            deployed_ids.update(t["src"].id for t in plan["transfers"])
+            deployed_ids.add(plan["target_account"].id)
             value += _project_option_terminal_value(
                 booking["principal"], booking["option"], today, end,
                 options, compound, actual_leap_year,
             )
-            for account in plan["carries"]:
-                value += _project_cash_to_end(
-                    account.balance, account.bank_key, today, end,
-                    options, compound, actual_leap_year,
-                )
+
+        # Existing cash not deployed today can pool with known incoming cash at
+        # the next event. Future cash for accounts whose current balance is
+        # deployed is projected separately, as it remains outside today's FD.
+        if plan["type"] == "CARRY":
+            for acc in active_accounts:
+                pooled = acc.balance + next_event_cash.get(acc.id, 0.0)
+                value += project_cash(pooled, acc.bank_key, next_event_date)
+        else:
+            for acc in plan.get("carries", []):
+                pooled = acc.balance + next_event_cash.get(acc.id, 0.0)
+                value += project_cash(pooled, acc.bank_key, next_event_date)
+            for account_id, amount in next_event_cash.items():
+                if account_id in deployed_ids or all(
+                    item.id != account_id for item in plan.get("carries", [])
+                ):
+                    account = all_accounts.get(account_id)
+                    if account is not None and amount > 0.001:
+                        value += project_cash(amount, account.bank_key, next_event_date)
         return value - plan["fees_today"]
 
     for candidate in candidates:
         candidate["projected_terminal_value"] = projected_plan_value(candidate)
-    candidates.sort(
+
+    # Prefer projected terminal value; fees and immediate interest only break ties.
+    return max(
+        candidates,
         key=lambda plan: (
             plan["projected_terminal_value"],
             plan["net_interest"],
             -plan["fees_today"],
         ),
-        reverse=True,
     )
-    return candidates[0]
 
 
 class GAMLStrategy(BaseStrategy):
@@ -363,6 +359,19 @@ class GAMLStrategy(BaseStrategy):
             )
 
         timeline: dict[int, list[Event]] = {}
+        # Ensure idle cash is revisited at the horizon even when no inflow or
+        # maturity happens on the final date.
+        self._add_event(
+            timeline,
+            Event(
+                event_type=EventType.INFLOW,
+                on_date=end,
+                amount=0.0,
+                label="Investment horizon trigger",
+                account_id=inflow_account_id,
+                bank_key=accounts_map[inflow_account_id].bank_key,
+            ),
+        )
         bookings: list[Booking] = []
         booking_counter = 0
         total_transfer_fees: float = 0.0
@@ -432,6 +441,15 @@ class GAMLStrategy(BaseStrategy):
                     e.total_balance_after = sum(a.balance for a in accounts_map.values())
 
             # b) Make decisions for accounts holding liquid cash
+            future_keys = [future_key for future_key in timeline if future_key > key]
+            next_event_key = min(future_keys) if future_keys else _date_key(end)
+            next_event_date = self._key_to_date(next_event_key)
+            next_event_cash: dict[str, float] = {}
+            for future_event in timeline.get(next_event_key, []):
+                if future_event.event_type in (EventType.INFLOW, EventType.CASH_FLOW, EventType.MATURITY):
+                    account_id = future_event.account_id if future_event.account_id in accounts_map else inflow_account_id
+                    next_event_cash[account_id] = next_event_cash.get(account_id, 0.0) + future_event.amount
+
             plan = _pick_daily_gaml_plan(
                 all_accounts=accounts_map,
                 options=options,
@@ -441,6 +459,8 @@ class GAMLStrategy(BaseStrategy):
                 consolidation_account_id=consolidation_account_id,
                 compound=self.compound,
                 actual_leap_year=self.actual_leap_year,
+                next_event_date=next_event_date,
+                next_event_cash=next_event_cash,
             )
 
             if plan["type"] == "CONSOLIDATE":
