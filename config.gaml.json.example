@@ -1,0 +1,14 @@
+{
+  "_comment": "Example configuration for the GAML strategy. Copy this file to config.json and adjust the values for your scenario.",
+  "strategy": "gaml",
+  "investment": {
+    "start_date": "today",
+    "end_date": "2027-06-30"
+  },
+  "planning": {
+    "_comment": "Planning fields describe the intended goal. Target and reserve support depend on the GAML implementation.",
+    "target_amount": 500000,
+    "target_date": "2027-06-30",
+    "minimum_cash_reserve": 10000
+  }
+}
