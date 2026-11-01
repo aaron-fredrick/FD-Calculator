@@ -16,6 +16,7 @@ from core import (
     print_simulation,
 )
 from core.interest import add_period
+from core.visualization import plot_strategy_results
 
 # --- Strategy Selector ---
 # Supported strategies:
@@ -62,6 +63,8 @@ COMPOUND: bool           = False
 ACTUAL_LEAP_YEAR: bool   = True
 SHOW_TIMELINE: bool      = True   # print full event-by-event diary
 SHOW_LEDGER: bool        = False   # print every FD contract with cash-flow schedule
+SHOW_PLOTS: bool         = True    # save and display dark-theme Matplotlib charts
+PLOT_OUTPUT_DIR: str     = "plots"
 
 
 def main():
@@ -91,12 +94,15 @@ def main():
     print(f"  Designated Inflow Account: {INFLOW_ACCOUNT_ID} | Inter-Bank Transfer Fee: {TRANSFER_FEES.default_inter_bank_fee:,.2f} LKR (Same-Bank: {TRANSFER_FEES.same_bank_fee:,.2f} LKR)")
     print(f"  Periodic Inflow: {PERIODIC_NEW_INFLOW_AMOUNT:,.2f} every {PERIODIC_INFLOW_INTERVAL} starting {first_inflow} | Total Capital: {total_capital:,.2f} ({len(inflow_schedule)} inflows)")
 
-    if STRATEGY.strip().lower() == "absolute":
+    selected_strategy = STRATEGY.strip().lower()
+    if selected_strategy == "absolute":
         strategy = AbsoluteStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
         compare_strategy = GreedyStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
-    else:
+    elif selected_strategy == "greedy":
         strategy = GreedyStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
-        compare_strategy = AbsoluteStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
+        compare_strategy = None
+    else:
+        raise ValueError(f"Unsupported STRATEGY: {STRATEGY!r}. Use 'greedy' or 'absolute'.")
 
     common_kwargs = dict(
         options=OPTIONS,
@@ -111,12 +117,13 @@ def main():
 
     sim = strategy.simulate(**common_kwargs)
 
-    # Run the comparison strategy (silent — only net_interest is used)
-    try:
+    # Absolute mode compares against Greedy. Greedy mode deliberately avoids
+    # launching the expensive Absolute search just for a chart.
+    compare_sim = None
+    comparison = None
+    if compare_strategy is not None:
         compare_sim = compare_strategy.simulate(**common_kwargs)
-        comparison  = {compare_strategy.name: compare_sim.net_interest}
-    except Exception:
-        comparison = None
+        comparison = {compare_strategy.name: compare_sim.net_interest}
 
     print_simulation(
         sim,
@@ -124,6 +131,22 @@ def main():
         show_booking_ledger=SHOW_LEDGER,
         comparison=comparison,
     )
+
+    if SHOW_PLOTS:
+        chart_paths = plot_strategy_results(
+            sim,
+            comparison=compare_sim if selected_strategy == "absolute" else None,
+            accounts=ACCOUNTS,
+            inflow_schedule=inflow_schedule,
+            inflow_account_id=INFLOW_ACCOUNT_ID,
+            start=start,
+            end=end,
+            output_dir=PLOT_OUTPUT_DIR,
+            show=True,
+        )
+        print("\\n  Charts saved:")
+        for chart_path in chart_paths:
+            print(f"    - {chart_path}")
 
 
 if __name__ == "__main__":
