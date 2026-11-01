@@ -2,162 +2,154 @@ from __future__ import annotations
 
 import argparse
 from datetime import date
+from pathlib import Path
+from typing import Optional, Sequence
 
-from typing import Optional
-
-from core import (
-    AbsoluteStrategy,
-    Account,
-    FDOption,
-    GreedyStrategy,
-    TransferFeeConfig,
-    build_inflow_schedule,
-    divider,
-    load_options_from_json,
-    print_simulation,
-)
-from core.interest import add_period
+from core import AbsoluteStrategy, GreedyStrategy, divider, print_simulation
+from core.configuration import load_configuration
 from core.visualization import plot_strategy_results
 
-# --- Strategy Selector ---
-# Supported strategies:
-#   - "greedy"   : Fast event-driven greedy multi-bank decision engine
-#   - "absolute" : Exhaustive branch-and-bound global search (evaluates all branching paths & holding cash)
-STRATEGY: str = "absolute"
 
-# --- Accounts Configuration ---
-ACCOUNTS: list[Account] = [
-    Account(id="com", bank_key="commercial", label="Commercial", balance=10_030.0),
-    Account(id="dfcc", bank_key="dfcc", label="DFCC"),
-]
-INFLOW_ACCOUNT_ID: str          = "com"
-CONSOLIDATION_ACCOUNT_ID: str   = "com"  # all balances swept here at end of horizon
+def main(
+    config_path: str | Path = "config.json",
+    strategy_override: Optional[str] = None,
+) -> None:
+    """Run the FD simulator using a validated JSON configuration."""
+    config = load_configuration(config_path)
 
-# --- Transfer Fees Configuration ---
-# Same-bank transfer fee defaults to 0.0.
-# Inter-bank default fee (e.g. 30.0 LKR), with optional custom fee overrides per bank pair.
-TRANSFER_FEES = TransferFeeConfig(
-    default_inter_bank_fee=30.0,
-    same_bank_fee=0.0,
-    custom_fees={
-        # ("commercial", "hnb"): 30.0,
-    },
-)
+    start: date = config["start"]
+    end: date = config["end"]
+    accounts = config["accounts"]
+    options = config["options"]
+    inflow_schedule = config["inflow_schedule"]
+    inflow_account_id = config["inflow_account_id"]
+    consolidation_account_id = config["consolidation_account_id"]
+    fee_config = config["fee_config"]
+    compound = config["compound"]
+    actual_leap_year = config["actual_leap_year"]
+    selected_strategy = (strategy_override or config["strategy"]).strip().lower()
 
-# --- Inflow Configuration ---
-PERIODIC_NEW_INFLOW_AMOUNT: float = 10_000.0
-PERIODIC_INFLOW_INTERVAL: str     = "1m"
-FIRST_INFLOW_DATE: Optional[str]  = "2026-11-30"  # or None to dynamically start 1 interval after start date
-
-# --- Investment Horizon ---
-# Dynamically loads today's date (or set an explicit ISO string e.g. "2026-11-01")
-INVESTMENT_START_DATE: Optional[str] = date.today().isoformat()
-INVESTMENT_END_DATE: str             = "2027-06-30"
-
-# --- Options Configuration ---
-OPTIONS_FILE: str                 = "options.json"
-# Load all options across all banks (or pass bank_key="commercial" to restrict to a single bank)
-OPTIONS: list[FDOption]           = load_options_from_json(OPTIONS_FILE, bank_key=None)
-
-
-COMPOUND: bool           = False
-ACTUAL_LEAP_YEAR: bool   = True
-SHOW_TIMELINE: bool      = True   # print full event-by-event diary
-SHOW_LEDGER: bool        = False   # print every FD contract with cash-flow schedule
-SHOW_PLOTS: bool         = True    # save and display dark-theme Matplotlib charts
-PLOT_OUTPUT_DIR: str     = "plots"
-
-
-def main(strategy_override: Optional[str] = None):
-    start = date.fromisoformat(INVESTMENT_START_DATE) if INVESTMENT_START_DATE else date.today()
-    end = date.fromisoformat(INVESTMENT_END_DATE)
-    if FIRST_INFLOW_DATE:
-        first_inflow = date.fromisoformat(FIRST_INFLOW_DATE)
-    else:
-        first_inflow = add_period(start, PERIODIC_INFLOW_INTERVAL)
     days = (end - start).days + 1
-
-    inflow_schedule = build_inflow_schedule(
-        first_inflow_date=first_inflow,
-        end=end,
-        interval_str=PERIODIC_INFLOW_INTERVAL,
-        amount=PERIODIC_NEW_INFLOW_AMOUNT,
+    total_new_money = sum(
+        amount
+        for account_amounts in inflow_schedule.values()
+        for amount in account_amounts.values()
     )
-    total_capital = sum(inflow_schedule.values())
+    starting_funds = sum(account.balance for account in accounts)
 
     print()
     print(divider("="))
     print("  MULTI-BANK FIXED DEPOSIT INVESTMENT CALCULATOR")
     print(divider("="))
-    print(f"  Window: {start} -> {end} ({days} days) | Method: {'Compound' if COMPOUND else 'Simple interest'} ({'366d leap' if ACTUAL_LEAP_YEAR else '365d'})")
-    acc_labels = ", ".join(f"{a.label} [{a.bank_key}]" for a in ACCOUNTS)
-    print(f"  Accounts: {acc_labels}")
-    print(f"  Designated Inflow Account: {INFLOW_ACCOUNT_ID} | Inter-Bank Transfer Fee: {TRANSFER_FEES.default_inter_bank_fee:,.2f} LKR (Same-Bank: {TRANSFER_FEES.same_bank_fee:,.2f} LKR)")
-    print(f"  Periodic Inflow: {PERIODIC_NEW_INFLOW_AMOUNT:,.2f} every {PERIODIC_INFLOW_INTERVAL} starting {first_inflow} | Total Capital: {total_capital:,.2f} ({len(inflow_schedule)} inflows)")
-
-    selected_strategy = (strategy_override or STRATEGY).strip().lower()
-    if selected_strategy == "absolute":
-        strategy = AbsoluteStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
-        compare_strategy = GreedyStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
-    elif selected_strategy == "greedy":
-        strategy = GreedyStrategy(compound=COMPOUND, actual_leap_year=ACTUAL_LEAP_YEAR)
-        compare_strategy = None
+    print(f"  Config: {config['source_path']}")
+    print(f"  FD options: {config['options_path']}")
+    print(
+        f"  Window: {start} -> {end} ({days} days) | "
+        f"Method: {'Compound' if compound else 'Simple interest'} "
+        f"({'366d leap' if actual_leap_year else '365d'})"
+    )
+    print("  Accounts:")
+    for account in accounts:
+        print(
+            f"    - {account.id}: {account.label} [{account.bank_key}] "
+            f"starting funds {account.balance:,.2f} LKR"
+        )
+    print(
+        f"  Transfer fees: inter-bank {fee_config.default_inter_bank_fee:,.2f} LKR | "
+        f"same-bank {fee_config.same_bank_fee:,.2f} LKR"
+    )
+    print("  New-money inflows:")
+    if config["inflow_summaries"]:
+        for inflow in config["inflow_summaries"]:
+            print(
+                f"    - {inflow['name']}: {inflow['amount']:,.2f} LKR every "
+                f"{inflow['interval']} from {inflow['start_date']} to {end}, "
+                f"account {inflow['account_id']} | {inflow['occurrences']} payments, "
+                f"{inflow['total']:,.2f} LKR total"
+            )
     else:
-        raise ValueError(f"Unsupported STRATEGY: {STRATEGY!r}. Use 'greedy' or 'absolute'.")
+        print("    - None")
+    print(
+        f"  Starting funds: {starting_funds:,.2f} LKR | "
+        f"Scheduled new money: {total_new_money:,.2f} LKR | "
+        f"Total planned capital: {starting_funds + total_new_money:,.2f} LKR"
+    )
+
+    strategy_class = AbsoluteStrategy if selected_strategy == "absolute" else GreedyStrategy
+    strategy = strategy_class(compound=compound, actual_leap_year=actual_leap_year)
+    compare_strategy = (
+        GreedyStrategy(compound=compound, actual_leap_year=actual_leap_year)
+        if selected_strategy == "absolute"
+        else None
+    )
 
     common_kwargs = dict(
-        options=OPTIONS,
+        options=options,
         start=start,
         end=end,
         inflow_schedule=inflow_schedule,
-        accounts=ACCOUNTS,
-        inflow_account_id=INFLOW_ACCOUNT_ID,
-        fee_config=TRANSFER_FEES,
-        consolidation_account_id=CONSOLIDATION_ACCOUNT_ID,
+        accounts=accounts,
+        inflow_account_id=inflow_account_id,
+        fee_config=fee_config,
+        consolidation_account_id=consolidation_account_id,
     )
+    result = strategy.simulate(**common_kwargs)
 
-    sim = strategy.simulate(**common_kwargs)
-
-    # Absolute mode compares against Greedy. Greedy mode deliberately avoids
-    # launching the expensive Absolute search just for a chart.
-    compare_sim = None
+    comparison_result = None
     comparison = None
     if compare_strategy is not None:
-        compare_sim = compare_strategy.simulate(**common_kwargs)
-        comparison = {compare_strategy.name: compare_sim.net_interest}
+        comparison_result = compare_strategy.simulate(**common_kwargs)
+        comparison = {compare_strategy.name: comparison_result.net_interest}
 
     print_simulation(
-        sim,
-        show_event_timeline=SHOW_TIMELINE,
-        show_booking_ledger=SHOW_LEDGER,
+        result,
+        show_event_timeline=config["show_timeline"],
+        show_booking_ledger=config["show_ledger"],
         comparison=comparison,
     )
 
-    if SHOW_PLOTS:
+    if config["show_plots"]:
+        output_dir = Path(config["plot_output_dir"]).expanduser()
+        if not output_dir.is_absolute():
+            output_dir = Path(config["source_path"]).parent / output_dir
         chart_paths = plot_strategy_results(
-            sim,
-            comparison=compare_sim if selected_strategy == "absolute" else None,
-            accounts=ACCOUNTS,
+            result,
+            comparison=comparison_result,
+            accounts=accounts,
             inflow_schedule=inflow_schedule,
-            inflow_account_id=INFLOW_ACCOUNT_ID,
+            inflow_account_id=inflow_account_id,
             start=start,
             end=end,
-            output_dir=PLOT_OUTPUT_DIR,
+            output_dir=output_dir,
             show=True,
-            consolidation_account_id=CONSOLIDATION_ACCOUNT_ID,
+            consolidation_account_id=consolidation_account_id,
         )
         print("\n  Charts saved:")
         for chart_path in chart_paths:
             print(f"    - {chart_path}")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Multi-bank fixed-deposit investment calculator")
+def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Multi-bank fixed-deposit investment calculator"
+    )
+    parser.add_argument(
+        "-c", "--config",
+        default="config.json",
+        help="path to the JSON configuration file (default: config.json)",
+    )
     parser.add_argument(
         "-s", "--strategy",
         choices=("greedy", "absolute"),
-        default=STRATEGY.strip().lower(),
-        help=f"strategy to run (default: {STRATEGY.strip().lower()})",
+        default=None,
+        help="override the strategy configured in the JSON file",
     )
-    args = parser.parse_args()
-    main(strategy_override=args.strategy)
+    return parser.parse_args(argv)
+
+
+if __name__ == "__main__":
+    args = _parse_args()
+    try:
+        main(config_path=args.config, strategy_override=args.strategy)
+    except (ValueError, FileNotFoundError, KeyError) as exc:
+        raise SystemExit(f"Configuration error: {exc}") from exc
