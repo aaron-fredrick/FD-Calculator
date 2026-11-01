@@ -30,7 +30,7 @@ The command-line strategy overrides `strategy` in the config for that run only; 
 - **GAML (Goal-Aware Maturity Ladder):** Uses a lightweight look-ahead to compare projected value at the investment end date, rather than ranking deposits by annual rate alone. It considers each product's cash-flow schedule, likely reinvestment opportunities from the configured options, minimum deposits, maturity dates, and transfer fees. It is a heuristic, not a proof of global optimality.
 - **Absolute:** Searches across feasible investment decisions to maximise the final result. It can take longer, especially with many FD options and a long investment period. It also runs Greedy as a baseline for comparison.
 
-All strategies use the same dates, accounts, inflows, FD options, fees, and interest settings. GAML treats the investment end date as its default planning target and maximises estimated end value when no explicit monetary goal is configured. Future reinvestment estimates use the rates in `options.json`; they do not forecast future rate changes.
+All strategies use the same dates, accounts, inflows, FD options, fees, and interest settings. GAML uses the configured investment end date as its planning horizon and maximises estimated end value. A separate target-amount/date constraint is not part of this initial implementation. Future reinvestment estimates use the rates in `options.json`; they do not forecast future rate changes.
 
 ## 3. Configure `config.json`
 
