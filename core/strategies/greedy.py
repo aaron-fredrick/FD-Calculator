@@ -11,6 +11,7 @@ from core.models import (
     FDOption,
     SimResult,
     TransferFeeConfig,
+    normalize_inflow_schedule,
 )
 from core.strategies.base import BaseStrategy
 
@@ -250,6 +251,7 @@ class GreedyStrategy(BaseStrategy):
         if consolidation_account_id is None:
             consolidation_account_id = inflow_account_id
 
+        inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
         accounts_map = {
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
             for acc in accounts
@@ -265,22 +267,25 @@ class GreedyStrategy(BaseStrategy):
         total_transfer_fees: float = 0.0
 
         # ── Step 1: seed inflow events to the designated account ──────────
-        for inflow_num, (inflow_date, amount) in enumerate(
-            sorted(inflow_schedule.items()), start=1
-        ):
+        inflow_num = 0
+        for inflow_date, account_amounts in sorted(inflow_schedule.items()):
             if inflow_date > end:
                 continue
-            self._add_event(
-                timeline,
-                Event(
-                    event_type=EventType.INFLOW,
-                    on_date=inflow_date,
-                    amount=amount,
-                    label=f"Inflow {inflow_num:02d}",
-                    account_id=inflow_account_id,
-                    bank_key=accounts_map[inflow_account_id].bank_key,
-                ),
-            )
+            for account_id, amount in sorted(account_amounts.items()):
+                if account_id not in accounts_map:
+                    raise ValueError(f"Inflow destination account {account_id!r} is not configured")
+                inflow_num += 1
+                self._add_event(
+                    timeline,
+                    Event(
+                        event_type=EventType.INFLOW,
+                        on_date=inflow_date,
+                        amount=amount,
+                        label=f"Inflow {inflow_num:02d}",
+                        account_id=account_id,
+                        bank_key=accounts_map[account_id].bank_key,
+                    ),
+                )
 
         # ── Step 1b: ensure start date is processed if any account has an
         #            opening balance (seed a zero-amount marker so the greedy
@@ -613,7 +618,7 @@ class GreedyStrategy(BaseStrategy):
                     ),
                 )
 
-        total_principal = sum(inflow_schedule.values()) + sum(a.balance for a in accounts)
+        total_principal = sum(amount for account_amounts in inflow_schedule.values() for amount in account_amounts.values()) + sum(a.balance for a in accounts)
 
         return SimResult(
             strategy_name=self.name,
