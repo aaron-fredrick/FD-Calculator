@@ -231,7 +231,7 @@ class GreedyStrategy(BaseStrategy):
         options: list[FDOption],
         start: date,
         end: date,
-        inflow_schedule: dict[date, float],
+        inflow_schedule: dict[date, float] | dict[date, dict[str, float]],
         accounts: Optional[list[Account]] = None,
         inflow_account_id: Optional[str] = None,
         fee_config: Optional[TransferFeeConfig] = None,
