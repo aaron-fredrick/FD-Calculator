@@ -61,39 +61,66 @@ def _portfolio_series(
     start: date,
     end: date,
 ) -> dict[str, list[float]]:
-    """Estimate per-account value while retaining invested principal as an asset."""
+    """Mark each account's liquid cash plus its active FD assets over time.
+
+    FD interest between booking and maturity is linearly estimated for display;
+    the simulator's contractual cash flows remain the source of final results.
+    """
     dates = _date_range(start, end)
-    values = {a.id: [float(a.balance)] * len(dates) for a in accounts}
-    date_index = {day: i for i, day in enumerate(dates)}
+    liquid = {account.id: float(account.balance) for account in accounts}
+    values = {account.id: [] for account in accounts}
+    events_by_date = {
+        day: [event for event in events if start <= event.on_date <= end]
+        for events in result.timeline.values()
+        for day in [events[0].on_date] if events
+    }
 
-    for day, amount in inflow_schedule.items():
-        if day in date_index and inflow_account_id in values:
-            for i in range(date_index[day], len(dates)):
-                values[inflow_account_id][i] += amount
+    for day in dates:
+        # Reconcile liquid account balances from the actual simulated event log.
+        if day in inflow_schedule and inflow_account_id in liquid:
+            liquid[inflow_account_id] += inflow_schedule[day]
 
-    # Approximate accrued interest linearly for visualization only.
-    for booking in result.bookings:
-        account_values = values.get(booking.account_id)
-        if account_values is None or booking.end < start or booking.start > end:
-            continue
-        full_days = max((booking.end - booking.start).days, 1)
-        total_interest = booking.total_interest
-        for i, day in enumerate(dates):
-            if day < booking.start:
-                continue
-            elapsed = min((day - booking.start).days, full_days)
-            account_values[i] += total_interest * elapsed / full_days
+        day_events = events_by_date.get(day, [])
+        for event in day_events:
+            if event.event_type in (EventType.CASH_FLOW, EventType.MATURITY):
+                if event.account_id in liquid:
+                    liquid[event.account_id] += event.amount
 
-    # A transfer fee is recorded on the source-side transfer event.
-    for events in result.timeline.values():
-        for event in events:
-            if event.event_type != EventType.TRANSFER or event.fee <= 0:
+        # Transfer events have source and destination entries. Their recorded
+        # amounts are gross at source and net at destination, so fees are not
+        # deducted a second time here.
+        for event in day_events:
+            if event.event_type == EventType.TRANSFER and event.account_id in liquid:
+                if event.label.startswith("Transfer to ") or event.label.startswith("Final sweep to "):
+                    liquid[event.account_id] -= event.amount
+                elif event.label.startswith("Transfer received") or event.label.startswith("Final sweep received"):
+                    liquid[event.account_id] += event.amount
+
+        for event in day_events:
+            if event.event_type == EventType.BOOKING and event.account_id in liquid:
+                liquid[event.account_id] -= event.amount
+
+        # Inflows are represented in the result event log as well; only add
+        # them from that log when no schedule entry exists (e.g. opening marker).
+        if inflow_account_id in liquid:
+            for event in day_events:
+                if event.event_type == EventType.INFLOW and event.amount and day not in inflow_schedule:
+                    liquid[inflow_account_id] += event.amount
+
+        marked = dict(liquid)
+        for booking in result.bookings:
+            if booking.account_id not in marked or not (booking.start <= day < booking.end):
                 continue
-            account_values = values.get(event.account_id)
-            if account_values is None or event.on_date not in date_index:
-                continue
-            for i in range(date_index[event.on_date], len(dates)):
-                account_values[i] -= event.fee
+            full_days = max((booking.end - booking.start).days, 1)
+            elapsed = max(0, (day - booking.start).days)
+            accrued = booking.total_interest * min(elapsed, full_days) / full_days
+            paid_flows = sum(amount for flow_date, amount in booking.cash_flows if flow_date <= day)
+            # Before maturity, paid periodic interest is already in liquid cash.
+            unpaid_accrual = max(0.0, accrued - paid_flows)
+            marked[booking.account_id] += booking.principal + unpaid_accrual
+
+        for account_id in values:
+            values[account_id].append(marked[account_id])
 
     return values
 
