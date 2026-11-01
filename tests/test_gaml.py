@@ -1,7 +1,7 @@
 from datetime import date
 import unittest
 
-from core.models import FDOption
+from core.models import Account, FDOption, TransferFeeConfig
 from core.strategies.gaml import (
     _best_option_by_projection,
     _pick_daily_gaml_plan,
@@ -64,9 +64,7 @@ class GAMLProjectionTests(unittest.TestCase):
         today = date(2026, 1, 1)
         next_event = date(2026, 2, 1)
         end = date(2026, 5, 1)
-        account = __import__("core.models", fromlist=["Account"]).Account(
-            id="a", bank_key="bank_a", label="A", balance=10000.0
-        )
+        account = Account(id="a", bank_key="bank_a", label="A", balance=10000.0)
         options = [
             FDOption("1 month", "1m", 1.0, 10000.0, bank_key="bank_a"),
             FDOption("3 months", "3m", 40.0, 20000.0, bank_key="bank_a"),
@@ -77,7 +75,7 @@ class GAMLProjectionTests(unittest.TestCase):
             options=options,
             today=today,
             end=end,
-            fee_config=__import__("core.models", fromlist=["TransferFeeConfig"]).TransferFeeConfig(),
+            fee_config=TransferFeeConfig(),
             consolidation_account_id="a",
             compound=False,
             actual_leap_year=True,
