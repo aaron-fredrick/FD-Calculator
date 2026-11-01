@@ -143,7 +143,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         try:
             delta = parse_period_delta(interval)
         except (AttributeError, ValueError) as exc:
-            raise ValueError(f"Inflow {name!r} has invalid interval {interval!r}; use e.g. '1m', '2w' is not supported, or '30d'") from exc
+            raise ValueError(f"Inflow {name!r} has invalid interval {interval!r}; supported formats include '30d', '1m', and '1y'") from exc
         first_date_value = entry.get("start_date")
         first_date = (
             add_period(start, interval)
