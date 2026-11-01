@@ -198,8 +198,8 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         raise ValueError("Transfer fees must be finite and non-negative")
 
     strategy = str(config.get("strategy", "absolute")).strip().lower()
-    if strategy not in {"absolute", "greedy"}:
-        raise ValueError(f"Unsupported strategy {strategy!r}; use 'absolute' or 'greedy'")
+    if strategy not in {"absolute", "greedy", "gaml"}:
+        raise ValueError(f"Unsupported strategy {strategy!r}; use 'absolute', 'greedy', or 'gaml'")
 
     return {
         "source_path": path,
