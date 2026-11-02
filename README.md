@@ -195,13 +195,13 @@ The runtime reads the index and only opens the bank files required by the config
 {
   "options_file": "data/fd_options/fd_options.csv",
   "account_banks_only": true,
-  "efd_only": true
+  "efd_only": false
 }
 ```
 
 - `options_file`: CSV index path. Paths are resolved relative to the configuration file first, then the repository.
 - `account_banks_only`: defaults to `true`. When enabled, only options for banks referenced by configured accounts are loaded. Set to `false` to load options for every bank in the index.
-- `efd_only`: defaults to `true`. When enabled, only rows explicitly marked `eFD=true` are loaded. Set to `false` to load both standard FD (`eFD=false`) and eFD entries. The two product types are kept separate even when their rates and terms match.
+- `efd_only`: defaults to `true`. When enabled, only rows explicitly marked `eFD=true` are loaded. Set to `false` to load both standard FD (`eFD=false`) and eFD entries. When standard and eFD rows are otherwise identical for the same bank (term, rate, minimum and payout schedule), the loader keeps the eFD row. If any of those product terms differ, both remain available.
 
 Each bank CSV uses these main fields:
 
@@ -218,7 +218,7 @@ Each bank CSV uses these main fields:
 | `source_url`, `source_effective_date`, `source_type`, `notes` | Provenance and research notes; retained in the dataset for auditing. |
 
 AER is intentionally not used as the simulator's annual rate. The nominal rate and payout frequency are represented separately so periodic-interest products are modelled using the bank's stated nominal rate.
-If a bank CSV row omits `min_amount`, the loader falls back to LKR 25,000 for Commercial Bank, LKR 10,000 for DFCC, and the general LKR 25,000 default for other banks. Published tenure-specific minimums are stored explicitly in the Commercial Bank CSV and take precedence over these fallbacks.
+If a bank CSV row omits `min_amount`, the loader falls back to LKR 25,000 for Commercial Bank, LKR 10,000 for DFCC, and the general LKR 25,000 default for other banks. Commercial Bank standard-FD rows currently use LKR 25,000 as a configured fallback because the Key Facts Document's revision date and current applicability could not be verified; eFD rows also use LKR 25,000.
 
 Rates, minimums, terms, and payout conditions can change. Verify the source schedule before relying on a simulation. Rows without verified rates are not invented or silently filled.
 
