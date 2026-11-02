@@ -373,7 +373,14 @@ class GAMLStrategy(BaseStrategy):
         memo_visited: dict[tuple, float] = {}
         alternative_leaf_net_interests: list[float] = []
 
-        print(f"  [{self.name} Strategy] Initializing bounded GAML global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
+        state_cap_label = f"{self.max_decisions:,}" if self.max_decisions is not None else "unlimited"
+        print(
+            f"  [{self.name} Strategy] Initializing layered beam search | "
+            f"Greedy baseline: {greedy_res.net_interest:,.2f} LKR | "
+            f"beam width: {self.beam_width} | "
+            f"local combination width: {self.max_local_branches} | "
+            f"state cap: {state_cap_label}"
+        )
 
         def expand(state: tuple) -> list[tuple]:
             nonlocal best_final_val, best_leaf, tally, leaf_count, pruned_count, local_combination_pruned_count
