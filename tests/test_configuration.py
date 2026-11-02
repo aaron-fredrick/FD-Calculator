@@ -129,10 +129,10 @@ class ConfigurationTests(unittest.TestCase):
         self.assertTrue(all(event.bank_id in {COMMERCIAL_ID, DFCC_ID} for day in result.timeline.values() for event in day if event.account_id))
 
     def test_decision_log_output_path_is_configurable(self) -> None:
-        self.config["decision_log_output_file"] = "reports/selected_path.json"
+        self.config["decision_log_output_file"] = "reports/selected_path.txt"
         self._write_config()
         loaded = load_configuration(self.config_path)
-        self.assertEqual(loaded["decision_log_output_file"], "reports/selected_path.json")
+        self.assertEqual(loaded["decision_log_output_file"], "reports/selected_path.txt")
 
     def test_empty_decision_log_output_path_is_rejected(self) -> None:
         self.config["decision_log_output_file"] = "  "
