@@ -81,7 +81,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_dictionary_accounts_resolve_today_and_bank_id(self) -> None:
         loaded = load_configuration(self.config_path)
         self.assertEqual(loaded["start"], date.today())
-        self.assertEqual(loaded["decision_log_output_file"], "decision_log.json")
+        self.assertEqual(loaded["decision_log_output_file"], "decision_log.txt")
         self.assertEqual(loaded["end"], add_period(date.today(), "1y"))
         self.assertEqual(len(loaded["accounts"]), 1)
         account = loaded["accounts"][0]
