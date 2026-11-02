@@ -139,8 +139,6 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     if not options_path.is_file():
         raise FileNotFoundError(f"FD options file not found: {options_path}")
 
-    account_banks_only = True
-    efd_only = False
     if options_path.suffix.lower() != ".csv":
         raise ValueError("Only the bank-specific FD options CSV index is supported")
 
@@ -159,7 +157,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
             capability = "eFD-capable" if account.supports_efd else "standard-FD-only"
             raise ValueError(
                 f"Account {account.id!r} ({account.bank_key}) is {capability}, "
-                f"but no compatible FD options were loaded. Check efd_only and the bank CSV."
+                f"but no compatible standard/eFD products were loaded. Check the bank options CSV."
             )
 
     def build_schedule(raw_events: Any, kind: str) -> tuple[dict[date, list[dict[str, Any]]], list[dict[str, Any]]]:
