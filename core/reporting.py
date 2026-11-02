@@ -10,7 +10,7 @@ from core.models import Booking, Event, EventType, FDOption, SimResult, PAYOUT_A
 if sys.platform == "win32":
     os.system("")
 
-W = 125
+W = 132
 
 
 def divider(char: str = "-") -> str:
@@ -115,7 +115,7 @@ def print_options_table(options: list[FDOption]) -> None:
 _EVENT_LABELS = {
     EventType.INFLOW:        "[INFLOW] ",
     EventType.OUTFLOW:       "[OUTFLOW]",
-    EventType.TRANSFER:      "[XFER]   ",
+    EventType.TRANSFER:      "[TRANSFER]",
     EventType.BOOKING:       "[BOOK]   ",
     EventType.CASH_FLOW:     "[CF]     ",
     EventType.MATURITY:      "[MATURE] ",
@@ -130,16 +130,29 @@ def print_event_timeline(result: SimResult) -> None:
     print(divider("="))
     print(f"  EVENT TIMELINE  [{result.strategy_name} strategy]")
     print(divider("="))
-    header = f"  {'Date':<12} {'Account':<12} {'Type':<10} {'Amount':>14} {'Balance':>14}   {'Description'}"
+    header = f"  {'Date':<12} {'Account':<12} {'Type':<16} {'Amount':>14} {'Balance':>14}   {'Description'}"
     print(f"{BOLD}{header}{RESET}")
-    sep_line = f"  {'-'*12} {'-'*12} {'-'*10} {'-'*14} {'-'*14}   {'-'*55}"
+    sep_line = f"  {'-'*12} {'-'*12} {'-'*16} {'-'*14} {'-'*14}   {'-'*55}"
     print(f"{COLOR_SEP}{sep_line}{RESET}")
 
     sorted_dates = result.sorted_dates()
     for d_idx, key in enumerate(sorted_dates):
-        day_events = result.timeline[key]
+        day_events = [
+            event for event in result.timeline[key]
+            if not (
+                event.event_type == EventType.INFLOW
+                and event.amount == 0.0
+                and event.label == "Opening balance trigger"
+            )
+        ]
         for e_idx, e in enumerate(day_events):
-            lbl = _EVENT_LABELS.get(e.event_type, "[?]      ")
+            if e.event_type == EventType.TRANSFER:
+                lbl = {
+                    "intra_bank": "[INTRA-BANK]",
+                    "domestic_ceft": "[DOMESTIC CEFT]",
+                }.get(e.transfer_channel, "[TRANSFER]")
+            else:
+                lbl = _EVENT_LABELS.get(e.event_type, "[?]      ")
             col = EVENT_COLORS.get(e.event_type, "")
 
             if e.event_type == EventType.BOOKING:
@@ -168,7 +181,7 @@ def print_event_timeline(result: SimResult) -> None:
             # Pad raw text first for alignment, then wrap with color
             c_date = f"{COLOR_DATE}{date_str:<12}{RESET}"
             c_acc  = f"{acc_label:<12}"
-            c_type = f"{col}{lbl:<10}{RESET}"
+            c_type = f"{col}{lbl:<16}{RESET}"
             c_amt  = f"{col}{amt_str}{RESET}"
             c_bal  = bal_str
             c_desc = f"{COLOR_DESC}{e.label}{RESET}"

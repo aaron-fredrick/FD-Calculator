@@ -17,11 +17,17 @@ def _write_decision_log(result, output_path: str | Path) -> Path:
     path = Path(output_path).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True)
     records = build_decision_log(result)
+    event_dates = [
+        event.on_date
+        for events in result.timeline.values()
+        for event in events
+    ]
+    start_date = min(event_dates, default=result.end_date)
     with path.open("w", encoding="utf-8") as handle:
         json.dump(
             {
                 "strategy": result.strategy_name,
-                "start_date": result.start_date.isoformat(),
+                "start_date": start_date.isoformat(),
                 "end_date": result.end_date.isoformat(),
                 "decision_count": len(records),
                 "decisions": records,
