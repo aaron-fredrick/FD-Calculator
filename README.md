@@ -258,6 +258,7 @@ With `"show_plots": true`, charts are saved to `plot_output_dir`:
 
 - `<strategy>_account_values.png`: account value over time. GAML and Absolute include Greedy for comparison.
 - `<strategy>_decision_timeline.png`: FD booking and maturity periods. GAML and Absolute include Greedy for comparison.
+- `<strategy>_cash_flows.png`: dated positive and negative cash movements, including new money, FD payouts and maturities, outflows, FD investments, and transfers in/out. When Greedy comparison is available, it appears in a second panel.
 
 A relative plot path is resolved from the directory containing the selected config file. For example, `"plot_output_dir": "plots"` saves to a `plots` folder beside `config.json`. An absolute path saves to that exact location. The output folder is created if needed.
 
