@@ -1,1 +1,6 @@
-name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD
+name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes
+3m,fixed_deposit,3m,6,,cumulative,,,LKR,https://financing.lk/compare/fixed-deposits?sort=m12&type=bank,2026-09-30,secondary,Secondary comparison snapshot only; official SMIB rate page did not expose current LKR FD table. Verify with bank.
+6m,fixed_deposit,6m,6.5,,cumulative,,,LKR,https://financing.lk/compare/fixed-deposits?sort=m12&type=bank,2026-09-30,secondary,Secondary comparison snapshot only; official SMIB rate page did not expose current LKR FD table. Verify with bank.
+12m,fixed_deposit,12m,6.75,,cumulative,,,LKR,https://financing.lk/compare/fixed-deposits?sort=m12&type=bank,2026-09-30,secondary,Secondary comparison snapshot only; official SMIB rate page did not expose current LKR FD table. Verify with bank.
+24m,fixed_deposit,24m,7.5,,cumulative,,,LKR,https://financing.lk/compare/fixed-deposits?sort=m12&type=bank,2026-09-30,secondary,Secondary comparison snapshot only; official SMIB rate page did not expose current LKR FD table. Verify with bank.
+60m,fixed_deposit,60m,9,,cumulative,,,LKR,https://financing.lk/compare/fixed-deposits?sort=m12&type=bank,2026-09-30,secondary,Secondary comparison snapshot only; official SMIB rate page did not expose current LKR FD table. Verify with bank.

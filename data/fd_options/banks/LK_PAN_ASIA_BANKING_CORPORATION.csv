@@ -1,1 +1,22 @@
-name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD
+name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes
+1m,fixed_deposit,1m,8,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+3m,fixed_deposit,3m,9,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+4m,fixed_deposit,4m,10,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+5m,fixed_deposit,5m,9.75,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+6m,fixed_deposit,6m,9.5,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+7m,fixed_deposit,7m,11,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+10m,fixed_deposit,10m,11,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+12m,fixed_deposit,12m,9,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+13m,fixed_deposit,13m,11,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+24m,fixed_deposit,24m,11,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+30m,fixed_deposit,30m,12.5,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+36m,fixed_deposit,36m,10.5,,cumulative,,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+6m monthly,fixed_deposit,6m,9.32,,periodic_interest,1m,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+12m monthly,fixed_deposit,12m,8.65,,periodic_interest,1m,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+24m monthly,fixed_deposit,24m,9.98,,periodic_interest,1m,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+36m monthly,fixed_deposit,36m,9.16,,periodic_interest,1m,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+12m biannually,fixed_deposit,12m,8.81,,periodic_interest,6m,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+24m biannually,fixed_deposit,24m,10.19,,periodic_interest,6m,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+36m biannually,fixed_deposit,36m,9.34,,periodic_interest,6m,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+24m annually,fixed_deposit,24m,10.45,,periodic_interest,1y,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
+36m annually,fixed_deposit,36m,9.56,,periodic_interest,1y,,LKR,https://www.pabcbank.com/fixed-deposits-rates/,2026-09-25,direct,Official rates effective 25 September 2026; payout variants separately represented.
