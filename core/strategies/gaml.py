@@ -953,7 +953,7 @@ class GAMLStrategy(BaseStrategy):
                             label=f"Transfer to {tgt.label} (Amt: {net_amt:,.2f}, Fee: {fee:,.2f})",
                             account_id=src.id,
                             bank_key=src.bank_key,
-                    bank_id=src.bank_id,
+                            bank_id=src.bank_id,
                             fee=fee,
                             balance_after=src.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -966,7 +966,7 @@ class GAMLStrategy(BaseStrategy):
                             label=f"Transfer received from {src.label}",
                             account_id=tgt.id,
                             bank_key=tgt.bank_key,
-                    bank_id=tgt.bank_id,
+                            bank_id=tgt.bank_id,
                             fee=0.0,
                             balance_after=tgt.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -990,7 +990,7 @@ class GAMLStrategy(BaseStrategy):
                         cash_flows=flows,
                         account_id=tgt_acc.id,
                         bank_key=tgt_acc.bank_key,
-                    bank_id=tgt_acc.bank_id,
+                        bank_id=tgt_acc.bank_id,
                     )
                     bookings.append(booking)
 
@@ -1002,7 +1002,7 @@ class GAMLStrategy(BaseStrategy):
                         booking_ref=ref,
                         account_id=tgt_acc.id,
                         bank_key=tgt_acc.bank_key,
-                    bank_id=tgt_acc.bank_id,
+                        bank_id=tgt_acc.bank_id,
                         balance_after=tgt_acc.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
                         decision_context={"action": "consolidate", "balances_before": decision_balances_before},
@@ -1026,7 +1026,7 @@ class GAMLStrategy(BaseStrategy):
                             booking_ref=ref,
                             account_id=tgt_acc.id,
                             bank_key=tgt_acc.bank_key,
-                    bank_id=tgt_acc.bank_id,
+                            bank_id=tgt_acc.bank_id,
                         ))
 
                     for aid in act.carries:
@@ -1039,7 +1039,7 @@ class GAMLStrategy(BaseStrategy):
                                 label=f"Holding liquidity; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
-                    bank_id=acc.bank_id,
+                                bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
                                 decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
@@ -1068,7 +1068,7 @@ class GAMLStrategy(BaseStrategy):
                             cash_flows=flows,
                             account_id=acc.id,
                             bank_key=acc.bank_key,
-                    bank_id=acc.bank_id,
+                            bank_id=acc.bank_id,
                         )
                         bookings.append(booking)
 
@@ -1080,7 +1080,7 @@ class GAMLStrategy(BaseStrategy):
                             booking_ref=ref,
                             account_id=acc.id,
                             bank_key=acc.bank_key,
-                    bank_id=acc.bank_id,
+                            bank_id=acc.bank_id,
                             balance_after=acc.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
                             decision_context={"action": "split", "balances_before": decision_balances_before},
@@ -1104,7 +1104,7 @@ class GAMLStrategy(BaseStrategy):
                                 booking_ref=ref,
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
-                    bank_id=acc.bank_id,
+                                bank_id=acc.bank_id,
                             ))
 
                     for aid in act.carries:
@@ -1117,7 +1117,7 @@ class GAMLStrategy(BaseStrategy):
                                 label=f"Holding liquidity; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
-                    bank_id=acc.bank_id,
+                                bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
                                 decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
@@ -1134,7 +1134,7 @@ class GAMLStrategy(BaseStrategy):
                                 label=f"Holding liquidity; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
-                    bank_id=acc.bank_id,
+                                bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
                                 decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
