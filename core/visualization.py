@@ -275,7 +275,7 @@ def plot_strategy_results(
 
     timeline_results = [primary]
     styles = {primary.strategy_name: {"color": _COLORS[0], "alpha": 0.95}}
-    if is_absolute and comparison is not None:
+    if has_greedy_comparison:
         timeline_results.append(comparison)
         styles[comparison.strategy_name] = {"color": _GREEDY_PALE, "alpha": 0.62}
 
