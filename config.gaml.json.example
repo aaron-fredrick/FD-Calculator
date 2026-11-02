@@ -1,5 +1,4 @@
 {
-  "_comment": "Runnable example configuration for the GAML strategy. Copy to a separate config file and adjust account balances, dates and cash flows.",
   "strategy": "gaml",
   "options_file": "data/fd_options/fd_options.csv",
   "investment": {
