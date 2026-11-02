@@ -12,32 +12,96 @@ from core.configuration import load_configuration
 from core.visualization import plot_strategy_results
 
 
-def _write_decision_log(result, output_path: str | Path) -> Path:
-    """Serialize the selected strategy path as a standalone JSON artifact."""
+def _write_decision_log(result, output_path: str | Path, start_date: date) -> Path:
+    """Write a human-readable, chronological action sheet for the selected path."""
     path = Path(output_path).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True)
     records = build_decision_log(result)
-    event_dates = [
-        event.on_date
-        for events in result.timeline.values()
-        for event in events
+
+    def money(value: float) -> str:
+        return f"{value:,.2f} LKR"
+
+    lines = [
+        "FD CALCULATOR — DECISION / EXECUTION LOG",
+        "=" * 72,
+        f"Strategy          : {result.strategy_name}",
+        f"Simulation period : {start_date.isoformat()} to {result.end_date.isoformat()}",
+        f"Actions recorded  : {len(records)}",
+        "",
+        "PURPOSE",
+        "This file records the selected simulation path in execution order.",
+        "Use it as a manual reference when arranging transfers and FD bookings.",
+        "It is a plan only: no bank transaction or FD booking has been executed.",
+        "",
+        "IMPORTANT",
+        "Confirm current rates, minimums, fees, account details and availability",
+        "with the bank before placing any booking or transfer.",
+        "",
+        "=" * 72,
+        "SELECTED ACTIONS",
+        "=" * 72,
+        "",
     ]
-    start_date = min(event_dates, default=result.end_date)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(
-            {
-                "strategy": result.strategy_name,
-                "start_date": start_date.isoformat(),
-                "end_date": result.end_date.isoformat(),
-                "decision_count": len(records),
-                "decisions": records,
-            },
-            handle,
-            indent=2,
-            ensure_ascii=False,
-            default=lambda value: value.isoformat() if hasattr(value, "isoformat") else str(value),
-        )
-        handle.write("\n")
+
+    if not records:
+        lines.append("No FD booking or cash-retention decisions were recorded.")
+    for index, record in enumerate(records, 1):
+        lines.append(f"ACTION {index:03d} — {record['date'].isoformat()} — {record['action'].upper()}")
+        lines.append("-" * 72)
+        if record.get("available_funds"):
+            lines.append("Available balances before action:")
+            for account_id, balance in record["available_funds"].items():
+                account = result.accounts.get(account_id)
+                label = account.label if account else account_id
+                lines.append(f"  - {label} [{account_id}]: {money(balance)}")
+
+        for step in record.get("transfer_steps", []):
+            lines.append(
+                f"TRANSFER: {step['channel']} | {step['description']} | "
+                f"Account {step['account_label']} [{step['account_id']}] | "
+                f"Recorded amount {money(step['amount'])} | Fee {money(step['fee'])}"
+            )
+
+        if record.get("product"):
+            lines.extend([
+                "",
+                "FD BOOKING INSTRUCTIONS:",
+                f"  Destination bank : {record.get('bank', '-')}",
+                f"  Destination acct : {record.get('account_label', record['account_id'])} [{record['account_id']}]",
+                f"  Product          : {record['product']}",
+                f"  Deposit type     : {record['fd_type']}",
+                f"  Principal        : {money(record['principal'])}",
+                f"  Interest rate    : {record['rate']:.3f}% p.a.",
+                f"  Term             : {record['term']}",
+                f"  Booking date     : {record['booking_start']}",
+                f"  Maturity date    : {record['maturity_date']}",
+                f"  Payout method    : {record['payout_type']}",
+                f"  Expected interest: {money(record['expected_return'])}",
+                f"  Expected total   : {money(record['expected_total'])}",
+            ])
+            if record.get("cash_flows"):
+                lines.append("  Expected payout schedule:")
+                for flow_date, amount in record["cash_flows"]:
+                    lines.append(f"    - {flow_date}: {money(amount)}")
+
+        if record.get("relevant_events"):
+            lines.append("")
+            lines.append("Same-day cash events:")
+            lines.extend(f"  - {event}" for event in record["relevant_events"])
+        if record.get("reason"):
+            lines.append("")
+            lines.append("Decision rationale:")
+            lines.extend(f"  - {reason}" for reason in record["reason"])
+        lines.append(f"Next liquidity checkpoint: {record['next_milestone']}")
+        lines.extend(["", ""])
+
+    lines.extend([
+        "=" * 72,
+        "END OF LOG",
+        "All amounts are simulated estimates. Verify all details with the bank.",
+        "",
+    ])
+    path.write_text("\n".join(lines), encoding="utf-8")
     return path
 
 
@@ -169,7 +233,7 @@ def main(
     decision_log_path = Path(config["decision_log_output_file"]).expanduser()
     if not decision_log_path.is_absolute():
         decision_log_path = Path(config["source_path"]).parent / decision_log_path
-    decision_log_path = _write_decision_log(result, decision_log_path)
+    decision_log_path = _write_decision_log(result, decision_log_path, start)
     print(f"  Decision log saved: {decision_log_path}")
 
     if config["show_plots"]:
