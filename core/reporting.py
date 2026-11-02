@@ -98,12 +98,13 @@ def _summary_line(label: str, value: str, color: str) -> None:
 
 def print_options_table(options: list[FDOption]) -> None:
     print(divider("-"))
-    print(f"  {'Option Label':<24} {'Bank':<10} {'Period':<8} {'Days':>5}  {'Ann. Rate':>9}  {'Min. Invest':>12}  {'Payout':<18} {'Every':<6}")
-    print(f"  {'-'*24} {'-'*10} {'-'*8} {'-'*5}  {'-'*9}  {'-'*12}  {'-'*18} {'-'*6}")
+    print(f"  {'Option Label':<24} {'Bank':<10} {'FD Type':<9} {'Period':<8} {'Days':>5}  {'Ann. Rate':>9}  {'Min. Invest':>12}  {'Payout':<18} {'Every':<6}")
+    print(f"  {'-'*24} {'-'*10} {'-'*9} {'-'*8} {'-'*5}  {'-'*9}  {'-'*12}  {'-'*18} {'-'*6}")
     for o in options:
         pp = o.payout_period_str if o.payout_period_str else "-"
         bank_str = (o.bank_key.title() if o.bank_key else "-")[:10]
-        print(f"  {o.label:<24} {bank_str:<10} {o.period_str:<8} {o.days:>5}  {o.annual_rate:>8.4f}%  {o.min_amount:>12,.2f}  {PAYOUT_ABBR[o.payout_type]:<18} {pp:<6}")
+        fd_type = "eFD" if o.is_efd else "Standard"
+        print(f"  {o.label:<24} {bank_str:<10} {fd_type:<9} {o.period_str:<8} {o.days:>5}  {o.annual_rate:>8.4f}%  {o.min_amount:>12,.2f}  {PAYOUT_ABBR[o.payout_type]:<18} {pp:<6}")
     print(divider("-"))
 
 
@@ -194,17 +195,18 @@ def print_booking_ledger(result: SimResult) -> None:
     print(divider("-"))
     print("  BOOKING LEDGER -- ALL FD CONTRACTS")
     print(divider("-"))
-    print(f"  {'Ref':<9} {'Bank':<12} {'Option':<23} {'Payout':<18} {'Open':<11} {'Maturity':<11} {'Principal':>12} {'Interest':>10} {'Total':>12}")
-    print(f"  {'-'*9} {'-'*12} {'-'*23} {'-'*18} {'-'*11} {'-'*11} {'-'*12} {'-'*10} {'-'*12}")
+    print(f"  {'Ref':<9} {'Bank':<12} {'FD Type':<9} {'Option':<23} {'Payout':<18} {'Open':<11} {'Maturity':<11} {'Principal':>12} {'Interest':>10} {'Total':>12}")
+    print(f"  {'-'*9} {'-'*12} {'-'*9} {'-'*23} {'-'*18} {'-'*11} {'-'*11} {'-'*12} {'-'*10} {'-'*12}")
 
     for idx, b in enumerate(result.bookings, start=1):
         ref = f"FD-{idx:04d}"
         payout_tag = PAYOUT_ABBR[b.payout_type]
         bank_str = (b.bank_key.title() if b.bank_key else "-")[:12]
+        fd_type = "eFD" if b.option.is_efd else "Standard"
         if b.payout_type == "cumulative":
-            print(f"  {ref:<9} {bank_str:<12} {b.option.label:<23} {payout_tag:<18} {str(b.start):<11} {str(b.end):<11} {b.principal:>12,.2f} {b.total_interest:>10,.2f} {b.total_received:>12,.2f}")
+            print(f"  {ref:<9} {bank_str:<12} {fd_type:<9} {b.option.label:<23} {payout_tag:<18} {str(b.start):<11} {str(b.end):<11} {b.principal:>12,.2f} {b.total_interest:>10,.2f} {b.total_received:>12,.2f}")
         else:
-            print(f"  {ref:<9} {bank_str:<12} {b.option.label:<23} {payout_tag:<18} {str(b.start):<11} {str(b.end):<11} {b.principal:>12,.2f} {'':>10} {'':>12}")
+            print(f"  {ref:<9} {bank_str:<12} {fd_type:<9} {b.option.label:<23} {payout_tag:<18} {str(b.start):<11} {str(b.end):<11} {b.principal:>12,.2f} {'':>10} {'':>12}")
             for i, (flow_date, flow_amt) in enumerate(b.cash_flows, 1):
                 is_last = (i == len(b.cash_flows))
                 flow_lbl = (
