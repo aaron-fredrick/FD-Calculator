@@ -1042,6 +1042,7 @@ class GAMLStrategy(BaseStrategy):
                     bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
+                                decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
                             ))
 
                 elif isinstance(act, LocalBookingsAction):
@@ -1119,6 +1120,7 @@ class GAMLStrategy(BaseStrategy):
                     bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
+                                decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
                             ))
 
                 elif isinstance(act, CarryAction):
@@ -1135,6 +1137,7 @@ class GAMLStrategy(BaseStrategy):
                     bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
+                                decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
                             ))
 
         # Final consolidation sweep
