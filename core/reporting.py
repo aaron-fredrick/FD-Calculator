@@ -307,13 +307,30 @@ def build_decision_log(result: SimResult) -> list[dict]:
         else:
             reasons.append("Part of the highest-value feasible path retained by Absolute branch-and-bound search")
 
+        same_day_events = by_day.get(event.on_date, [])
         relevant = [
             f"{item.event_type.value}: {item.label} ({item.amount:,.2f} LKR)"
-            for item in by_day.get(event.on_date, [])
+            for item in same_day_events
             if item is not event and item.event_type in {
-                EventType.INFLOW, EventType.OUTFLOW, EventType.TRANSFER,
-                EventType.CASH_FLOW, EventType.MATURITY
+                EventType.INFLOW, EventType.OUTFLOW, EventType.CASH_FLOW, EventType.MATURITY
             }
+        ]
+        transfer_steps = [
+            {
+                "channel": "INTRA-BANK" if item.transfer_channel == "intra_bank"
+                    else "DOMESTIC CEFT" if item.transfer_channel == "domestic_ceft"
+                    else "TRANSFER",
+                "account_id": item.account_id,
+                "account_label": (
+                    result.accounts[item.account_id].label
+                    if item.account_id in result.accounts else item.account_id
+                ),
+                "description": item.label,
+                "amount": item.amount,
+                "fee": item.fee,
+            }
+            for item in same_day_events
+            if item.event_type == EventType.TRANSFER
         ]
         milestone = next_milestone(event.on_date)
         reasons.append(f"Liquidity checkpoint: {milestone}")
@@ -323,8 +340,15 @@ def build_decision_log(result: SimResult) -> list[dict]:
             "relevant_events": relevant,
             "action": action_label,
             "account_id": booking.account_id,
+            "account_label": account.label if account else booking.account_id,
             "bank": booking.bank_id or booking.bank_key,
             "product": option.label,
+            "booking_start": booking.start,
+            "maturity_date": booking.end,
+            "payout_type": booking.payout_type,
+            "expected_total": booking.total_received,
+            "cash_flows": list(booking.cash_flows),
+            "transfer_steps": transfer_steps,
             "fd_type": "eFD" if option.is_efd else "Standard FD",
             "rate": option.annual_rate,
             "term": option.period_str,
@@ -358,7 +382,12 @@ def build_decision_log(result: SimResult) -> list[dict]:
             ],
             "action": "Carry cash forward",
             "account_id": event.account_id,
-            "bank": event.bank_key,
+            "account_label": (
+                result.accounts[event.account_id].label
+                if event.account_id in result.accounts else event.account_id
+            ),
+            "bank": event.bank_id or event.bank_key,
+            "transfer_steps": [],
             "product": None,
             "fd_type": None,
             "rate": None,
