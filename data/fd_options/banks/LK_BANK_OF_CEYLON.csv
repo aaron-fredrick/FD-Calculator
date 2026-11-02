@@ -1,1 +1,7 @@
-name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD
+name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes
+3m - At maturity,fixed_deposit,3m,6.25,,cumulative,,,LKR,https://deposit.lk/fixed-deposit-rates-sri-lanka,2026-06-08,secondary,Secondary comparison site reports BOC rate sheet effective 8 June 2026; rates need direct bank confirmation.
+6m - At maturity,fixed_deposit,6m,6.5,,cumulative,,,LKR,https://deposit.lk/fixed-deposit-rates-sri-lanka,2026-06-08,secondary,Secondary comparison site reports BOC rate sheet effective 8 June 2026; rates need direct bank confirmation.
+12m - At maturity,fixed_deposit,12m,7.25,,cumulative,,,LKR,https://deposit.lk/fixed-deposit-rates-sri-lanka,2026-06-08,secondary,Secondary comparison site reports BOC rate sheet effective 8 June 2026; rates need direct bank confirmation.
+24m - At maturity,fixed_deposit,24m,7,,cumulative,,,LKR,https://deposit.lk/fixed-deposit-rates-sri-lanka,2026-06-08,secondary,Secondary comparison site reports BOC rate sheet effective 8 June 2026; rates need direct bank confirmation.
+36m - At maturity,fixed_deposit,36m,7.5,,cumulative,,,LKR,https://deposit.lk/fixed-deposit-rates-sri-lanka,2026-06-08,secondary,Secondary comparison site reports BOC rate sheet effective 8 June 2026; rates need direct bank confirmation.
+60m - At maturity,fixed_deposit,60m,7.75,,cumulative,,,LKR,https://deposit.lk/fixed-deposit-rates-sri-lanka,2026-06-08,secondary,Secondary comparison site reports BOC rate sheet effective 8 June 2026; rates need direct bank confirmation.
