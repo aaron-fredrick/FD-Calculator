@@ -1032,7 +1032,7 @@ class AbsoluteStrategy(BaseStrategy):
                     total_balance_after=sum(a.balance for a in accounts_map.values()),
                 ))
 
-        return SimResult(
+        result = SimResult(
             strategy_name=self.name,
             timeline=timeline,
             bookings=bookings,
@@ -1046,6 +1046,9 @@ class AbsoluteStrategy(BaseStrategy):
             outstanding_outflows=pending_obligations,
             valid=not strict_payment_failed,
         )
+        from core.reporting import build_decision_log
+        build_decision_log(result)
+        return result
 
     @staticmethod
     def _add_event(timeline: dict[int, list[Event]], event: Event) -> None:
