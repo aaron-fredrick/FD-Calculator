@@ -472,7 +472,7 @@ class AbsoluteStrategy(BaseStrategy):
                 actual_fees = sum(t["fee"] for t in transfers)
 
                 for opt in effective_options:
-                    if (not opt.bank_key or opt.bank_key == tgt_bank) and tgt_acc.can_use_option(opt) and opt.can_invest(deployable, today, end):
+                    if (not opt.bank_identity or opt.bank_identity == tgt_bank) and tgt_acc.can_use_option(opt) and opt.can_invest(deployable, today, end):
                         gross_intr = opt.total_interest_on(deployable, today, self.compound, self.actual_leap_year)
                         if gross_intr <= actual_fees:
                             continue
@@ -507,7 +507,7 @@ class AbsoluteStrategy(BaseStrategy):
                 bkey = accounts_meta[aid].bank_identity
                 opts = [
                     o for o in effective_options
-                    if (not o.bank_key or o.bank_key == bkey) and accounts_meta[aid].can_use_option(o) and o.can_invest(b, today, end)
+                    if (not o.bank_identity or o.bank_identity == bkey) and accounts_meta[aid].can_use_option(o) and o.can_invest(b, today, end)
                 ]
                 if opts:
                     local_opts_per_acc[aid] = opts
