@@ -3,7 +3,7 @@ from __future__ import annotations
 import bisect
 import math
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Optional
 
 from core.models import (
@@ -444,10 +444,30 @@ class GAMLStrategy(BaseStrategy):
                 if next_inflow_index < len(sorted_inflow_dates)
                 else None
             )
+            has_maturity_aligned_to_inflow = False
+            if next_inflow_date is not None:
+                for aid, amount in bal:
+                    if amount <= 0.001:
+                        continue
+                    bank_key = accounts_meta[aid].bank_key
+                    for option in effective_options:
+                        if (
+                            (not option.bank_key or option.bank_key == bank_key)
+                            and option.can_invest(amount, today, end)
+                        ):
+                            maturity_date = today + timedelta(days=option.days)
+                            days_before_inflow = (next_inflow_date - maturity_date).days
+                            if 0 <= days_before_inflow <= 7:
+                                has_maturity_aligned_to_inflow = True
+                                break
+                    if has_maturity_aligned_to_inflow:
+                        break
+
             prioritise_wait = (
                 next_inflow_date is not None
                 and 0 < (next_inflow_date - today).days <= 30
                 and any(amount > 0.001 for _, amount in bal)
+                and not has_maturity_aligned_to_inflow
             )
             if prioritise_wait and (self.max_decisions is None or tally < self.max_decisions):
                 wait_node = SearchTreeNode(
