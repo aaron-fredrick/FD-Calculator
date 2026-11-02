@@ -49,10 +49,10 @@ Each event-depth layer expands at most $W$ states and retains at most $W$ childr
 The resulting bounded-search work is approximately:
 
 \[
-O\left(KW\left(A^2 + AO\log(AO) + ALO\log(LO) + BF + (W+B)\log(W+B)\right)\right)
+O\left(KW\left(A^2 + AO\log(AO) + ALO\log(LO) + BF + (W+B)\log(W+B)\right) + AKO\log O\right)
 \]
 
-The search frontier is $O(W)$, with up to $O(W+B)$ temporary candidates in both the global-score and first-decision representative pools. First-decision diversity adds a bounded selection pass but does not increase the asymptotic frontier width. Account-specific ranking rates are cached by account and event date. Memoised states and parent-path nodes can grow to $O(KW)$, each carrying account balances and pending cash-flow data. A configured `max_decisions` can impose an additional hard expansion cap, but is unset by default.
+The search frontier is $O(W)$, with up to $O(W+B)$ temporary candidates in both the global-score and first-decision representative pools. Ranking temporarily aggregates cash into up to $O(F)$ account/date buckets, and account-specific minimum-deposit rate curves are cached in $O(AK)$ space. First-decision diversity adds a bounded selection pass but does not increase the asymptotic frontier width. Memoised states and parent-path nodes can grow to $O(KW)$, each carrying account balances and pending cash-flow data. A configured `max_decisions` can impose an additional hard expansion cap, but is unset by default.
 
 This is a bounded-width heuristic, not an exact polynomial-time solution to the underlying combinatorial optimisation problem. Increasing the number of options increases per-state work, and extending the horizon increases the number of event layers, but GAML does not retain the full exponentially growing decision tree. If beam or local-combination pruning occurs, GAML reports that optimality was not proven and returns its best complete solution found (never below its valid Greedy incumbent).
 
