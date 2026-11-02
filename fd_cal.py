@@ -22,6 +22,7 @@ def main(
     accounts = config["accounts"]
     options = config["options"]
     inflow_schedule = config["inflow_schedule"]
+    outflow_schedule = config["outflow_schedule"]
     # Legacy scalar inflow schedules and final consolidation default to the first
     # configured account. New inflows specify their own destination in config.json.
     default_account_id = accounts[0].id
@@ -31,6 +32,8 @@ def main(
     selected_strategy = (strategy_override or config["strategy"]).strip().lower()
     if selected_strategy not in {"absolute", "greedy", "gaml"}:
         raise ValueError(f"Unsupported strategy {selected_strategy!r}; use 'absolute', 'greedy', or 'gaml'")
+    if outflow_schedule and selected_strategy != "greedy":
+        raise ValueError("Outflows are currently supported by the greedy strategy only; absolute/GAML search integration is not yet available.")
 
     days = (end - start).days + 1
     total_new_money = sum(
@@ -72,6 +75,16 @@ def main(
             )
     else:
         print("    - None")
+    print("  Planned outflows:")
+    if config["outflow_summaries"]:
+        for outflow in config["outflow_summaries"]:
+            dates_text = ", ".join(str(day) for day in outflow["dates"])
+            print(
+                f"    - {outflow['name']}: {outflow['amount']:,.2f} LKR x "
+                f"{outflow['occurrences']} ({outflow['payment_policy']}) on {dates_text}"
+            )
+    else:
+        print("    - None")
     print(
         f"  Starting funds: {starting_funds:,.2f} LKR | "
         f"Scheduled new money: {total_new_money:,.2f} LKR | "
@@ -95,6 +108,7 @@ def main(
         inflow_account_id=default_account_id,
         fee_config=fee_config,
         consolidation_account_id=default_account_id,
+        outflow_schedule=outflow_schedule,
     )
     result = strategy.simulate(**common_kwargs)
 
