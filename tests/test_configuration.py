@@ -196,20 +196,20 @@ class ConfigurationTests(unittest.TestCase):
         )
 
 
-    def test_equivalent_standard_and_efd_options_prefer_efd(self) -> None:
+    def test_identical_standard_and_efd_options_remain_distinct(self) -> None:
         index = self.root / "fd_options.csv"
         bank_a = self.root / "bank_a.csv"
-        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\\n"
+        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\n"
         bank_a.write_text(
             header
-            + "1m Standard,fixed_deposit,1m,9,25000,cumulative,,false,LKR,,,,\\n"
-            + "1m eFD,fixed_deposit,1m,9,25000,cumulative,,true,LKR,,,,\\n"
-            + "2m Standard,fixed_deposit,2m,8,25000,cumulative,,false,LKR,,,,\\n",
+            + "1m Standard,fixed_deposit,1m,9,25000,cumulative,,false,LKR,,,,\n"
+            + "1m eFD,fixed_deposit,1m,9,25000,cumulative,,true,LKR,,,,\n"
+            + "2m Standard,fixed_deposit,2m,8,25000,cumulative,,false,LKR,,,,\n",
             encoding="utf-8",
         )
         index.write_text(
-            "bank_id,bank_key,options_file,research_status,research_notes\\n"
-            "LK_A,commercial,bank_a.csv,populated_direct,\\n",
+            "bank_id,bank_key,options_file,research_status,research_notes\n"
+            "LK_A,commercial,bank_a.csv,populated_direct,\n",
             encoding="utf-8",
         )
         self.config["options_file"] = "fd_options.csv"
@@ -221,8 +221,17 @@ class ConfigurationTests(unittest.TestCase):
         one_month = [option for option in loaded["options"] if option.days == 30]
         self.assertEqual({option.label for option in one_month}, {"1m Standard", "1m eFD"})
         self.assertEqual({option.is_efd for option in one_month}, {False, True})
-        two_month = next(option for option in loaded["options"] if option.days == 60)
-        self.assertFalse(two_month.is_efd)
+
+    def test_account_efd_capability_is_parsed_and_validated(self) -> None:
+        self.config["accounts"][0]["supports_efd"] = False
+        self._write_config()
+        loaded = load_configuration(self.config_path)
+        self.assertFalse(loaded["accounts"][0].supports_efd)
+
+        self.config["accounts"][0]["supports_efd"] = "false"
+        self._write_config()
+        with self.assertRaisesRegex(ValueError, "supports_efd must be a boolean"):
+            load_configuration(self.config_path)
 
     def test_end_before_start_is_rejected(self) -> None:
         self.config["investment"]["end_date"] = "2000-01-01"
