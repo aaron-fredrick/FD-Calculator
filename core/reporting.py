@@ -104,7 +104,7 @@ def print_options_table(options: list[FDOption]) -> None:
 
 _EVENT_LABELS = {
     EventType.INFLOW:        "[INFLOW] ",
-    EventType.OUTFLOW:       "[OUTFLOW]"
+    EventType.OUTFLOW:       "[OUTFLOW]",
     EventType.TRANSFER:      "[XFER]   ",
     EventType.BOOKING:       "[BOOK]   ",
     EventType.CASH_FLOW:     "[CF]     ",
