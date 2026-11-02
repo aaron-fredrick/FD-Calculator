@@ -2,7 +2,6 @@ from datetime import date
 import unittest
 
 from core.models import Account, FDOption, TransferFeeConfig
-from core.reporting import build_decision_log
 from core.strategies.absolute import AbsoluteStrategy
 from core.strategies.gaml import GAMLStrategy
 from core.strategies.greedy import GreedyStrategy
