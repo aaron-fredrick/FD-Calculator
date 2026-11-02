@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Optional
 
+from core.cashflows import Obligations, process_outflows
 from core.models import (
     Account,
     Booking,
@@ -235,6 +236,7 @@ class GAMLStrategy(BaseStrategy):
         inflow_account_id: Optional[str] = None,
         fee_config: Optional[TransferFeeConfig] = None,
         consolidation_account_id: Optional[str] = None,
+        outflow_schedule: Optional[dict[date, list[dict]]] = None,
     ) -> SimResult:
         import time
         from core.strategies.greedy import GreedyStrategy
@@ -253,6 +255,7 @@ class GAMLStrategy(BaseStrategy):
             consolidation_account_id = inflow_account_id
 
         inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
+        outflow_schedule = outflow_schedule or {}
         accounts_meta: dict[str, Account] = {
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
             for acc in accounts
@@ -273,8 +276,9 @@ class GAMLStrategy(BaseStrategy):
             inflow_account_id=inflow_account_id,
             fee_config=fee_config,
             consolidation_account_id=consolidation_account_id,
+            outflow_schedule=outflow_schedule,
         )
-        best_final_val: float = greedy_res.final_value
+        best_final_val: float = greedy_res.final_value if greedy_res.valid else float("-inf")
         initial_greedy_final: float = best_final_val
 
         # Maximum possible annualized interest rate achievable within the remaining horizon
@@ -283,6 +287,8 @@ class GAMLStrategy(BaseStrategy):
 
         fixed_inflows: dict[date, dict[str, float]] = {d: amounts for d, amounts in inflow_schedule.items() if d <= end}
         sorted_inflow_dates: list[date] = sorted(fixed_inflows)
+        fixed_outflows = {d: entries for d, entries in outflow_schedule.items() if d <= end}
+        sorted_outflow_dates: list[date] = sorted(fixed_outflows)
 
         # Cash-flow generation cache
         _flow_cache: dict[tuple, list[tuple[date, float]]] = {}
@@ -306,13 +312,16 @@ class GAMLStrategy(BaseStrategy):
             candidates: list[date] = [end]
             if idx < len(sorted_inflow_dates):
                 candidates.append(sorted_inflow_dates[idx])
+            out_idx = bisect.bisect_right(sorted_outflow_dates, today)
+            if out_idx < len(sorted_outflow_dates):
+                candidates.append(sorted_outflow_dates[out_idx])
             if flows:
                 first_future = next((dt for dt, _ in flows if dt > today), None)
                 if first_future is not None and first_future <= end:
                     candidates.append(first_future)
             return min(candidates)
 
-        def calc_upper_bound(today: date, bal: BalanceTuple, active_pf: FlowsTuple) -> float:
+        def calc_upper_bound(today: date, bal: BalanceTuple, active_pf: FlowsTuple, obligations: Obligations, paid_outflows: float) -> float:
             # Assume every available rupee can continuously reinvest at the
             # highest eligible annual rate, with no minimums, fees or idle gaps.
             # exp(r * t) is a conservative envelope for repeated simple-interest
@@ -338,14 +347,15 @@ class GAMLStrategy(BaseStrategy):
                         rate * max(0, (end - dt).days) / 365.0
                     )
 
-            return terminal_bound
+            liability = sum(item[2] for item in obligations)
+            return terminal_bound + paid_outflows - liability
 
         total_capital = sum(amount for amounts in inflow_schedule.values() for amount in amounts.values()) + sum(a.balance for a in accounts)
         best_leaf: Optional[SearchTreeNode] = None
         tally: int = 0
         leaf_count: int = 0
         pruned_count: int = 0
-        memo_visited: dict[tuple[date, BalanceTuple, FlowsTuple], float] = {}
+        memo_visited: dict[tuple, float] = {}
         alternative_leaf_net_interests: list[float] = []
 
         print(f"  [{self.name} Strategy] Initializing bounded GAML global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
@@ -354,6 +364,8 @@ class GAMLStrategy(BaseStrategy):
             today: date,
             balances: BalanceTuple,
             pending_flows: FlowsTuple,
+            obligations: Obligations,
+            paid_outflows: float,
             parent_node: Optional[SearchTreeNode],
         ) -> None:
             nonlocal best_final_val, best_leaf, tally, leaf_count, pruned_count
@@ -390,6 +402,13 @@ class GAMLStrategy(BaseStrategy):
                     break
             active_pf = pending_flows[pf_future_start:]
 
+            bal, active_obligations, paid_today, payments_valid = process_outflows(
+                today, bal, obligations, fixed_outflows.get(today, [])
+            )
+            if not payments_valid:
+                return
+            paid_total = round(paid_outflows + paid_today, 2)
+
             # 3. Base case (today >= end) - Leaf node reached
             if today >= end:
                 leaf_count += 1
@@ -401,7 +420,10 @@ class GAMLStrategy(BaseStrategy):
                     if b > fee:
                         final_bal[consol_acc_id] += (b - fee)
                         final_bal[aid] = 0.0
-                terminal_val = final_bal.get(consol_acc_id, 0.0)
+                terminal_val = (
+                    sum(final_bal.values()) + paid_total
+                    - sum(item[2] for item in active_obligations)
+                )
                 net_intr = terminal_val - total_capital
 
                 if terminal_val > best_final_val:
@@ -416,13 +438,13 @@ class GAMLStrategy(BaseStrategy):
                 return
 
             # 4. Upper bound pruning
-            ub = calc_upper_bound(today, bal, active_pf)
+            ub = calc_upper_bound(today, bal, active_pf, active_obligations, paid_total)
             if ub <= best_final_val + 0.001:
                 pruned_count += 1
                 return
 
             # 5. Transposition check
-            state_key = (today, bal, active_pf)
+            state_key = (today, bal, active_pf, active_obligations, paid_total)
             if state_key in memo_visited and memo_visited[state_key] >= ub:
                 return
             memo_visited[state_key] = ub
@@ -430,7 +452,7 @@ class GAMLStrategy(BaseStrategy):
             next_date_default = _next_event_date(today, active_pf)
             active_accs = [aid for aid, b in bal if b > 0.001]
             if not active_accs:
-                search(next_date_default, bal, active_pf, parent_node)
+                search(next_date_default, bal, active_pf, active_obligations, paid_total, parent_node)
                 return
 
             bal_dict = dict(bal)
@@ -514,7 +536,7 @@ class GAMLStrategy(BaseStrategy):
                     action=CarryAction(carries=list(active_accs)),
                     today=today,
                 )
-                search(next_date_default, bal, active_pf, wait_node)
+                search(next_date_default, bal, active_pf, active_obligations, paid_total, wait_node)
 
             # ── Branch 1: Consolidate into target account T ──────────────
             consolidation_branches = []
@@ -578,7 +600,7 @@ class GAMLStrategy(BaseStrategy):
                     carries=carries,
                 )
                 child_node = SearchTreeNode(parent=parent_node, action=act, today=today)
-                search(b_next, b_bal, b_flows, child_node)
+                search(b_next, b_bal, b_flows, active_obligations, paid_total, child_node)
 
             # ── Branch 2: Local bookings ─────────────────────────────────
             local_opts_per_acc: dict[str, list[FDOption]] = {}
@@ -686,7 +708,7 @@ class GAMLStrategy(BaseStrategy):
 
                     act = LocalBookingsAction(bookings=valid_bookings, carries=carries)
                     child_node = SearchTreeNode(parent=parent_node, action=act, today=today)
-                    search(b_next, b_bal, b_flows, child_node)
+                    search(b_next, b_bal, b_flows, active_obligations, paid_total, child_node)
 
             # ── Branch 3: Carry forward (hold all cash) ──────────────────
             # If waiting was prioritised above, this branch has already been
@@ -702,7 +724,7 @@ class GAMLStrategy(BaseStrategy):
         t0 = time.time()
         init_bal = _make_balances({acc.id: acc.balance for acc in accounts})
         root_node = SearchTreeNode(parent=None, action=None, today=start)
-        search(start, init_bal, (), root_node)
+        search(start, init_bal, (), (), 0.0, root_node)
         elapsed = time.time() - t0
 
         best_net_interest = best_final_val - total_capital
@@ -751,6 +773,7 @@ class GAMLStrategy(BaseStrategy):
             consolidation_account_id=consolidation_account_id,
             total_decisions_evaluated=tally,
             alternative_leaf_net_interests=alternative_leaf_net_interests,
+            outflow_schedule=outflow_schedule,
         )
 
     # ----------------------------------------------------------------
@@ -770,6 +793,7 @@ class GAMLStrategy(BaseStrategy):
         consolidation_account_id: str,
         total_decisions_evaluated: Optional[int] = None,
         alternative_leaf_net_interests: Optional[list[float]] = None,
+        outflow_schedule: Optional[dict[date, list[dict]]] = None,
     ) -> SimResult:
         accounts_map = {
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
