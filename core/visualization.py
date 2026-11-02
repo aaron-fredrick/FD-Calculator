@@ -197,7 +197,7 @@ def _plot_decision_timeline(ax, results: Sequence[SimResult], styles: dict[str, 
         tick.set_color("#56b4e9" if strategy.lower() in {"absolute", "gaml"} else _MUTED)
     absolute_count = sum(1 for strategy, _ in rows if strategy.lower() != "greedy")
     if 0 < absolute_count < len(rows):
-        # Visually separate Absolute decisions from the Greedy comparison below.
+        # Visually separate primary strategy decisions from the Greedy comparison below.
         ax.axhline(absolute_count - 0.5, color=_GRID, linewidth=1.2, alpha=0.95, zorder=4)
     ax.invert_yaxis()
     ax.set_xlabel("Date")
