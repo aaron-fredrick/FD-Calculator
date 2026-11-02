@@ -267,6 +267,24 @@ class SimResult:
         return self.total_interest - self.total_transfer_fees
 
     @property
+    def total_outflows_due(self) -> float:
+        return self.total_outflows_paid + sum(
+            float(item.get("remaining", 0.0)) for item in self.outstanding_outflows
+        )
+
+    @property
+    def cash_retained(self) -> float:
+        """Liquid cash remaining across configured accounts at the end of the run."""
+        return sum(account.balance for account in self.accounts.values())
+
+    @property
+    def cash_flow_net_worth(self) -> float:
+        """Ending liquid cash less unpaid outflow liabilities."""
+        return self.cash_retained - sum(
+            float(item.get("remaining", 0.0)) for item in self.outstanding_outflows
+        )
+
+    @property
     def total_idle(self) -> float:
         idle = 0.0
         for events in self.timeline.values():
