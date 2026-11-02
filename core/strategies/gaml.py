@@ -966,7 +966,8 @@ class GAMLStrategy(BaseStrategy):
                             fee=0.0,
                             balance_after=tgt.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
-                        ))                    principal       = tgt_acc.balance
+                        ))
+                    principal = tgt_acc.balance
                     tgt_acc.balance = 0.0
                     booking_counter += 1
                     ref = f"FD-{booking_counter:04d}"
