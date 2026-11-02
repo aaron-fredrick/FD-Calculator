@@ -214,6 +214,9 @@ class StrategyCashFlowTests(unittest.TestCase):
                 self.assertTrue(result.valid)
                 self.assertEqual(result.total_outflows_paid, expected_paid)
                 self.assertEqual(result.outstanding_outflows[0]["remaining"], expected_remaining)
+                self.assertEqual(result.cash_retained, 5000.0 - expected_paid)
+                self.assertEqual(result.cash_flow_net_worth, result.cash_retained - expected_remaining)
+                self.assertEqual(result.total_outflows_due, expected_paid + expected_remaining)
 
 
 if __name__ == "__main__":
