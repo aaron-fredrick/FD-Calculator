@@ -218,6 +218,174 @@ def print_booking_ledger(result: SimResult) -> None:
     print(divider("-"))
 
 
+
+# ---------------------------------------------------------------------------
+# Decision log -- final selected path only
+# ---------------------------------------------------------------------------
+
+def build_decision_log(result: SimResult) -> list[dict]:
+    """Build a chronological explanation from the actions actually replayed.
+
+    GAML and Absolute search trees are deliberately not inspected here: their
+    replay timelines contain only the winning path, so alternatives never leak
+    into the user-facing log.
+    """
+    dated_events = [
+        event
+        for key in result.sorted_dates()
+        for event in result.timeline[key]
+    ]
+    booking_events = [event for event in dated_events if event.event_type == EventType.BOOKING]
+    booking_by_ref = {
+        event.booking_ref: booking
+        for event, booking in zip(booking_events, result.bookings)
+    }
+    by_day: dict[date, list[Event]] = {}
+    for event in dated_events:
+        by_day.setdefault(event.on_date, []).append(event)
+
+    def next_milestone(day: date) -> str:
+        candidates = [
+            event for event in dated_events
+            if event.on_date > day and event.event_type in {
+                EventType.CASH_FLOW, EventType.MATURITY, EventType.INFLOW, EventType.OUTFLOW
+            }
+        ]
+        if not candidates:
+            return f"Investment horizon ends {result.end_date}"
+        event = min(candidates, key=lambda item: item.on_date)
+        return f"{event.on_date}: {event.event_type.value} — {event.label} ({event.amount:,.2f} LKR)"
+
+    records: list[dict] = []
+    split_counts: dict[date, int] = {}
+    for event in booking_events:
+        if event.decision_context.get("action") == "split":
+            split_counts[event.on_date] = split_counts.get(event.on_date, 0) + 1
+
+    for event in booking_events:
+        booking = booking_by_ref.get(event.booking_ref)
+        if booking is None:
+            continue
+        account = result.accounts.get(booking.account_id)
+        balances = event.decision_context.get("balances_before", {})
+        action = event.decision_context.get("action", "invest")
+        if action == "split":
+            action_label = "Split investments" if split_counts.get(event.on_date, 0) > 1 else "Invest"
+        else:
+            action_label = "Consolidate and invest" if action == "consolidate" else "Invest"
+        option = booking.option
+        eligible = account.can_use_option(option) if account else not option.is_efd
+        reasons = [
+            f"{'Eligible' if eligible else 'Not eligible'} destination account for {'eFD' if option.is_efd else 'standard FD'}",
+            f"Principal {booking.principal:,.2f} LKR meets minimum {option.min_amount:,.2f} LKR",
+        ]
+        if action == "consolidate":
+            transfer_events = [
+                item for item in by_day.get(event.on_date, [])
+                if item.event_type == EventType.TRANSFER
+            ]
+            if transfer_events:
+                fees = sum(item.fee for item in transfer_events)
+                reasons.append(f"Consolidation transfers incurred {fees:,.2f} LKR in fees")
+        if result.strategy_name.lower() == "greedy":
+            reasons.append("Selected by Greedy's daily ranking of feasible rate, term, net interest and fees")
+        elif result.strategy_name.lower() == "gaml":
+            reasons.append("Part of the highest-value feasible path found within the GAML search budget")
+        else:
+            reasons.append("Part of the highest-value feasible path retained by Absolute branch-and-bound search")
+
+        relevant = [
+            f"{item.event_type.value}: {item.label} ({item.amount:,.2f} LKR)"
+            for item in by_day.get(event.on_date, [])
+            if item is not event and item.event_type in {
+                EventType.INFLOW, EventType.OUTFLOW, EventType.TRANSFER,
+                EventType.CASH_FLOW, EventType.MATURITY
+            }
+        ]
+        records.append({
+            "date": event.on_date,
+            "available_funds": dict(balances),
+            "relevant_events": relevant,
+            "action": action_label,
+            "account_id": booking.account_id,
+            "bank": booking.bank_key,
+            "product": option.label,
+            "fd_type": "eFD" if option.is_efd else "Standard FD",
+            "rate": option.annual_rate,
+            "term": option.period_str,
+            "principal": booking.principal,
+            "expected_return": booking.total_interest,
+            "reason": reasons,
+            "next_milestone": next_milestone(event.on_date),
+        })
+
+    # Carry records represent final-path decisions that intentionally retained
+    # liquidity rather than creating an FD contract.
+    for event in dated_events:
+        if event.event_type != EventType.CARRY_FORWARD:
+            continue
+        records.append({
+            "date": event.on_date,
+            "available_funds": {event.account_id: event.amount},
+            "relevant_events": [
+                f"{item.event_type.value}: {item.label} ({item.amount:,.2f} LKR)"
+                for item in by_day.get(event.on_date, [])
+                if item is not event and item.event_type in {
+                    EventType.INFLOW, EventType.OUTFLOW, EventType.TRANSFER,
+                    EventType.CASH_FLOW, EventType.MATURITY
+                }
+            ],
+            "action": "Carry cash forward",
+            "account_id": event.account_id,
+            "bank": event.bank_key,
+            "product": None,
+            "fd_type": None,
+            "rate": None,
+            "term": None,
+            "principal": 0.0,
+            "expected_return": 0.0,
+            "reason": [event.label],
+            "next_milestone": next_milestone(event.on_date),
+        })
+
+    records.sort(key=lambda item: (item["date"], item["action"], item["account_id"]))
+    result.decision_log = records
+    return records
+
+
+def print_decision_log(result: SimResult) -> None:
+    """Print the chronological decisions that produced the selected simulation."""
+    records = build_decision_log(result)
+    print()
+    print(divider("="))
+    print(f"  DECISION LOG — SELECTED {result.strategy_name.upper()} PATH")
+    print(divider("="))
+    if not records:
+        print("  (no investment or carry-forward decisions)")
+        print(divider("="))
+        return
+    for index, record in enumerate(records, 1):
+        print(f"  {index:03d}. {record['date']} — {record['action']}")
+        if record["available_funds"]:
+            funds = ", ".join(f"{key}: {value:,.2f}" for key, value in record["available_funds"].items())
+            print(f"       Available funds before action: {funds} LKR")
+        if record["relevant_events"]:
+            print("       Relevant events: " + "; ".join(record["relevant_events"]))
+        if record["product"]:
+            print(
+                f"       Selected FD: {record['bank']} / {record['product']} "
+                f"({record['fd_type']}, {record['rate']:.3f}%, {record['term']})"
+            )
+            print(
+                f"       Account: {record['account_id']} | Principal: {record['principal']:,.2f} LKR | "
+                f"Expected interest: {record['expected_return']:,.2f} LKR"
+            )
+        for reason in record["reason"]:
+            print(f"       Reason: {reason}")
+        print(f"       Next milestone: {record['next_milestone']}")
+    print(divider("="))
+
+
 # ---------------------------------------------------------------------------
 # Main simulation printer
 # ---------------------------------------------------------------------------
@@ -226,6 +394,7 @@ def print_simulation(
     result: SimResult,
     show_event_timeline: bool = True,
     show_booking_ledger: bool = True,
+    show_decision_log: bool = True,
     comparison: dict[str, float] | None = None,
 ) -> None:
     """
@@ -244,6 +413,8 @@ def print_simulation(
 
     if show_event_timeline:
         print_event_timeline(result)
+    if show_decision_log:
+        print_decision_log(result)
 
     # -- Shared financial summary (same layout for every strategy) --
     print()
