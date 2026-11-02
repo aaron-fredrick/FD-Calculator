@@ -43,6 +43,11 @@ class Account:
         if not isinstance(self.supports_efd, bool):
             raise ValueError("supports_efd must be a boolean")
 
+    @property
+    def bank_identity(self) -> str:
+        """Canonical bank ID; bank_key is only a legacy/internal fallback."""
+        return self.bank_id or self.bank_key
+
     def can_use_option(self, option: "FDOption") -> bool:
         """Whether this specific account can open the given bank product."""
         return not option.is_efd or self.supports_efd
@@ -61,14 +66,14 @@ class TransferFeeConfig:
     custom_fees: dict[tuple[str, str], float] = field(default_factory=dict)
     bank_fees: dict[str, tuple[float, float]] = field(default_factory=dict)
 
-    def get_fee(self, from_bank: str, to_bank: str) -> float:
-        b1 = from_bank.strip().lower()
-        b2 = to_bank.strip().lower()
-        if b1 == b2:
-            return self.bank_fees.get(b1, (self.same_bank_fee, self.default_inter_bank_fee))[0]
-        if (b1, b2) in self.custom_fees:
-            return self.custom_fees[(b1, b2)]
-        return self.bank_fees.get(b1, (self.same_bank_fee, self.default_inter_bank_fee))[1]
+    def get_fee(self, from_bank_id: str, to_bank_id: str) -> float:
+        from_id = from_bank_id.strip().upper()
+        to_id = to_bank_id.strip().upper()
+        if from_id == to_id:
+            return self.bank_fees.get(from_id, (self.same_bank_fee, self.default_inter_bank_fee))[0]
+        if (from_id, to_id) in self.custom_fees:
+            return self.custom_fees[(from_id, to_id)]
+        return self.bank_fees.get(from_id, (self.same_bank_fee, self.default_inter_bank_fee))[1]
 
 
 @dataclass
@@ -148,6 +153,11 @@ class FDOption:
         )
         if self.payout_type != CUMULATIVE and not self.payout_period_str:
             raise ValueError(f"Option {self.label!r} requires payout_period_str for {self.payout_type!r}")
+
+    @property
+    def bank_identity(self) -> str:
+        """Canonical bank ID; bank_key is only a legacy/internal fallback."""
+        return self.bank_id or self.bank_key
 
     def maturity_date(self, start: date) -> date:
         return add_period(start, self.period_str)
