@@ -156,7 +156,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         if not eligible_options:
             capability = "eFD-capable" if account.supports_efd else "standard-FD-only"
             raise ValueError(
-                f"Account {account.id!r} ({account.bank_key}) is {capability}, "
+                f"Account {account.id!r} ({account.bank_id}) is {capability}, "
                 f"but no compatible standard/eFD products were loaded. Check the bank options CSV."
             )
 
@@ -266,11 +266,9 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         fee = float(item.get("amount", 0.0))
         if from_bank_id not in bank_registry or to_bank_id not in bank_registry:
             raise ValueError(f"Custom transfer fee at index {index} must reference valid from_bank_id/to_bank_id values from data/banks/banks.csv")
-        from_bank = bank_key_by_id[from_bank_id]
-        to_bank = bank_key_by_id[to_bank_id]
         if not isfinite(fee) or fee < 0:
             raise ValueError(f"Invalid custom transfer fee at index {index}")
-        custom_fees[(from_bank, to_bank)] = fee
+        custom_fees[(from_bank_id.upper(), to_bank_id.upper())] = fee
 
     bank_fees: dict[str, tuple[float, float]] = {}
     for bank_id, bank_row in bank_registry.items():
@@ -284,7 +282,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
             raise ValueError(f"Invalid transfer fee data for bank_id {bank_id!r}") from exc
         if not isfinite(intra_fee) or not isfinite(inter_fee) or intra_fee < 0 or inter_fee < 0:
             raise ValueError(f"Transfer fees for bank_id {bank_id!r} must be finite and non-negative")
-        bank_fees[bank_key] = (intra_fee, inter_fee)
+        bank_fees[bank_id.upper()] = (intra_fee, inter_fee)
 
     fee_config = TransferFeeConfig(
         default_inter_bank_fee=float(fees_data.get("default_inter_bank_fee", 30.0)),
