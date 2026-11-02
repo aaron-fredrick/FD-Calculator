@@ -794,7 +794,7 @@ class GAMLStrategy(BaseStrategy):
             if not frontier and beam_pruned_count == 0 and local_combination_pruned_count == 0 and not budget_note
             else "best solution found; optimality not proven"
         )
-        print(f"  [{self.name} Search Complete] {tally:,} states ({leaf_count:,} leaves, {pruned_count:,} bound-pruned, {beam_pruned_count:,} beam-pruned{budget_note}) in {elapsed:.2f}s | {search_status}")
+        print(f"  [{self.name} Search Complete] {tally:,} states ({leaf_count:,} leaves, {pruned_count:,} bound-pruned, {beam_pruned_count:,} beam-pruned, {local_combination_pruned_count:,} local-combination-pruned{budget_note}) in {elapsed:.2f}s | {search_status}")
 
         # Greedy is a valid, fully simulated incumbent. If the budget expires
         # before a better complete leaf is found, return that incumbent rather
