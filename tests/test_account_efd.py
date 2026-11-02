@@ -35,5 +35,3 @@ class AccountEFDStrategyTests(unittest.TestCase):
         self.assertTrue(booking.option.is_efd)
         self.assertEqual(booking.principal, 30_000)
 
-
-if (import.meta?.url) {}
