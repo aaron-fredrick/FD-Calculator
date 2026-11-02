@@ -244,7 +244,8 @@ class AbsoluteStrategy(BaseStrategy):
         inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
         outflow_schedule = outflow_schedule or {}
         accounts_meta: dict[str, Account] = {
-            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
+            acc.id: Account(id=acc.id, bank_key=acc.bank_key,
+                    bank_id=acc.bank_id, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
             for acc in accounts
         }
         validate_outflow_schedule(outflow_schedule, start, end, set(accounts_meta))
@@ -641,7 +642,8 @@ class AbsoluteStrategy(BaseStrategy):
         outflow_schedule: Optional[dict[date, list[dict]]] = None,
     ) -> SimResult:
         accounts_map = {
-            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
+            acc.id: Account(id=acc.id, bank_key=acc.bank_key,
+                    bank_id=acc.bank_id, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
             for acc in accounts
         }
         timeline: dict[int, list[Event]] = {}
@@ -754,6 +756,7 @@ class AbsoluteStrategy(BaseStrategy):
                         event_type=EventType.OUTFLOW, on_date=today, amount=-paid,
                         label=f"Paid {obligation['name']} ({policy})",
                         account_id=acc.id, bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                         balance_after=acc.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
                     ))
@@ -784,6 +787,7 @@ class AbsoluteStrategy(BaseStrategy):
                             label=f"Transfer to {tgt.label} (Amt: {net_amt:,.2f}, Fee: {fee:,.2f})",
                             account_id=src.id,
                             bank_key=src.bank_key,
+                    bank_id=src.bank_id,
                             fee=fee,
                             balance_after=src.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -796,6 +800,7 @@ class AbsoluteStrategy(BaseStrategy):
                             label=f"Transfer received from {src.label}",
                             account_id=tgt.id,
                             bank_key=tgt.bank_key,
+                    bank_id=tgt.bank_id,
                             fee=0.0,
                             balance_after=tgt.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -818,6 +823,7 @@ class AbsoluteStrategy(BaseStrategy):
                         cash_flows=flows,
                         account_id=tgt_acc.id,
                         bank_key=tgt_acc.bank_key,
+                    bank_id=tgt_acc.bank_id,
                     )
                     bookings.append(booking)
 
@@ -829,6 +835,7 @@ class AbsoluteStrategy(BaseStrategy):
                         booking_ref=ref,
                         account_id=tgt_acc.id,
                         bank_key=tgt_acc.bank_key,
+                    bank_id=tgt_acc.bank_id,
                         balance_after=tgt_acc.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
                         decision_context={"action": "consolidate", "balances_before": decision_balances_before},
@@ -852,6 +859,7 @@ class AbsoluteStrategy(BaseStrategy):
                             booking_ref=ref,
                             account_id=tgt_acc.id,
                             bank_key=tgt_acc.bank_key,
+                    bank_id=tgt_acc.bank_id,
                         ))
 
                     for aid in act.carries:
@@ -864,6 +872,7 @@ class AbsoluteStrategy(BaseStrategy):
                                 label=f"Holding liquidity; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
                             ))
@@ -891,6 +900,7 @@ class AbsoluteStrategy(BaseStrategy):
                             cash_flows=flows,
                             account_id=acc.id,
                             bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                         )
                         bookings.append(booking)
 
@@ -902,6 +912,7 @@ class AbsoluteStrategy(BaseStrategy):
                             booking_ref=ref,
                             account_id=acc.id,
                             bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                             balance_after=acc.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
                             decision_context={"action": "split", "balances_before": decision_balances_before},
@@ -925,6 +936,7 @@ class AbsoluteStrategy(BaseStrategy):
                                 booking_ref=ref,
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                             ))
 
                     for aid in act.carries:
@@ -937,6 +949,7 @@ class AbsoluteStrategy(BaseStrategy):
                                 label=f"Holding liquidity; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
                             ))
@@ -952,6 +965,7 @@ class AbsoluteStrategy(BaseStrategy):
                                 label=f"Holding liquidity; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
                             ))
@@ -976,6 +990,7 @@ class AbsoluteStrategy(BaseStrategy):
                     label=f"Final sweep to {consol_acc.label} (Amt: {cash_to_sweep:,.2f}, Fee: {fee:,.2f})",
                     account_id=acc.id,
                     bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                     fee=fee,
                     balance_after=0.0,
                     total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -988,6 +1003,7 @@ class AbsoluteStrategy(BaseStrategy):
                     label=f"Final sweep received from {acc.label}",
                     account_id=consol_acc.id,
                     bank_key=consol_acc.bank_key,
+                    bank_id=consol_acc.bank_id,
                     fee=0.0,
                     balance_after=consol_acc.balance,
                     total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -1003,6 +1019,7 @@ class AbsoluteStrategy(BaseStrategy):
                     label=f"Final cash balance in {acc.label}",
                     account_id=acc.id,
                     bank_key=acc.bank_key,
+                    bank_id=acc.bank_id,
                     balance_after=acc.balance,
                     total_balance_after=sum(a.balance for a in accounts_map.values()),
                 ))
