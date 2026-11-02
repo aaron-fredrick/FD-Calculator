@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
@@ -32,16 +31,22 @@ class EventType(Enum):
 class Account:
     """A bank account holding liquid cash."""
     id: str
-    bank_key: str
+    bank_id: str = ""  # canonical ID from data/banks/banks.csv
     label: str = ""
     balance: float = 0.0
     supports_efd: bool = True
+    bank_key: str = ""  # internal FD-options routing key; never used as config identity
 
     def __post_init__(self):
         if not self.label:
-            self.label = f"{self.bank_key.title()} Account"
+            self.label = f"{(self.bank_key or self.bank_id).title()} Account"
         if not isinstance(self.supports_efd, bool):
             raise ValueError("supports_efd must be a boolean")
+
+    @property
+    def bank_identity(self) -> str:
+        """Canonical bank ID; bank_key is only a legacy/internal fallback."""
+        return self.bank_id or self.bank_key
 
     def can_use_option(self, option: "FDOption") -> bool:
         """Whether this specific account can open the given bank product."""
@@ -54,22 +59,21 @@ class TransferFeeConfig:
     Configuration for inter-bank and intra-bank transfer fees.
 
     - Same-bank transfer fee: 0.0 by default.
-    - Inter-bank transfer fee: default_inter_bank_fee (e.g. 30.0 LKR), or customized per pair.
+    - Inter-bank transfer fee: bank-specific sending-bank tariff, then directional bank-ID override, then fallback.
     """
     default_inter_bank_fee: float = 30.0
     same_bank_fee: float = 0.0
     custom_fees: dict[tuple[str, str], float] = field(default_factory=dict)
+    bank_fees: dict[str, tuple[float, float]] = field(default_factory=dict)
 
-    def get_fee(self, from_bank: str, to_bank: str) -> float:
-        b1 = from_bank.strip().lower()
-        b2 = to_bank.strip().lower()
-        if b1 == b2:
-            return self.same_bank_fee
-        if (b1, b2) in self.custom_fees:
-            return self.custom_fees[(b1, b2)]
-        if (b2, b1) in self.custom_fees:
-            return self.custom_fees[(b2, b1)]
-        return self.default_inter_bank_fee
+    def get_fee(self, from_bank_id: str, to_bank_id: str) -> float:
+        from_id = from_bank_id.strip().upper()
+        to_id = to_bank_id.strip().upper()
+        if from_id == to_id:
+            return self.bank_fees.get(from_id, (self.same_bank_fee, self.default_inter_bank_fee))[0]
+        if (from_id, to_id) in self.custom_fees:
+            return self.custom_fees[(from_id, to_id)]
+        return self.bank_fees.get(from_id, (self.same_bank_fee, self.default_inter_bank_fee))[1]
 
 
 @dataclass
@@ -87,10 +91,12 @@ class Event:
     booking_ref:         str  = ""   # non-empty for booking / cash-flow / maturity events
     account_id:          str  = ""   # which account this event directly affected
     payment_policy:      str  = ""   # outflow policy when applicable
-    bank_key:            str  = ""   # which bank
+    bank_key:            str  = ""   # internal FD-options routing key
+    bank_id:             str  = ""   # canonical ID from data/banks/banks.csv
     fee:                 float = 0.0 # transfer fee if transfer event
     balance_after:       float = -1.0 # balance of this specific account after the event
     total_balance_after: float = -1.0 # total liquid cash across all accounts after the event
+    decision_context: dict = field(default_factory=dict) # final-path decision snapshot; empty for non-decision events
 
     @property
     def date_key(self) -> int:
@@ -114,8 +120,9 @@ class FDOption:
     min_amount: float = DEFAULT_MIN_INVESTMENT
     payout_type: str = CUMULATIVE
     payout_period_str: str = ""
-    bank_key: str = ""
+    bank_key: str = ""  # internal FD-options routing key
     is_efd: bool = False
+    bank_id: str = ""
 
     days: int = field(init=False)
     payout_period_days: int = field(init=False)
@@ -146,6 +153,11 @@ class FDOption:
         )
         if self.payout_type != CUMULATIVE and not self.payout_period_str:
             raise ValueError(f"Option {self.label!r} requires payout_period_str for {self.payout_type!r}")
+
+    @property
+    def bank_identity(self) -> str:
+        """Canonical bank ID; bank_key is only a legacy/internal fallback."""
+        return self.bank_id or self.bank_key
 
     def maturity_date(self, start: date) -> date:
         return add_period(start, self.period_str)
@@ -230,7 +242,8 @@ class Booking:
     start: date
     cash_flows: list[tuple[date, float]]
     account_id: str = ""
-    bank_key: str = ""
+    bank_key: str = ""  # internal FD-options routing key
+    bank_id: str = ""
 
     @property
     def total_received(self) -> float:
@@ -266,6 +279,7 @@ class SimResult:
     total_outflows_paid: float = 0.0
     outstanding_outflows: list[dict] = field(default_factory=list)
     valid: bool = True
+    decision_log: list[dict] = field(default_factory=list)
 
     @property
     def total_interest(self) -> float:
@@ -320,64 +334,6 @@ class SimResult:
         return sorted(self.timeline.keys())
 
 
-def build_fd_options(
-    options_config: list,
-    default_min_invest: float = DEFAULT_MIN_INVESTMENT,
-    bank_key: str = "",
-) -> list[FDOption]:
-    result = []
-    for entry in options_config:
-        if isinstance(entry, FDOption):
-            if bank_key and not entry.bank_key:
-                entry.bank_key = bank_key
-            result.append(entry)
-        elif isinstance(entry, dict):
-            label = str(entry.get("label", ""))
-            period_str = str(entry.get("period_str") or entry.get("period", ""))
-            annual_rate = float(entry.get("annual_rate") if "annual_rate" in entry else entry.get("rate", 0.0))
-            min_val = entry.get("min_amount") if "min_amount" in entry else entry.get("minimum", entry.get("min_invest", default_min_invest))
-            min_amount = float(min_val) if min_val is not None else default_min_invest
-            payout_type = str(entry.get("payout_type", CUMULATIVE))
-            payout_period_str = str(entry.get("payout_period_str") or entry.get("payout_period", ""))
-            b_key = str(entry.get("bank_key") or bank_key)
-            result.append(
-                FDOption(
-                    label=label,
-                    period_str=period_str,
-                    annual_rate=annual_rate,
-                    min_amount=min_amount,
-                    payout_type=payout_type,
-                    payout_period_str=payout_period_str,
-                    bank_key=b_key,
-                    is_efd=bool(entry.get("is_efd", entry.get("eFD", False))),
-                )
-            )
-        elif len(entry) == 3:
-            label, period, rate = entry
-            result.append(FDOption(label, period, rate, min_amount=default_min_invest, bank_key=bank_key))
-        elif len(entry) == 4:
-            label, period, rate, val4 = entry
-            if isinstance(val4, (int, float)):
-                result.append(FDOption(label, period, rate, min_amount=float(val4), bank_key=bank_key))
-            else:
-                result.append(FDOption(label, period, rate, min_amount=default_min_invest, payout_type=str(val4), bank_key=bank_key))
-        elif len(entry) == 5:
-            label, period, rate, val4, val5 = entry
-            if isinstance(val4, (int, float)):
-                result.append(FDOption(label, period, rate, min_amount=float(val4), payout_type=str(val5), bank_key=bank_key))
-            else:
-                result.append(FDOption(label, period, rate, min_amount=default_min_invest, payout_type=str(val4), payout_period_str=str(val5), bank_key=bank_key))
-        elif len(entry) == 6:
-            label, period, rate, val4, val5, val6 = entry
-            if isinstance(val4, (int, float)):
-                result.append(FDOption(label, period, rate, min_amount=float(val4), payout_type=str(val5), payout_period_str=str(val6), bank_key=bank_key))
-            else:
-                result.append(FDOption(label, period, rate, min_amount=float(val6), payout_type=str(val4), payout_period_str=str(val5), bank_key=bank_key))
-        else:
-            raise ValueError(f"OPTIONS entry must be 3 to 6 elements, got {len(entry)}: {entry!r}")
-    return result
-
-
 def normalize_inflow_schedule(
     schedule: dict[date, float] | dict[date, dict[str, float]],
     default_account_id: str,
@@ -401,71 +357,13 @@ def normalize_inflow_schedule(
     return normalized
 
 
-def load_options_from_json(
-    filepath: str | Path = "options.json",
-    bank_key: Optional[str] = None,
-    default_min_invest: float = DEFAULT_MIN_INVESTMENT,
-) -> list[FDOption]:
-    """
-    Load FD options from a JSON file.
-
-    If ``bank_key`` is provided (e.g. 'commercial'), only that bank's options
-    are returned.
-    If ``bank_key`` is None or 'all', options across all banks in the file
-    are returned as a combined list with their ``bank_key`` populated.
-    """
-    path = Path(filepath)
-    if not path.is_absolute() and not path.exists():
-        base_dir = Path(__file__).resolve().parent.parent
-        candidate = base_dir / path
-        if candidate.exists():
-            path = candidate
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    if bank_key is not None and bank_key.lower() != "all":
-        if bank_key not in data:
-            available = list(data.keys())
-            raise KeyError(f"Key {bank_key!r} not found in {path}. Available keys: {available}")
-        return build_fd_options(data[bank_key], default_min_invest=default_min_invest, bank_key=bank_key)
-
-    all_options: list[FDOption] = []
-    for b_key, opt_list in data.items():
-        all_options.extend(build_fd_options(opt_list, default_min_invest=default_min_invest, bank_key=b_key))
-    return all_options
-
-
-def load_all_options_from_json(
-    filepath: str | Path = "options.json",
-    default_min_invest: float = DEFAULT_MIN_INVESTMENT,
-) -> dict[str, list[FDOption]]:
-    """Load options grouped by bank key into a dict."""
-    path = Path(filepath)
-    if not path.is_absolute() and not path.exists():
-        base_dir = Path(__file__).resolve().parent.parent
-        candidate = base_dir / path
-        if candidate.exists():
-            path = candidate
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    return {
-        b_key: build_fd_options(opt_list, default_min_invest=default_min_invest, bank_key=b_key)
-        for b_key, opt_list in data.items()
-    }
-
-
 def load_options_from_bank_csv(
     index_filepath: str | Path,
-    bank_keys: list[str] | None = None,
+    bank_ids: list[str],
     *,
-    account_banks_only: bool = True,
-    efd_only: bool = True,
     default_min_invest: float = DEFAULT_MIN_INVESTMENT,
 ) -> list[FDOption]:
-    """Load bank-specific FD options from the CSV index and linked bank files."""
+    """Load all standard and eFD products for the requested canonical bank IDs."""
     index_path = Path(index_filepath).expanduser().resolve()
     if not index_path.is_file():
         raise FileNotFoundError(f"FD options index not found: {index_path}")
@@ -478,31 +376,27 @@ def load_options_from_bank_csv(
             f"{index_path} must contain columns: {', '.join(sorted(required))}"
         )
 
-    requested = {str(key).strip().lower() for key in (bank_keys or [])}
-    if account_banks_only and not requested:
-        raise ValueError("At least one account bank is required when account_banks_only is true")
-
-    selected = [
-        row for row in index_rows
-        if not account_banks_only or str(row.get("bank_key", "")).strip().lower() in requested
-    ]
-    if account_banks_only:
-        indexed = {str(row.get("bank_key", "")).strip().lower() for row in selected}
-        missing = sorted(requested - indexed)
-        if missing:
-            raise ValueError(
-                f"No bank options index entry found for bank_key(s): {', '.join(missing)}"
-            )
+    requested = {str(bank_id).strip() for bank_id in bank_ids}
+    if not requested:
+        raise ValueError("At least one canonical bank_id is required")
+    rows_by_id = {
+        str(row.get("bank_id", "")).strip(): row
+        for row in index_rows if str(row.get("bank_id", "")).strip()
+    }
+    missing = sorted(requested - set(rows_by_id))
+    if missing:
+        raise ValueError(f"No FD-options index entry for bank_id(s): {', '.join(missing)}")
 
     result: list[FDOption] = []
-    for bank in selected:
+    for bank_id in sorted(requested):
+        bank = rows_by_id[bank_id]
         bank_key = str(bank.get("bank_key", "")).strip().lower()
         relative_file = str(bank.get("options_file", "")).strip()
         if not relative_file:
-            raise ValueError(f"Bank {bank.get('bank_id', bank_key)!r} has no options_file")
+            raise ValueError(f"Bank {bank_id!r} has no options_file")
         bank_file = (index_path.parent / relative_file).resolve()
         if not bank_file.is_file():
-            raise FileNotFoundError(f"FD options file for {bank_key!r} not found: {bank_file}")
+            raise FileNotFoundError(f"FD options file for {bank_id!r} not found: {bank_file}")
 
         with bank_file.open("r", encoding="utf-8-sig", newline="") as handle:
             rows = list(csv.DictReader(handle))
@@ -513,11 +407,7 @@ def load_options_from_bank_csv(
         }.get(bank_key, default_min_invest)
         for row in rows:
             raw_efd = str(row.get("eFD", "")).strip().lower()
-            if efd_only and raw_efd != "true":
-                continue
             if raw_efd not in {"true", "false"}:
-                if efd_only:
-                    continue
                 raise ValueError(
                     f"Option {row.get('name', '')!r} in {bank_file} has invalid eFD value {raw_efd!r}"
                 )
@@ -532,6 +422,7 @@ def load_options_from_bank_csv(
                     payout_period_str=str(row.get("payout_period", "")).strip(),
                     bank_key=bank_key,
                     is_efd=(raw_efd == "true"),
+                    bank_id=bank_id,
                 )
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"Invalid FD option row in {bank_file}: {row!r}") from exc
@@ -539,16 +430,8 @@ def load_options_from_bank_csv(
                 raise ValueError(f"FD option in {bank_file} has an empty name")
             bank_options.append(option)
 
-        # Keep standard and eFD variants distinct: account-level eligibility
-        # determines which product can be booked, even when terms are identical.
-        if account_banks_only and not bank_options:
-            mode = "eFD" if efd_only else "standard/eFD"
-            raise ValueError(
-                f"Bank {bank_key!r} has no {mode} options in {bank_file}. "
-                "Set efd_only to false or add verified options."
-            )
+        if not bank_options:
+            raise ValueError(f"Bank {bank_id!r} has no FD products in {bank_file}")
         result.extend(bank_options)
 
-    if not result:
-        raise ValueError("No FD options were loaded; check the bank index and efd_only setting")
     return result

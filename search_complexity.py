@@ -53,7 +53,7 @@ def main() -> None:
     by_bank: dict[str, list] = {}
     for option in effective:
         if option.fits_before(start, end):
-            by_bank.setdefault(option.bank_key, []).append(option)
+            by_bank.setdefault(option.bank_identity, []).append(option)
 
     # Local booking choices: each account may skip booking or choose one
     # eligible option. This deliberately ignores its current cash balance,
@@ -61,16 +61,20 @@ def main() -> None:
     per_account: list[tuple[str, int]] = []
     local_combinations = 1
     for account in accounts:
-        count = len(by_bank.get(account.bank_key, []))
+        account_options = [
+            option for option in by_bank.get(account.bank_identity, [])
+            if account.can_use_option(option)
+        ]
+        count = len(account_options)
         per_account.append((account.id, count))
         local_combinations *= 1 + count
     local_nonempty = local_combinations - 1
 
-    # A consolidation branch is generated per target account and eligible
-    # option for that target bank. This is an upper bound because some states
-    # have no transferable cash or insufficient principal.
+    # A consolidation branch is generated per destination account and only
+    # for products that destination account is allowed to open.
     consolidation_choices = sum(
-        len(by_bank.get(account.bank_key, [])) for account in accounts
+        sum(account.can_use_option(option) for option in by_bank.get(account.bank_identity, []))
+        for account in accounts
     )
 
     # Absolute also has one carry-forward branch.
@@ -83,10 +87,10 @@ def main() -> None:
     leaves_log10 = decision_depth * math.log10(branching) if branching > 0 else float("-inf")
     nodes_log10 = _log10_geometric_sum(branching, decision_depth)
 
-    total_options_by_bank = Counter(option.bank_key for option in all_options)
-    effective_by_bank = Counter(option.bank_key for option in effective)
+    total_options_by_bank = Counter(option.bank_identity for option in all_options)
+    effective_by_bank = Counter(option.bank_identity for option in effective)
     horizon_by_bank = Counter(
-        option.bank_key for option in effective if option.fits_before(start, end)
+        option.bank_identity for option in effective if option.fits_before(start, end)
     )
 
     print("\n" + "=" * 76)
@@ -99,7 +103,7 @@ def main() -> None:
     print(f"  Decision depth (K)  : <= {decision_depth} calendar dates")
     print()
     print("  Effective options after Absolute's dominated-option pruning:")
-    for bank in sorted({a.bank_key for a in accounts}):
+    for bank in sorted({a.bank_identity for a in accounts}):
         print(
             f"    {bank:<18} loaded={total_options_by_bank[bank]:>3}  "
             f"effective={effective_by_bank[bank]:>3}  "

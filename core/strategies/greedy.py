@@ -48,7 +48,7 @@ def _pick_daily_greedy_plan(
         return {"type": "CARRY", "carries": []}
 
     consol_acc = all_accounts.get(consolidation_account_id)
-    consol_bank = consol_acc.bank_key if consol_acc else ""
+    consol_bank = consol_acc.bank_identity if consol_acc else ""
 
     # ── 1. Evaluate Split / Local Plan ───────────────────────────────
     split_bookings = []
@@ -58,7 +58,7 @@ def _pick_daily_greedy_plan(
     for acc in active_accounts:
         local_opts = [
             o for o in options
-            if (not o.bank_key or o.bank_key == acc.bank_key) and acc.can_use_option(o) and o.can_invest(acc.balance, today, end)
+            if (not o.bank_identity or o.bank_identity == acc.bank_identity) and acc.can_use_option(o) and o.can_invest(acc.balance, today, end)
         ]
         if local_opts:
             best_opt = local_opts[0]
@@ -102,7 +102,7 @@ def _pick_daily_greedy_plan(
     consol_plans: list[dict] = []
 
     for tgt_acc in all_accounts.values():
-        tgt_bank = tgt_acc.bank_key
+        tgt_bank = tgt_acc.bank_identity
         transfers_to_tgt = []
         total_deployable = 0.0
         fees_today = 0.0
@@ -115,7 +115,7 @@ def _pick_daily_greedy_plan(
             if src_acc.id == tgt_acc.id:
                 total_deployable += src_acc.balance
             else:
-                fee = fee_config.get_fee(src_acc.bank_key, tgt_bank)
+                fee = fee_config.get_fee(src_acc.bank_identity, tgt_bank)
                 if src_acc.balance > fee:
                     net_amt = src_acc.balance - fee
                     total_deployable += net_amt
@@ -147,7 +147,7 @@ def _pick_daily_greedy_plan(
 
         tgt_opts = [
             o for o in options
-            if (not o.bank_key or o.bank_key == tgt_bank) and tgt_acc.can_use_option(o) and o.can_invest(total_deployable, today, end)
+            if (not o.bank_identity or o.bank_identity == tgt_bank) and tgt_acc.can_use_option(o) and o.can_invest(total_deployable, today, end)
         ]
         if not tgt_opts:
             continue
@@ -241,8 +241,8 @@ class GreedyStrategy(BaseStrategy):
     ) -> SimResult:
         # Default accounts and configuration
         if not accounts:
-            default_bank = options[0].bank_key if options and options[0].bank_key else "commercial"
-            accounts = [Account(id="default", bank_key=default_bank, label="Main Account")]
+            default_bank = options[0].bank_identity if options and options[0].bank_identity else "commercial"
+            accounts = [Account(id="default", bank_key=default_bank, bank_id=default_bank, label="Main Account")]
 
         if not inflow_account_id:
             inflow_account_id = accounts[0].id
@@ -256,7 +256,8 @@ class GreedyStrategy(BaseStrategy):
         inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
         outflow_schedule = outflow_schedule or {}
         accounts_map = {
-            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
+            acc.id: Account(id=acc.id, bank_key=acc.bank_key,
+                    bank_id=acc.bank_id, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
             for acc in accounts
         }
         validate_outflow_schedule(outflow_schedule, start, end, set(accounts_map))
@@ -288,6 +289,7 @@ class GreedyStrategy(BaseStrategy):
                         label=f"Inflow {inflow_num:02d}",
                         account_id=account_id,
                         bank_key=accounts_map[account_id].bank_key,
+                        bank_id=accounts_map[account_id].bank_id,
                     ),
                 )
 
@@ -329,6 +331,7 @@ class GreedyStrategy(BaseStrategy):
                     label="Opening balance trigger",
                     account_id=inflow_account_id,
                     bank_key=accounts_map[inflow_account_id].bank_key,
+                    bank_id=accounts_map[inflow_account_id].bank_id,
                 ),
             )
 
@@ -405,6 +408,7 @@ class GreedyStrategy(BaseStrategy):
                         label=f"Paid {obligation['name']} ({policy})",
                         account_id=account.id,
                         bank_key=account.bank_key,
+                        bank_id=account.bank_id,
                         balance_after=account.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
                     ))
@@ -429,6 +433,7 @@ class GreedyStrategy(BaseStrategy):
             if plan["type"] == "CONSOLIDATE":
                 tgt_acc: Account = plan["target_account"]
                 chosen_opt: FDOption = plan["option"]
+                decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
 
                 for t in plan["transfers"]:
                     src: Account = t["src"]
@@ -449,6 +454,7 @@ class GreedyStrategy(BaseStrategy):
                             label=f"Transfer to {tgt.label} (Amt: {net_amt:,.2f}, Fee: {fee:,.2f})",
                             account_id=src.id,
                             bank_key=src.bank_key,
+                            bank_id=src.bank_id,
                             fee=fee,
                             balance_after=src.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -465,12 +471,12 @@ class GreedyStrategy(BaseStrategy):
                             label=f"Transfer received from {src.label}",
                             account_id=tgt.id,
                             bank_key=tgt.bank_key,
+                            bank_id=tgt.bank_id,
                             fee=0.0,
                             balance_after=tgt.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
                         ),
                     )
-
                 principal = tgt_acc.balance
                 tgt_acc.balance = 0.0
 
@@ -490,6 +496,7 @@ class GreedyStrategy(BaseStrategy):
                     cash_flows=flows,
                     account_id=tgt_acc.id,
                     bank_key=tgt_acc.bank_key,
+                    bank_id=tgt_acc.bank_id,
                 )
                 bookings.append(booking)
 
@@ -501,8 +508,10 @@ class GreedyStrategy(BaseStrategy):
                     booking_ref=ref,
                     account_id=tgt_acc.id,
                     bank_key=tgt_acc.bank_key,
+                    bank_id=tgt_acc.bank_id,
                     balance_after=tgt_acc.balance,
                     total_balance_after=sum(a.balance for a in accounts_map.values()),
+                    decision_context={"action": "consolidate", "balances_before": decision_balances_before},
                 )
                 self._add_event(timeline, book_event)
 
@@ -527,6 +536,7 @@ class GreedyStrategy(BaseStrategy):
                             booking_ref=ref,
                             account_id=tgt_acc.id,
                             bank_key=tgt_acc.bank_key,
+                            bank_id=tgt_acc.bank_id,
                         ),
                     )
 
@@ -541,8 +551,10 @@ class GreedyStrategy(BaseStrategy):
                                 label=f"Below min / no option fits; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
+                                bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
+                                decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
                             ),
                         )
 
@@ -550,6 +562,7 @@ class GreedyStrategy(BaseStrategy):
                 for b_info in plan["bookings"]:
                     acc: Account = b_info["account"]
                     chosen_opt: FDOption = b_info["option"]
+                    decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
                     principal = acc.balance
                     acc.balance = 0.0
 
@@ -569,6 +582,7 @@ class GreedyStrategy(BaseStrategy):
                         cash_flows=flows,
                         account_id=acc.id,
                         bank_key=acc.bank_key,
+                        bank_id=acc.bank_id,
                     )
                     bookings.append(booking)
 
@@ -580,8 +594,10 @@ class GreedyStrategy(BaseStrategy):
                         booking_ref=ref,
                         account_id=acc.id,
                         bank_key=acc.bank_key,
+                        bank_id=acc.bank_id,
                         balance_after=acc.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
+                        decision_context={"action": "split", "balances_before": decision_balances_before},
                     )
                     self._add_event(timeline, book_event)
 
@@ -606,6 +622,7 @@ class GreedyStrategy(BaseStrategy):
                                 booking_ref=ref,
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
+                                bank_id=acc.bank_id,
                             ),
                         )
 
@@ -620,8 +637,10 @@ class GreedyStrategy(BaseStrategy):
                                 label=f"Below min / no option fits; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
+                                bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
+                                decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
                             ),
                         )
 
@@ -637,8 +656,10 @@ class GreedyStrategy(BaseStrategy):
                                 label=f"Below min / no option fits; balance {acc.balance:,.2f} carries forward",
                                 account_id=acc.id,
                                 bank_key=acc.bank_key,
+                                bank_id=acc.bank_id,
                                 balance_after=acc.balance,
                                 total_balance_after=sum(a.balance for a in accounts_map.values()),
+                                decision_context={"action": "carry", "balances_before": {aid: account.balance for aid, account in accounts_map.items()}},
                             ),
                         )
 
@@ -648,7 +669,7 @@ class GreedyStrategy(BaseStrategy):
             for acc in list(accounts_map.values()):
                 if acc.id == consolidation_account_id or acc.balance <= 0.001:
                     continue
-                fee = fee_config.get_fee(acc.bank_key, consol_acc.bank_key)
+                fee = fee_config.get_fee(acc.bank_identity, consol_acc.bank_identity)
                 if acc.balance <= fee:
                     continue  # too small to sweep; will appear as IDLE below
                 src_balance = acc.balance
@@ -664,6 +685,7 @@ class GreedyStrategy(BaseStrategy):
                         label=f"Final sweep to {consol_acc.label} (Amt: {cash_to_sweep:,.2f}, Fee: {fee:,.2f})",
                         account_id=acc.id,
                         bank_key=acc.bank_key,
+                        bank_id=acc.bank_id,
                         fee=fee,
                         balance_after=0.0,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -679,6 +701,7 @@ class GreedyStrategy(BaseStrategy):
                         label=f"Final sweep received from {acc.label}",
                         account_id=consol_acc.id,
                         bank_key=consol_acc.bank_key,
+                        bank_id=consol_acc.bank_id,
                         fee=0.0,
                         balance_after=consol_acc.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
@@ -697,6 +720,7 @@ class GreedyStrategy(BaseStrategy):
                         label=f"Final cash balance in {acc.label}",
                         account_id=acc.id,
                         bank_key=acc.bank_key,
+                        bank_id=acc.bank_id,
                         balance_after=acc.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
                     ),
@@ -704,7 +728,7 @@ class GreedyStrategy(BaseStrategy):
 
         total_principal = sum(amount for account_amounts in inflow_schedule.values() for amount in account_amounts.values()) + sum(a.balance for a in accounts)
 
-        return SimResult(
+        result = SimResult(
             strategy_name=self.name,
             timeline=timeline,
             bookings=bookings,
@@ -716,6 +740,9 @@ class GreedyStrategy(BaseStrategy):
             outstanding_outflows=pending_obligations,
             valid=not strict_payment_failed,
         )
+        from core.reporting import build_decision_log
+        build_decision_log(result)
+        return result
 
     # ------------------------------------------------------------------
     # Helpers

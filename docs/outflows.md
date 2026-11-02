@@ -2,7 +2,7 @@
 
 Outflows represent money that must leave an account during the investment simulation. Examples include household expenses, rent, tuition payments, insurance premiums, loan repayments, and other planned spending.
 
-Each outflow is tied to one configured account. Its `account_id` must match an `id` in the top-level `accounts` array.
+Each outflow is tied to one configured account. Its `account_id` must match a key in the top-level `accounts` object.
 
 Unlike inflows, outflows create payment obligations. The `payment_policy` determines how the simulator handles an account that cannot pay the full amount when it is due.
 
@@ -12,14 +12,14 @@ Add an `outflows` array at the top level of your configuration file:
 
 ```json
 {
-  "accounts": [
-    {
-      "id": "com",
-      "bank_key": "commercial",
+  "accounts": {
+    "com": {
+      "bank_id": "LK_COMMERCIAL_BANK_OF_CEYLON",
       "label": "Commercial",
-      "balance": 10000
+      "balance": 10000,
+      "supports_efd": true
     }
-  ],
+  },
   "outflows": []
 }
 ```
@@ -57,7 +57,7 @@ This creates a LKR 45,000 obligation each month from the investment start throug
 | `interval` | Yes | Time between occurrences, such as `"1m"`, `"30d"`, or `"1y"`. |
 | `start_date` | No | First due date. If omitted, the first occurrence is one interval after the investment start. |
 | `end_date` | No | Last permitted due date, inclusive. If omitted, the investment end is used. |
-| `account_id` | Yes | Account from which the payment is made. |
+| `account_id` | Yes | Account key from the top-level `accounts` object from which the payment is made. |
 | `payment_policy` | No | `"strict"`, `"defer"`, or `"best_effort"`. Defaults to `"strict"`. |
 
 Recurring dates use calendar-relative intervals anchored to the first occurrence. For example, `"1m"` means one calendar month, not 30 days. Supported units are `d` (days), `m` (calendar months), and `y` (years).

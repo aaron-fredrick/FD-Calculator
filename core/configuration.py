@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from datetime import date
 from math import isfinite
@@ -7,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from core.interest import add_period, parse_period_delta
-from core.models import Account, FDOption, TransferFeeConfig, load_options_from_bank_csv, load_options_from_json
+from core.models import Account, FDOption, TransferFeeConfig, load_options_from_bank_csv
 
 
 def _resolve_date(
@@ -68,37 +69,65 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         raise ValueError(f"Investment end date {end} is before start date {start}")
 
     accounts_data = config.get("accounts")
-    if not isinstance(accounts_data, list) or not accounts_data:
-        raise ValueError("Configuration 'accounts' must be a non-empty list")
+    if not isinstance(accounts_data, dict) or not accounts_data:
+        raise ValueError("Configuration 'accounts' must be a non-empty object keyed by account ID")
+
+    # The bank catalogue is authoritative for bank identity. The FD-options index
+    # supplies the internal product-file key, but it is never accepted as config identity.
+    repo_root = Path(__file__).resolve().parent.parent
+    banks_path = repo_root / "data" / "banks" / "banks.csv"
+    if not banks_path.is_file():
+        raise FileNotFoundError(f"Bank catalogue not found: {banks_path}")
+    with banks_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        bank_rows = list(csv.DictReader(handle))
+    bank_registry = {
+        str(row.get("id", "")).strip(): row
+        for row in bank_rows if str(row.get("id", "")).strip()
+    }
+    options_file_for_index = Path(str(config.get("options_file", "data/fd_options/fd_options.csv")))
+    if not options_file_for_index.is_absolute():
+        candidate = path.parent / options_file_for_index
+        options_file_for_index = candidate if candidate.exists() else repo_root / options_file_for_index
+    if options_file_for_index.suffix.lower() != ".csv":
+        raise ValueError("The bank_id account schema requires the bank FD-options CSV index")
+    with options_file_for_index.open("r", encoding="utf-8-sig", newline="") as handle:
+        index_rows = list(csv.DictReader(handle))
+    bank_key_by_id = {
+        str(row.get("bank_id", "")).strip(): str(row.get("bank_key", "")).strip().lower()
+        for row in index_rows
+    }
 
     accounts: list[Account] = []
     account_ids: set[str] = set()
-    bank_keys: list[str] = []
-    for index, entry in enumerate(accounts_data):
+    bank_ids: list[str] = []
+    for account_id_raw, entry in accounts_data.items():
+        account_id = str(account_id_raw).strip()
+        if not account_id:
+            raise ValueError("Account dictionary keys must not be empty")
         if not isinstance(entry, dict):
-            raise ValueError(f"accounts[{index}] must be an object")
-        account_id = str(entry.get("id", "")).strip()
-        bank_key = str(entry.get("bank_key", "")).strip().lower()
+            raise ValueError(f"accounts[{account_id!r}] must be an object")
+        bank_id = str(entry.get("bank_id", "")).strip()
+        if not bank_id:
+            raise ValueError(f"accounts[{account_id!r}].bank_id must not be empty")
+        if bank_id not in bank_registry:
+            raise ValueError(f"Account {account_id!r} references unknown bank_id {bank_id!r}; it must match data/banks/banks.csv")
+        bank_key = bank_key_by_id.get(bank_id, "")
+        if not bank_key:
+            raise ValueError(f"Bank {bank_id!r} has no FD-options index entry in {options_file_for_index}")
         label = str(entry.get("label", "")).strip()
         supports_efd = entry.get("supports_efd", True)
         if not isinstance(supports_efd, bool):
-            raise ValueError(f"accounts[{index}].supports_efd must be a boolean")
+            raise ValueError(f"accounts[{account_id!r}].supports_efd must be a boolean")
         try:
             balance = float(entry.get("balance", 0.0))
         except (TypeError, ValueError) as exc:
-            raise ValueError(f"accounts[{index}].balance must be a number") from exc
-        if not account_id:
-            raise ValueError(f"accounts[{index}].id must not be empty")
-        if not bank_key:
-            raise ValueError(f"accounts[{index}].bank_key must not be empty")
-        if account_id in account_ids:
-            raise ValueError(f"Duplicate account id {account_id!r}")
+            raise ValueError(f"accounts[{account_id!r}].balance must be a number") from exc
         if not isfinite(balance) or balance < 0:
             raise ValueError(f"Starting balance for account {account_id!r} must be finite and non-negative")
         account_ids.add(account_id)
-        if bank_key not in bank_keys:
-            bank_keys.append(bank_key)
-        accounts.append(Account(id=account_id, bank_key=bank_key, label=label, balance=balance, supports_efd=supports_efd))
+        if bank_id not in bank_ids:
+            bank_ids.append(bank_id)
+        accounts.append(Account(id=account_id, bank_key=bank_key, label=label, balance=balance, supports_efd=supports_efd, bank_id=bank_id))
 
     options_file_value = str(config.get("options_file", "data/fd_options/fd_options.csv"))
     options_path = Path(options_file_value).expanduser()
@@ -110,37 +139,26 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     if not options_path.is_file():
         raise FileNotFoundError(f"FD options file not found: {options_path}")
 
-    account_banks_only = bool(config.get("account_banks_only", True))
-    efd_only = bool(config.get("efd_only", True))
-    if options_path.suffix.lower() == ".csv":
-        options = load_options_from_bank_csv(
-            options_path,
-            bank_keys=bank_keys,
-            account_banks_only=account_banks_only,
-            efd_only=efd_only,
-        )
-    else:
-        # Legacy JSON support remains available for existing user configurations.
-        selected_bank_keys = bank_keys if account_banks_only else None
-        options = []
-        if selected_bank_keys is None:
-            options = load_options_from_json(options_path, bank_key="all")
-        else:
-            for bank_key in selected_bank_keys:
-                try:
-                    bank_options = load_options_from_json(options_path, bank_key=bank_key)
-                except KeyError as exc:
-                    raise ValueError(
-                        f"Configured bank {bank_key!r} has no entry in {options_path}. "
-                        "Add valid FD options for that bank or remove its account."
-                    ) from exc
-                options.extend(bank_options)
-        if not efd_only:
-            # Legacy JSON files predate eFD metadata and contain no product flag.
-            # Treat their options as the explicitly supplied set.
-            pass
-        if not options:
-            raise ValueError(f"No FD options were loaded from {options_path}")
+    if options_path.suffix.lower() != ".csv":
+        raise ValueError("Only the bank-specific FD options CSV index is supported")
+
+    options = load_options_from_bank_csv(
+        options_path,
+        bank_ids=bank_ids,
+    )
+
+    for account in accounts:
+        eligible_options = [
+            option for option in options
+            if (not option.bank_id or option.bank_id == account.bank_id)
+            and account.can_use_option(option)
+        ]
+        if not eligible_options:
+            capability = "eFD-capable" if account.supports_efd else "standard-FD-only"
+            raise ValueError(
+                f"Account {account.id!r} ({account.bank_id}) is {capability}, "
+                f"but no compatible standard/eFD products were loaded. Check the bank options CSV."
+            )
 
     def build_schedule(raw_events: Any, kind: str) -> tuple[dict[date, list[dict[str, Any]]], list[dict[str, Any]]]:
         if not isinstance(raw_events, list):
@@ -243,17 +261,34 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     for index, item in enumerate(fees_data.get("custom_fees", [])):
         if not isinstance(item, dict):
             raise ValueError(f"transfer_fees.custom_fees[{index}] must be an object")
-        from_bank = str(item.get("from_bank", "")).strip().lower()
-        to_bank = str(item.get("to_bank", "")).strip().lower()
+        from_bank_id = str(item.get("from_bank_id", "")).strip()
+        to_bank_id = str(item.get("to_bank_id", "")).strip()
         fee = float(item.get("amount", 0.0))
-        if not from_bank or not to_bank or not isfinite(fee) or fee < 0:
+        if from_bank_id not in bank_registry or to_bank_id not in bank_registry:
+            raise ValueError(f"Custom transfer fee at index {index} must reference valid from_bank_id/to_bank_id values from data/banks/banks.csv")
+        if not isfinite(fee) or fee < 0:
             raise ValueError(f"Invalid custom transfer fee at index {index}")
-        custom_fees[(from_bank, to_bank)] = fee
+        custom_fees[(from_bank_id.upper(), to_bank_id.upper())] = fee
+
+    bank_fees: dict[str, tuple[float, float]] = {}
+    for bank_id, bank_row in bank_registry.items():
+        bank_key = bank_key_by_id.get(bank_id, "")
+        if not bank_key:
+            continue
+        try:
+            intra_fee = float(bank_row.get("intra_bank_transfer_fee") or fees_data.get("same_bank_fee", 0.0))
+            inter_fee = float(bank_row.get("domestic_inter_bank_transfer_fee") or fees_data.get("default_inter_bank_fee", 30.0))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid transfer fee data for bank_id {bank_id!r}") from exc
+        if not isfinite(intra_fee) or not isfinite(inter_fee) or intra_fee < 0 or inter_fee < 0:
+            raise ValueError(f"Transfer fees for bank_id {bank_id!r} must be finite and non-negative")
+        bank_fees[bank_id.upper()] = (intra_fee, inter_fee)
 
     fee_config = TransferFeeConfig(
         default_inter_bank_fee=float(fees_data.get("default_inter_bank_fee", 30.0)),
         same_bank_fee=float(fees_data.get("same_bank_fee", 0.0)),
         custom_fees=custom_fees,
+        bank_fees=bank_fees,
     )
     if (
         not isfinite(fee_config.default_inter_bank_fee)
@@ -273,8 +308,6 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "strategy": strategy,
         "accounts": accounts,
         "options": options,
-        "account_banks_only": account_banks_only,
-        "efd_only": efd_only,
         "start": start,
         "end": end,
         "inflow_schedule": inflow_schedule,
@@ -286,6 +319,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "actual_leap_year": bool(config.get("actual_leap_year", True)),
         "show_timeline": bool(config.get("show_timeline", True)),
         "show_ledger": bool(config.get("show_ledger", False)),
+        "show_decision_log": bool(config.get("show_decision_log", True)),
         "show_plots": bool(config.get("show_plots", True)),
         "plot_output_dir": str(config.get("plot_output_dir", "plots")),
     }
