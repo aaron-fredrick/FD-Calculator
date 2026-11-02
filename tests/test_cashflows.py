@@ -187,6 +187,43 @@ class StrategyCashFlowTests(unittest.TestCase):
                         outflow_schedule=strict,
                     )
 
+    def test_search_strategies_wait_for_cash_needed_by_future_strict_outflow(self) -> None:
+        end = date(2027, 3, 1)
+        due = date(2027, 2, 1)
+        long_option = [
+            FDOption(
+                label="Two-month FD",
+                period_str="2m",
+                annual_rate=8.0,
+                min_amount=10000.0,
+                bank_key="commercial",
+            )
+        ]
+        scheduled = {
+            due: [{
+                "name": "February payment",
+                "amount": 10000.0,
+                "account_id": "cash",
+                "payment_policy": "strict",
+            }]
+        }
+        for strategy in [AbsoluteStrategy(), GAMLStrategy(max_decisions=1000)]:
+            with self.subTest(strategy=strategy.name):
+                result = strategy.simulate(
+                    options=long_option,
+                    start=self.start,
+                    end=end,
+                    inflow_schedule={},
+                    accounts=[Account("cash", "commercial", balance=20000.0)],
+                    inflow_account_id="cash",
+                    consolidation_account_id="cash",
+                    outflow_schedule=scheduled,
+                )
+                self.assertTrue(result.valid)
+                self.assertEqual(result.total_outflows_paid, 10000.0)
+                self.assertEqual(result.outstanding_outflows, [])
+                self.assertEqual(result.cash_flow_net_worth, 10000.0)
+
     def test_defer_and_best_effort_report_unpaid_liabilities(self) -> None:
         for policy, expected_paid, expected_remaining in [
             ("defer", 0.0, 10000.0),
