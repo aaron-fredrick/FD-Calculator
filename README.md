@@ -34,40 +34,48 @@ All strategies use the same investment dates, accounts, inflows, FD options, fee
 
 ### Absolute search complexity
 
-Let:
+Let the configuration and search-state variables be:
 
-- $A$ = number of accounts.
-- $O$ = number of effective FD options after dominated options are removed.
-- $o_i$ = number of eligible options for account $i$ at a decision date.
-- $K$ = maximum number of decision dates along a path. This depends on the investment window, scheduled inflows, and FD cash-flow/maturity dates.
-- $F$ = number of pending cash-flow entries in a search state.
+- Number of accounts: $A$
+- Number of effective FD options after dominated options are removed: $O$
+- Number of eligible options for account $i$ at a decision date: $o_i$
+- Maximum number of decision dates along a path: $K$. This depends on the investment window, scheduled inflows, and FD cash-flow/maturity dates.
+- Number of pending cash-flow entries in a search state: $F$
 
-At one decision date, define:
+At one decision date, the number of non-empty combinations of local bookings is:
 
-- $C=\prod_{i=1}^{A}(1+o_i)-1$: non-empty combinations of local bookings.
-- $Q=\sum_{i=1}^{A}o_{bank(i)}$: consolidation choices, where $o_{bank(i)}$ is the number of horizon-eligible effective options for account $i$'s bank.
-- One carry-forward choice.
+```math
+C = \prod_{i=1}^{A}(1+o_i)-1
+```
 
-A configuration-level upper bound on the branching factor is therefore:
+The number of consolidation choices is:
 
-$$
+```math
+Q = \sum_{i=1}^{A}o_{bank(i)}
+```
+
+Here, $o_{bank(i)}$ is the number of horizon-eligible effective options for account $i$'s bank. There is also one carry-forward choice.
+
+A configuration-level upper bound on the branching factor is:
+
+```math
 B \leq Q+C+1
-=Q+\prod_{i=1}^{A}(1+o_i)
-$$
+  = Q+\prod_{i=1}^{A}(1+o_i)
+```
 
 This ignores current balances and minimum-deposit feasibility, so the actual branch count at a state is usually lower.
 
 Across at most $K$ decision levels, the unpruned search tree has a worst-case size of:
 
-$$
+```math
 O(B^K)
-$$
+```
 
 A conservative time bound including local-combination generation and sorting is:
 
-$$
+```math
 O\left(B^K \left(C\log C + Q\log Q + A + F\right)\right)
-$$
+```
 
 Worst-case auxiliary space is $O(S(A+F)+K(C+Q))$, where $S$ is the number of distinct states retained by memoisation. The search stack can retain each level's generated branch lists; $S$ can also be exponential in $K$.
 
