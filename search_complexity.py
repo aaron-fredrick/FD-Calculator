@@ -61,16 +61,20 @@ def main() -> None:
     per_account: list[tuple[str, int]] = []
     local_combinations = 1
     for account in accounts:
-        count = len(by_bank.get(account.bank_key, []))
+        account_options = [
+            option for option in by_bank.get(account.bank_key, [])
+            if account.can_use_option(option)
+        ]
+        count = len(account_options)
         per_account.append((account.id, count))
         local_combinations *= 1 + count
     local_nonempty = local_combinations - 1
 
-    # A consolidation branch is generated per target account and eligible
-    # option for that target bank. This is an upper bound because some states
-    # have no transferable cash or insufficient principal.
+    # A consolidation branch is generated per destination account and only
+    # for products that destination account is allowed to open.
     consolidation_choices = sum(
-        len(by_bank.get(account.bank_key, [])) for account in accounts
+        sum(account.can_use_option(option) for option in by_bank.get(account.bank_key, []))
+        for account in accounts
     )
 
     # Absolute also has one carry-forward branch.
