@@ -728,7 +728,7 @@ class GreedyStrategy(BaseStrategy):
 
         total_principal = sum(amount for account_amounts in inflow_schedule.values() for amount in account_amounts.values()) + sum(a.balance for a in accounts)
 
-        return SimResult(
+        result = SimResult(
             strategy_name=self.name,
             timeline=timeline,
             bookings=bookings,
@@ -740,6 +740,9 @@ class GreedyStrategy(BaseStrategy):
             outstanding_outflows=pending_obligations,
             valid=not strict_payment_failed,
         )
+        from core.reporting import build_decision_log
+        build_decision_log(result)
+        return result
 
     # ------------------------------------------------------------------
     # Helpers
