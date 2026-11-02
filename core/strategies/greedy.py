@@ -471,6 +471,7 @@ class GreedyStrategy(BaseStrategy):
                         ),
                     )
 
+                decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
                 principal = tgt_acc.balance
                 tgt_acc.balance = 0.0
 
@@ -503,6 +504,7 @@ class GreedyStrategy(BaseStrategy):
                     bank_key=tgt_acc.bank_key,
                     balance_after=tgt_acc.balance,
                     total_balance_after=sum(a.balance for a in accounts_map.values()),
+                    decision_context={"action": "consolidate", "balances_before": decision_balances_before},
                 )
                 self._add_event(timeline, book_event)
 
@@ -550,6 +552,7 @@ class GreedyStrategy(BaseStrategy):
                 for b_info in plan["bookings"]:
                     acc: Account = b_info["account"]
                     chosen_opt: FDOption = b_info["option"]
+                    decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
                     principal = acc.balance
                     acc.balance = 0.0
 
@@ -582,6 +585,7 @@ class GreedyStrategy(BaseStrategy):
                         bank_key=acc.bank_key,
                         balance_after=acc.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
+                        decision_context={"action": "split", "balances_before": decision_balances_before},
                     )
                     self._add_event(timeline, book_event)
 
