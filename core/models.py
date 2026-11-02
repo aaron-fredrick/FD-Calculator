@@ -94,6 +94,7 @@ class Event:
     bank_key:            str  = ""   # internal FD-options routing key
     bank_id:             str  = ""   # canonical ID from data/banks/banks.csv
     fee:                 float = 0.0 # transfer fee if transfer event
+    transfer_channel:    str = ""    # intra_bank or domestic_ceft
     balance_after:       float = -1.0 # balance of this specific account after the event
     total_balance_after: float = -1.0 # total liquid cash across all accounts after the event
     decision_context: dict = field(default_factory=dict) # final-path decision snapshot; empty for non-decision events
