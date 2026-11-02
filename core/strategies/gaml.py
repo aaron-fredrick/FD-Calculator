@@ -363,13 +363,14 @@ class GAMLStrategy(BaseStrategy):
         tally: int = 0
         leaf_count: int = 0
         pruned_count: int = 0
+        local_combination_pruned_count: int = 0
         memo_visited: dict[tuple, float] = {}
         alternative_leaf_net_interests: list[float] = []
 
         print(f"  [{self.name} Strategy] Initializing bounded GAML global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
 
         def expand(state: tuple) -> list[tuple]:
-            nonlocal best_final_val, best_leaf, tally, leaf_count, pruned_count
+            nonlocal best_final_val, best_leaf, tally, leaf_count, pruned_count, local_combination_pruned_count
             today, balances, pending_flows, obligations, paid_outflows, parent_node = state
             children: list[tuple] = []
 
@@ -671,6 +672,8 @@ class GAMLStrategy(BaseStrategy):
                                     )
                                 expanded.append((profit, [*partial_choices, (aid, opt)]))
                         expanded.sort(key=lambda item: item[0], reverse=True)
+                        if len(expanded) > self.max_local_branches:
+                            local_combination_pruned_count += len(expanded) - self.max_local_branches
                         partials = expanded[: self.max_local_branches]
 
                     for est_profit, chosen in partials:
@@ -748,7 +751,8 @@ class GAMLStrategy(BaseStrategy):
                 print(
                     f"  [Decision Tally: #{tally:,}] Expanded {tally:,} states "
                     f"({leaf_count:,} leaves, {pruned_count:,} bound-pruned, "
-                    f"{beam_pruned_count:,} beam-pruned) | "
+                    f"{beam_pruned_count:,} beam-pruned, "
+                    f"{local_combination_pruned_count:,} local-combination-pruned) | "
                     f"Current best final value: {best_final_val:,.2f}"
                 )
 
@@ -787,7 +791,7 @@ class GAMLStrategy(BaseStrategy):
         )
         search_status = (
             "optimality proven"
-            if not frontier and beam_pruned_count == 0 and not budget_note
+            if not frontier and beam_pruned_count == 0 and local_combination_pruned_count == 0 and not budget_note
             else "best solution found; optimality not proven"
         )
         print(f"  [{self.name} Search Complete] {tally:,} states ({leaf_count:,} leaves, {pruned_count:,} bound-pruned, {beam_pruned_count:,} beam-pruned{budget_note}) in {elapsed:.2f}s | {search_status}")
