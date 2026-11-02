@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from core.interest import add_period, parse_period_delta
-from core.models import Account, FDOption, TransferFeeConfig, load_options_from_bank_csv, load_options_from_json
+from core.models import Account, FDOption, TransferFeeConfig, load_options_from_bank_csv
 
 
 def _resolve_date(
@@ -141,35 +141,15 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
 
     account_banks_only = True
     efd_only = False
-    if options_path.suffix.lower() == ".csv":
-        options = load_options_from_bank_csv(
-            options_path,
-            bank_keys=bank_keys,
-            account_banks_only=account_banks_only,
-            efd_only=efd_only,
-        )
-    else:
-        # Legacy JSON support remains available for existing user configurations.
-        selected_bank_keys = bank_keys if account_banks_only else None
-        options = []
-        if selected_bank_keys is None:
-            options = load_options_from_json(options_path, bank_key="all")
-        else:
-            for bank_key in selected_bank_keys:
-                try:
-                    bank_options = load_options_from_json(options_path, bank_key=bank_key)
-                except KeyError as exc:
-                    raise ValueError(
-                        f"Configured bank {bank_key!r} has no entry in {options_path}. "
-                        "Add valid FD options for that bank or remove its account."
-                    ) from exc
-                options.extend(bank_options)
-        if not efd_only:
-            # Legacy JSON files predate eFD metadata and contain no product flag.
-            # Treat their options as the explicitly supplied set.
-            pass
-        if not options:
-            raise ValueError(f"No FD options were loaded from {options_path}")
+    if options_path.suffix.lower() != ".csv":
+        raise ValueError("Only the bank-specific FD options CSV index is supported")
+
+    options = load_options_from_bank_csv(
+        options_path,
+        bank_keys=bank_keys,
+        account_banks_only=True,
+        efd_only=False,
+    )
 
     for account in accounts:
         eligible_options = [
