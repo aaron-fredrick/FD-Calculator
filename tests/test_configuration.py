@@ -97,6 +97,7 @@ class ConfigurationTests(unittest.TestCase):
             load_configuration(self.config_path)
 
     def test_multiple_accounts_at_same_bank_keep_independent_efd_capability(self) -> None:
+        self.config["inflows"] = []
         self.config["accounts"] = {
             "dfcc-1": {
                 "bank_id": DFCC_ID, "label": "DFCC standard", "balance": 10000,
