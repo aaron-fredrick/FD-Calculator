@@ -803,6 +803,10 @@ class GAMLStrategy(BaseStrategy):
         bookings: list[Booking] = []
         booking_counter = 0
         total_transfer_fees: float = 0.0
+        outflow_schedule = outflow_schedule or {}
+        pending_obligations: list[dict] = []
+        total_outflows_paid = 0.0
+        strict_payment_failed = False
 
         inflow_num = 0
         for inflow_date, account_amounts in sorted(inflow_schedule.items()):
@@ -823,6 +827,17 @@ class GAMLStrategy(BaseStrategy):
                         bank_key=accounts_map[account_id].bank_key,
                     ),
                 )
+
+        for outflow_date, entries in sorted(outflow_schedule.items()):
+            for entry in entries:
+                self._add_event(timeline, Event(
+                    event_type=EventType.OUTFLOW,
+                    on_date=outflow_date,
+                    amount=float(entry["amount"]),
+                    label=str(entry.get("name", "Outflow")),
+                    account_id=str(entry["account_id"]),
+                    bank_key=accounts_map[str(entry["account_id"])].bank_key,
+                ))
 
         start_key = int(start.strftime("%Y%m%d"))
         if start_key not in timeline and any(acc.balance > 0.001 for acc in accounts_map.values()):
@@ -861,6 +876,48 @@ class GAMLStrategy(BaseStrategy):
                     e.bank_key            = target_acc.bank_key
                     e.balance_after       = target_acc.balance
                     e.total_balance_after = sum(a.balance for a in accounts_map.values())
+
+            due = [e for e in day_events if e.event_type == EventType.OUTFLOW]
+            for event in due:
+                match = next((item for item in outflow_schedule.get(today, [])
+                    if str(item.get("name", "Outflow")) == event.label
+                    and str(item.get("account_id", "")) == event.account_id
+                    and abs(float(item.get("amount", 0.0)) - event.amount) < 0.001), {})
+                pending_obligations.append({
+                    "name": event.label, "account_id": event.account_id,
+                    "remaining": event.amount,
+                    "payment_policy": str(match.get("payment_policy", "strict")),
+                    "due_date": today,
+                })
+            still_pending = []
+            for obligation in sorted(pending_obligations, key=lambda item: ({"strict": 0, "defer": 1, "best_effort": 2}.get(item["payment_policy"], 3), item["due_date"])):
+                acc = accounts_map[obligation["account_id"]]
+                required = float(obligation["remaining"])
+                policy = obligation["payment_policy"]
+                if policy == "strict" and acc.balance + 0.001 < required:
+                    strict_payment_failed = True
+                    still_pending.append(obligation)
+                    continue
+                if policy == "defer" and acc.balance + 0.001 < required:
+                    still_pending.append(obligation)
+                    continue
+                paid = required if policy in {"strict", "defer"} else min(acc.balance, required)
+                acc.balance = round(acc.balance - paid, 2)
+                total_outflows_paid += paid
+                remaining = round(required - paid, 2)
+                if remaining > 0.001:
+                    still_pending.append({**obligation, "remaining": remaining})
+                if paid > 0.001:
+                    self._add_event(timeline, Event(
+                        event_type=EventType.OUTFLOW, on_date=today, amount=-paid,
+                        label=f"Paid {obligation['name']} ({policy})",
+                        account_id=acc.id, bank_key=acc.bank_key,
+                        balance_after=acc.balance,
+                        total_balance_after=sum(a.balance for a in accounts_map.values()),
+                    ))
+            pending_obligations = still_pending
+            if strict_payment_failed:
+                break
 
             if today in action_map:
                 act = action_map[today]
@@ -1116,6 +1173,9 @@ class GAMLStrategy(BaseStrategy):
             total_transfer_fees=total_transfer_fees,
             total_decisions_evaluated=total_decisions_evaluated,
             alternative_leaf_net_interests=alternative_leaf_net_interests or [],
+            total_outflows_paid=total_outflows_paid,
+            outstanding_outflows=pending_obligations,
+            valid=not strict_payment_failed,
         )
 
     @staticmethod
