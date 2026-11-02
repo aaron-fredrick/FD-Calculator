@@ -12,6 +12,29 @@ from core.configuration import load_configuration
 from core.visualization import plot_strategy_results
 
 
+def _write_decision_log(result, output_path: str | Path) -> Path:
+    """Serialize the selected strategy path as a standalone JSON artifact."""
+    path = Path(output_path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    records = build_decision_log(result)
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "strategy": result.strategy_name,
+                "start_date": result.start_date.isoformat(),
+                "end_date": result.end_date.isoformat(),
+                "decision_count": len(records),
+                "decisions": records,
+            },
+            handle,
+            indent=2,
+            ensure_ascii=False,
+            default=lambda value: value.isoformat() if hasattr(value, "isoformat") else str(value),
+        )
+        handle.write("\\n")
+    return path
+
+
 def main(
     config_path: str | Path = "config.json",
     strategy_override: Optional[str] = None,
@@ -137,26 +160,10 @@ def main(
         show_decision_log=False,
     )
 
-    decision_records = build_decision_log(result)
     decision_log_path = Path(config["decision_log_output_file"]).expanduser()
     if not decision_log_path.is_absolute():
         decision_log_path = Path(config["source_path"]).parent / decision_log_path
-    decision_log_path.parent.mkdir(parents=True, exist_ok=True)
-    with decision_log_path.open("w", encoding="utf-8") as handle:
-        json.dump(
-            {
-                "strategy": result.strategy_name,
-                "start_date": result.start_date.isoformat(),
-                "end_date": result.end_date.isoformat(),
-                "decision_count": len(decision_records),
-                "decisions": decision_records,
-            },
-            handle,
-            indent=2,
-            ensure_ascii=False,
-            default=lambda value: value.isoformat() if hasattr(value, "isoformat") else str(value),
-        )
-        handle.write("\\n")
+    decision_log_path = _write_decision_log(result, decision_log_path)
     print(f"  Decision log saved: {decision_log_path}")
 
     if config["show_plots"]:
