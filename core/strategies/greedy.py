@@ -48,7 +48,7 @@ def _pick_daily_greedy_plan(
         return {"type": "CARRY", "carries": []}
 
     consol_acc = all_accounts.get(consolidation_account_id)
-    consol_bank = consol_acc.bank_key if consol_acc else ""
+    consol_bank = consol_acc.bank_identity if consol_acc else ""
 
     # ── 1. Evaluate Split / Local Plan ───────────────────────────────
     split_bookings = []
@@ -102,7 +102,7 @@ def _pick_daily_greedy_plan(
     consol_plans: list[dict] = []
 
     for tgt_acc in all_accounts.values():
-        tgt_bank = tgt_acc.bank_key
+        tgt_bank = tgt_acc.bank_identity
         transfers_to_tgt = []
         total_deployable = 0.0
         fees_today = 0.0
@@ -115,7 +115,7 @@ def _pick_daily_greedy_plan(
             if src_acc.id == tgt_acc.id:
                 total_deployable += src_acc.balance
             else:
-                fee = fee_config.get_fee(src_acc.bank_key, tgt_bank)
+                fee = fee_config.get_fee(src_acc.bank_identity, tgt_bank)
                 if src_acc.balance > fee:
                     net_amt = src_acc.balance - fee
                     total_deployable += net_amt
@@ -241,7 +241,7 @@ class GreedyStrategy(BaseStrategy):
     ) -> SimResult:
         # Default accounts and configuration
         if not accounts:
-            default_bank = options[0].bank_key if options and options[0].bank_key else "commercial"
+            default_bank = options[0].bank_identity if options and options[0].bank_identity else "commercial"
             accounts = [Account(id="default", bank_key=default_bank, label="Main Account")]
 
         if not inflow_account_id:
@@ -664,7 +664,7 @@ class GreedyStrategy(BaseStrategy):
             for acc in list(accounts_map.values()):
                 if acc.id == consolidation_account_id or acc.balance <= 0.001:
                     continue
-                fee = fee_config.get_fee(acc.bank_key, consol_acc.bank_key)
+                fee = fee_config.get_fee(acc.bank_identity, consol_acc.bank_identity)
                 if acc.balance <= fee:
                     continue  # too small to sweep; will appear as IDLE below
                 src_balance = acc.balance
