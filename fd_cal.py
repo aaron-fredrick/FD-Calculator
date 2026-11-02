@@ -55,7 +55,7 @@ def main(
     print("  Accounts:")
     for account in accounts:
         print(
-            f"    - {account.id}: {account.label} [{account.bank_key}] "
+            f"    - {account.id}: {account.label} [{account.bank_id}] "
             f"starting funds {account.balance:,.2f} LKR | "
             f"eFD {'enabled' if account.supports_efd else 'disabled'}"
         )
@@ -130,6 +130,7 @@ def main(
         result,
         show_event_timeline=config["show_timeline"],
         show_booking_ledger=config["show_ledger"],
+        show_decision_log=config["show_decision_log"],
         comparison=comparison,
     )
 
