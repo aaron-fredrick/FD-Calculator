@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -445,3 +446,93 @@ def load_all_options_from_json(
         b_key: build_fd_options(opt_list, default_min_invest=default_min_invest, bank_key=b_key)
         for b_key, opt_list in data.items()
     }
+
+
+def load_options_from_bank_csv(
+    index_filepath: str | Path,
+    bank_keys: list[str] | None = None,
+    *,
+    account_banks_only: bool = True,
+    efd_only: bool = True,
+    default_min_invest: float = DEFAULT_MIN_INVESTMENT,
+) -> list[FDOption]:
+    """Load bank-specific FD options from the CSV index and linked bank files."""
+    index_path = Path(index_filepath).expanduser().resolve()
+    if not index_path.is_file():
+        raise FileNotFoundError(f"FD options index not found: {index_path}")
+
+    with index_path.open("r", encoding="utf-8-sig", newline="") as handle:
+        index_rows = list(csv.DictReader(handle))
+    required = {"bank_id", "bank_key", "options_file"}
+    if not index_rows or not required.issubset(index_rows[0]):
+        raise ValueError(
+            f"{index_path} must contain columns: {', '.join(sorted(required))}"
+        )
+
+    requested = {str(key).strip().lower() for key in (bank_keys or [])}
+    if account_banks_only and not requested:
+        raise ValueError("At least one account bank is required when account_banks_only is true")
+
+    selected = [
+        row for row in index_rows
+        if not account_banks_only or str(row.get("bank_key", "")).strip().lower() in requested
+    ]
+    if account_banks_only:
+        indexed = {str(row.get("bank_key", "")).strip().lower() for row in selected}
+        missing = sorted(requested - indexed)
+        if missing:
+            raise ValueError(
+                f"No bank options index entry found for bank_key(s): {', '.join(missing)}"
+            )
+
+    result: list[FDOption] = []
+    for bank in selected:
+        bank_key = str(bank.get("bank_key", "")).strip().lower()
+        relative_file = str(bank.get("options_file", "")).strip()
+        if not relative_file:
+            raise ValueError(f"Bank {bank.get('bank_id', bank_key)!r} has no options_file")
+        bank_file = (index_path.parent / relative_file).resolve()
+        if not bank_file.is_file():
+            raise FileNotFoundError(f"FD options file for {bank_key!r} not found: {bank_file}")
+
+        with bank_file.open("r", encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        bank_options: list[FDOption] = []
+        for row in rows:
+            raw_efd = str(row.get("eFD", "")).strip().lower()
+            if efd_only and raw_efd != "true":
+                continue
+            if raw_efd not in {"true", "false"}:
+                if efd_only:
+                    continue
+                raise ValueError(
+                    f"Option {row.get('name', '')!r} in {bank_file} has invalid eFD value {raw_efd!r}"
+                )
+            try:
+                min_amount = float(row["min_amount"]) if str(row.get("min_amount", "")).strip() else default_min_invest
+                option = FDOption(
+                    label=str(row.get("name", "")).strip(),
+                    period_str=str(row.get("period", "")).strip(),
+                    annual_rate=float(row.get("annual_rate", "")),
+                    min_amount=min_amount,
+                    payout_type=str(row.get("payout_type", CUMULATIVE)).strip() or CUMULATIVE,
+                    payout_period_str=str(row.get("payout_period", "")).strip(),
+                    bank_key=bank_key,
+                )
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Invalid FD option row in {bank_file}: {row!r}") from exc
+            if not option.label:
+                raise ValueError(f"FD option in {bank_file} has an empty name")
+            bank_options.append(option)
+
+        if account_banks_only and not bank_options:
+            mode = "eFD" if efd_only else "standard/eFD"
+            raise ValueError(
+                f"Bank {bank_key!r} has no {mode} options in {bank_file}. "
+                "Set efd_only to false or add verified options."
+            )
+        result.extend(bank_options)
+
+    if not result:
+        raise ValueError("No FD options were loaded; check the bank index and efd_only setting")
+    return result
