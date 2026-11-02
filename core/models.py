@@ -88,7 +88,8 @@ class Event:
     booking_ref:         str  = ""   # non-empty for booking / cash-flow / maturity events
     account_id:          str  = ""   # which account this event directly affected
     payment_policy:      str  = ""   # outflow policy when applicable
-    bank_key:            str  = ""   # which bank
+    bank_key:            str  = ""   # internal FD-options routing key
+    bank_id:             str  = ""   # canonical ID from data/banks/banks.csv
     fee:                 float = 0.0 # transfer fee if transfer event
     balance_after:       float = -1.0 # balance of this specific account after the event
     total_balance_after: float = -1.0 # total liquid cash across all accounts after the event
@@ -118,6 +119,7 @@ class FDOption:
     payout_period_str: str = ""
     bank_key: str = ""
     is_efd: bool = False
+    bank_id: str = ""
 
     days: int = field(init=False)
     payout_period_days: int = field(init=False)
@@ -233,6 +235,7 @@ class Booking:
     cash_flows: list[tuple[date, float]]
     account_id: str = ""
     bank_key: str = ""
+    bank_id: str = ""
 
     @property
     def total_received(self) -> float:
@@ -421,6 +424,7 @@ def load_options_from_bank_csv(
                     payout_period_str=str(row.get("payout_period", "")).strip(),
                     bank_key=bank_key,
                     is_efd=(raw_efd == "true"),
+                    bank_id=str(bank.get("bank_id", "")).strip(),
                 )
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"Invalid FD option row in {bank_file}: {row!r}") from exc
