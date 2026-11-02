@@ -341,6 +341,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "actual_leap_year": bool(config.get("actual_leap_year", True)),
         "show_timeline": bool(config.get("show_timeline", True)),
         "show_ledger": bool(config.get("show_ledger", False)),
+        "show_decision_log": bool(config.get("show_decision_log", True)),
         "show_plots": bool(config.get("show_plots", True)),
         "plot_output_dir": str(config.get("plot_output_dir", "plots")),
     }
