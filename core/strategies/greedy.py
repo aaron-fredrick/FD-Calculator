@@ -242,7 +242,7 @@ class GreedyStrategy(BaseStrategy):
         # Default accounts and configuration
         if not accounts:
             default_bank = options[0].bank_identity if options and options[0].bank_identity else "commercial"
-            accounts = [Account(id="default", bank_key=default_bank, label="Main Account")]
+            accounts = [Account(id="default", bank_key=default_bank, bank_id=default_bank, label="Main Account")]
 
         if not inflow_account_id:
             inflow_account_id = accounts[0].id
@@ -289,6 +289,7 @@ class GreedyStrategy(BaseStrategy):
                         label=f"Inflow {inflow_num:02d}",
                         account_id=account_id,
                         bank_key=accounts_map[account_id].bank_key,
+                        bank_id=accounts_map[account_id].bank_id,
                     ),
                 )
 
@@ -330,6 +331,7 @@ class GreedyStrategy(BaseStrategy):
                     label="Opening balance trigger",
                     account_id=inflow_account_id,
                     bank_key=accounts_map[inflow_account_id].bank_key,
+                    bank_id=accounts_map[inflow_account_id].bank_id,
                 ),
             )
 
