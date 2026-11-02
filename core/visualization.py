@@ -228,7 +228,9 @@ def _cash_flow_series(result: SimResult, start: date, end: date) -> dict[str, li
             category, amount = None, float(event.amount)
             if event.event_type == EventType.INFLOW:
                 category = "New money"
-            elif event.event_type == EventType.OUTFLOW:
+            elif event.event_type == EventType.OUTFLOW and amount < 0:
+                # Positive OUTFLOW entries seed obligations; only negative
+                # payment events represent cash that actually left an account.
                 category = "Outflows"
             elif event.event_type == EventType.BOOKING:
                 category, amount = "FD investments", -abs(amount)
