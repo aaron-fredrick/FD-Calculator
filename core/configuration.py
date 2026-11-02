@@ -191,13 +191,17 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
                     f"Outflow {name!r} payment_policy must be 'strict', 'defer', or 'best_effort'"
                 )
             for day in dates:
-                schedule.setdefault(day, []).append({
-                    "name": name,
-                    "amount": amount,
-                    "account_id": account_id,
-                    "payment_policy": policy,
-                    "type": event_type,
-                })
+                if kind == "inflow":
+                    day_amounts = schedule.setdefault(day, {})
+                    day_amounts[account_id] = day_amounts.get(account_id, 0.0) + amount
+                else:
+                    schedule.setdefault(day, []).append({
+                        "name": name,
+                        "amount": amount,
+                        "account_id": account_id,
+                        "payment_policy": policy,
+                        "type": event_type,
+                    })
             summaries.append({
                 "name": name,
                 "amount": amount,
