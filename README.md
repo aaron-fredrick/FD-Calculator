@@ -236,3 +236,59 @@ The account-value chart is an estimate for comparison: interest is shown as accr
 4. Treat the output as a model, not a guaranteed return or financial advice.
 
 This project simulates investment choices only. It does not open deposits, contact banks, or execute transfers.
+
+
+## Cash flows
+
+The configuration supports both recurring and scheduled inflows and outflows. Existing inflow entries remain compatible: when `type` is omitted, it defaults to `recurring`.
+
+### Recurring inflow
+
+```json
+{
+  "name": "Monthly savings",
+  "amount": 10000,
+  "type": "recurring",
+  "interval": "1m",
+  "start_date": "investment_start",
+  "end_date": "end",
+  "account_id": "com"
+}
+```
+
+### Scheduled inflow
+
+```json
+{
+  "name": "Bonus",
+  "amount": 50000,
+  "type": "scheduled",
+  "dates": ["2027-01-15", "2027-07-15"],
+  "account_id": "com"
+}
+```
+
+### Outflows and payment policies
+
+Outflows use the same recurring/scheduled structure and require a `payment_policy`:
+
+```json
+{
+  "name": "Monthly expenses",
+  "amount": 15000,
+  "type": "recurring",
+  "interval": "1m",
+  "start_date": "investment_start",
+  "end_date": "end",
+  "account_id": "com",
+  "payment_policy": "best_effort"
+}
+```
+
+- `strict`: the full amount must be available in the specified account on the due date. A search branch that cannot pay it is invalid.
+- `defer`: pay only when the full outstanding amount is available; otherwise carry the obligation forward.
+- `best_effort`: pay the available amount on the due date and carry any remainder forward.
+
+Unpaid `defer` and `best_effort` amounts remain account-specific liabilities and are reported at the end of the investment period. Same-day inflows and FD cash flows are credited before outflows; investment decisions occur after payments.
+
+Date values accept ISO dates, `today`, `investment_start`, `investment_end`/`end`, and `investment_start+period`. Recurrence uses calendar-relative periods (for example, `1m` is one calendar month) anchored to the first occurrence. Start/end bounds are inclusive.
