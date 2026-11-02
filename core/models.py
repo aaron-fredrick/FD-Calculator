@@ -351,13 +351,11 @@ def normalize_inflow_schedule(
 
 def load_options_from_bank_csv(
     index_filepath: str | Path,
-    bank_keys: list[str] | None = None,
+    bank_ids: list[str],
     *,
-    account_banks_only: bool = True,
-    efd_only: bool = True,
     default_min_invest: float = DEFAULT_MIN_INVESTMENT,
 ) -> list[FDOption]:
-    """Load bank-specific FD options from the CSV index and linked bank files."""
+    """Load all standard and eFD products for the requested canonical bank IDs."""
     index_path = Path(index_filepath).expanduser().resolve()
     if not index_path.is_file():
         raise FileNotFoundError(f"FD options index not found: {index_path}")
@@ -370,31 +368,27 @@ def load_options_from_bank_csv(
             f"{index_path} must contain columns: {', '.join(sorted(required))}"
         )
 
-    requested = {str(key).strip().lower() for key in (bank_keys or [])}
-    if account_banks_only and not requested:
-        raise ValueError("At least one account bank is required when account_banks_only is true")
-
-    selected = [
-        row for row in index_rows
-        if not account_banks_only or str(row.get("bank_key", "")).strip().lower() in requested
-    ]
-    if account_banks_only:
-        indexed = {str(row.get("bank_key", "")).strip().lower() for row in selected}
-        missing = sorted(requested - indexed)
-        if missing:
-            raise ValueError(
-                f"No bank options index entry found for bank_key(s): {', '.join(missing)}"
-            )
+    requested = {str(bank_id).strip() for bank_id in bank_ids}
+    if not requested:
+        raise ValueError("At least one canonical bank_id is required")
+    rows_by_id = {
+        str(row.get("bank_id", "")).strip(): row
+        for row in index_rows if str(row.get("bank_id", "")).strip()
+    }
+    missing = sorted(requested - set(rows_by_id))
+    if missing:
+        raise ValueError(f"No FD-options index entry for bank_id(s): {', '.join(missing)}")
 
     result: list[FDOption] = []
-    for bank in selected:
+    for bank_id in sorted(requested):
+        bank = rows_by_id[bank_id]
         bank_key = str(bank.get("bank_key", "")).strip().lower()
         relative_file = str(bank.get("options_file", "")).strip()
         if not relative_file:
-            raise ValueError(f"Bank {bank.get('bank_id', bank_key)!r} has no options_file")
+            raise ValueError(f"Bank {bank_id!r} has no options_file")
         bank_file = (index_path.parent / relative_file).resolve()
         if not bank_file.is_file():
-            raise FileNotFoundError(f"FD options file for {bank_key!r} not found: {bank_file}")
+            raise FileNotFoundError(f"FD options file for {bank_id!r} not found: {bank_file}")
 
         with bank_file.open("r", encoding="utf-8-sig", newline="") as handle:
             rows = list(csv.DictReader(handle))
@@ -405,11 +399,7 @@ def load_options_from_bank_csv(
         }.get(bank_key, default_min_invest)
         for row in rows:
             raw_efd = str(row.get("eFD", "")).strip().lower()
-            if efd_only and raw_efd != "true":
-                continue
             if raw_efd not in {"true", "false"}:
-                if efd_only:
-                    continue
                 raise ValueError(
                     f"Option {row.get('name', '')!r} in {bank_file} has invalid eFD value {raw_efd!r}"
                 )
@@ -424,7 +414,7 @@ def load_options_from_bank_csv(
                     payout_period_str=str(row.get("payout_period", "")).strip(),
                     bank_key=bank_key,
                     is_efd=(raw_efd == "true"),
-                    bank_id=str(bank.get("bank_id", "")).strip(),
+                    bank_id=bank_id,
                 )
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"Invalid FD option row in {bank_file}: {row!r}") from exc
@@ -432,16 +422,8 @@ def load_options_from_bank_csv(
                 raise ValueError(f"FD option in {bank_file} has an empty name")
             bank_options.append(option)
 
-        # Keep standard and eFD variants distinct: account-level eligibility
-        # determines which product can be booked, even when terms are identical.
-        if account_banks_only and not bank_options:
-            mode = "eFD" if efd_only else "standard/eFD"
-            raise ValueError(
-                f"Bank {bank_key!r} has no {mode} options in {bank_file}. "
-                "Set efd_only to false or add verified options."
-            )
+        if not bank_options:
+            raise ValueError(f"Bank {bank_id!r} has no FD products in {bank_file}")
         result.extend(bank_options)
 
-    if not result:
-        raise ValueError("No FD options were loaded; check the bank index and efd_only setting")
     return result
