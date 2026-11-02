@@ -82,7 +82,7 @@ def main(
     strategy = strategy_class(compound=compound, actual_leap_year=actual_leap_year)
     compare_strategy = (
         GreedyStrategy(compound=compound, actual_leap_year=actual_leap_year)
-        if selected_strategy == "absolute"
+        if selected_strategy in {"absolute", "gaml"}
         else None
     )
 
