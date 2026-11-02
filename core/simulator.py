@@ -36,6 +36,7 @@ def simulate(
     inflow_schedule: dict[date, float],
     compound: bool = False,
     actual_leap_year: bool = True,
+    outflow_schedule: dict[date, list[dict]] | None = None,
 ) -> SimResult:
     strategy = GreedyStrategy(compound=compound, actual_leap_year=actual_leap_year)
     return strategy.simulate(
@@ -43,4 +44,5 @@ def simulate(
         start=start,
         end=end,
         inflow_schedule=inflow_schedule,
+        outflow_schedule=outflow_schedule,
     )
