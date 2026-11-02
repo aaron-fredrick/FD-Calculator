@@ -49,7 +49,7 @@ Each event-depth layer expands at most $W$ states and retains at most $W$ childr
 The resulting bounded-search work is approximately:
 
 \[
-O\left(KW\left(A^2 + AO\log(AO) + ALO\log(LO) + F + (W+B)\log(W+B)\right)\right)
+O\left(KW\left(A^2 + AO\log(AO) + ALO\log(LO) + BF + (W+B)\log(W+B)\right)\right)
 \]
 
 The search frontier is $O(W)$, with up to $O(W+B)$ temporary child candidates. Memoised states and parent-path nodes can grow to $O(KW)$, each carrying account balances and pending cash-flow data. A configured `max_decisions` can impose an additional hard expansion cap, but is unset by default.
