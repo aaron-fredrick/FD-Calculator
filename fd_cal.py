@@ -109,6 +109,8 @@ def main(
         outflow_schedule=outflow_schedule,
     )
     result = strategy.simulate(**common_kwargs)
+    if not result.valid:
+        raise ValueError("The selected strategy cannot satisfy one or more strict outflows")
 
     comparison_result = None
     comparison = None
