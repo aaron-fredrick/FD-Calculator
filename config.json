@@ -48,5 +48,5 @@
   "show_ledger": false,
   "show_plots": true,
   "plot_output_dir": "plots",
-  "show_decision_log": true
+  "decision_log_output_file": "decision_log.json"
 }
