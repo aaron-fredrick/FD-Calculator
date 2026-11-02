@@ -498,6 +498,10 @@ def load_options_from_bank_csv(
         with bank_file.open("r", encoding="utf-8-sig", newline="") as handle:
             rows = list(csv.DictReader(handle))
         bank_options: list[FDOption] = []
+        bank_default_min = {
+            "commercial": 25_000.0,
+            "dfcc": 10_000.0,
+        }.get(bank_key, default_min_invest)
         for row in rows:
             raw_efd = str(row.get("eFD", "")).strip().lower()
             if efd_only and raw_efd != "true":
@@ -509,7 +513,7 @@ def load_options_from_bank_csv(
                     f"Option {row.get('name', '')!r} in {bank_file} has invalid eFD value {raw_efd!r}"
                 )
             try:
-                min_amount = float(row["min_amount"]) if str(row.get("min_amount", "")).strip() else default_min_invest
+                min_amount = float(row["min_amount"]) if str(row.get("min_amount", "")).strip() else bank_default_min
                 option = FDOption(
                     label=str(row.get("name", "")).strip(),
                     period_str=str(row.get("period", "")).strip(),
