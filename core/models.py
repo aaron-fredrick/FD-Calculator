@@ -36,6 +36,7 @@ class Account:
     label: str = ""
     balance: float = 0.0
     supports_efd: bool = True
+    bank_id: str = ""
 
     def __post_init__(self):
         if not self.label:
