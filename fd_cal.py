@@ -108,8 +108,9 @@ def main(
         inflow_account_id=default_account_id,
         fee_config=fee_config,
         consolidation_account_id=default_account_id,
-        outflow_schedule=outflow_schedule,
     )
+    if selected_strategy == "greedy":
+        common_kwargs["outflow_schedule"] = outflow_schedule
     result = strategy.simulate(**common_kwargs)
 
     comparison_result = None
