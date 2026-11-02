@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 from datetime import date
 from pathlib import Path
 from typing import Optional, Sequence
 
 from core import AbsoluteStrategy, GAMLStrategy, GreedyStrategy, divider, print_simulation
+from core.reporting import build_decision_log
 from core.configuration import load_configuration
 from core.visualization import plot_strategy_results
 
@@ -131,9 +133,31 @@ def main(
         result,
         show_event_timeline=config["show_timeline"],
         show_booking_ledger=config["show_ledger"],
-        show_decision_log=config["show_decision_log"],
         comparison=comparison,
+        show_decision_log=False,
     )
+
+    decision_records = build_decision_log(result)
+    decision_log_path = Path(config["decision_log_output_file"]).expanduser()
+    if not decision_log_path.is_absolute():
+        decision_log_path = Path(config["source_path"]).parent / decision_log_path
+    decision_log_path.parent.mkdir(parents=True, exist_ok=True)
+    with decision_log_path.open("w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "strategy": result.strategy_name,
+                "start_date": result.start_date.isoformat(),
+                "end_date": result.end_date.isoformat(),
+                "decision_count": len(decision_records),
+                "decisions": decision_records,
+            },
+            handle,
+            indent=2,
+            ensure_ascii=False,
+            default=lambda value: value.isoformat() if hasattr(value, "isoformat") else str(value),
+        )
+        handle.write("\\n")
+    print(f"  Decision log saved: {decision_log_path}")
 
     if config["show_plots"]:
         output_dir = Path(config["plot_output_dir"]).expanduser()
