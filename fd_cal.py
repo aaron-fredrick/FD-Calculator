@@ -1,13 +1,38 @@
 from __future__ import annotations
 
 import argparse
+import json
 from datetime import date
 from pathlib import Path
 from typing import Optional, Sequence
 
 from core import AbsoluteStrategy, GAMLStrategy, GreedyStrategy, divider, print_simulation
+from core.reporting import build_decision_log
 from core.configuration import load_configuration
 from core.visualization import plot_strategy_results
+
+
+def _write_decision_log(result, output_path: str | Path) -> Path:
+    """Serialize the selected strategy path as a standalone JSON artifact."""
+    path = Path(output_path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    records = build_decision_log(result)
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(
+            {
+                "strategy": result.strategy_name,
+                "start_date": result.start_date.isoformat(),
+                "end_date": result.end_date.isoformat(),
+                "decision_count": len(records),
+                "decisions": records,
+            },
+            handle,
+            indent=2,
+            ensure_ascii=False,
+            default=lambda value: value.isoformat() if hasattr(value, "isoformat") else str(value),
+        )
+        handle.write("\n")
+    return path
 
 
 def main(
@@ -23,9 +48,10 @@ def main(
     options = config["options"]
     inflow_schedule = config["inflow_schedule"]
     outflow_schedule = config["outflow_schedule"]
-    # Legacy scalar inflow schedules and final consolidation default to the first
-    # configured account. New inflows specify their own destination in config.json.
+    # Legacy scalar inflow schedules still default to the first account; final
+    # consolidation uses the explicitly configured account ID.
     default_account_id = accounts[0].id
+    consolidation_account_id = config["consolidation_account_id"]
     fee_config = config["fee_config"]
     compound = config["compound"]
     actual_leap_year = config["actual_leap_year"]
@@ -109,7 +135,7 @@ def main(
         accounts=accounts,
         inflow_account_id=default_account_id,
         fee_config=fee_config,
-        consolidation_account_id=default_account_id,
+        consolidation_account_id=consolidation_account_id,
         outflow_schedule=outflow_schedule,
     )
     result = strategy.simulate(**common_kwargs)
@@ -130,9 +156,15 @@ def main(
         result,
         show_event_timeline=config["show_timeline"],
         show_booking_ledger=config["show_ledger"],
-        show_decision_log=config["show_decision_log"],
         comparison=comparison,
+        show_decision_log=False,
     )
+
+    decision_log_path = Path(config["decision_log_output_file"]).expanduser()
+    if not decision_log_path.is_absolute():
+        decision_log_path = Path(config["source_path"]).parent / decision_log_path
+    decision_log_path = _write_decision_log(result, decision_log_path)
+    print(f"  Decision log saved: {decision_log_path}")
 
     if config["show_plots"]:
         output_dir = Path(config["plot_output_dir"]).expanduser()
@@ -148,7 +180,7 @@ def main(
             end=end,
             output_dir=output_dir,
             show=True,
-            consolidation_account_id=default_account_id,
+            consolidation_account_id=consolidation_account_id,
         )
         print("\n  Charts saved:")
         for chart_path in chart_paths:

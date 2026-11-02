@@ -141,9 +141,9 @@ At least one account is required. Multiple account IDs may reference the same `b
 
 ### Decision log
 
-The event timeline records facts; the booking ledger describes FD contracts. The Decision Log is a separate chronological explanation of the actions that produced the selected plan. It records the account balances available before the action, same-day inflows/outflows/transfers/maturities, the action taken, the selected FD terms and expected interest, eligibility/minimum-deposit rationale, and the next scheduled milestone.
+The event timeline records facts; the booking ledger describes FD contracts. The Decision Log is a separate JSON output file, not terminal output. It records the account balances available before each action, same-day inflows/outflows/transfers/maturities, the action taken, selected FD terms and expected interest, eligibility/minimum-deposit rationale, and the next scheduled milestone.
 
-For GAML and Absolute, the log is built from the final replayed path only. It does not list rejected branches, search-tree nodes or alternative leaves. Search alternatives remain available as aggregate outcome information in the simulation summary.
+For GAML and Absolute, the file contains the final replayed path only. It does not list rejected branches, search-tree nodes or alternative leaves. Search alternatives remain available as aggregate outcome information in the simulation summary. The output path is configured with `decision_log_output_file`; relative paths are resolved beside the selected config file.
 
 
 ### Inflows
@@ -246,11 +246,11 @@ Fees affect the simulated value, so use the fees that apply to your actual accou
 | `actual_leap_year` | `true` uses actual 366-day leap years where applicable; `false` uses a 365-day basis. |
 | `show_timeline` | Show the event timeline in the terminal. |
 | `show_ledger` | Show the booking ledger in the terminal. |
-| `show_decision_log` | Show the chronological explanation of the selected investment path. Defaults to `true`. |
+| `decision_log_output_file` | JSON file for the selected-path decision log; defaults to `decision_log.json` beside the config file. |
 | `show_plots` | Generate and display charts. |
 | `plot_output_dir` | Folder for saved charts; defaults to `plots`. |
 
-Final consolidation transfers remaining account balances to the **first account listed in `accounts`**. Any applicable transfer fee is included in the simulation.
+Final consolidation transfers remaining account balances to the account referenced by `consolidation_account_id`. That value must match an account ID under `accounts`. Any applicable transfer fee is included in the simulation.
 
 ## 4. Charts and output files
 
@@ -259,6 +259,7 @@ With `"show_plots": true`, charts are saved to `plot_output_dir`:
 - `<strategy>_account_values.png`: account value over time. GAML and Absolute include Greedy for comparison.
 - `<strategy>_decision_timeline.png`: FD booking and maturity periods. GAML and Absolute include Greedy for comparison.
 - `<strategy>_cash_flows.png`: dated positive and negative cash movements, including new money, FD payouts and maturities, outflows, FD investments, and transfers in/out. When Greedy comparison is available, it appears in a second panel.
+- `decision_log.json` (or the configured filename): structured chronological decisions for the selected strategy path.
 
 A relative plot path is resolved from the directory containing the selected config file. For example, `"plot_output_dir": "plots"` saves to a `plots` folder beside `config.json`. An absolute path saves to that exact location. The output folder is created if needed.
 

@@ -1,5 +1,10 @@
 from datetime import date
+import json
+import tempfile
 import unittest
+from pathlib import Path
+
+from fd_cal import _write_decision_log
 
 from core.models import Account, FDOption, TransferFeeConfig
 from core.strategies.absolute import AbsoluteStrategy
@@ -25,6 +30,15 @@ class DecisionLogTests(unittest.TestCase):
         self.assertEqual(carry["available_funds"], {"cash": 5000, "reserve": 2500})
         self.assertTrue(carry["reason"])
         self.assertTrue(carry["next_milestone"])
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "reports" / "decisions.json"
+            written = _write_decision_log(result, output)
+            payload = json.loads(written.read_text(encoding="utf-8"))
+            self.assertEqual(written, output)
+            self.assertEqual(payload["strategy"], "Greedy")
+            self.assertEqual(payload["decision_count"], len(payload["decisions"]))
+            self.assertEqual(payload["decisions"][0]["date"], "2026-01-01")
 
     def test_log_explains_selected_consolidation_for_each_strategy(self):
         strategies = [

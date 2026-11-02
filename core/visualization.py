@@ -135,15 +135,40 @@ def _portfolio_series(
     return values
 
 
-def _plot_account_lines(ax, dates, series, labels) -> None:
-    for index, (account_id, values) in enumerate(series.items()):
+def _plot_account_lines(
+    ax, dates, series, labels, accounts: Sequence[Account],
+    consolidation_account_id: Optional[str],
+) -> None:
+    """Style account-value lines by relationship to the consolidation account."""
+    account_by_id = {account.id: account for account in accounts}
+    consolidation = account_by_id.get(consolidation_account_id or "")
+    consolidation_bank_id = (
+        consolidation.bank_identity.strip().upper() if consolidation else ""
+    )
+
+    # Assign the consolidation account the first palette color regardless of
+    # its position in the account dictionary; every other account gets its own.
+    ordered_ids = list(series)
+    if consolidation_account_id in ordered_ids:
+        ordered_ids.remove(consolidation_account_id)
+        ordered_ids.insert(0, consolidation_account_id)
+
+    for index, account_id in enumerate(ordered_ids):
+        account = account_by_id.get(account_id)
+        bank_id = account.bank_identity.strip().upper() if account else ""
+        if account_id == consolidation_account_id:
+            linestyle, linewidth = "-", 2.5
+        elif consolidation_bank_id and bank_id == consolidation_bank_id:
+            linestyle, linewidth = "--", 2.0
+        else:
+            linestyle, linewidth = ":", 2.0
         ax.plot(
             dates,
-            values,
+            series[account_id],
             label=labels.get(account_id, account_id),
             color=_COLORS[index % len(_COLORS)],
-            linestyle="-" if index == 0 else ("--" if index % 2 else ":"),
-            linewidth=2.25 if index == 0 else 1.9,
+            linestyle=linestyle,
+            linewidth=linewidth,
             alpha=1.0,
         )
 
@@ -314,18 +339,36 @@ def plot_strategy_results(
         comparison_series = _portfolio_series(
             comparison, accounts, inflow_schedule, inflow_account_id, start, end
         )
-        for account_id, values in comparison_series.items():
-            # The Greedy consolidation account stays solid; other Greedy
-            # accounts use dashed lines to distinguish them from Absolute.
-            greedy_style = "-" if account_id == consolidation_account_id else "--"
+        account_by_id = {account.id: account for account in accounts}
+        consolidation = account_by_id.get(consolidation_account_id or "")
+        consolidation_bank_id = (
+            consolidation.bank_identity.strip().upper() if consolidation else ""
+        )
+        greedy_account_order = list(comparison_series)
+        if consolidation_account_id in greedy_account_order:
+            greedy_account_order.remove(consolidation_account_id)
+            greedy_account_order.insert(0, consolidation_account_id)
+        for index, account_id in enumerate(greedy_account_order):
+            values = comparison_series[account_id]
+            account = account_by_id.get(account_id)
+            bank_id = account.bank_identity.strip().upper() if account else ""
+            if account_id == consolidation_account_id:
+                greedy_style = "-"
+            elif consolidation_bank_id and bank_id == consolidation_bank_id:
+                greedy_style = "--"
+            else:
+                greedy_style = ":"
             ax.plot(
-                dates, values, color=_GREEDY_PALE, linestyle=greedy_style,
-                linewidth=1.55 if greedy_style == "-" else 1.35, alpha=0.62,
+                dates, values, color=_COLORS[index % len(_COLORS)],
+                linestyle=greedy_style,
+                linewidth=1.55 if greedy_style == "-" else 1.35, alpha=0.38,
                 label=f"Greedy · {labels.get(account_id, account_id)}",
                 zorder=1,
             )
 
-    _plot_account_lines(ax, dates, primary_series, labels)
+    _plot_account_lines(
+        ax, dates, primary_series, labels, accounts, consolidation_account_id
+    )
     ax.set_title(
         f"{primary.strategy_name}: estimated account value over time",
         loc="left", fontweight="bold", pad=12,
