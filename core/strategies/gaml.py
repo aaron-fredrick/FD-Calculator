@@ -111,7 +111,7 @@ def _prune_dominated_options(options: list[FDOption], compound: bool) -> list[FD
       - A.annual_rate >= B.annual_rate
       - A.min_amount <= B.min_amount
       - At least one inequality is strict (shorter days, higher rate, or lower min_amount)
-      - For payout: cumulative is >= periodic of same/lower rate.
+      - Payout type and payout interval must match exactly; cash-flow timing is material.
     """
     res: list[FDOption] = []
     by_bank: dict[tuple[str, bool], list[FDOption]] = {}
@@ -130,7 +130,7 @@ def _prune_dominated_options(options: list[FDOption], compound: bool) -> list[FD
                 # dominate a periodic or installment product (or vice versa).
                 same_cashflow_shape = (
                     other.payout_type == cand.payout_type
-                    and other.payout_period_days == cand.payout_period_days
+                    and other.payout_period_str == cand.payout_period_str
                 )
                 if (
                     same_cashflow_shape
