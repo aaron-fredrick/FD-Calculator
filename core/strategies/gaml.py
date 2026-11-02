@@ -116,7 +116,7 @@ def _prune_dominated_options(options: list[FDOption], compound: bool) -> list[FD
     res: list[FDOption] = []
     by_bank: dict[tuple[str, bool], list[FDOption]] = {}
     for o in options:
-        by_bank.setdefault((o.bank_key, o.is_efd), []).append(o)
+        by_bank.setdefault((o.bank_identity, o.is_efd), []).append(o)
 
     for (bkey, is_efd), bopts in by_bank.items():
         for cand in bopts:
@@ -242,7 +242,7 @@ class GAMLStrategy(BaseStrategy):
         from core.strategies.greedy import GreedyStrategy
 
         if not accounts:
-            default_bank = options[0].bank_key if options and options[0].bank_key else "commercial"
+            default_bank = options[0].bank_identity if options and options[0].bank_identity else "commercial"
             accounts = [Account(id="default", bank_key=default_bank, label="Main Account")]
 
         if not inflow_account_id:
@@ -263,7 +263,7 @@ class GAMLStrategy(BaseStrategy):
         }
         validate_outflow_schedule(outflow_schedule, start, end, set(accounts_meta))
         consol_acc_id = consolidation_account_id
-        consol_bank   = accounts_meta[consol_acc_id].bank_key
+        consol_bank   = accounts_meta[consol_acc_id].bank_identity
 
         effective_options = _prune_dominated_options(options, self.compound)
 
@@ -298,7 +298,7 @@ class GAMLStrategy(BaseStrategy):
         _flow_cache: dict[tuple, list[tuple[date, float]]] = {}
 
         def _get_flows(opt: FDOption, booking_start: date, principal: float) -> list[tuple[date, float]]:
-            key = (opt.label, opt.bank_key, booking_start, _round2(principal))
+            key = (opt.label, opt.bank_identity, booking_start, _round2(principal))
             cached = _flow_cache.get(key)
             if cached is not None:
                 return cached
@@ -420,7 +420,7 @@ class GAMLStrategy(BaseStrategy):
                 for aid, b in bal:
                     if aid == consol_acc_id or b <= 0.001:
                         continue
-                    fee = fee_config.get_fee(accounts_meta[aid].bank_key, consol_bank)
+                    fee = fee_config.get_fee(accounts_meta[aid].bank_identity, consol_bank)
                     if b > fee:
                         final_bal[consol_acc_id] += (b - fee)
                         final_bal[aid] = 0.0
@@ -475,7 +475,7 @@ class GAMLStrategy(BaseStrategy):
                 for aid, amount in bal:
                     if amount <= 0.001:
                         continue
-                    bank_key = accounts_meta[aid].bank_key
+                    bank_key = accounts_meta[aid].bank_identity
                     for option in effective_options:
                         if (
                             (not option.bank_key or option.bank_key == bank_key)
@@ -505,8 +505,8 @@ class GAMLStrategy(BaseStrategy):
                             deployable += amount
                         else:
                             fee = fee_config.get_fee(
-                                accounts_meta[source_id].bank_key,
-                                target_account.bank_key,
+                                accounts_meta[source_id].bank_identity,
+                                target_account.bank_identity,
                             )
                             if amount > fee:
                                 deployable += amount - fee
@@ -547,7 +547,7 @@ class GAMLStrategy(BaseStrategy):
             # ── Branch 1: Consolidate into target account T ──────────────
             consolidation_branches = []
             for tgt_id, tgt_acc in accounts_meta.items():
-                tgt_bank = tgt_acc.bank_key
+                tgt_bank = tgt_acc.bank_identity
                 transfers: list[dict[str, Any]] = []
                 deployable = 0.0
                 carries: list[str] = []
@@ -558,7 +558,7 @@ class GAMLStrategy(BaseStrategy):
                     if aid == tgt_id:
                         deployable += b
                     else:
-                        fee = fee_config.get_fee(accounts_meta[aid].bank_key, tgt_bank)
+                        fee = fee_config.get_fee(accounts_meta[aid].bank_identity, tgt_bank)
                         if b > fee:
                             net_amt = b - fee
                             deployable += net_amt
@@ -612,7 +612,7 @@ class GAMLStrategy(BaseStrategy):
             local_opts_per_acc: dict[str, list[FDOption]] = {}
             for aid in active_accs:
                 b = bal_dict[aid]
-                bkey = accounts_meta[aid].bank_key
+                bkey = accounts_meta[aid].bank_identity
                 opts = [
                     o for o in effective_options
                     if (not o.bank_key or o.bank_key == bkey) and accounts_meta[aid].can_use_option(o) and o.can_invest(b, today, end)
@@ -884,6 +884,7 @@ class GAMLStrategy(BaseStrategy):
                     target_acc.balance += e.amount
                     e.account_id          = target_acc.id
                     e.bank_key            = target_acc.bank_key
+                    e.bank_id             = target_acc.bank_id
                     e.balance_after       = target_acc.balance
                     e.total_balance_after = sum(a.balance for a in accounts_map.values())
 
@@ -1139,7 +1140,7 @@ class GAMLStrategy(BaseStrategy):
             for acc in list(accounts_map.values()):
                 if acc.id == consolidation_account_id or acc.balance <= 0.001:
                     continue
-                fee = fee_config.get_fee(acc.bank_key, consol_acc.bank_key)
+                fee = fee_config.get_fee(acc.bank_identity, consol_acc.bank_identity)
                 if acc.balance <= fee:
                     continue
                 src_balance  = acc.balance
