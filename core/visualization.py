@@ -344,7 +344,12 @@ def plot_strategy_results(
         consolidation_bank_id = (
             consolidation.bank_identity.strip().upper() if consolidation else ""
         )
-        for account_id, values in comparison_series.items():
+        greedy_account_order = list(comparison_series)
+        if consolidation_account_id in greedy_account_order:
+            greedy_account_order.remove(consolidation_account_id)
+            greedy_account_order.insert(0, consolidation_account_id)
+        for index, account_id in enumerate(greedy_account_order):
+            values = comparison_series[account_id]
             account = account_by_id.get(account_id)
             bank_id = account.bank_identity.strip().upper() if account else ""
             if account_id == consolidation_account_id:
@@ -354,8 +359,9 @@ def plot_strategy_results(
             else:
                 greedy_style = ":"
             ax.plot(
-                dates, values, color=_GREEDY_PALE, linestyle=greedy_style,
-                linewidth=1.55 if greedy_style == "-" else 1.35, alpha=0.62,
+                dates, values, color=_COLORS[index % len(_COLORS)],
+                linestyle=greedy_style,
+                linewidth=1.55 if greedy_style == "-" else 1.35, alpha=0.38,
                 label=f"Greedy · {labels.get(account_id, account_id)}",
                 zorder=1,
             )
