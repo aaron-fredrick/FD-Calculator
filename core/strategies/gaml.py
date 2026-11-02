@@ -716,7 +716,7 @@ class GAMLStrategy(BaseStrategy):
             if not prioritise_wait and (self.max_decisions is None or tally < self.max_decisions):
                 carry_act = CarryAction(carries=list(active_accs))
                 child_node = SearchTreeNode(parent=parent_node, action=carry_act, today=today)
-                search(next_date_default, bal, active_pf, child_node)
+                search(next_date_default, bal, active_pf, active_obligations, paid_total, child_node)
 
         # ----------------------------------------------------------------
         # Run Branch-and-Bound search from start date
