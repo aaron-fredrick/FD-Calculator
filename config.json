@@ -25,6 +25,7 @@
       "supports_efd": true
     }
   },
+  "consolidation_account_id": "comfs",
   "inflows": [
     {
       "name": "Monthly new savings",
