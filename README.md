@@ -51,10 +51,10 @@ C = \prod_{i=1}^{A}(1+o_i)-1
 The number of consolidation choices is:
 
 ```math
-Q = \sum_{i=1}^{A}o_{bank(i)}
+Q = \sum_{i=1}^{A}o_i
 ```
 
-Here, $o_{bank(i)}$ is the number of horizon-eligible effective options for account $i$'s bank. There is also one carry-forward choice.
+Here, $o_i$ is the number of horizon-eligible effective options that account $i$ is allowed to use, after applying its `supports_efd` setting. There is also one carry-forward choice.
 
 A configuration-level upper bound on the branching factor is:
 
