@@ -41,16 +41,17 @@ Let:
 - $K$ be the maximum number of event dates along a path.
 - $W$ be the GAML frontier width (default 256).
 - $L$ be the local booking-combination width (default 128).
+- $F$ be the number of pending cash-flow entries processed in a state.
 
-At each expanded state, consolidation candidates are generated in $O(AO)$. Local booking combinations are generated incrementally and truncated to the best $L$ partial combinations per account, costing approximately $O(AL O\log(LO))$. The frontier is capped at $W$ states.
+Per expanded state, transfer/deployable-balance evaluation costs $O(A^2)$; consolidation candidate generation and sorting costs approximately $O(AO\log(AO))$; local booking combinations are generated incrementally and truncated to the best $L$ partial combinations per account, costing approximately $O(AL O\log(LO))$; and pending cash-flow processing adds $O(F)$. The frontier is capped at $W$ states and its ordering costs $O(W\log W)$.
 
 The resulting bounded-search work is approximately:
 
 \[
-O\left(KW\left(AO + ALO\log(LO) + W\log W\right)\right)
+O\left(KW\left(A^2 + AO\log(AO) + ALO\log(LO) + F + W\log W\right)\right)
 \]
 
-The retained frontier is $O(W)$ states; memoised states and parent-path nodes can grow to $O(KW)$, with each state carrying account balances and pending cash-flow data. A configured `max_decisions` can impose an additional hard expansion cap, but is unset by default.
+The retained frontier is $O(W)$ states; memoised states and parent-path nodes can grow to $O(KW)$, with each state carrying account balances and pending cash-flow data. A configured \`max_decisions\` can impose an additional hard expansion cap, but is unset by default.
 
 This is a bounded-width heuristic, not an exact polynomial-time solution to the underlying combinatorial optimisation problem. Increasing the number of options increases per-state work, and extending the horizon increases the number of event states, but the search does not retain the full exponentially growing decision tree. If beam or local-combination pruning occurs, GAML reports that optimality was not proven and returns its best complete solution found (never below its valid Greedy incumbent).
 
