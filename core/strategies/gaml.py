@@ -32,4 +32,5 @@ class GAMLStrategy(AbsoluteStrategy):
             compound=compound,
             actual_leap_year=actual_leap_year,
             max_decisions=max_decisions,
+            max_local_branches=64,
         )
