@@ -50,6 +50,18 @@ class GAMLStrategyTests(unittest.TestCase):
 
         self.assertGreaterEqual(result.final_value + 0.01, greedy.final_value)
 
+    def test_default_search_uses_bounded_beam_and_matches_greedy_floor(self):
+        result = self._simulate(GAMLStrategy(beam_width=32))
+        greedy = self._simulate(GreedyStrategy())
+
+        self.assertEqual(result.strategy_name, "GAML")
+        self.assertGreaterEqual(result.final_value + 0.01, greedy.final_value)
+        self.assertIsNotNone(result.total_decisions_evaluated)
+
+    def test_invalid_beam_width_is_rejected(self):
+        with self.assertRaises(ValueError):
+            GAMLStrategy(beam_width=0)
+
     def test_invalid_search_budget_is_rejected(self):
         with self.assertRaises(ValueError):
             GAMLStrategy(max_decisions=0)
