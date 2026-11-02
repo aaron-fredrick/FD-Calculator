@@ -35,7 +35,8 @@ class DecisionLogTests(unittest.TestCase):
                     fee_config=TransferFeeConfig(same_bank_fee=0.0),
                     consolidation_account_id="dfcc-1",
                 )
-                log = build_decision_log(result)
+                log = result.decision_log
+                self.assertTrue(log)
                 investment = next(item for item in log if item["product"] is not None)
                 self.assertEqual(investment["action"], "Consolidate and invest")
                 self.assertIn(investment["account_id"], {"dfcc-2", "dfcc-3"})
