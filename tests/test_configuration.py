@@ -75,6 +75,55 @@ class ConfigurationTests(unittest.TestCase):
         self.assertTrue(all("cash" in amounts for amounts in loaded["inflow_schedule"].values()))
         self.assertEqual([option.bank_key for option in loaded["options"]], ["commercial"])
 
+    def test_scheduled_inflows_and_recurring_outflows_are_resolved(self) -> None:
+        self.config["inflows"] = [{
+            "name": "Bonus",
+            "amount": 2500.0,
+            "type": "scheduled",
+            "dates": ["investment_start", "end"],
+            "account_id": "cash",
+        }]
+        self.config["outflows"] = [{
+            "name": "Monthly expenses",
+            "amount": 750.0,
+            "type": "recurring",
+            "interval": "1m",
+            "start_date": "investment_start",
+            "end_date": "end",
+            "account_id": "cash",
+            "payment_policy": "best_effort",
+        }]
+        self._write_config()
+
+        loaded = load_configuration(self.config_path)
+        self.assertEqual(
+            loaded["inflow_schedule"][loaded["start"]]["cash"],
+            2500.0,
+        )
+        self.assertEqual(
+            loaded["inflow_schedule"][loaded["end"]]["cash"],
+            2500.0,
+        )
+        self.assertGreaterEqual(len(loaded["outflow_schedule"]), 1)
+        self.assertEqual(
+            loaded["outflow_schedule"][loaded["start"]][0]["payment_policy"],
+            "best_effort",
+        )
+        self.assertEqual(loaded["outflow_summaries"][0]["total"],
+                         750.0 * loaded["outflow_summaries"][0]["occurrences"])
+
+    def test_duplicate_scheduled_dates_are_rejected(self) -> None:
+        self.config["inflows"] = [{
+            "name": "Duplicate payment",
+            "amount": 1000.0,
+            "type": "scheduled",
+            "dates": ["investment_start", "investment_start"],
+            "account_id": "cash",
+        }]
+        self._write_config()
+        with self.assertRaisesRegex(ValueError, "duplicate scheduled dates"):
+            load_configuration(self.config_path)
+
     def test_missing_bank_options_fails_fast(self) -> None:
         self.config["accounts"][0]["bank_key"] = "unknown-bank"
         self._write_config()
