@@ -402,8 +402,8 @@ def print_simulation(
     result: SimResult,
     show_event_timeline: bool = True,
     show_booking_ledger: bool = True,
-    show_decision_log: bool = True,
     comparison: dict[str, float] | None = None,
+    show_decision_log: bool = True,
 ) -> None:
     """
     Print the simulation results: event timeline, grand summary, and booking ledger.
