@@ -27,10 +27,32 @@ The command-line strategy overrides `strategy` in the config for that run only; 
 ## 2. Strategies
 
 - **Greedy:** Selects a strong available action at each event. Fast, but not globally optimal.
-- **GAML:** Uses bounded global search with maturity and contribution-aware branch ordering. It prioritises promising investment paths within a decision budget; it does not guarantee the global optimum.
+- **GAML:** Uses a fixed-width, best-first beam search with maturity-aware branch ordering, upper-bound pruning, and a Greedy incumbent. Its default frontier width is 256 states and its local booking-combination width is 128. It has no fixed state-count limit by default; search work grows with event dates, retained states, accounts, and eligible options instead of multiplying the full branch factor across the horizon. Beam/local-combination pruning makes it approximate unless the run reports `optimality proven`.
 - **Absolute:** Explores feasible investment paths using branch-and-bound, memoisation, and dominated-option pruning. It seeks the best result found and has no fixed decision budget, so runtime can grow sharply with scenario complexity.
 
 All strategies use the same investment dates, accounts, inflows, FD options, fees, and interest settings. GAML and Absolute also run Greedy as a baseline. GAML plans toward the configured end date; it does not forecast future rate changes.
+
+### GAML search complexity
+
+Let:
+
+- $A$ be the number of configured accounts.
+- $O$ be the number of effective eligible FD options.
+- $K$ be the maximum number of event dates along a path.
+- $W$ be the GAML frontier width (default 256).
+- $L$ be the local booking-combination width (default 128).
+
+At each expanded state, consolidation candidates are generated in $O(AO)$. Local booking combinations are generated incrementally and truncated to the best $L$ partial combinations per account, costing approximately $O(AL O\\log(LO))$. The frontier is capped at $W$ states.
+
+The resulting bounded-search work is approximately:
+
+\\[
+O\\left(KW\\left(AO + ALO\\log(LO) + W\\log W\\right)\\right)
+\\]
+
+The retained frontier is $O(W)$ states; memoised states and parent-path nodes can grow to $O(KW)$, with each state carrying account balances and pending cash-flow data. A configured `max_decisions` can impose an additional hard expansion cap, but is unset by default.
+
+This is a bounded-width heuristic, not an exact polynomial-time solution to the underlying combinatorial optimisation problem. Increasing the number of options increases per-state work, and extending the horizon increases the number of event states, but the search does not retain the full exponentially growing decision tree. If beam or local-combination pruning occurs, GAML reports that optimality was not proven and returns its best complete solution found (never below its valid Greedy incumbent).
 
 ### Absolute search complexity
 
