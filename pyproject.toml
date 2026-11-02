@@ -1,7 +1,7 @@
 [project]
-name = "commercial-flash"
+name = "fd-calculator"
 version = "0.1.0"
-description = "Add your description here"
+description = "Multi-bank fixed-deposit investment simulator"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
