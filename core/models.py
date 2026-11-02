@@ -31,15 +31,15 @@ class EventType(Enum):
 class Account:
     """A bank account holding liquid cash."""
     id: str
-    bank_key: str  # internal FD-options routing key; config uses bank_id
+    bank_id: str = ""  # canonical ID from data/banks/banks.csv
     label: str = ""
     balance: float = 0.0
     supports_efd: bool = True
-    bank_id: str = ""
+    bank_key: str = ""  # internal FD-options routing key; never used as config identity
 
     def __post_init__(self):
         if not self.label:
-            self.label = f"{self.bank_key.title()} Account"
+            self.label = f"{(self.bank_key or self.bank_id).title()} Account"
         if not isinstance(self.supports_efd, bool):
             raise ValueError("supports_efd must be a boolean")
 
