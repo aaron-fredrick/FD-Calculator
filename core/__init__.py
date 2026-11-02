@@ -29,6 +29,7 @@ from core.models import (
 from core.reporting import (
     divider,
     print_booking_ledger,
+    print_decision_log,
     print_event_timeline,
     print_options_table,
     print_simulation,
@@ -66,6 +67,7 @@ __all__ = [
     "print_options_table",
     "print_event_timeline",
     "print_booking_ledger",
+    "print_decision_log",
     "print_simulation",
     # Simulation
     "build_inflow_schedule",
