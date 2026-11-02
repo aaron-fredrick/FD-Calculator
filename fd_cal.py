@@ -118,8 +118,12 @@ def main(
     comparison_result = None
     comparison = None
     if compare_strategy is not None:
-        comparison_result = compare_strategy.simulate(**common_kwargs)
-        comparison = {compare_strategy.name: comparison_result.net_interest}
+        greedy_comparison = compare_strategy.simulate(**common_kwargs)
+        if greedy_comparison.valid:
+            comparison_result = greedy_comparison
+            comparison = {compare_strategy.name: comparison_result.net_interest}
+        else:
+            print("  Greedy comparison skipped: its decisions cannot satisfy the configured strict outflows.")
 
     print_simulation(
         result,
