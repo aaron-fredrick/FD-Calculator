@@ -78,6 +78,7 @@ class Event:
     label:               str  = ""   # human-readable description
     booking_ref:         str  = ""   # non-empty for booking / cash-flow / maturity events
     account_id:          str  = ""   # which account this event directly affected
+    payment_policy:      str  = ""   # outflow policy when applicable
     bank_key:            str  = ""   # which bank
     fee:                 float = 0.0 # transfer fee if transfer event
     balance_after:       float = -1.0 # balance of this specific account after the event
