@@ -91,6 +91,9 @@ def _portfolio_series(
             if event.event_type in (EventType.CASH_FLOW, EventType.MATURITY):
                 if event.account_id in liquid:
                     liquid[event.account_id] += event.amount
+            elif event.event_type == EventType.OUTFLOW and event.amount < 0:
+                if event.account_id in liquid:
+                    liquid[event.account_id] += event.amount
 
         # Transfer events have source and destination entries. Their recorded
         # amounts are gross at source and net at destination, so fees are not
