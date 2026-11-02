@@ -3,7 +3,7 @@
   "options_file": "options.json",
   "investment": {
     "start_date": "today",
-    "end_date": "2027-06-30"
+    "end_date": "2027-10-31"
   },
   "accounts": [
     {
