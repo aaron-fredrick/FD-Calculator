@@ -68,8 +68,6 @@ class TransferFeeConfig:
             return self.bank_fees.get(b1, (self.same_bank_fee, self.default_inter_bank_fee))[0]
         if (b1, b2) in self.custom_fees:
             return self.custom_fees[(b1, b2)]
-        if (b2, b1) in self.custom_fees:
-            return self.custom_fees[(b2, b1)]
         return self.bank_fees.get(b1, (self.same_bank_fee, self.default_inter_bank_fee))[1]
 
 
