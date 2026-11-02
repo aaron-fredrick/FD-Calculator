@@ -192,10 +192,15 @@ class SearchTreeNode:
 
 class GAMLStrategy(BaseStrategy):
     """
-    Bounded global portfolio optimiser with branch-and-bound search.
+    Bounded-width global portfolio optimiser using best-first beam search.
 
-    Evaluates every feasible decision branch across all accounts and valid FD options
-    at every event date, exploring:
+    Retains at most ``beam_width`` frontier states, so the search does not materialise
+    the exponentially growing full decision tree. Per-state action generation is
+    bounded by ``max_local_branches`` for local booking combinations. The optional
+    ``max_decisions`` is an additional hard expansion cap and is disabled by default.
+
+    Evaluates promising decision branches across accounts and eligible FD options
+    at event dates, exploring:
       - Consolidating funds into any bank account and booking any available option.
       - Split / independent bookings across multiple accounts.
       - Carrying cash forward without investing (holding liquidity for future opportunities).
@@ -205,7 +210,8 @@ class GAMLStrategy(BaseStrategy):
       - Greedy lower-bounding: Initializes search with the concrete Greedy solution.
       - Admissible upper-bound pruning: Prunes branches that mathematically cannot beat the best known value.
       - Dominance pruning on options.
-      - Decision tallying: Counts and reports all decision branches evaluated.
+      - Fixed-width best-first frontier: Prioritises states by optimistic terminal value.
+      - Decision tallying: Reports expanded states and all pruning categories.
     """
 
     name: str = "GAML"
