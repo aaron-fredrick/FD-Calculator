@@ -270,7 +270,7 @@ The configuration supports both recurring and scheduled inflows and outflows. Ex
 
 ### Outflows and payment policies
 
-Outflows use the same recurring/scheduled structure and require a `payment_policy`:
+Outflows use the same recurring/scheduled structure and accept a `payment_policy` (default: `strict`):
 
 ```json
 {
