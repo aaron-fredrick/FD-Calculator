@@ -154,7 +154,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     for account in accounts:
         eligible_options = [
             option for option in options
-            if (not option.bank_key or option.bank_key == account.bank_key)
+            if (not option.bank_id or option.bank_id == account.bank_id)
             and account.can_use_option(option)
         ]
         if not eligible_options:
