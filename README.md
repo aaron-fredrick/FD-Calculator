@@ -42,13 +42,13 @@ Let:
 - $W$ be the GAML frontier width (default 256).
 - $L$ be the local booking-combination width (default 128).
 
-At each expanded state, consolidation candidates are generated in $O(AO)$. Local booking combinations are generated incrementally and truncated to the best $L$ partial combinations per account, costing approximately $O(AL O\\log(LO))$. The frontier is capped at $W$ states.
+At each expanded state, consolidation candidates are generated in $O(AO)$. Local booking combinations are generated incrementally and truncated to the best $L$ partial combinations per account, costing approximately $O(AL O\log(LO))$. The frontier is capped at $W$ states.
 
 The resulting bounded-search work is approximately:
 
-\\[
-O\\left(KW\\left(AO + ALO\\log(LO) + W\\log W\\right)\\right)
-\\]
+\[
+O\left(KW\left(AO + ALO\log(LO) + W\log W\right)\right)
+\]
 
 The retained frontier is $O(W)$ states; memoised states and parent-path nodes can grow to $O(KW)$, with each state carrying account balances and pending cash-flow data. A configured `max_decisions` can impose an additional hard expansion cap, but is unset by default.
 
