@@ -398,7 +398,7 @@ class AbsoluteStrategy(BaseStrategy):
                         final_bal[consol_acc_id] += (b - fee)
                         final_bal[aid] = 0.0
                 terminal_val = (
-                    sum(final_bal.values()) + paid_total
+                    final_bal.get(consol_acc_id, 0.0) + paid_total
                     - sum(item[2] for item in active_obligations)
                 )
                 net_intr = terminal_val - total_capital
@@ -592,6 +592,9 @@ class AbsoluteStrategy(BaseStrategy):
                 )
 
         print(f"  [Absolute Search Complete] {tally:,} total decisions evaluated ({leaf_count:,} leaves reached, {pruned_count:,} pruned by branch-and-bound) in {elapsed:.2f}s")
+
+        if best_leaf is None and not greedy_res.valid:
+            raise ValueError("No feasible strategy can satisfy all strict outflows within the investment period")
 
         best_path: list[tuple[date, DailyAction]] = best_leaf.get_path() if best_leaf is not None else []
 
