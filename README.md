@@ -193,7 +193,7 @@ For complete standalone examples, see [examples/inflows.example.json](examples/i
 
 FD options are stored under `data/fd_options/`:
 
-- `fd_options.csv`: index mapping each `bank_key` to its bank-specific options CSV.
+- `fd_options.csv`: index mapping each canonical `bank_id` to its bank-specific options CSV; `bank_key` is retained only as an internal routing key.
 - `banks/<bank_id>.csv`: the bank's individual FD products, nominal rates, minimum amounts, payout frequencies, eFD status, and source metadata.
 
 The runtime validates each configured `bank_id` against `data/banks/banks.csv`, resolves it through the FD-options index, and opens only the required bank files. The index's `bank_id` must match the bank catalogue; `bank_key` is an internal file-routing key, not a user configuration key.
