@@ -759,7 +759,7 @@ class GAMLStrategy(BaseStrategy):
         # than replaying an incomplete search path.
         if best_leaf is None:
             if not greedy_res.valid:
-                raise ValueError("No feasible strategy can satisfy all strict outflows within the investment period")
+                raise ValueError("GAML did not find a feasible path satisfying strict outflows within its configured search budget")
             greedy_res.strategy_name = self.name
             greedy_res.total_decisions_evaluated = tally
             return greedy_res
