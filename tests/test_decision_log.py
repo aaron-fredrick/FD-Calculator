@@ -38,7 +38,7 @@ class DecisionLogTests(unittest.TestCase):
             self.assertIn("FD CALCULATOR — DECISION / EXECUTION LOG", report)
             self.assertIn("Strategy          : Greedy", report)
             self.assertIn("Simulation period : 2026-01-01 to 2026-01-01", report)
-            self.assertIn("Carry cash forward", report)
+            self.assertIn("CARRY CASH FORWARD", report)
             self.assertIn("Available balances before action:", report)
             self.assertIn("END OF LOG", report)
 
