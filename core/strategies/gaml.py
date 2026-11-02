@@ -399,7 +399,7 @@ class GAMLStrategy(BaseStrategy):
                 today, bal, obligations, fixed_outflows.get(today, [])
             )
             if not payments_valid:
-                return
+                return children
             paid_total = round(paid_outflows + paid_today, 2)
 
             # 3. Base case (today >= end) - Leaf node reached
@@ -430,18 +430,16 @@ class GAMLStrategy(BaseStrategy):
                     alternative_leaf_net_interests.append(net_intr)
                     alternative_leaf_net_interests.sort(reverse=True)
                     del alternative_leaf_net_interests[10:]
-                return
-
+                return children
             # 4. Upper bound pruning
             ub = calc_upper_bound(today, bal, active_pf, active_obligations, paid_total)
             if ub <= best_final_val + 0.001:
                 pruned_count += 1
-                return
-
+                return children
             # 5. Transposition check
             state_key = (today, bal, active_pf, active_obligations, paid_total)
             if state_key in memo_visited and memo_visited[state_key] >= ub:
-                return
+                return children
             memo_visited[state_key] = ub
 
             next_date_default = _next_event_date(today, active_pf)
