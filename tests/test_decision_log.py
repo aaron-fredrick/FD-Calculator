@@ -74,6 +74,8 @@ class DecisionLogTests(unittest.TestCase):
                 self.assertEqual(investment["action"], "Consolidate and invest")
                 self.assertIn(investment["account_id"], {"dfcc-2", "dfcc-3"})
                 self.assertEqual(investment["fd_type"], "eFD")
+                self.assertTrue(investment["transfer_steps"])
+                self.assertTrue(all(step["channel"] == "INTRA-BANK" for step in investment["transfer_steps"]))
                 self.assertEqual(investment["principal"], 30000)
                 self.assertGreater(investment["expected_return"], 0)
                 self.assertEqual(
