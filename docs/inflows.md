@@ -2,7 +2,7 @@
 
 Inflows represent money entering an account during the investment simulation. They can represent salary, monthly savings, deposits from another source, bonuses, or other expected credits.
 
-Every inflow is credited to one configured account. The `account_id` must match an `id` in the top-level `accounts` array in your configuration.
+Every inflow is credited to one configured account. The `account_id` must match a key in the top-level `accounts` object in your configuration.
 
 ## Where inflows are configured
 
@@ -10,14 +10,14 @@ Add an `inflows` array at the top level of your configuration file:
 
 ```json
 {
-  "accounts": [
-    {
-      "id": "com",
-      "bank_key": "commercial",
+  "accounts": {
+    "com": {
+      "bank_id": "LK_COMMERCIAL_BANK_OF_CEYLON",
       "label": "Commercial",
-      "balance": 10000
+      "balance": 10000,
+      "supports_efd": true
     }
-  ],
+  },
   "inflows": []
 }
 ```
@@ -54,7 +54,7 @@ This credits LKR 10,000 to account `com` on each monthly occurrence, starting on
 | `interval` | Yes | Time between occurrences, such as `"30d"`, `"1m"`, or `"1y"`. |
 | `start_date` | No | First occurrence. If omitted, the first occurrence is one interval after the investment start. |
 | `end_date` | No | Last permitted occurrence, inclusive. If omitted, the investment end is used. |
-| `account_id` | Yes | Destination account ID from the top-level `accounts` list. |
+| `account_id` | Yes | Destination account ID matching a key in the top-level `accounts` object. |
 
 ### Intervals and recurrence dates
 
@@ -108,7 +108,7 @@ This credits LKR 50,000 on each of the two dates. It does not divide the amount 
 | `amount` | Yes | Amount credited on each listed date. |
 | `type` | Yes | Must be `"scheduled"`. |
 | `dates` | Yes | Array of ISO dates. Each date creates one credit for the full amount. |
-| `account_id` | Yes | Destination account ID from the top-level `accounts` list. |
+| `account_id` | Yes | Destination account ID from the top-level `accounts` object. |
 
 Every scheduled date must fall within the inclusive investment period. Use a separate entry if different dates have different amounts or destination accounts.
 
