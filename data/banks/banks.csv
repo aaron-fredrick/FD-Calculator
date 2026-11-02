@@ -1,1 +1,31 @@
-id,name,country_code,intra_bank_transfer_fee,domestic_inter_bank_transfer_fee,international_transfer_fee
+id,name,country_code,bank_type,intra_bank_transfer_fee_lkr,domestic_inter_bank_transfer_fee_lkr,international_transfer_fee,fee_basis,fee_source_url
+LK_AMANA_BANK,Amana Bank PLC,LK,commercial,,,,,https://www.amanabank.lk/tariff-services.html
+LK_BANK_OF_CEYLON,Bank of Ceylon,LK,commercial,,,,,
+LK_BANK_OF_CHINA,Bank of China Ltd.,LK,commercial,,,,,
+LK_CARGILLS_BANK,Cargills Bank PLC,LK,commercial,,,,,
+LK_CITIBANK,Citibank N.A.,LK,commercial,,,,,
+LK_COMMERCIAL_BANK_OF_CEYLON,Commercial Bank of Ceylon PLC,LK,commercial,,25,,Digital CEFTS; per transaction; standard tariff,https://www.combank.lk/rates-tariff
+LK_DEUTSCHE_BANK,Deutsche Bank AG,LK,commercial,,,,,
+LK_DFCC_BANK,DFCC Bank PLC,LK,commercial,,,,,https://www.dfcc.lk/personal/local-payments
+LK_HABIB_BANK,Habib Bank Ltd.,LK,commercial,,,,,
+LK_HATTON_NATIONAL_BANK,Hatton National Bank PLC,LK,commercial,0,25,,HNB-to-HNB free; CEFT per transaction; transaction banking tariff,https://www.hnb.lk/tariffs/other-product-tariffs
+LK_INDIAN_BANK,Indian Bank,LK,commercial,,,,,
+LK_INDIAN_OVERSEAS_BANK,Indian Overseas Bank,LK,commercial,,,,,
+LK_MCB_BANK,MCB Bank Ltd.,LK,commercial,0,50,,Internal transfers free; outward SLIPS per transfer; tariff effective 2026-01-01,https://mcb.com.lk/wp-content/uploads/2025/12/TV-Web-SOBC-Conventional-Islamic-Jan-Jun-2026-English.pdf
+LK_NATIONAL_DEVELOPMENT_BANK,National Development Bank PLC,LK,commercial,0,25,,Digital transfers to other NDB accounts free; other-bank CEFT per transaction,https://ndbbankweb.ndbbank.com/images/download/pdf/General_Tariff_-_English.pdf
+LK_NATIONS_TRUST_BANK,Nations Trust Bank PLC,LK,commercial,,,,,https://nationstrust.com/nations-direct/online-banking
+LK_PAN_ASIA_BANKING_CORPORATION,Pan Asia Banking Corporation PLC,LK,commercial,,,,,
+LK_PEOPLES_BANK,People's Bank,LK,commercial,,,,,
+LK_PUBLIC_BANK_BERHAD,Public Bank Berhad,LK,commercial,,,,,
+LK_SAMPATH_BANK,Sampath Bank PLC,LK,commercial,,,,,
+LK_SEYLAN_BANK,Seylan Bank PLC,LK,commercial,,,,,
+LK_STANDARD_CHARTERED_BANK,Standard Chartered Bank,LK,commercial,,,,,
+LK_STATE_BANK_OF_INDIA,State Bank of India,LK,commercial,,,,,https://sl.statebank/service-charges-fees
+LK_HSBC,The Hongkong and Shanghai Banking Corporation Ltd.,LK,commercial,0,25,,Automated intra-HSBC transfers free; online CEFTS per transaction,https://www.hsbc.lk/content/dam/hsbc/lk/documents/tariffs/bank-tariff-guide-for-hsbc-customers-with-effect-from-01-june-2025-en.pdf
+LK_UNION_BANK_OF_COLOMBO,Union Bank of Colombo PLC,LK,commercial,,,,,
+LK_HDFC_BANK,Housing Development Finance Corporation Bank of Sri Lanka,LK,specialised,,,,,
+LK_NATIONAL_SAVINGS_BANK,National Savings Bank,LK,specialised,,,,,
+LK_PRADESHIYA_SANWARDHANA_BANK,Pradeshiya Sanwardhana Bank,LK,specialised,,,,,
+LK_SANASA_DEVELOPMENT_BANK,SANASA Development Bank PLC,LK,specialised,,,,,
+LK_SRI_LANKA_SAVINGS_BANK,Sri Lanka Savings Bank Ltd.,LK,specialised,,,,,
+LK_STATE_MORTGAGE_AND_INVESTMENT_BANK,State Mortgage and Investment Bank,LK,specialised,,100,,CEFTS transfer; per transaction; published fee schedule,https://www.smib.lk/en/charges-and-fees
