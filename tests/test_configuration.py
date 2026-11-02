@@ -162,6 +162,30 @@ class ConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate scheduled dates"):
             load_configuration(self.config_path)
 
+    def test_transfer_fee_overrides_use_directional_bank_ids(self) -> None:
+        self.config["accounts"]["dfcc"] = {
+            "bank_id": DFCC_ID, "label": "DFCC", "balance": 0,
+        }
+        self.config["transfer_fees"]["custom_fees"] = [{
+            "from_bank_id": COMMERCIAL_ID,
+            "to_bank_id": DFCC_ID,
+            "amount": 12.0,
+        }]
+        self._write_config()
+        loaded = load_configuration(self.config_path)
+        self.assertEqual(loaded["fee_config"].get_fee("commercial", "dfcc"), 12.0)
+        self.assertEqual(loaded["fee_config"].get_fee("dfcc", "commercial"), 30.0)
+
+    def test_custom_transfer_fee_rejects_unknown_bank_id(self) -> None:
+        self.config["transfer_fees"]["custom_fees"] = [{
+            "from_bank_id": "commercial",
+            "to_bank_id": DFCC_ID,
+            "amount": 12.0,
+        }]
+        self._write_config()
+        with self.assertRaisesRegex(ValueError, "valid from_bank_id/to_bank_id"):
+            load_configuration(self.config_path)
+
     def test_end_before_start_is_rejected(self) -> None:
         self.config["investment"]["end_date"] = "2000-01-01"
         self._write_config()
