@@ -137,29 +137,48 @@ Periods use `d` (days), `m` (calendar months), or `y` (years). For example, `30d
 
 At least one account is required. Only FD options for banks used by these accounts are loaded. Each configured bank must have a non-empty options list.
 
-### Recurring inflows
+### Inflows
 
-Each inflow sends new money to its own destination account. Add multiple entries if you contribute to different accounts.
+Inflows add money to a specific account. Use `type: "recurring"` for repeating contributions or `type: "scheduled"` for one-off/multiple explicitly dated credits. Each entry must reference an account using `account_id`.
+
+**Recurring inflow:**
 
 ```json
-"inflows": [
-  {
-    "name": "Monthly savings",
-    "amount": 10000,
-    "interval": "1m",
-    "start_date": "2026-11-30",
-    "account_id": "com"
-  }
-]
+{
+  "name": "Monthly savings",
+  "amount": 10000,
+  "type": "recurring",
+  "interval": "1m",
+  "start_date": "2026-11-30",
+  "end_date": "end",
+  "account_id": "com"
+}
+```
+
+**Scheduled inflow:**
+
+```json
+{
+  "name": "Annual bonus",
+  "amount": 50000,
+  "type": "scheduled",
+  "dates": ["2027-04-10", "2027-10-10"],
+  "account_id": "com"
+}
 ```
 
 - `name`: Description shown in the run summary.
-- `amount`: Amount added each time.
-- `interval`: Time between contributions, such as `1m` or `30d`.
-- `start_date`: First contribution date. If omitted, the first contribution is one interval after the investment start.
+- `amount`: Amount credited on each occurrence/date.
+- `type`: `recurring` or `scheduled`.
+- `interval`: Required for recurring entries; examples include `1m`, `30d`, and `1y`.
+- `start_date`: First recurring date. Date keywords such as `investment_start` are supported.
+- `end_date`: Last recurring date, inclusive. `end` means the investment end date.
+- `dates`: Required for scheduled entries; each listed date receives the specified amount.
 - `account_id`: Destination account's `id`; it must match an account above.
 
-Contributions repeat from the first date by the specified interval, up to and including the investment end date. A contribution scheduled after the end date is not included.
+Recurring occurrences are anchored to the first occurrence and use calendar-relative periods. For example, `1m` means one calendar month, not 30 days. Start and end dates are inclusive. An omitted `type` on a legacy inflow is treated as `recurring` for backward compatibility.
+
+For complete standalone examples, see [examples/inflows.example.json](examples/inflows.example.json).
 
 ### FD options — `options.json`
 
@@ -240,14 +259,16 @@ This project simulates investment choices only. It does not open deposits, conta
 
 ## Cash flows
 
-The configuration supports both recurring and scheduled inflows and outflows. Existing inflow entries remain compatible: when `type` is omitted, it defaults to `recurring`.
+The simulator supports recurring and scheduled inflows and outflows. Both are account-specific: each entry's `account_id` must match an account in the top-level `accounts` list.
 
 ### Recurring inflow
 
+A recurring inflow credits the same amount at each occurrence between its inclusive start and end dates.
+
 ```json
 {
-  "name": "Monthly savings",
-  "amount": 10000,
+  "name": "Monthly salary",
+  "amount": 150000,
   "type": "recurring",
   "interval": "1m",
   "start_date": "investment_start",
@@ -258,24 +279,26 @@ The configuration supports both recurring and scheduled inflows and outflows. Ex
 
 ### Scheduled inflow
 
+A scheduled inflow credits the amount on every date in its `dates` list.
+
 ```json
 {
-  "name": "Bonus",
-  "amount": 50000,
+  "name": "Annual bonus",
+  "amount": 75000,
   "type": "scheduled",
-  "dates": ["2027-01-15", "2027-07-15"],
+  "dates": ["2027-04-10", "2027-10-10"],
   "account_id": "com"
 }
 ```
 
-### Outflows and payment policies
+### Recurring outflow
 
-Outflows use the same recurring/scheduled structure and accept a `payment_policy` (default: `strict`):
+A recurring outflow creates a payment obligation at each occurrence. The payment policy determines what happens if the account does not have enough available cash.
 
 ```json
 {
-  "name": "Monthly expenses",
-  "amount": 15000,
+  "name": "Monthly household expenses",
+  "amount": 45000,
   "type": "recurring",
   "interval": "1m",
   "start_date": "investment_start",
@@ -285,10 +308,40 @@ Outflows use the same recurring/scheduled structure and accept a `payment_policy
 }
 ```
 
-- `strict`: the full amount must be available in the specified account on the due date. A search branch that cannot pay it is invalid.
-- `defer`: pay only when the full outstanding amount is available; otherwise carry the obligation forward.
-- `best_effort`: pay the available amount on the due date and carry any remainder forward.
+### Scheduled outflow
 
-Unpaid `defer` and `best_effort` amounts remain account-specific liabilities and are reported at the end of the investment period. Same-day inflows and FD cash flows are credited before outflows; investment decisions occur after payments.
+A scheduled outflow creates an obligation on each listed date.
 
-Date values accept ISO dates, `today`, `investment_start`, `investment_end`/`end`, and `investment_start+period`. Recurrence uses calendar-relative periods (for example, `1m` is one calendar month) anchored to the first occurrence. Start/end bounds are inclusive.
+```json
+{
+  "name": "University fee",
+  "amount": 120000,
+  "type": "scheduled",
+  "dates": ["2027-01-15", "2027-06-15"],
+  "account_id": "com",
+  "payment_policy": "strict"
+}
+```
+
+### Outflow payment policies
+
+- `strict`: The full amount must be available in the specified account on the due date. If it cannot be paid, that simulation/search branch is invalid.
+- `defer`: Pay only when the full outstanding amount is available; otherwise carry the obligation forward.
+- `best_effort`: Pay whatever is available on the due date and carry the unpaid remainder forward.
+- If omitted, `payment_policy` defaults to `strict`.
+
+Unpaid `defer` and `best_effort` amounts remain account-specific liabilities and are included in the final reporting. They are not silently discarded at the end of the investment period.
+
+### Date and event rules
+
+- Date bounds are inclusive.
+- Date keywords include `today`, `investment_start`, `investment_end` (or `end`), and relative expressions such as `investment_start+1m`.
+- Recurring intervals support days (`d`), calendar months (`m`), and years (`y`). For example, `1m` is one calendar month, not 30 days.
+- Recurrences are anchored to their first occurrence to avoid month-end drift.
+- All scheduled dates and recurring bounds must fall within the investment period.
+- On a date with multiple events, inflows and FD cash flows are credited before outflows are processed. Strategy investment decisions happen after outflow processing.
+
+Standalone configuration examples:
+- [Inflows: recurring and scheduled](examples/inflows.example.json)
+- [Outflows: recurring, scheduled, and payment policies](examples/outflows.example.json)
+
