@@ -122,11 +122,32 @@ def main() -> None:
     print(f"    Maximum leaves (B^K)      : <= {_format_count(leaves_log10)}")
     print(f"    Total nodes (sum B^0..B^K): <= {_format_count(nodes_log10)}")
     print()
-    print("  Absolute worst-case complexity:")
-    print("    Let A = accounts, F = pending cash-flow entries,")
-    print("        S = memoised states, C = local combinations, Q = consolidation choices.")
-    print("    Time  : O(B^K * (C log C + Q log Q + A + F))")
-    print("    Space : O(S * (A + F) + K * (C + Q))")
+    print("  Complexity variables:")
+    print(f"    A = accounts                         : {len(accounts):,}")
+    print(f"    O = effective FD options             : {len(effective):,}")
+    print(f"    C = local booking combinations       : {local_nonempty:,}")
+    print(f"    Q = consolidation choices            : {consolidation_choices:,}")
+    print(f"    B = branching-factor upper bound     : {branching:,}")
+    print(f"    K = maximum decision depth           : {decision_depth:,}")
+    print("    F = pending cash-flow entries        : runtime-dependent")
+    print("    S = retained memoised states         : runtime-dependent")
+    print()
+    print("  Substituted worst-case complexity:")
+    print(
+        f"    Time  : O({branching:,}^{decision_depth:,} * "
+        f"({local_nonempty:,} log {local_nonempty:,} + "
+        f"{consolidation_choices:,} log {consolidation_choices:,} + "
+        f"{len(accounts):,} + F))"
+    )
+    print(
+        f"    Space : O(S * ({len(accounts):,} + F) + "
+        f"{decision_depth:,} * ({local_nonempty:,} + {consolidation_choices:,}))"
+    )
+    print(
+        f"          = O(S * ({len(accounts):,} + F) + "
+        f"{decision_depth * (local_nonempty + consolidation_choices):,})"
+    )
+    print("    F and S are runtime-dependent, not configuration constants.")
     print()
     print("  Interpretation / limitations:")
     print("    - These are conservative structural upper bounds, not expected counts.")
