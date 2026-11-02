@@ -1,5 +1,5 @@
 {
-  "strategy": "absolute",
+  "strategy": "gaml",
   "options_file": "data/fd_options/fd_options.csv",
   "investment": {
     "start_date": "today",
