@@ -926,7 +926,14 @@ class GAMLStrategy(BaseStrategy):
             # slots with the globally highest-ranked remaining states.
             selected: list[tuple[float, int, tuple]] = []
             seen_states: set[tuple] = set()
-            root_representatives = sorted(root_best.values(), key=_candidate_order)
+            # Reserve one third of the beam for root diversity; keep the
+            # remaining two thirds available for deeper refinement of strong
+            # paths. Reserving every slot would prevent descendants of a root
+            # strategy from competing with one another.
+            diversity_slots = max(1, beam_width // 3)
+            root_representatives = sorted(
+                root_best.values(), key=_candidate_order
+            )[:diversity_slots]
             root_strategy_peak = max(root_strategy_peak, len(root_representatives))
 
             for candidate in root_representatives:
