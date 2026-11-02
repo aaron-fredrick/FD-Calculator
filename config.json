@@ -30,18 +30,6 @@
       "account_id": "com"
     }
   ],
-  "outflows": [
-    {
-      "name": "Monthly household expenses",
-      "amount": 15000.0,
-      "type": "recurring",
-      "interval": "1m",
-      "start_date": "investment_start",
-      "end_date": "end",
-      "account_id": "com",
-      "payment_policy": "best_effort"
-    }
-  ],
   "transfer_fees": {
     "default_inter_bank_fee": 30.0,
     "same_bank_fee": 0.0,
