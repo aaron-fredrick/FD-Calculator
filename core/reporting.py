@@ -339,6 +339,7 @@ def build_decision_log(result: SimResult) -> list[dict]:
             "available_funds": dict(balances),
             "relevant_events": relevant,
             "action": action_label,
+            "booking_ref": event.booking_ref,
             "account_id": booking.account_id,
             "account_label": account.label if account else booking.account_id,
             "bank": booking.bank_id or booking.bank_key,
