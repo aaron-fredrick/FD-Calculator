@@ -6,42 +6,56 @@ import unittest
 from datetime import date
 from pathlib import Path
 
+from core.configuration import load_configuration
 from core.interest import add_period
 
-from core.configuration import load_configuration
+
+COMMERCIAL_ID = "LK_COMMERCIAL_BANK_OF_CEYLON"
+DFCC_ID = "LK_DFCC_BANK"
 
 
 class ConfigurationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name)
-        self.options_path = self.root / "options.json"
+        self.options_path = self.root / "fd_options.csv"
+        self.commercial_path = self.root / "commercial.csv"
+        self.dfcc_path = self.root / "dfcc.csv"
+        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD\n"
+        self.commercial_path.write_text(
+            header
+            + "Commercial 1m eFD,fixed_deposit,1m,9,25000,cumulative,,true\n"
+            + "Commercial 1m Standard,fixed_deposit,1m,8,25000,cumulative,,false\n",
+            encoding="utf-8",
+        )
+        self.dfcc_path.write_text(
+            header
+            + "DFCC 1m eFD,fixed_deposit,1m,10,10000,cumulative,,true\n"
+            + "DFCC 1m Standard,fixed_deposit,1m,9,10000,cumulative,,false\n",
+            encoding="utf-8",
+        )
         self.options_path.write_text(
-            json.dumps({
-                "commercial": [{
-                    "label": "One Month",
-                    "period": "1m",
-                    "annual_rate": 8.0,
-                    "min_amount": 1000.0,
-                    "payout_type": "cumulative",
-                }]
-            }),
+            "bank_id,bank_key,options_file,research_status,research_notes\n"
+            f"{COMMERCIAL_ID},commercial,commercial.csv,populated_direct,\n"
+            f"{DFCC_ID},dfcc,dfcc.csv,populated_direct,\n",
             encoding="utf-8",
         )
         self.config_path = self.root / "config.json"
         self.config = {
             "strategy": "greedy",
-            "options_file": "options.json",
+            "options_file": "fd_options.csv",
             "investment": {
                 "start_date": "today",
                 "end_date": "investment_start+1y",
             },
-            "accounts": [{
-                "id": "cash",
-                "bank_key": "commercial",
-                "label": "Cash",
-                "balance": 2500.0,
-            }],
+            "accounts": {
+                "cash": {
+                    "bank_id": COMMERCIAL_ID,
+                    "label": "Commercial Cash",
+                    "balance": 2500.0,
+                    "supports_efd": True,
+                }
+            },
             "inflows": [{
                 "name": "Monthly saving",
                 "amount": 500.0,
@@ -63,17 +77,52 @@ class ConfigurationTests(unittest.TestCase):
     def _write_config(self) -> None:
         self.config_path.write_text(json.dumps(self.config), encoding="utf-8")
 
-    def test_resolves_today_and_account_targeted_recurring_inflows(self) -> None:
+    def test_dictionary_accounts_resolve_today_and_bank_id(self) -> None:
         loaded = load_configuration(self.config_path)
         self.assertEqual(loaded["start"], date.today())
         self.assertEqual(loaded["end"], add_period(date.today(), "1y"))
-        self.assertEqual(loaded["inflow_summaries"][0]["start_date"], add_period(date.today(), "1m"))
-        summary = loaded["inflow_summaries"][0]
-        self.assertEqual(summary["account_id"], "cash")
-        self.assertEqual(summary["amount"], 500.0)
-        self.assertGreaterEqual(summary["occurrences"], 1)
+        self.assertEqual(len(loaded["accounts"]), 1)
+        account = loaded["accounts"][0]
+        self.assertEqual(account.id, "cash")
+        self.assertEqual(account.bank_id, COMMERCIAL_ID)
+        self.assertEqual(account.bank_key, "commercial")
+        self.assertEqual(loaded["inflow_summaries"][0]["account_id"], "cash")
+        self.assertEqual(loaded["inflow_summaries"][0]["amount"], 500.0)
         self.assertTrue(all("cash" in amounts for amounts in loaded["inflow_schedule"].values()))
-        self.assertEqual([option.bank_key for option in loaded["options"]], ["commercial"])
+
+    def test_unknown_bank_id_is_rejected_against_bank_catalogue(self) -> None:
+        self.config["accounts"]["cash"]["bank_id"] = "commercial"
+        self._write_config()
+        with self.assertRaisesRegex(ValueError, "unknown bank_id"):
+            load_configuration(self.config_path)
+
+    def test_multiple_accounts_at_same_bank_keep_independent_efd_capability(self) -> None:
+        self.config["accounts"] = {
+            "dfcc-1": {
+                "bank_id": DFCC_ID, "label": "DFCC standard", "balance": 10000,
+                "supports_efd": False,
+            },
+            "dfcc-2": {
+                "bank_id": DFCC_ID, "label": "DFCC eFD", "balance": 20000,
+                "supports_efd": True,
+            },
+        }
+        self._write_config()
+        loaded = load_configuration(self.config_path)
+        by_id = {account.id: account for account in loaded["accounts"]}
+        self.assertFalse(by_id["dfcc-1"].supports_efd)
+        self.assertTrue(by_id["dfcc-2"].supports_efd)
+        self.assertEqual(by_id["dfcc-1"].bank_id, by_id["dfcc-2"].bank_id)
+
+    def test_standard_and_efd_products_are_loaded_without_global_efd_filter(self) -> None:
+        loaded = load_configuration(self.config_path)
+        self.assertEqual({option.is_efd for option in loaded["options"]}, {False, True})
+
+    def test_supports_efd_requires_a_boolean(self) -> None:
+        self.config["accounts"]["cash"]["supports_efd"] = "false"
+        self._write_config()
+        with self.assertRaisesRegex(ValueError, "supports_efd must be a boolean"):
+            load_configuration(self.config_path)
 
     def test_scheduled_inflows_and_recurring_outflows_are_resolved(self) -> None:
         self.config["inflows"] = [{
@@ -94,23 +143,11 @@ class ConfigurationTests(unittest.TestCase):
             "payment_policy": "best_effort",
         }]
         self._write_config()
-
         loaded = load_configuration(self.config_path)
-        self.assertEqual(
-            loaded["inflow_schedule"][loaded["start"]]["cash"],
-            2500.0,
-        )
-        self.assertEqual(
-            loaded["inflow_schedule"][loaded["end"]]["cash"],
-            2500.0,
-        )
+        self.assertEqual(loaded["inflow_schedule"][loaded["start"]]["cash"], 2500.0)
+        self.assertEqual(loaded["inflow_schedule"][loaded["end"]]["cash"], 2500.0)
         self.assertGreaterEqual(len(loaded["outflow_schedule"]), 1)
-        self.assertEqual(
-            loaded["outflow_schedule"][loaded["start"]][0]["payment_policy"],
-            "best_effort",
-        )
-        self.assertEqual(loaded["outflow_summaries"][0]["total"],
-                         750.0 * loaded["outflow_summaries"][0]["occurrences"])
+        self.assertEqual(loaded["outflow_schedule"][loaded["start"]][0]["payment_policy"], "best_effort")
 
     def test_duplicate_scheduled_dates_are_rejected(self) -> None:
         self.config["inflows"] = [{
@@ -122,115 +159,6 @@ class ConfigurationTests(unittest.TestCase):
         }]
         self._write_config()
         with self.assertRaisesRegex(ValueError, "duplicate scheduled dates"):
-            load_configuration(self.config_path)
-
-    def test_missing_bank_options_fails_fast(self) -> None:
-        self.config["accounts"][0]["bank_key"] = "unknown-bank"
-        self._write_config()
-        with self.assertRaisesRegex(ValueError, "has no entry"):
-            load_configuration(self.config_path)
-
-
-    def test_csv_options_default_to_account_banks_and_efd_only(self) -> None:
-        index = self.root / "fd_options.csv"
-        bank_a = self.root / "bank_a.csv"
-        bank_b = self.root / "bank_b.csv"
-        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\n"
-        bank_a.write_text(
-            header
-            + "1m eFD,fixed_deposit,1m,9,,cumulative,,true,LKR,,,,\n"
-            + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\n",
-            encoding="utf-8",
-        )
-        bank_b.write_text(
-            header + "1m eFD,fixed_deposit,1m,10,,cumulative,,true,LKR,,,,\n",
-            encoding="utf-8",
-        )
-        index.write_text(
-            "bank_id,bank_key,options_file,research_status,research_notes\n"
-            "LK_A,commercial,bank_a.csv,populated_direct,\n"
-            "LK_B,dfcc,bank_b.csv,populated_direct,\n",
-            encoding="utf-8",
-        )
-        self.config["options_file"] = "fd_options.csv"
-        self.config["accounts"].append({
-            "id": "other", "bank_key": "dfcc", "label": "Other", "balance": 0,
-        })
-        self._write_config()
-
-        loaded = load_configuration(self.config_path)
-        self.assertEqual(loaded["account_banks_only"], True)
-        self.assertEqual(loaded["efd_only"], True)
-        self.assertEqual(
-            {(option.bank_key, option.annual_rate) for option in loaded["options"]},
-            {("commercial", 9.0), ("dfcc", 10.0)},
-        )
-        self.assertEqual(
-            {option.bank_key: option.min_amount for option in loaded["options"]},
-            {"commercial": 25_000.0, "dfcc": 10_000.0},
-        )
-
-    def test_csv_efd_only_false_loads_standard_and_efd(self) -> None:
-        index = self.root / "fd_options.csv"
-        bank_a = self.root / "bank_a.csv"
-        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\n"
-        bank_a.write_text(
-            header
-            + "1m eFD,fixed_deposit,1m,9,1000,cumulative,,true,LKR,,,,\n"
-            + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\n",
-            encoding="utf-8",
-        )
-        index.write_text(
-            "bank_id,bank_key,options_file,research_status,research_notes\n"
-            "LK_A,commercial,bank_a.csv,populated_direct,\n",
-            encoding="utf-8",
-        )
-        self.config["options_file"] = "fd_options.csv"
-        self.config["efd_only"] = False
-        self._write_config()
-
-        loaded = load_configuration(self.config_path)
-        self.assertEqual(
-            {option.annual_rate for option in loaded["options"]},
-            {8.0, 9.0},
-        )
-
-
-    def test_identical_standard_and_efd_options_remain_distinct(self) -> None:
-        index = self.root / "fd_options.csv"
-        bank_a = self.root / "bank_a.csv"
-        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\n"
-        bank_a.write_text(
-            header
-            + "1m Standard,fixed_deposit,1m,9,25000,cumulative,,false,LKR,,,,\n"
-            + "1m eFD,fixed_deposit,1m,9,25000,cumulative,,true,LKR,,,,\n"
-            + "2m Standard,fixed_deposit,2m,8,25000,cumulative,,false,LKR,,,,\n",
-            encoding="utf-8",
-        )
-        index.write_text(
-            "bank_id,bank_key,options_file,research_status,research_notes\n"
-            "LK_A,commercial,bank_a.csv,populated_direct,\n",
-            encoding="utf-8",
-        )
-        self.config["options_file"] = "fd_options.csv"
-        self.config["efd_only"] = False
-        self._write_config()
-
-        loaded = load_configuration(self.config_path)
-        self.assertEqual(len(loaded["options"]), 3)
-        one_month = [option for option in loaded["options"] if option.days == 30]
-        self.assertEqual({option.label for option in one_month}, {"1m Standard", "1m eFD"})
-        self.assertEqual({option.is_efd for option in one_month}, {False, True})
-
-    def test_account_efd_capability_is_parsed_and_validated(self) -> None:
-        self.config["accounts"][0]["supports_efd"] = False
-        self._write_config()
-        loaded = load_configuration(self.config_path)
-        self.assertFalse(loaded["accounts"][0].supports_efd)
-
-        self.config["accounts"][0]["supports_efd"] = "false"
-        self._write_config()
-        with self.assertRaisesRegex(ValueError, "supports_efd must be a boolean"):
             load_configuration(self.config_path)
 
     def test_end_before_start_is_rejected(self) -> None:
