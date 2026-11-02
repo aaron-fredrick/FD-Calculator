@@ -236,6 +236,7 @@ class GreedyStrategy(BaseStrategy):
         inflow_account_id: Optional[str] = None,
         fee_config: Optional[TransferFeeConfig] = None,
         consolidation_account_id: Optional[str] = None,
+        outflow_schedule: Optional[dict[date, list[dict]]] = None,
     ) -> SimResult:
         # Default accounts and configuration
         if not accounts:
@@ -251,7 +252,8 @@ class GreedyStrategy(BaseStrategy):
         if consolidation_account_id is None:
             consolidation_account_id = inflow_account_id
 
-        inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)\n        outflow_schedule = outflow_schedule or {}
+        inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
+        outflow_schedule = outflow_schedule or {}
         accounts_map = {
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
             for acc in accounts
@@ -707,6 +709,9 @@ class GreedyStrategy(BaseStrategy):
             end_date=end,
             accounts=accounts_map,
             total_transfer_fees=total_transfer_fees,
+            total_outflows_paid=total_outflows_paid,
+            outstanding_outflows=pending_obligations,
+            valid=not strict_payment_failed,
         )
 
     # ------------------------------------------------------------------
