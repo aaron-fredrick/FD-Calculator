@@ -108,6 +108,7 @@ class FDOption:
     payout_type: str = CUMULATIVE
     payout_period_str: str = ""
     bank_key: str = ""
+    is_efd: bool = False
 
     days: int = field(init=False)
     payout_period_days: int = field(init=False)
@@ -522,12 +523,29 @@ def load_options_from_bank_csv(
                     payout_type=str(row.get("payout_type", CUMULATIVE)).strip() or CUMULATIVE,
                     payout_period_str=str(row.get("payout_period", "")).strip(),
                     bank_key=bank_key,
+                    is_efd=(raw_efd == "true"),
                 )
             except (TypeError, ValueError) as exc:
                 raise ValueError(f"Invalid FD option row in {bank_file}: {row!r}") from exc
             if not option.label:
                 raise ValueError(f"FD option in {bank_file} has an empty name")
             bank_options.append(option)
+
+        # When standard and eFD products are otherwise identical, retain eFD.
+        preferred: dict[tuple, FDOption] = {}
+        for option in bank_options:
+            signature = (
+                option.bank_key,
+                option.days,
+                option.annual_rate,
+                option.min_amount,
+                option.payout_type,
+                option.payout_period_days,
+            )
+            existing = preferred.get(signature)
+            if existing is None or (option.is_efd and not existing.is_efd):
+                preferred[signature] = option
+        bank_options = list(preferred.values())
 
         if account_banks_only and not bank_options:
             mode = "eFD" if efd_only else "standard/eFD"
