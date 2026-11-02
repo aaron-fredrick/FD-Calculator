@@ -243,7 +243,7 @@ class GAMLStrategy(BaseStrategy):
 
         if not accounts:
             default_bank = options[0].bank_identity if options and options[0].bank_identity else "commercial"
-            accounts = [Account(id="default", bank_key=default_bank, label="Main Account")]
+            accounts = [Account(id="default", bank_key=default_bank, bank_id=default_bank, label="Main Account")]
 
         if not inflow_account_id:
             inflow_account_id = accounts[0].id
@@ -834,6 +834,7 @@ class GAMLStrategy(BaseStrategy):
                         label=f"Inflow {inflow_num:02d}",
                         account_id=account_id,
                         bank_key=accounts_map[account_id].bank_key,
+                        bank_id=accounts_map[account_id].bank_id,
                     ),
                 )
 
@@ -847,6 +848,7 @@ class GAMLStrategy(BaseStrategy):
                     account_id=str(entry["account_id"]),
                     payment_policy=str(entry.get("payment_policy", "strict")),
                     bank_key=accounts_map[str(entry["account_id"])].bank_key,
+                    bank_id=accounts_map[str(entry["account_id"])].bank_id,
                 ))
 
         start_key = int(start.strftime("%Y%m%d"))
@@ -860,6 +862,7 @@ class GAMLStrategy(BaseStrategy):
                     label="Opening balance trigger",
                     account_id=inflow_account_id,
                     bank_key=accounts_map[inflow_account_id].bank_key,
+                    bank_id=accounts_map[inflow_account_id].bank_id,
                 ),
             )
 
