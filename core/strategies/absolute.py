@@ -113,7 +113,7 @@ def _prune_dominated_options(options: list[FDOption], compound: bool) -> list[FD
       - For payout: cumulative is >= periodic of same/lower rate.
     """
     res: list[FDOption] = []
-    by_bank: dict[str, list[FDOption]] = {}
+    by_bank: dict[tuple[str, bool], list[FDOption]] = {}
     for o in options:
         by_bank.setdefault((o.bank_key, o.is_efd), []).append(o)
 
@@ -641,7 +641,7 @@ class AbsoluteStrategy(BaseStrategy):
         outflow_schedule: Optional[dict[date, list[dict]]] = None,
     ) -> SimResult:
         accounts_map = {
-            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
+            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
             for acc in accounts
         }
         timeline: dict[int, list[Event]] = {}
