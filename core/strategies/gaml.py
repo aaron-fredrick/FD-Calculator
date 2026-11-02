@@ -257,7 +257,7 @@ class GAMLStrategy(BaseStrategy):
         inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
         outflow_schedule = outflow_schedule or {}
         accounts_meta: dict[str, Account] = {
-            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
+            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
             for acc in accounts
         }
         validate_outflow_schedule(outflow_schedule, start, end, set(accounts_meta))
@@ -478,6 +478,7 @@ class GAMLStrategy(BaseStrategy):
                     for option in effective_options:
                         if (
                             (not option.bank_key or option.bank_key == bank_key)
+                            and accounts_meta[aid].can_use_option(option)
                             and option.can_invest(amount, today, end)
                         ):
                             maturity_date = today + timedelta(days=option.days)
@@ -511,6 +512,7 @@ class GAMLStrategy(BaseStrategy):
                     for option in effective_options:
                         if (
                             (not option.bank_key or option.bank_key == target_account.bank_key)
+                            and target_account.can_use_option(option)
                             and option.can_invest(deployable, today, end)
                         ):
                             best_rate = max(best_rate, option.annual_rate)
@@ -575,7 +577,7 @@ class GAMLStrategy(BaseStrategy):
                 actual_fees = sum(t["fee"] for t in transfers)
 
                 for opt in effective_options:
-                    if (not opt.bank_key or opt.bank_key == tgt_bank) and opt.can_invest(deployable, today, end):
+                    if (not opt.bank_key or opt.bank_key == tgt_bank) and tgt_acc.can_use_option(opt) and opt.can_invest(deployable, today, end):
                         gross_intr = opt.total_interest_on(deployable, today, self.compound, self.actual_leap_year)
                         if gross_intr <= actual_fees:
                             continue
@@ -612,7 +614,7 @@ class GAMLStrategy(BaseStrategy):
                 bkey = accounts_meta[aid].bank_key
                 opts = [
                     o for o in effective_options
-                    if (not o.bank_key or o.bank_key == bkey) and o.can_invest(b, today, end)
+                    if (not o.bank_key or o.bank_key == bkey) and accounts_meta[aid].can_use_option(o) and o.can_invest(b, today, end)
                 ]
                 if opts:
                     local_opts_per_acc[aid] = opts
