@@ -119,7 +119,8 @@ Periods use `d` (days), `m` (calendar months), or `y` (years). For example, `30d
     "id": "com",
     "bank_key": "commercial",
     "label": "Commercial",
-    "balance": 10030
+    "balance": 10030,
+    "supports_efd": true
   },
   {
     "id": "dfcc",
@@ -134,8 +135,11 @@ Periods use `d` (days), `m` (calendar months), or `y` (years). For example, `30d
 - `bank_key`: Must match a bank key in `options.json`.
 - `label`: Human-readable name shown in reports; optional.
 - `balance`: Starting available funds for this account.
+- `supports_efd`: Whether this particular account can open eFDs. Defaults to `true` for backward compatibility; set it to `false` for accounts limited to standard FDs.
 
-At least one account is required. Only FD options for banks used by these accounts are loaded. Each configured bank must have matching entries in `data/fd_options/fd_options.csv` and a non-empty eligible options list after applying the eFD filter.
+At least one account is required. Multiple accounts may use the same `bank_key`, but each has its own `id`, balance, and `supports_efd` capability. Only FD options for banks used by these accounts are loaded. Each configured bank must have matching entries in `data/fd_options/fd_options.csv` and options after applying the global `efd_only` filter.
+
+The global `efd_only` switch controls which product rows are loaded. The per-account `supports_efd` switch controls which loaded products that account can book. With `efd_only: false`, eFD-capable accounts can use both standard and eFD products, while standard-only accounts can use standard products only. During consolidation, the destination account's capability is decisive: cash from any source account can be transferred into an eFD-capable destination account at the same bank and invested there, subject to transfer fees and minimum-deposit rules.
 
 ### Inflows
 
@@ -201,7 +205,7 @@ The runtime reads the index and only opens the bank files required by the config
 
 - `options_file`: CSV index path. Paths are resolved relative to the configuration file first, then the repository.
 - `account_banks_only`: defaults to `true`. When enabled, only options for banks referenced by configured accounts are loaded. Set to `false` to load options for every bank in the index.
-- `efd_only`: defaults to `true`. When enabled, only rows explicitly marked `eFD=true` are loaded. Set to `false` to load both standard FD (`eFD=false`) and eFD entries. When standard and eFD rows are otherwise identical for the same bank (term, rate, minimum and payout schedule), the loader keeps the eFD row. If any of those product terms differ, both remain available.
+- `efd_only`: defaults to `true`. When enabled, only rows explicitly marked `eFD=true` are loaded. Set to `false` to load both standard FD (`eFD=false`) and eFD entries. Standard and eFD rows remain separate, even when their terms match, because account-level eFD capability determines which account can book each product. A standard-only account cannot select an eFD row.
 
 Each bank CSV uses these main fields:
 
