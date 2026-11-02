@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from core.interest import add_period, parse_period_delta
-from core.models import Account, FDOption, TransferFeeConfig, load_options_from_json
+from core.models import Account, FDOption, TransferFeeConfig, load_options_from_bank_csv, load_options_from_json
 
 
 def _resolve_date(
@@ -97,7 +97,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
             bank_keys.append(bank_key)
         accounts.append(Account(id=account_id, bank_key=bank_key, label=label, balance=balance))
 
-    options_file_value = str(config.get("options_file", "options.json"))
+    options_file_value = str(config.get("options_file", "data/fd_options/fd_options.csv"))
     options_path = Path(options_file_value).expanduser()
     if not options_path.is_absolute():
         config_relative = path.parent / options_path
@@ -107,22 +107,37 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     if not options_path.is_file():
         raise FileNotFoundError(f"FD options file not found: {options_path}")
 
-    # Load only the banks represented by configured accounts. A typo or bank
-    # without options is a configuration error, not a reason to silently skip it.
-    options: list[FDOption] = []
-    for bank_key in bank_keys:
-        try:
-            bank_options = load_options_from_json(options_path, bank_key=bank_key)
-        except KeyError as exc:
-            raise ValueError(
-                f"Configured bank {bank_key!r} has no entry in {options_path}. "
-                "Add valid FD options for that bank or remove its account."
-            ) from exc
-        if not bank_options:
-            raise ValueError(
-                f"Configured bank {bank_key!r} has no FD options in {options_path}; refusing to run."
-            )
-        options.extend(bank_options)
+    account_banks_only = bool(config.get("account_banks_only", True))
+    efd_only = bool(config.get("efd_only", True))
+    if options_path.suffix.lower() == ".csv":
+        options = load_options_from_bank_csv(
+            options_path,
+            bank_keys=bank_keys,
+            account_banks_only=account_banks_only,
+            efd_only=efd_only,
+        )
+    else:
+        # Legacy JSON support remains available for existing user configurations.
+        selected_bank_keys = bank_keys if account_banks_only else None
+        options = []
+        if selected_bank_keys is None:
+            options = load_options_from_json(options_path, bank_key="all")
+        else:
+            for bank_key in selected_bank_keys:
+                try:
+                    bank_options = load_options_from_json(options_path, bank_key=bank_key)
+                except KeyError as exc:
+                    raise ValueError(
+                        f"Configured bank {bank_key!r} has no entry in {options_path}. "
+                        "Add valid FD options for that bank or remove its account."
+                    ) from exc
+                options.extend(bank_options)
+        if not efd_only:
+            # Legacy JSON files predate eFD metadata and contain no product flag.
+            # Treat their options as the explicitly supplied set.
+            pass
+        if not options:
+            raise ValueError(f"No FD options were loaded from {options_path}")
 
     def build_schedule(raw_events: Any, kind: str) -> tuple[dict[date, list[dict[str, Any]]], list[dict[str, Any]]]:
         if not isinstance(raw_events, list):
@@ -255,6 +270,8 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "strategy": strategy,
         "accounts": accounts,
         "options": options,
+        "account_banks_only": account_banks_only,
+        "efd_only": efd_only,
         "start": start,
         "end": end,
         "inflow_schedule": inflow_schedule,
