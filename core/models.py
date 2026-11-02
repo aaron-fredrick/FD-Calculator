@@ -60,17 +60,18 @@ class TransferFeeConfig:
     default_inter_bank_fee: float = 30.0
     same_bank_fee: float = 0.0
     custom_fees: dict[tuple[str, str], float] = field(default_factory=dict)
+    bank_fees: dict[str, tuple[float, float]] = field(default_factory=dict)
 
     def get_fee(self, from_bank: str, to_bank: str) -> float:
         b1 = from_bank.strip().lower()
         b2 = to_bank.strip().lower()
         if b1 == b2:
-            return self.same_bank_fee
+            return self.bank_fees.get(b1, (self.same_bank_fee, self.default_inter_bank_fee))[0]
         if (b1, b2) in self.custom_fees:
             return self.custom_fees[(b1, b2)]
         if (b2, b1) in self.custom_fees:
             return self.custom_fees[(b2, b1)]
-        return self.default_inter_bank_fee
+        return self.bank_fees.get(b1, (self.same_bank_fee, self.default_inter_bank_fee))[1]
 
 
 @dataclass
