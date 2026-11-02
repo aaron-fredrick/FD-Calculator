@@ -45,6 +45,7 @@ def _write_decision_log(result, output_path: str | Path, start_date: date) -> Pa
 
     if not records:
         lines.append("No FD booking or cash-retention decisions were recorded.")
+    transfer_dates_written = set()
     for index, record in enumerate(records, 1):
         lines.append(f"ACTION {index:03d} — {record['date'].isoformat()} — {record['action'].upper()}")
         lines.append("-" * 72)
@@ -55,17 +56,21 @@ def _write_decision_log(result, output_path: str | Path, start_date: date) -> Pa
                 label = account.label if account else account_id
                 lines.append(f"  - {label} [{account_id}]: {money(balance)}")
 
-        for step in record.get("transfer_steps", []):
-            lines.append(
-                f"TRANSFER: {step['channel']} | {step['description']} | "
-                f"Account {step['account_label']} [{step['account_id']}] | "
-                f"Recorded amount {money(step['amount'])} | Fee {money(step['fee'])}"
-            )
+        transfer_steps = record.get("transfer_steps", [])
+        if transfer_steps and record["date"] not in transfer_dates_written:
+            transfer_dates_written.add(record["date"])
+            for step in transfer_steps:
+                lines.append(
+                    f"TRANSFER: {step['channel']} | {step['description']} | "
+                    f"Account {step['account_label']} [{step['account_id']}] | "
+                    f"Recorded amount {money(step['amount'])} | Fee {money(step['fee'])}"
+                )
 
         if record.get("product"):
             lines.extend([
                 "",
                 "FD BOOKING INSTRUCTIONS:",
+                f"  Booking reference: {record.get('booking_ref', '-')}",
                 f"  Destination bank : {record.get('bank', '-')}",
                 f"  Destination acct : {record.get('account_label', record['account_id'])} [{record['account_id']}]",
                 f"  Product          : {record['product']}",
