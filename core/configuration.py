@@ -10,27 +10,34 @@ from core.interest import add_period, parse_period_delta
 from core.models import Account, FDOption, TransferFeeConfig, load_options_from_json
 
 
-def _resolve_date(value: str | None, *, investment_start: date | None = None) -> date:
-    """Resolve an ISO date or supported relative date token."""
+def _resolve_date(
+    value: str | None,
+    *,
+    investment_start: date | None = None,
+    investment_end: date | None = None,
+) -> date:
+    """Resolve an ISO date or an investment-relative date token."""
     if value is None or not str(value).strip():
         raise ValueError("Date value is required")
     token = str(value).strip().lower()
     if token == "today":
         return date.today()
-    if token == "investment_start":
+    if token in {"investment_start", "start"}:
         if investment_start is None:
             raise ValueError("'investment_start' can only be used after the investment start is resolved")
         return investment_start
-    if token.startswith("investment_start+") and len(token) > len("investment_start+"):
-        if investment_start is None:
-            raise ValueError("'investment_start+period' can only be used after the investment start is resolved")
+    if token in {"investment_end", "end"}:
+        if investment_end is None:
+            raise ValueError("'investment_end'/'end' can only be used after the investment end is resolved")
+        return investment_end
+    if token.startswith("investment_start+") and investment_start is not None:
         return add_period(investment_start, token.split("+", 1)[1])
     try:
         return date.fromisoformat(token)
     except ValueError as exc:
         raise ValueError(
             f"Invalid date {value!r}. Use YYYY-MM-DD, 'today', 'investment_start', "
-            "or 'investment_start+1m' (periods use d/m/y)."
+            "'investment_end'/'end', or 'investment_start+1m'."
         ) from exc
 
 
@@ -117,58 +124,95 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
             )
         options.extend(bank_options)
 
-    inflow_data = config.get("inflows", [])
-    if not isinstance(inflow_data, list):
-        raise ValueError("'inflows' must be a list")
-    inflow_schedule: dict[date, dict[str, float]] = {}
-    inflow_summaries: list[dict[str, Any]] = []
-    for index, entry in enumerate(inflow_data):
-        if not isinstance(entry, dict):
-            raise ValueError(f"inflows[{index}] must be an object")
-        name = str(entry.get("name") or f"Inflow {index + 1}").strip()
-        account_id = str(entry.get("account_id", "")).strip()
-        if account_id not in account_ids:
-            raise ValueError(f"Inflow {name!r} targets unknown account {account_id!r}")
-        try:
-            amount = float(entry["amount"])
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError(f"Inflow {name!r} requires a numeric amount") from exc
-        if not isfinite(amount) or amount <= 0:
-            raise ValueError(f"Inflow {name!r} amount must be finite and greater than zero")
-        interval = str(entry.get("interval", "")).strip().lower()
-        # Validate interval once, before constructing the schedule.
-        try:
-            delta = parse_period_delta(interval)
-            if delta.years <= 0 and delta.months <= 0 and delta.days <= 0:
-                raise ValueError("interval must be positive")
-        except (AttributeError, ValueError) as exc:
-            raise ValueError(f"Inflow {name!r} has invalid interval {interval!r}; use a positive period such as '30d', '1m', or '1y'") from exc
-        first_date_value = entry.get("start_date")
-        first_date = (
-            add_period(start, interval)
-            if first_date_value is None
-            else _resolve_date(str(first_date_value), investment_start=start)
-        )
-        if first_date < start:
-            raise ValueError(
-                f"Inflow {name!r} starts on {first_date}, before investment start {start}"
-            )
-        occurrence = 0
-        current = first_date
-        while current <= end:
-            day_amounts = inflow_schedule.setdefault(current, {})
-            day_amounts[account_id] = day_amounts.get(account_id, 0.0) + amount
-            occurrence += 1
-            current = first_date + delta * occurrence
-        inflow_summaries.append({
-            "name": name,
-            "amount": amount,
-            "interval": interval,
-            "start_date": first_date,
-            "account_id": account_id,
-            "occurrences": occurrence,
-            "total": amount * occurrence,
-        })
+    def build_schedule(raw_events: Any, kind: str) -> tuple[dict[date, list[dict[str, Any]]], list[dict[str, Any]]]:
+        if not isinstance(raw_events, list):
+            raise ValueError(f"'{kind}s' must be a list")
+        schedule: dict[date, list[dict[str, Any]]] = {}
+        summaries: list[dict[str, Any]] = []
+        for index, entry in enumerate(raw_events):
+            if not isinstance(entry, dict):
+                raise ValueError(f"{kind}s[{index}] must be an object")
+            name = str(entry.get("name") or f"{kind.title()} {index + 1}").strip()
+            account_id = str(entry.get("account_id", "")).strip()
+            if account_id not in account_ids:
+                raise ValueError(f"{kind.title()} {name!r} targets unknown account {account_id!r}")
+            try:
+                amount = float(entry["amount"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"{kind.title()} {name!r} requires a numeric amount") from exc
+            if not isfinite(amount) or amount <= 0:
+                raise ValueError(f"{kind.title()} {name!r} amount must be finite and greater than zero")
+            event_type = str(entry.get("type", "recurring")).strip().lower()
+            if event_type not in {"recurring", "scheduled"}:
+                raise ValueError(f"{kind.title()} {name!r} type must be 'recurring' or 'scheduled'")
+            dates: list[date] = []
+            if event_type == "scheduled":
+                raw_dates = entry.get("dates")
+                if not isinstance(raw_dates, list) or not raw_dates:
+                    raise ValueError(f"{kind.title()} {name!r} scheduled events require a non-empty 'dates' list")
+                dates = [_resolve_date(str(value), investment_start=start, investment_end=end) for value in raw_dates]
+                if len(set(dates)) != len(dates):
+                    raise ValueError(f"{kind.title()} {name!r} contains duplicate scheduled dates")
+            else:
+                interval = str(entry.get("interval", "")).strip().lower()
+                try:
+                    delta = parse_period_delta(interval)
+                    if delta.years <= 0 and delta.months <= 0 and delta.days <= 0:
+                        raise ValueError("interval must be positive")
+                except (AttributeError, ValueError) as exc:
+                    raise ValueError(
+                        f"{kind.title()} {name!r} has invalid interval {interval!r}; "
+                        "use a positive period such as '30d', '1m', or '1y'"
+                    ) from exc
+                first_value = entry.get("start_date")
+                first_date = (
+                    add_period(start, interval)
+                    if first_value is None
+                    else _resolve_date(str(first_value), investment_start=start, investment_end=end)
+                )
+                last_value = entry.get("end_date", "end")
+                last_date = _resolve_date(str(last_value), investment_start=start, investment_end=end)
+                if first_date < start or last_date > end or first_date > last_date:
+                    raise ValueError(
+                        f"{kind.title()} {name!r} dates must be within the investment period "
+                        f"and start_date must not be after end_date"
+                    )
+                occurrence = 0
+                current = first_date
+                while current <= last_date:
+                    dates.append(current)
+                    occurrence += 1
+                    current = first_date + delta * occurrence
+            if any(day < start or day > end for day in dates):
+                raise ValueError(f"{kind.title()} {name!r} has a date outside the investment period")
+            policy = str(entry.get("payment_policy", "strict")).strip().lower() if kind == "outflow" else ""
+            if kind == "outflow" and policy not in {"strict", "defer", "best_effort"}:
+                raise ValueError(
+                    f"Outflow {name!r} payment_policy must be 'strict', 'defer', or 'best_effort'"
+                )
+            for day in dates:
+                schedule.setdefault(day, []).append({
+                    "name": name,
+                    "amount": amount,
+                    "account_id": account_id,
+                    "payment_policy": policy,
+                    "type": event_type,
+                })
+            summaries.append({
+                "name": name,
+                "amount": amount,
+                "type": event_type,
+                "account_id": account_id,
+                "dates": dates,
+                "occurrences": len(dates),
+                "total": amount * len(dates),
+                **({"payment_policy": policy} if kind == "outflow" else {}),
+                **({"interval": interval, "start_date": dates[0], "end_date": dates[-1]} if event_type == "recurring" and dates else {}),
+            })
+        return schedule, summaries
+
+    inflow_schedule, inflow_summaries = build_schedule(config.get("inflows", []), "inflow")
+    outflow_schedule, outflow_summaries = build_schedule(config.get("outflows", []), "outflow")
 
     fees_data = config.get("transfer_fees", {})
     if not isinstance(fees_data, dict):
@@ -210,7 +254,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "start": start,
         "end": end,
         "inflow_schedule": inflow_schedule,
-        "inflow_summaries": inflow_summaries,
+        "inflow_summaries": inflow_summaries,\n        "outflow_schedule": outflow_schedule,\n        "outflow_summaries": outflow_summaries,
         "fee_config": fee_config,
         "compound": bool(config.get("compound", False)),
         "actual_leap_year": bool(config.get("actual_leap_year", True)),
