@@ -200,8 +200,8 @@ Final consolidation transfers remaining account balances to the **first account 
 
 With `"show_plots": true`, charts are saved to `plot_output_dir`:
 
-- `absolute_account_values.png` or `greedy_account_values.png`: estimated account value over time.
-- `absolute_decision_timeline.png` or `greedy_decision_timeline.png`: FD booking and maturity periods.
+- `<strategy>_account_values.png`: account value over time. GAML and Absolute include Greedy for comparison.
+- `<strategy>_decision_timeline.png`: FD booking and maturity periods. GAML and Absolute include Greedy for comparison.
 
 A relative plot path is resolved from the directory containing the selected config file. For example, `"plot_output_dir": "plots"` saves to a `plots` folder beside `config.json`. An absolute path saves to that exact location. The output folder is created if needed.
 
