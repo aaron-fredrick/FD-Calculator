@@ -210,6 +210,71 @@ def _plot_decision_timeline(ax, results: Sequence[SimResult], styles: dict[str, 
     ax.set_axisbelow(True)
 
 
+
+_CASH_FLOW_CATEGORIES = (
+    ("New money", "#56b4e9"), ("FD payouts", "#009e73"),
+    ("FD maturities", "#8be9fd"), ("Outflows", "#d55e00"),
+    ("FD investments", "#e69f00"), ("Transfers out", "#cc79a7"),
+    ("Transfers in", "#bd93f9"),
+)
+
+def _cash_flow_series(result: SimResult, start: date, end: date) -> dict[str, list[tuple[date, float]]]:
+    """Aggregate dated cash movements from the selected simulation path."""
+    totals: dict[str, dict[date, float]] = {name: {} for name, _ in _CASH_FLOW_CATEGORIES}
+    for events in result.timeline.values():
+        for event in events:
+            if not start <= event.on_date <= end or abs(event.amount) < 0.005:
+                continue
+            category, amount = None, float(event.amount)
+            if event.event_type == EventType.INFLOW:
+                category = "New money"
+            elif event.event_type == EventType.OUTFLOW:
+                category = "Outflows"
+            elif event.event_type == EventType.BOOKING:
+                category, amount = "FD investments", -abs(amount)
+            elif event.event_type == EventType.CASH_FLOW:
+                category = "FD payouts"
+            elif event.event_type == EventType.MATURITY:
+                category = "FD maturities"
+            elif event.event_type == EventType.TRANSFER:
+                if event.label.startswith(("Transfer to ", "Final sweep to ")):
+                    category, amount = "Transfers out", -abs(amount)
+                elif event.label.startswith(("Transfer received", "Final sweep received")):
+                    category = "Transfers in"
+            if category:
+                values = totals[category]
+                values[event.on_date] = values.get(event.on_date, 0.0) + amount
+    return {name: sorted(values.items()) for name, values in totals.items() if values}
+
+def _plot_cash_flow_panel(ax, result: SimResult, start: date, end: date) -> None:
+    """Draw positive receipts and negative uses of cash on a date axis."""
+    import matplotlib.dates as mdates
+    series = _cash_flow_series(result, start, end)
+    if not series:
+        ax.text(0.5, 0.5, "No cash movements to display", ha="center", va="center",
+                color=_MUTED, transform=ax.transAxes)
+        ax.set_axis_off()
+        return
+    width = 0.78 / len(_CASH_FLOW_CATEGORIES)
+    offsets = {name: (i - (len(_CASH_FLOW_CATEGORIES) - 1) / 2) * width
+               for i, (name, _) in enumerate(_CASH_FLOW_CATEGORIES)}
+    colors = dict(_CASH_FLOW_CATEGORIES)
+    for category, values in series.items():
+        xs = [mdates.date2num(day) + offsets[category] for day, _ in values]
+        ys = [amount for _, amount in values]
+        ax.bar(xs, ys, width=width * 0.94, color=colors[category], alpha=0.9,
+               label=category, edgecolor=_BACKGROUND, linewidth=0.25)
+    ax.axhline(0, color=_TEXT, linewidth=0.8, alpha=0.8)
+    ax.set_xlim(mdates.date2num(start) - 1, mdates.date2num(end) + 1)
+    ax.set_ylabel("Cash movement (LKR)")
+    ax.set_title(f"{result.strategy_name} · dated cash movements", loc="left",
+                 fontweight="bold", pad=8)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    ax.grid(axis="x", visible=False)
+    ax.set_axisbelow(True)
+    ax.legend(loc="upper left", ncol=4, fontsize=7, framealpha=0.95)
+
+
 def plot_strategy_results(
     primary: SimResult,
     *,
@@ -297,8 +362,28 @@ def plot_strategy_results(
     saved.append(timeline_file)
     timeline_fig = fig
 
+    # Date-aligned cash-flow diagram; comparison strategies get their own panel.
+    cash_flow_results = [primary] + ([comparison] if has_greedy_comparison else [])
+    cash_flow_fig, cash_flow_axes = plt.subplots(
+        len(cash_flow_results), 1,
+        figsize=(14, 5.2 if len(cash_flow_results) == 1 else 8.2),
+        sharex=True, squeeze=False, constrained_layout=True,
+    )
+    for axis, flow_result in zip(cash_flow_axes[:, 0], cash_flow_results):
+        _plot_cash_flow_panel(axis, flow_result, start, end)
+    cash_flow_axes[-1, 0].set_xlabel("Date")
+    locator = mdates.AutoDateLocator(minticks=5, maxticks=12)
+    cash_flow_axes[-1, 0].xaxis.set_major_locator(locator)
+    cash_flow_axes[-1, 0].xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+    cash_flow_fig.suptitle(f"{primary.strategy_name}: cash-flow diagram",
+                           x=0.02, ha="left", fontweight="bold")
+    cash_flow_file = output_path / f"{primary.strategy_name.lower()}_cash_flows.png"
+    cash_flow_fig.savefig(cash_flow_file, dpi=160, bbox_inches="tight")
+    saved.append(cash_flow_file)
+
     if show:
         plt.show()
     plt.close(value_fig)
     plt.close(timeline_fig)
+    plt.close(cash_flow_fig)
     return saved
