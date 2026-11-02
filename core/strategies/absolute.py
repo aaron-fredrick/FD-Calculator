@@ -792,7 +792,8 @@ class AbsoluteStrategy(BaseStrategy):
                             account_id=src.id,
                             bank_key=src.bank_key,
                             bank_id=src.bank_id,
-                            fee=fee,
+                            transfer_channel="intra_bank" if src.bank_identity.strip().upper() == tgt.bank_identity.strip().upper() else "domestic_ceft",
+fee=fee,
                             balance_after=src.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
                         ))
@@ -805,7 +806,8 @@ class AbsoluteStrategy(BaseStrategy):
                             account_id=tgt.id,
                             bank_key=tgt.bank_key,
                             bank_id=tgt.bank_id,
-                            fee=0.0,
+                            transfer_channel="intra_bank" if src.bank_identity.strip().upper() == tgt.bank_identity.strip().upper() else "domestic_ceft",
+fee=0.0,
                             balance_after=tgt.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
                         ))
@@ -999,7 +1001,8 @@ class AbsoluteStrategy(BaseStrategy):
                     account_id=acc.id,
                     bank_key=acc.bank_key,
                     bank_id=acc.bank_id,
-                    fee=fee,
+                    transfer_channel="intra_bank" if acc.bank_identity.strip().upper() == consol_acc.bank_identity.strip().upper() else "domestic_ceft",
+fee=fee,
                     balance_after=0.0,
                     total_balance_after=sum(a.balance for a in accounts_map.values()),
                 ))
@@ -1012,7 +1015,8 @@ class AbsoluteStrategy(BaseStrategy):
                     account_id=consol_acc.id,
                     bank_key=consol_acc.bank_key,
                     bank_id=consol_acc.bank_id,
-                    fee=0.0,
+                    transfer_channel="intra_bank" if acc.bank_identity.strip().upper() == consol_acc.bank_identity.strip().upper() else "domestic_ceft",
+fee=0.0,
                     balance_after=consol_acc.balance,
                     total_balance_after=sum(a.balance for a in accounts_map.values()),
                 ))
