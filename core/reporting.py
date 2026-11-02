@@ -376,9 +376,25 @@ def build_decision_log(result: SimResult) -> list[dict]:
                 f"{item.event_type.value}: {item.label} ({item.amount:,.2f} LKR)"
                 for item in by_day.get(event.on_date, [])
                 if item is not event and item.event_type in {
-                    EventType.INFLOW, EventType.OUTFLOW, EventType.TRANSFER,
-                    EventType.CASH_FLOW, EventType.MATURITY
+                    EventType.INFLOW, EventType.OUTFLOW, EventType.CASH_FLOW, EventType.MATURITY
                 }
+            ],
+            "transfer_steps": [
+                {
+                    "channel": "INTRA-BANK" if item.transfer_channel == "intra_bank"
+                        else "DOMESTIC CEFT" if item.transfer_channel == "domestic_ceft"
+                        else "TRANSFER",
+                    "account_id": item.account_id,
+                    "account_label": (
+                        result.accounts[item.account_id].label
+                        if item.account_id in result.accounts else item.account_id
+                    ),
+                    "description": item.label,
+                    "amount": item.amount,
+                    "fee": item.fee,
+                }
+                for item in by_day.get(event.on_date, [])
+                if item.event_type == EventType.TRANSFER
             ],
             "action": "Carry cash forward",
             "account_id": event.account_id,
