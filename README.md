@@ -42,17 +42,20 @@ Let:
 - \\(K\\) = maximum number of decision dates along a path. This depends on the investment window, scheduled inflows, and FD cash-flow/maturity dates.
 - \\(F\\) = number of pending cash-flow entries in a search state.
 
-At one decision date, Absolute can generate up to:
+At one decision date, define:
 
-- \\(A O\\) consolidation choices (one target account and one eligible FD option).
-- \\(\\prod_{i=1}^{A}(1+o_i)-1\\) non-empty combinations of local bookings.
+- \\(C=\\prod_{i=1}^{A}(1+o_i)-1\\): non-empty combinations of local bookings.
+- \\(Q=\\sum_{i=1}^{A}o_{bank(i)}\\): consolidation choices, where \\(o_{bank(i)}\\) is the number of horizon-eligible effective options for account \\(i\\)'s bank.
 - One carry-forward choice.
 
-So a useful upper bound on the branching factor is:
+A configuration-level upper bound on the branching factor is therefore:
 
 \\[
-B \\leq AO + \\prod_{i=1}^{A}(1+o_i)
+B \\leq Q+C+1
+=Q+\\prod_{i=1}^{A}(1+o_i)
 \\]
+
+This ignores current balances and minimum-deposit feasibility, so the actual branch count at a state is usually lower.
 
 Across at most \\(K\\) decision levels, the unpruned search tree has a worst-case size of:
 
@@ -70,6 +73,17 @@ O\\left(B^K \\left(C\\log C + AO\\log(AO) + A + F\\right)\\right),
 Worst-case auxiliary space is \\(O(S(A+F)+K(C+AO))\\), where \\(S\\) is the number of distinct states retained by memoisation. The search stack can retain each level's generated branch lists; \\(S\\) can also be exponential in \\(K\\).
 
 These are worst-case bounds, not expected runtime. Branch-and-bound, memoisation, and option pruning can reduce the explored search substantially, but do not change the exponential worst-case nature. In practice, runtime is most sensitive to the number of accounts, eligible options per account, and the number of event dates created by inflows and FD cash flows. Absolute is therefore best suited to smaller scenarios or when a thorough search is worth the additional runtime.
+
+### Estimate Absolute search size
+
+Run the root-level estimator against the current configuration:
+
+```powershell
+uv run search_complexity.py
+uv run search_complexity.py --config path\\to\\config.json
+```
+
+It applies Absolute's dominated-option pruning, counts horizon-eligible options by bank, and prints conservative branching, leaf, node, time-complexity, and space-complexity estimates. The leaf and node counts are theoretical upper bounds, not predictions of how many states Absolute will actually visit; pruning and state-dependent feasibility make actual counts scenario-dependent.
 
 ## 3. Configure `config.json`
 
