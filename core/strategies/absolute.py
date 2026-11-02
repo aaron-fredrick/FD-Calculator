@@ -573,7 +573,7 @@ class AbsoluteStrategy(BaseStrategy):
             alternative_leaf_net_interests,
             reverse=True,
         )[:10]
-        print("  [Absolute Strategy] Top 10 alternative leaves (excluding the best):")
+        print(f"  [{self.name} Strategy] Top 10 alternative leaves (excluding the best):")
         if not top_alternatives:
             print("    No alternative completed leaves were recorded.")
         else:
