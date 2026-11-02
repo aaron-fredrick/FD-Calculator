@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
+from core.cashflows import validate_outflow_schedule
 from core.models import (
     Account,
     Booking,
@@ -258,6 +259,7 @@ class GreedyStrategy(BaseStrategy):
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
             for acc in accounts
         }
+        validate_outflow_schedule(outflow_schedule, start, end, set(accounts_map))
         if inflow_account_id not in accounts_map:
             raise ValueError(
                 f"inflow_account_id {inflow_account_id!r} not found in accounts: {list(accounts_map.keys())}"
