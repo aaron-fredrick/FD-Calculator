@@ -1,6 +1,9 @@
 {
   "_comment": "Example configuration for the GAML strategy. Copy this file to config.json and adjust the values for your scenario.",
   "strategy": "gaml",
+  "options_file": "data/fd_options/fd_options.csv",
+  "account_banks_only": true,
+  "efd_only": true,
   "investment": {
     "start_date": "today",
     "end_date": "2027-06-30"
