@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import bisect
-import math
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Optional
@@ -209,21 +208,9 @@ class AbsoluteStrategy(BaseStrategy):
 
     name: str = "Absolute"
 
-    def __init__(
-        self,
-        compound: bool = False,
-        actual_leap_year: bool = True,
-        max_decisions: Optional[int] = None,
-        max_local_branches: Optional[int] = None,
-    ):
-        if max_decisions is not None and max_decisions < 1:
-            raise ValueError("max_decisions must be at least 1")
-        if max_local_branches is not None and max_local_branches < 1:
-            raise ValueError("max_local_branches must be at least 1")
+    def __init__(self, compound: bool = False, actual_leap_year: bool = True):
         self.compound = compound
         self.actual_leap_year = actual_leap_year
-        self.max_decisions = max_decisions
-        self.max_local_branches = max_local_branches
 
     def simulate(
         self,
@@ -313,32 +300,26 @@ class AbsoluteStrategy(BaseStrategy):
             return min(candidates)
 
         def calc_upper_bound(today: date, bal: BalanceTuple, active_pf: FlowsTuple) -> float:
-            # Assume every available rupee can continuously reinvest at the
-            # highest eligible annual rate, with no minimums, fees or idle gaps.
-            # exp(r * t) is a conservative envelope for repeated simple-interest
-            # reinvestments and compound products, unlike the old linear estimate
-            # which could underestimate multi-rollover growth and prune a winner.
-            rate = max(0.0, max_rate)
-            terminal_bound = sum(
-                amount * math.exp(rate * max(0, (end - today).days) / 365.0)
-                for _, amount in bal
-            )
+            liquid_cash = sum(b for _, b in bal)
+            rem_days = (end - today).days
+            liquid_intr = liquid_cash * max_rate * (rem_days / 365.0)
 
+            pf_cash = 0.0
+            pf_intr = 0.0
             for dt, entries in active_pf:
-                if dt <= end:
-                    amount = sum(value for _, value in entries)
-                    terminal_bound += amount * math.exp(
-                        rate * max(0, (end - dt).days) / 365.0
-                    )
+                day_amt = sum(amt for _, amt in entries)
+                pf_cash += day_amt
+                pf_intr += day_amt * max_rate * ((end - dt).days / 365.0)
 
+            fin_cash = 0.0
+            fin_intr = 0.0
             for dt, amounts in fixed_inflows.items():
-                if today < dt <= end:
-                    amount = sum(amounts.values())
-                    terminal_bound += amount * math.exp(
-                        rate * max(0, (end - dt).days) / 365.0
-                    )
+                if dt > today:
+                    amt = sum(amounts.values())
+                    fin_cash += amt
+                    fin_intr += amt * max_rate * ((end - dt).days / 365.0)
 
-            return terminal_bound
+            return liquid_cash + pf_cash + fin_cash + liquid_intr + pf_intr + fin_intr
 
         total_capital = sum(amount for amounts in inflow_schedule.values() for amount in amounts.values()) + sum(a.balance for a in accounts)
         best_leaf: Optional[SearchTreeNode] = None
@@ -348,7 +329,7 @@ class AbsoluteStrategy(BaseStrategy):
         memo_visited: dict[tuple[date, BalanceTuple, FlowsTuple], float] = {}
         alternative_leaf_net_interests: list[float] = []
 
-        print(f"  [{self.name} Strategy] Initializing bounded global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
+        print(f"  [Absolute Strategy] Initializing global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
 
         def search(
             today: date,
@@ -357,11 +338,6 @@ class AbsoluteStrategy(BaseStrategy):
             parent_node: Optional[SearchTreeNode],
         ) -> None:
             nonlocal best_final_val, best_leaf, tally, leaf_count, pruned_count
-
-            # Optional deterministic work budget used by bounded strategies.
-            # Absolute leaves this unset and retains its full branch-and-bound search.
-            if self.max_decisions is not None and tally >= self.max_decisions:
-                return
 
             tally += 1
 
@@ -479,8 +455,6 @@ class AbsoluteStrategy(BaseStrategy):
             # Prioritize high profit branches first
             consolidation_branches.sort(key=lambda x: x[0], reverse=True)
             for _, tgt_id, opt, transfers, deployable, carries in consolidation_branches:
-                if self.max_decisions is not None and tally >= self.max_decisions:
-                    break
                 b_bal = bal
                 for t in transfers:
                     b_bal = _bal_set(b_bal, t["src_id"], 0.0)
@@ -521,73 +495,29 @@ class AbsoluteStrategy(BaseStrategy):
                 for sz in slot_sizes:
                     total_combos *= sz
 
+                indices = [0] * n
                 local_branches = []
-                if self.max_local_branches is None:
-                    # Absolute: enumerate the complete Cartesian product.
-                    indices = [0] * n
-                    for _ in range(total_combos):
-                        chosen = [(acc_list[i], opt_slots[i][indices[i]]) for i in range(n)]
-                        valid_bookings = [
-                            {"account_id": aid, "option": opt, "principal": bal_dict[aid]}
-                            for aid, opt in chosen if opt is not None
-                        ]
-                        if valid_bookings:
-                            est_profit = sum(
-                                item["option"].total_interest_on(
-                                    item["principal"], today, self.compound, self.actual_leap_year
-                                )
-                                for item in valid_bookings
-                            )
-                            local_branches.append((est_profit, valid_bookings))
-
-                        for i in range(n - 1, -1, -1):
-                            indices[i] += 1
-                            if indices[i] < slot_sizes[i]:
-                                break
-                            indices[i] = 0
-                else:
-                    # GAML: keep only the top K partial combinations at each
-                    # account. Local booking values are additive and independent,
-                    # so this retains the K highest immediate-value combinations
-                    # without materialising the full Cartesian product.
-                    partials: list[tuple[float, list[tuple[str, Optional[FDOption]]]]] = [
-                        (0.0, [])
+                for _ in range(total_combos):
+                    chosen = [(acc_list[i], opt_slots[i][indices[i]]) for i in range(n)]
+                    valid_bookings = [
+                        {"account_id": aid, "option": opt, "principal": bal_dict[aid]}
+                        for aid, opt in chosen if opt is not None
                     ]
-                    for aid in acc_list:
-                        account_options = sorted(
-                            local_opts_per_acc[aid],
-                            key=lambda opt: opt.total_interest_on(
-                                bal_dict[aid], today, self.compound, self.actual_leap_year
-                            ),
-                            reverse=True,
+                    if valid_bookings:
+                        est_profit = sum(
+                            b_info["option"].total_interest_on(b_info["principal"], today, self.compound, self.actual_leap_year)
+                            for b_info in valid_bookings
                         )
-                        choices: list[Optional[FDOption]] = [None, *account_options]
-                        expanded: list[
-                            tuple[float, list[tuple[str, Optional[FDOption]]]]
-                        ] = []
-                        for partial_profit, partial_choices in partials:
-                            for opt in choices:
-                                profit = partial_profit
-                                if opt is not None:
-                                    profit += opt.total_interest_on(
-                                        bal_dict[aid], today, self.compound, self.actual_leap_year
-                                    )
-                                expanded.append((profit, [*partial_choices, (aid, opt)]))
-                        expanded.sort(key=lambda item: item[0], reverse=True)
-                        partials = expanded[: self.max_local_branches]
+                        local_branches.append((est_profit, valid_bookings))
 
-                    for est_profit, chosen in partials:
-                        valid_bookings = [
-                            {"account_id": aid, "option": opt, "principal": bal_dict[aid]}
-                            for aid, opt in chosen if opt is not None
-                        ]
-                        if valid_bookings:
-                            local_branches.append((est_profit, valid_bookings))
+                    for i in range(n - 1, -1, -1):
+                        indices[i] += 1
+                        if indices[i] < slot_sizes[i]:
+                            break
+                        indices[i] = 0
 
                 local_branches.sort(key=lambda x: x[0], reverse=True)
                 for _, valid_bookings in local_branches:
-                    if self.max_decisions is not None and tally >= self.max_decisions:
-                        break
                     booked_ids = {b_info["account_id"] for b_info in valid_bookings}
                     carries = [aid for aid in active_accs if aid not in booked_ids]
 
@@ -609,10 +539,9 @@ class AbsoluteStrategy(BaseStrategy):
                     search(b_next, b_bal, b_flows, child_node)
 
             # ── Branch 3: Carry forward (hold all cash) ──────────────────
-            if self.max_decisions is None or tally < self.max_decisions:
-                carry_act = CarryAction(carries=list(active_accs))
-                child_node = SearchTreeNode(parent=parent_node, action=carry_act, today=today)
-                search(next_date_default, bal, active_pf, child_node)
+            carry_act = CarryAction(carries=list(active_accs))
+            child_node = SearchTreeNode(parent=parent_node, action=carry_act, today=today)
+            search(next_date_default, bal, active_pf, child_node)
 
         # ----------------------------------------------------------------
         # Run Branch-and-Bound search from start date
@@ -628,7 +557,7 @@ class AbsoluteStrategy(BaseStrategy):
             alternative_leaf_net_interests,
             reverse=True,
         )[:10]
-        print(f"  [{self.name} Strategy] Top 10 alternative leaves (excluding the best):")
+        print("  [Absolute Strategy] Top 10 alternative leaves (excluding the best):")
         if not top_alternatives:
             print("    No alternative completed leaves were recorded.")
         else:
@@ -640,22 +569,9 @@ class AbsoluteStrategy(BaseStrategy):
                     f"(diff vs best: {difference_str} LKR)"
                 )
 
-        budget_note = (
-            f", budget {self.max_decisions:,} reached"
-            if self.max_decisions is not None and tally >= self.max_decisions
-            else ""
-        )
-        print(f"  [{self.name} Search Complete] {tally:,} decisions ({leaf_count:,} leaves, {pruned_count:,} bound-pruned{budget_note}) in {elapsed:.2f}s")
+        print(f"  [Absolute Search Complete] {tally:,} total decisions evaluated ({leaf_count:,} leaves reached, {pruned_count:,} pruned by branch-and-bound) in {elapsed:.2f}s")
 
-        # Greedy is a valid, fully simulated incumbent. If the budget expires
-        # before a better complete leaf is found, return that incumbent rather
-        # than replaying an incomplete search path.
-        if best_leaf is None:
-            greedy_res.strategy_name = self.name
-            greedy_res.total_decisions_evaluated = tally
-            return greedy_res
-
-        best_path: list[tuple[date, DailyAction]] = best_leaf.get_path()
+        best_path: list[tuple[date, DailyAction]] = best_leaf.get_path() if best_leaf is not None else []
 
         return self._replay_simulation(
             best_path=best_path,
