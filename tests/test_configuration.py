@@ -90,6 +90,18 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(loaded["inflow_summaries"][0]["amount"], 500.0)
         self.assertTrue(all("cash" in amounts for amounts in loaded["inflow_schedule"].values()))
 
+    def test_repository_config_uses_valid_account_dictionary(self) -> None:
+        repository_config = Path(__file__).resolve().parent.parent / "config.json"
+        loaded = load_configuration(repository_config)
+        self.assertEqual(
+            {account.id for account in loaded["accounts"]},
+            {"com", "dfcc"},
+        )
+        self.assertEqual(
+            {account.bank_id for account in loaded["accounts"]},
+            {COMMERCIAL_ID, DFCC_ID},
+        )
+
     def test_unknown_bank_id_is_rejected_against_bank_catalogue(self) -> None:
         self.config["accounts"]["cash"]["bank_id"] = "commercial"
         self._write_config()
