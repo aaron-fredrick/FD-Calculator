@@ -252,7 +252,10 @@ class SimResult:
     accounts:            dict[str, Account] = field(default_factory=dict)
     total_transfer_fees: float = 0.0
     total_decisions_evaluated: Optional[int] = None
-    alternative_leaf_net_interests: list[float] = field(default_factory=list)\n    total_outflows_paid: float = 0.0\n    outstanding_outflows: list[dict] = field(default_factory=list)\n    valid: bool = True
+    alternative_leaf_net_interests: list[float] = field(default_factory=list)
+    total_outflows_paid: float = 0.0
+    outstanding_outflows: list[dict] = field(default_factory=list)
+    valid: bool = True
 
     @property
     def total_interest(self) -> float:
