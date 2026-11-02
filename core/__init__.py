@@ -23,6 +23,7 @@ from core.models import (
     TransferFeeConfig,
     build_fd_options,
     load_all_options_from_json,
+    load_options_from_bank_csv,
     load_options_from_json,
 )
 from core.reporting import (
@@ -46,6 +47,7 @@ __all__ = [
     "TransferFeeConfig",
     "build_fd_options",
     "load_all_options_from_json",
+    "load_options_from_bank_csv",
     "load_options_from_json",
     "CUMULATIVE",
     "PERIODIC_INTEREST",
