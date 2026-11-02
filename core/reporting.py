@@ -28,6 +28,7 @@ COLOR_SEP  = "\033[90m"   # dim grey for separators
 
 EVENT_COLORS = {
     EventType.INFLOW:        "\033[94m",   # blue
+    EventType.OUTFLOW:       "\033[91m",   # red
     EventType.TRANSFER:      "\033[96m",   # cyan
     EventType.CARRY_FORWARD: "\033[93m",   # yellow
     EventType.BOOKING:       "\033[95m",   # magenta
@@ -103,6 +104,7 @@ def print_options_table(options: list[FDOption]) -> None:
 
 _EVENT_LABELS = {
     EventType.INFLOW:        "[INFLOW] ",
+    EventType.OUTFLOW:       "[OUTFLOW]"
     EventType.TRANSFER:      "[XFER]   ",
     EventType.BOOKING:       "[BOOK]   ",
     EventType.CASH_FLOW:     "[CF]     ",
@@ -139,6 +141,8 @@ def print_event_timeline(result: SimResult) -> None:
                     amt_str = f"{'+' + f'{e.amount:,.2f}':>14}"
             elif e.event_type in (EventType.INFLOW, EventType.CASH_FLOW, EventType.MATURITY):
                 amt_str = f"{'+' + f'{e.amount:,.2f}':>14}"
+            elif e.event_type == EventType.OUTFLOW:
+                amt_str = f"{e.amount:>14,.2f}"
             else:
                 amt_str = f"{e.amount:>14,.2f}" if e.amount > 0 else f"{'--':>14}"
 
@@ -239,6 +243,16 @@ def print_simulation(
     _summary_line("Total Capital", f"{result.total_principal:,.2f} LKR", EVENT_COLORS[EventType.INFLOW])
     _summary_line("Gross Interest", f"{result.total_interest:,.2f} LKR", EVENT_COLORS[EventType.MATURITY])
     _summary_line("Transfer Fees", f"{result.total_transfer_fees:,.2f} LKR", EVENT_COLORS[EventType.TRANSFER])
+    if result.total_outflows_paid or result.outstanding_outflows:
+        _summary_line("Outflows Paid", f"{result.total_outflows_paid:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
+        if result.outstanding_outflows:
+            outstanding_total = sum(float(item.get("remaining", 0.0)) for item in result.outstanding_outflows)
+            _summary_line("Outstanding", f"{outstanding_total:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
+            for item in result.outstanding_outflows:
+                print(
+                    f"    - {item.get('name', 'Outflow')} [{item.get('account_id', '')}]: "
+                    f"{float(item.get('remaining', 0.0)):,.2f} LKR ({item.get('payment_policy', '')})"
+                )
     _summary_line("Net Interest", f"{result.net_interest:,.2f} LKR", EVENT_COLORS[EventType.CASH_FLOW])
     _summary_line("Net Yield", f"{net_ret:.3f}%", EVENT_COLORS[EventType.BOOKING])
     annualised_text = f"{annualised:.3f}% p.a. (XIRR, money-weighted)" if annualised is not None else "N/A"
