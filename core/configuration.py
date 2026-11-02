@@ -99,7 +99,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
 
     accounts: list[Account] = []
     account_ids: set[str] = set()
-    bank_keys: list[str] = []
+    bank_ids: list[str] = []
     for account_id_raw, entry in accounts_data.items():
         account_id = str(account_id_raw).strip()
         if not account_id:
@@ -125,8 +125,8 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         if not isfinite(balance) or balance < 0:
             raise ValueError(f"Starting balance for account {account_id!r} must be finite and non-negative")
         account_ids.add(account_id)
-        if bank_key not in bank_keys:
-            bank_keys.append(bank_key)
+        if bank_id not in bank_ids:
+            bank_ids.append(bank_id)
         accounts.append(Account(id=account_id, bank_key=bank_key, label=label, balance=balance, supports_efd=supports_efd, bank_id=bank_id))
 
     options_file_value = str(config.get("options_file", "data/fd_options/fd_options.csv"))
@@ -146,9 +146,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
 
     options = load_options_from_bank_csv(
         options_path,
-        bank_keys=bank_keys,
-        account_banks_only=True,
-        efd_only=False,
+        bank_ids=bank_ids,
     )
 
     for account in accounts:
