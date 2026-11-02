@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional, Sequence
 
-from core import AbsoluteStrategy, GreedyStrategy, divider, print_simulation
+from core import AbsoluteStrategy, GAMLStrategy, GreedyStrategy, divider, print_simulation
 from core.configuration import load_configuration
 from core.visualization import plot_strategy_results
 
@@ -29,8 +29,8 @@ def main(
     compound = config["compound"]
     actual_leap_year = config["actual_leap_year"]
     selected_strategy = (strategy_override or config["strategy"]).strip().lower()
-    if selected_strategy not in {"absolute", "greedy"}:
-        raise ValueError(f"Unsupported strategy {selected_strategy!r}; use 'absolute' or 'greedy'")
+    if selected_strategy not in {"absolute", "greedy", "gaml"}:
+        raise ValueError(f"Unsupported strategy {selected_strategy!r}; use 'absolute', 'greedy', or 'gaml'")
 
     days = (end - start).days + 1
     total_new_money = sum(
@@ -78,11 +78,11 @@ def main(
         f"Total planned capital: {starting_funds + total_new_money:,.2f} LKR"
     )
 
-    strategy_class = AbsoluteStrategy if selected_strategy == "absolute" else GreedyStrategy
+    strategy_class = {"absolute": AbsoluteStrategy, "greedy": GreedyStrategy, "gaml": GAMLStrategy}[selected_strategy]
     strategy = strategy_class(compound=compound, actual_leap_year=actual_leap_year)
     compare_strategy = (
         GreedyStrategy(compound=compound, actual_leap_year=actual_leap_year)
-        if selected_strategy == "absolute"
+        if selected_strategy in {"absolute", "gaml"}
         else None
     )
 
@@ -143,7 +143,7 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "-s", "--strategy",
-        choices=("greedy", "absolute"),
+        choices=("greedy", "absolute", "gaml"),
         default=None,
         help="override the strategy configured in the JSON file",
     )

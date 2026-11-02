@@ -33,7 +33,7 @@ from core.reporting import (
     print_simulation,
 )
 from core.simulator import build_inflow_schedule, simulate
-from core.strategies import AbsoluteStrategy, BaseStrategy, GreedyStrategy
+from core.strategies import AbsoluteStrategy, BaseStrategy, GAMLStrategy, GreedyStrategy
 
 __all__ = [
     # Models
@@ -72,4 +72,5 @@ __all__ = [
     "AbsoluteStrategy",
     "BaseStrategy",
     "GreedyStrategy",
+    "GAMLStrategy",
 ]

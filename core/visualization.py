@@ -194,10 +194,10 @@ def _plot_decision_timeline(ax, results: Sequence[SimResult], styles: dict[str, 
     # Keep strategy identity visible in the left-side labels as well as the bars.
     tick_labels = ax.get_yticklabels()
     for tick, (strategy, _) in zip(tick_labels, rows):
-        tick.set_color("#56b4e9" if strategy.lower() == "absolute" else _MUTED)
-    absolute_count = sum(1 for strategy, _ in rows if strategy.lower() == "absolute")
+        tick.set_color("#56b4e9" if strategy.lower() in {"absolute", "gaml"} else _MUTED)
+    absolute_count = sum(1 for strategy, _ in rows if strategy.lower() != "greedy")
     if 0 < absolute_count < len(rows):
-        # Visually separate Absolute decisions from the Greedy comparison below.
+        # Visually separate primary strategy decisions from the Greedy comparison below.
         ax.axhline(absolute_count - 0.5, color=_GRID, linewidth=1.2, alpha=0.95, zorder=4)
     ax.invert_yaxis()
     ax.set_xlabel("Date")
@@ -233,14 +233,14 @@ def plot_strategy_results(
     output_path.mkdir(parents=True, exist_ok=True)
     dates = _date_range(start, end)
     labels = _account_labels(accounts)
-    is_absolute = primary.strategy_name.lower() == "absolute"
+    has_greedy_comparison = comparison is not None and primary.strategy_name.lower() in {"absolute", "gaml"}
     primary_series = _portfolio_series(
         primary, accounts, inflow_schedule, inflow_account_id, start, end
     )
 
     saved: list[Path] = []
     fig, ax = plt.subplots(figsize=(13, 6.5), constrained_layout=True)
-    if is_absolute and comparison is not None:
+    if has_greedy_comparison:
         comparison_series = _portfolio_series(
             comparison, accounts, inflow_schedule, inflow_account_id, start, end
         )
@@ -275,7 +275,7 @@ def plot_strategy_results(
 
     timeline_results = [primary]
     styles = {primary.strategy_name: {"color": _COLORS[0], "alpha": 0.95}}
-    if is_absolute and comparison is not None:
+    if has_greedy_comparison:
         timeline_results.append(comparison)
         styles[comparison.strategy_name] = {"color": _GREEDY_PALE, "alpha": 0.62}
 

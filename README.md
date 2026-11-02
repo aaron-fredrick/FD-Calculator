@@ -1,6 +1,6 @@
 # FD Calculator
 
-Simulate fixed-deposit (FD) investment plans across multiple banks. Compare a fast Greedy strategy with an Absolute search for the best feasible plan.
+Simulate fixed-deposit (FD) investment plans across multiple banks. Compare a fast Greedy heuristic, a horizon-aware Goal-Aware Maturity Ladder (GAML), and the broader Absolute search.
 
 ## 1. Run it
 
@@ -17,6 +17,7 @@ Useful commands:
 | `uv run fd_cal.py` | Run using `config.json` and its configured strategy |
 | `uv run fd_cal.py --strategy greedy` | Run the Greedy strategy for this run |
 | `uv run fd_cal.py --strategy absolute` | Run the Absolute strategy for this run |
+| `uv run fd_cal.py --strategy gaml` | Run the Goal-Aware Maturity Ladder strategy |
 | `uv run fd_cal.py --config my-config.json` | Use another configuration file |
 | `uv run fd_cal.py --config my-config.json --strategy greedy` | Choose both a config file and strategy |
 | `uv run fd_cal.py --help` | Show command-line options |
@@ -25,10 +26,71 @@ The command-line strategy overrides `strategy` in the config for that run only; 
 
 ## 2. Strategies
 
-- **Greedy:** Quickly chooses a good available action at each decision point. Useful for fast runs, but it does not guarantee the best overall result.
-- **Absolute:** Searches across feasible investment decisions to maximise the final result. It can take longer, especially with many FD options and a long investment period. It also runs Greedy as a baseline for comparison.
+- **Greedy:** Selects a strong available action at each event. Fast, but not globally optimal.
+- **GAML:** Uses bounded global search with maturity and contribution-aware branch ordering. It prioritises promising investment paths within a decision budget; it does not guarantee the global optimum.
+- **Absolute:** Explores feasible investment paths using branch-and-bound, memoisation, and dominated-option pruning. It seeks the best result found and has no fixed decision budget, so runtime can grow sharply with scenario complexity.
 
-Both strategies use the same dates, accounts, inflows, FD options, fees, and interest settings.
+All strategies use the same investment dates, accounts, inflows, FD options, fees, and interest settings. GAML and Absolute also run Greedy as a baseline. GAML plans toward the configured end date; it does not forecast future rate changes.
+
+### Absolute search complexity
+
+Let the configuration and search-state variables be:
+
+- Number of accounts: $A$
+- Number of effective FD options after dominated options are removed: $O$
+- Number of eligible options for account $i$ at a decision date: $o_i$
+- Maximum number of decision dates along a path: $K$. This depends on the investment window, scheduled inflows, and FD cash-flow/maturity dates.
+- Number of pending cash-flow entries in a search state: $F$
+
+At one decision date, the number of non-empty combinations of local bookings is:
+
+```math
+C = \prod_{i=1}^{A}(1+o_i)-1
+```
+
+The number of consolidation choices is:
+
+```math
+Q = \sum_{i=1}^{A}o_{bank(i)}
+```
+
+Here, $o_{bank(i)}$ is the number of horizon-eligible effective options for account $i$'s bank. There is also one carry-forward choice.
+
+A configuration-level upper bound on the branching factor is:
+
+```math
+B \leq Q+C+1
+  = Q+\prod_{i=1}^{A}(1+o_i)
+```
+
+This ignores current balances and minimum-deposit feasibility, so the actual branch count at a state is usually lower.
+
+Across at most $K$ decision levels, the unpruned search tree has a worst-case size of:
+
+```math
+O(B^K)
+```
+
+A conservative time bound including local-combination generation and sorting is:
+
+```math
+O\left(B^K \left(C\log C + Q\log Q + A + F\right)\right)
+```
+
+Worst-case auxiliary space is $O(S(A+F)+K(C+Q))$, where $S$ is the number of distinct states retained by memoisation. The search stack can retain each level's generated branch lists; $S$ can also be exponential in $K$.
+
+These are worst-case bounds, not expected runtime. Branch-and-bound, memoisation, and option pruning can reduce the explored search substantially, but do not change the exponential worst-case nature. In practice, runtime is most sensitive to the number of accounts, eligible options per account, and the number of event dates created by inflows and FD cash flows. Absolute is therefore best suited to smaller scenarios or when a thorough search is worth the additional runtime.
+
+### Estimate Absolute search size
+
+Run the root-level estimator against the current configuration:
+
+```powershell
+uv run search_complexity.py
+uv run search_complexity.py --config path\to\config.json
+```
+
+It applies Absolute's dominated-option pruning, counts horizon-eligible options by bank, and prints conservative branching, leaf, node, time-complexity, and space-complexity estimates. It also substitutes the calculated configuration values into the complexity equations. Pending cash-flow entries (`F`) and retained memoised states (`S`) depend on the search state and are therefore labelled runtime-dependent rather than guessed. The leaf and node counts are theoretical upper bounds, not predictions of how many states Absolute will actually visit; pruning and state-dependent feasibility make actual counts scenario-dependent.
 
 ## 3. Configure `config.json`
 
@@ -144,7 +206,7 @@ Fees affect the simulated value, so use the fees that apply to your actual accou
 
 | Field | Meaning |
 | --- | --- |
-| `strategy` | Default strategy: `"absolute"` or `"greedy"`. |
+| `strategy` | Default strategy: `"greedy"`, `"gaml"`, or `"absolute"`. |
 | `options_file` | FD options JSON path; defaults to `options.json`. |
 | `compound` | `true` enables the simulator's compound-interest calculations; `false` uses simple-interest calculations. |
 | `actual_leap_year` | `true` uses actual 366-day leap years where applicable; `false` uses a 365-day basis. |
@@ -159,8 +221,8 @@ Final consolidation transfers remaining account balances to the **first account 
 
 With `"show_plots": true`, charts are saved to `plot_output_dir`:
 
-- `absolute_account_values.png` or `greedy_account_values.png`: estimated account value over time.
-- `absolute_decision_timeline.png` or `greedy_decision_timeline.png`: FD booking and maturity periods.
+- `<strategy>_account_values.png`: account value over time. GAML and Absolute include Greedy for comparison.
+- `<strategy>_decision_timeline.png`: FD booking and maturity periods. GAML and Absolute include Greedy for comparison.
 
 A relative plot path is resolved from the directory containing the selected config file. For example, `"plot_output_dir": "plots"` saves to a `plots` folder beside `config.json`. An absolute path saves to that exact location. The output folder is created if needed.
 
