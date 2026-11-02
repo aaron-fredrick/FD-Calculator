@@ -56,7 +56,8 @@ def main(
     for account in accounts:
         print(
             f"    - {account.id}: {account.label} [{account.bank_key}] "
-            f"starting funds {account.balance:,.2f} LKR"
+            f"starting funds {account.balance:,.2f} LKR | "
+            f"eFD {'enabled' if account.supports_efd else 'disabled'}"
         )
     print(
         f"  Transfer fees: inter-bank {fee_config.default_inter_bank_fee:,.2f} LKR | "
