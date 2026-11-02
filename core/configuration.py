@@ -308,7 +308,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         raise ValueError("Transfer fees must be finite and non-negative")
 
     decision_log_output_file = str(
-        config.get("decision_log_output_file", "decision_log.json")
+        config.get("decision_log_output_file", "decision_log.txt")
     ).strip()
     if not decision_log_output_file:
         raise ValueError("decision_log_output_file must be a non-empty path")
