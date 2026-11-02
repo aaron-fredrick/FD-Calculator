@@ -962,6 +962,7 @@ class GAMLStrategy(BaseStrategy):
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
                         ))
 
+                    decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
                     principal       = tgt_acc.balance
                     tgt_acc.balance = 0.0
                     booking_counter += 1
@@ -994,6 +995,7 @@ class GAMLStrategy(BaseStrategy):
                         bank_key=tgt_acc.bank_key,
                         balance_after=tgt_acc.balance,
                         total_balance_after=sum(a.balance for a in accounts_map.values()),
+                        decision_context={"action": "consolidate", "balances_before": decision_balances_before},
                     ))
 
                     mat_date      = booking.end
@@ -1034,6 +1036,7 @@ class GAMLStrategy(BaseStrategy):
                     for b_info in act.bookings:
                         acc        = accounts_map[b_info["account_id"]]
                         chosen_opt = b_info["option"]
+                        decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
                         principal  = acc.balance
                         acc.balance = 0.0
                         booking_counter += 1
@@ -1065,6 +1068,7 @@ class GAMLStrategy(BaseStrategy):
                             bank_key=acc.bank_key,
                             balance_after=acc.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
+                            decision_context={"action": "split", "balances_before": decision_balances_before},
                         ))
 
                         mat_date      = booking.end
