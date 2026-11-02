@@ -139,7 +139,7 @@ You can mix recurring and scheduled entries in the same array and direct them to
 }
 ```
 
-In this example, salary is credited to Commercial and the bonus is credited to DFCC. Both account IDs must exist in the configuration's `accounts` array.
+In this example, salary is credited to Commercial and the bonus is credited to DFCC. Both account IDs must match keys in the configuration's `accounts` object.
 
 ## How inflows affect the simulation
 
