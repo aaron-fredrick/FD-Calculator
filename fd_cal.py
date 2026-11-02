@@ -65,9 +65,12 @@ def main(
     print("  New-money inflows:")
     if config["inflow_summaries"]:
         for inflow in config["inflow_summaries"]:
+            if inflow["type"] == "recurring":
+                schedule_text = f"every {inflow['interval']} from {inflow['start_date']} to {inflow['end_date']}"
+            else:
+                schedule_text = "on " + ", ".join(str(day) for day in inflow["dates"])
             print(
-                f"    - {inflow['name']}: {inflow['amount']:,.2f} LKR every "
-                f"{inflow['interval']} from {inflow['start_date']} to {end}, "
+                f"    - {inflow['name']}: {inflow['amount']:,.2f} LKR {schedule_text}, "
                 f"account {inflow['account_id']} | {inflow['occurrences']} payments, "
                 f"{inflow['total']:,.2f} LKR total"
             )
