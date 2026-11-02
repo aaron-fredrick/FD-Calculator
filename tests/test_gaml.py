@@ -87,6 +87,33 @@ class GAMLProjectionTests(unittest.TestCase):
         self.assertEqual(plan["wait_until"], next_event)
         self.assertGreater(plan["projected_terminal_value"], 20000.0)
 
+    def test_wait_values_cross_bank_pooling_at_next_event(self):
+        today = date(2026, 1, 1)
+        next_event = date(2026, 2, 1)
+        end = date(2026, 5, 1)
+        commercial = Account(id="com", bank_key="commercial", balance=10000.0)
+        dfcc = Account(id="dfcc", bank_key="dfcc", balance=0.0)
+        options = [
+            FDOption("Commercial 1m", "1m", 1.0, 10000.0, bank_key="commercial"),
+            FDOption("DFCC 3m", "3m", 40.0, 20000.0, bank_key="dfcc"),
+        ]
+
+        plan = _pick_daily_gaml_plan(
+            all_accounts={"com": commercial, "dfcc": dfcc},
+            options=options,
+            today=today,
+            end=end,
+            fee_config=TransferFeeConfig(default_inter_bank_fee=30.0),
+            consolidation_account_id="com",
+            compound=False,
+            actual_leap_year=True,
+            next_event_date=next_event,
+            next_event_cash={"com": 10000.0},
+        )
+
+        self.assertEqual(plan["type"], "CARRY")
+        self.assertEqual(plan["wait_until"], next_event)
+
     def test_projection_never_uses_another_banks_rate(self):
         today = date(2026, 1, 1)
         end = date(2026, 4, 1)
