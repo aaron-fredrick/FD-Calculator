@@ -66,11 +66,10 @@ O(B^K)
 A conservative time bound including local-combination generation and sorting is:
 
 \\[
-O\\left(B^K \\left(C\\log C + AO\\log(AO) + A + F\\right)\\right),
-\\quad C=\\prod_{i=1}^{A}(1+o_i)
+O\\left(B^K \\left(C\\log C + Q\\log Q + A + F\\right)\\right)
 \\]
 
-Worst-case auxiliary space is \\(O(S(A+F)+K(C+AO))\\), where \\(S\\) is the number of distinct states retained by memoisation. The search stack can retain each level's generated branch lists; \\(S\\) can also be exponential in \\(K\\).
+Worst-case auxiliary space is \\(O(S(A+F)+K(C+Q))\\), where \\(S\\) is the number of distinct states retained by memoisation. The search stack can retain each level's generated branch lists; \\(S\\) can also be exponential in \\(K\\).
 
 These are worst-case bounds, not expected runtime. Branch-and-bound, memoisation, and option pruning can reduce the explored search substantially, but do not change the exponential worst-case nature. In practice, runtime is most sensitive to the number of accounts, eligible options per account, and the number of event dates created by inflows and FD cash flows. Absolute is therefore best suited to smaller scenarios or when a thorough search is worth the additional runtime.
 
