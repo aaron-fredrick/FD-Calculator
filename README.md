@@ -114,32 +114,37 @@ Periods use `d` (days), `m` (calendar months), or `y` (years). For example, `30d
 ### Accounts
 
 ```json
-"accounts": [
-  {
-    "id": "com",
-    "bank_key": "commercial",
-    "label": "Commercial",
+"accounts": {
+  "com_savings": {
+    "bank_id": "LK_COMMERCIAL_BANK_OF_CEYLON",
+    "label": "Commercial Savings",
     "balance": 10030,
     "supports_efd": true
   },
-  {
-    "id": "dfcc",
-    "bank_key": "dfcc",
-    "label": "DFCC",
-    "balance": 0
+  "dfcc_savings": {
+    "bank_id": "LK_DFCC_BANK",
+    "label": "DFCC Savings",
+    "balance": 0,
+    "supports_efd": false
   }
-]
+}
 ```
 
-- `id`: Unique identifier used by inflows and internal transfers.
-- `bank_key`: Must match a bank key in `options.json`.
-- `label`: Human-readable name shown in reports; optional.
+- The dictionary key is the unique account ID. Use that exact key as `account_id` in inflows and outflows.
+- `bank_id`: Must exactly match the `id` column in `data/banks/banks.csv`. Do not use a bank name or an FD-options `bank_key`.
+- `label`: Human-readable account label shown in reports; optional.
 - `balance`: Starting available funds for this account.
-- `supports_efd`: Whether this particular account can open eFDs. Defaults to `true` for backward compatibility; set it to `false` for accounts limited to standard FDs.
+- `supports_efd`: Whether this specific account can open eFDs. Defaults to `true`; set it to `false` for standard-FD-only accounts.
 
-At least one account is required. Multiple accounts may use the same `bank_key`, but each has its own `id`, balance, and `supports_efd` capability. Only FD options for banks used by these accounts are loaded. Each configured bank must have matching entries in `data/fd_options/fd_options.csv` and options after applying the global `efd_only` filter.
+At least one account is required. Multiple account IDs may reference the same `bank_id`; balances and eFD capabilities remain independent. The bank ID is resolved to the internal FD-options index entry when products are loaded. All standard and eFD products for configured banks are loaded; product eligibility is applied per destination account. During consolidation, any account may supply funds, but an eFD booking can only be made in an eFD-enabled destination account.
 
-The global `efd_only` switch controls which product rows are loaded. The per-account `supports_efd` switch controls which loaded products that account can book. With `efd_only: false`, eFD-capable accounts can use both standard and eFD products, while standard-only accounts can use standard products only. During consolidation, the destination account's capability is decisive: cash from any source account can be transferred into an eFD-capable destination account at the same bank and invested there, subject to transfer fees and minimum-deposit rules.
+
+### Decision log
+
+The event timeline records facts; the booking ledger describes FD contracts. The Decision Log is a separate chronological explanation of the actions that produced the selected plan. It records the account balances available before the action, same-day inflows/outflows/transfers/maturities, the action taken, the selected FD terms and expected interest, eligibility/minimum-deposit rationale, and the next scheduled milestone.
+
+For GAML and Absolute, the log is built from the final replayed path only. It does not list rejected branches, search-tree nodes or alternative leaves. Search alternatives remain available as aggregate outcome information in the simulation summary.
+
 
 ### Inflows
 
@@ -191,21 +196,9 @@ FD options are stored under `data/fd_options/`:
 - `fd_options.csv`: index mapping each `bank_key` to its bank-specific options CSV.
 - `banks/<bank_id>.csv`: the bank's individual FD products, nominal rates, minimum amounts, payout frequencies, eFD status, and source metadata.
 
-The runtime reads the index and only opens the bank files required by the configuration filters. The index's `bank_key` must match the `bank_key` used by an account.
+The runtime validates each configured `bank_id` against `data/banks/banks.csv`, resolves it through the FD-options index, and opens only the required bank files. The index's `bank_id` must match the bank catalogue; `bank_key` is an internal file-routing key, not a user configuration key.
 
-**Configuration switches:**
-
-```json
-{
-  "options_file": "data/fd_options/fd_options.csv",
-  "account_banks_only": true,
-  "efd_only": false
-}
-```
-
-- `options_file`: CSV index path. Paths are resolved relative to the configuration file first, then the repository.
-- `account_banks_only`: defaults to `true`. When enabled, only options for banks referenced by configured accounts are loaded. Set to `false` to load options for every bank in the index.
-- `efd_only`: defaults to `true`. When enabled, only rows explicitly marked `eFD=true` are loaded. Set to `false` to load both standard FD (`eFD=false`) and eFD entries. Standard and eFD rows remain separate, even when their terms match, because account-level eFD capability determines which account can book each product. A standard-only account cannot select an eFD row.
+The CSV index is the default and supported runtime source. Standard and eFD rows are both loaded; account-level `supports_efd` determines which account may book each product. There is no global eFD filter.
 
 Each bank CSV uses these main fields:
 
@@ -226,8 +219,7 @@ If a bank CSV row omits `min_amount`, the loader falls back to LKR 25,000 for Co
 
 Rates, minimums, terms, and payout conditions can change. Verify the source schedule before relying on a simulation. Rows without verified rates are not invented or silently filled.
 
-Legacy JSON options files remain supported when explicitly selected through `options_file`; the CSV index is the default.
-Legacy JSON files do not contain an `eFD` field, so `efd_only` cannot distinguish standard FD from eFD when a JSON options file is selected. Use the CSV index for eFD filtering.
+The bank-specific CSV index is the supported options source. The older `options.json` format is no longer part of the active configuration schema.
 
 ### Transfer fees
 
@@ -239,9 +231,8 @@ Legacy JSON files do not contain an `eFD` field, so `efd_only` cannot distinguis
 }
 ```
 
-- `default_inter_bank_fee`: Fee applied to transfers between different banks unless a custom fee matches.
-- `same_bank_fee`: Fee for transfers within the same bank.
-- `custom_fees`: Optional bank-pair overrides, each with `from_bank`, `to_bank`, and `amount`. Bank keys must match `options.json` / account bank keys.
+- `default_inter_bank_fee` and `same_bank_fee`: Fallback values when the bank catalogue does not provide a fee.
+- `custom_fees`: Optional bank-pair overrides, each with `from_bank`, `to_bank`, and `amount`. These override catalogue defaults. Catalogue inter-bank fees are selected using the sending bank.
 
 Fees affect the simulated value, so use the fees that apply to your actual accounts.
 
@@ -250,11 +241,12 @@ Fees affect the simulated value, so use the fees that apply to your actual accou
 | Field | Meaning |
 | --- | --- |
 | `strategy` | Default strategy: `"greedy"`, `"gaml"`, or `"absolute"`. |
-| `options_file` | FD options JSON path; defaults to `options.json`. |
+| `options_file` | FD options CSV index path; defaults to `data/fd_options/fd_options.csv`. |
 | `compound` | `true` enables the simulator's compound-interest calculations; `false` uses simple-interest calculations. |
 | `actual_leap_year` | `true` uses actual 366-day leap years where applicable; `false` uses a 365-day basis. |
 | `show_timeline` | Show the event timeline in the terminal. |
 | `show_ledger` | Show the booking ledger in the terminal. |
+| `show_decision_log` | Show the chronological explanation of the selected investment path. Defaults to `true`. |
 | `show_plots` | Generate and display charts. |
 | `plot_output_dir` | Folder for saved charts; defaults to `plots`. |
 
