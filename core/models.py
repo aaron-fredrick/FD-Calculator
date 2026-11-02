@@ -536,11 +536,11 @@ def load_options_from_bank_csv(
         for option in bank_options:
             signature = (
                 option.bank_key,
-                option.days,
+                option.period_str.strip().lower(),
                 option.annual_rate,
                 option.min_amount,
                 option.payout_type,
-                option.payout_period_days,
+                option.payout_period_str.strip().lower(),
             )
             existing = preferred.get(signature)
             if existing is None or (option.is_efd and not existing.is_efd):
