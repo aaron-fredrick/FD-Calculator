@@ -3,6 +3,7 @@ import unittest
 
 from core.models import Account, FDOption, TransferFeeConfig
 from core.strategies.gaml import (
+    GAMLStrategy,
     _best_option_by_projection,
     _pick_daily_gaml_plan,
     _project_cash_to_end,
@@ -113,6 +114,32 @@ class GAMLProjectionTests(unittest.TestCase):
 
         self.assertEqual(plan["type"], "CARRY")
         self.assertEqual(plan["wait_until"], next_event)
+
+
+    def test_gaml_uses_bounded_global_search_and_keeps_greedy_incumbent(self):
+        start = date(2026, 1, 1)
+        end = date(2026, 2, 1)
+        account = Account(id="a", bank_key="bank_a", label="A", balance=10000.0)
+        option = FDOption(
+            "1 month", "1m", 12.0, 1000.0, bank_key="bank_a"
+        )
+
+        result = GAMLStrategy(max_decisions=1).simulate(
+            options=[option],
+            start=start,
+            end=end,
+            inflow_schedule={},
+            accounts=[account],
+            inflow_account_id="a",
+            fee_config=TransferFeeConfig(),
+            consolidation_account_id="a",
+        )
+
+        self.assertEqual(result.strategy_name, "GAML")
+        self.assertEqual(result.total_decisions_evaluated, 1)
+        # With no search budget left for a completed branch, GAML must still
+        # return the fully simulated Greedy incumbent, never an empty path.
+        self.assertGreater(result.final_value, 10000.0)
 
     def test_projection_never_uses_another_banks_rate(self):
         today = date(2026, 1, 1)
