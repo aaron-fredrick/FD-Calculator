@@ -429,6 +429,7 @@ class GreedyStrategy(BaseStrategy):
             if plan["type"] == "CONSOLIDATE":
                 tgt_acc: Account = plan["target_account"]
                 chosen_opt: FDOption = plan["option"]
+                decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
 
                 for t in plan["transfers"]:
                     src: Account = t["src"]
@@ -469,10 +470,7 @@ class GreedyStrategy(BaseStrategy):
                             balance_after=tgt.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
                         ),
-                    )
-
-                decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
-                principal = tgt_acc.balance
+                    )                principal = tgt_acc.balance
                 tgt_acc.balance = 0.0
 
                 booking_counter += 1
