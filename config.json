@@ -5,22 +5,20 @@
     "start_date": "today",
     "end_date": "2027-06-30"
   },
-  "accounts": [
-    {
-      "id": "com",
-      "bank_key": "commercial",
+  "accounts": {
+    "com": {
+      "bank_id": "LK_COMMERCIAL_BANK_OF_CEYLON",
       "label": "Commercial",
       "balance": 10030,
       "supports_efd": true
     },
-    {
-      "id": "dfcc",
-      "bank_key": "dfcc",
+    "dfcc": {
+      "bank_id": "LK_DFCC_BANK",
       "label": "DFCC",
       "balance": 0,
       "supports_efd": true
     }
-  ],
+  },
   "inflows": [
     {
       "name": "Monthly new savings",
@@ -43,6 +41,5 @@
   "show_ledger": false,
   "show_plots": true,
   "plot_output_dir": "plots",
-  "account_banks_only": true,
-  "efd_only": false
+  "show_decision_log": true
 }
