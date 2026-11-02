@@ -259,89 +259,14 @@ This project simulates investment choices only. It does not open deposits, conta
 
 ## Cash flows
 
-The simulator supports recurring and scheduled inflows and outflows. Both are account-specific: each entry's `account_id` must match an account in the top-level `accounts` list.
+The simulator supports recurring and scheduled inflows and outflows. Each cash-flow entry is associated with a configured account through `account_id`.
 
-### Recurring inflow
+Detailed configuration guides:
 
-A recurring inflow credits the same amount at each occurrence between its inclusive start and end dates.
+- [Configuring inflows](docs/inflows.md) — recurring and scheduled credits, fields, intervals, date expressions, and examples.
+- [Configuring outflows](docs/outflows.md) — recurring and scheduled payments, payment policies, outstanding liabilities, event ordering, and examples.
 
-```json
-{
-  "name": "Monthly salary",
-  "amount": 150000,
-  "type": "recurring",
-  "interval": "1m",
-  "start_date": "investment_start",
-  "end_date": "end",
-  "account_id": "com"
-}
-```
+Standalone JSON examples:
 
-### Scheduled inflow
-
-A scheduled inflow credits the amount on every date in its `dates` list.
-
-```json
-{
-  "name": "Annual bonus",
-  "amount": 75000,
-  "type": "scheduled",
-  "dates": ["2027-04-10", "2027-10-10"],
-  "account_id": "com"
-}
-```
-
-### Recurring outflow
-
-A recurring outflow creates a payment obligation at each occurrence. The payment policy determines what happens if the account does not have enough available cash.
-
-```json
-{
-  "name": "Monthly household expenses",
-  "amount": 45000,
-  "type": "recurring",
-  "interval": "1m",
-  "start_date": "investment_start",
-  "end_date": "end",
-  "account_id": "com",
-  "payment_policy": "best_effort"
-}
-```
-
-### Scheduled outflow
-
-A scheduled outflow creates an obligation on each listed date.
-
-```json
-{
-  "name": "University fee",
-  "amount": 120000,
-  "type": "scheduled",
-  "dates": ["2027-01-15", "2027-06-15"],
-  "account_id": "com",
-  "payment_policy": "strict"
-}
-```
-
-### Outflow payment policies
-
-- `strict`: The full amount must be available in the specified account on the due date. If it cannot be paid, that simulation/search branch is invalid.
-- `defer`: Pay only when the full outstanding amount is available; otherwise carry the obligation forward.
-- `best_effort`: Pay whatever is available on the due date and carry the unpaid remainder forward.
-- If omitted, `payment_policy` defaults to `strict`.
-
-Unpaid `defer` and `best_effort` amounts remain account-specific liabilities and are included in the final reporting. They are not silently discarded at the end of the investment period.
-
-### Date and event rules
-
-- Date bounds are inclusive.
-- Date keywords include `today`, `investment_start`, `investment_end` (or `end`), and relative expressions such as `investment_start+1m`.
-- Recurring intervals support days (`d`), calendar months (`m`), and years (`y`). For example, `1m` is one calendar month, not 30 days.
-- Recurrences are anchored to their first occurrence to avoid month-end drift.
-- All scheduled dates and recurring bounds must fall within the investment period.
-- On a date with multiple events, inflows and FD cash flows are credited before outflows are processed. Strategy investment decisions happen after outflow processing.
-
-Standalone configuration examples:
-- [Inflows: recurring and scheduled](examples/inflows.example.json)
-- [Outflows: recurring, scheduled, and payment policies](examples/outflows.example.json)
-
+- [Inflows example](examples/inflows.example.json)
+- [Outflows example](examples/outflows.example.json)
