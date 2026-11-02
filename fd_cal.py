@@ -31,7 +31,7 @@ def _write_decision_log(result, output_path: str | Path) -> Path:
             ensure_ascii=False,
             default=lambda value: value.isoformat() if hasattr(value, "isoformat") else str(value),
         )
-        handle.write("\\n")
+        handle.write("\n")
     return path
 
 
