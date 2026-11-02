@@ -596,10 +596,15 @@ class AbsoluteStrategy(BaseStrategy):
 
         print(f"  [Absolute Search Complete] {tally:,} total decisions evaluated ({leaf_count:,} leaves reached, {pruned_count:,} pruned by branch-and-bound) in {elapsed:.2f}s")
 
-        if best_leaf is None and not greedy_res.valid:
-            raise ValueError("No feasible strategy can satisfy all strict outflows within the investment period")
+        if best_leaf is None:
+            if not greedy_res.valid:
+                raise ValueError("No feasible strategy can satisfy all strict outflows within the investment period")
+            greedy_res.strategy_name = self.name
+            greedy_res.total_decisions_evaluated = tally
+            greedy_res.alternative_leaf_net_interests = alternative_leaf_net_interests
+            return greedy_res
 
-        best_path: list[tuple[date, DailyAction]] = best_leaf.get_path() if best_leaf is not None else []
+        best_path: list[tuple[date, DailyAction]] = best_leaf.get_path()
 
         return self._replay_simulation(
             best_path=best_path,
