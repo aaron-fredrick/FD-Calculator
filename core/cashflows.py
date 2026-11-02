@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from math import isfinite
 from typing import Any
 
 # Immutable obligation entries are safe to share between search branches:
@@ -58,3 +59,32 @@ def process_outflows(
 
     new_balances = tuple(sorted((account_id, round(value, 2)) for account_id, value in amounts.items()))
     return new_balances, tuple(remaining), round(paid_total, 2), True
+
+
+def validate_outflow_schedule(
+    schedule: dict[date, list[dict[str, Any]]],
+    start: date,
+    end: date,
+    account_ids: set[str],
+) -> None:
+    """Validate direct strategy API input, not just JSON-loaded configuration."""
+    for day, entries in schedule.items():
+        if day < start or day > end:
+            raise ValueError(f"Outflow date {day} is outside the investment period")
+        if not isinstance(entries, list):
+            raise ValueError(f"Outflow schedule entry for {day} must be a list")
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                raise ValueError(f"Outflow on {day} at index {index} must be an object")
+            account_id = str(entry.get("account_id", "")).strip()
+            if account_id not in account_ids:
+                raise ValueError(f"Outflow targets unknown account {account_id!r}")
+            try:
+                amount = float(entry["amount"])
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"Outflow on {day} requires a numeric amount") from exc
+            if not isfinite(amount) or amount <= 0:
+                raise ValueError(f"Outflow on {day} amount must be finite and greater than zero")
+            policy = str(entry.get("payment_policy", "strict")).lower()
+            if policy not in {"strict", "defer", "best_effort"}:
+                raise ValueError(f"Invalid outflow payment policy {policy!r}")
