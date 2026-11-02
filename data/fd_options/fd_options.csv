@@ -1,31 +1,31 @@
-bank_id,options_file,research_status,research_notes
-LK_AMANA_BANK,banks/LK_AMANA_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_BANK_OF_CEYLON,banks/LK_BANK_OF_CEYLON.csv,populated_secondary,"Rate rows use a secondary compilation; confirm with bank before relying."
-LK_BANK_OF_CHINA,banks/LK_BANK_OF_CHINA.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_CARGILLS_BANK,banks/LK_CARGILLS_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_CITIBANK,banks/LK_CITIBANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_COMMERCIAL_BANK_OF_CEYLON,banks/LK_COMMERCIAL_BANK_OF_CEYLON.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_DEUTSCHE_BANK,banks/LK_DEUTSCHE_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_DFCC_BANK,banks/LK_DFCC_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_HABIB_BANK,banks/LK_HABIB_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_HATTON_NATIONAL_BANK,banks/LK_HATTON_NATIONAL_BANK.csv,populated_secondary,"Rate rows use a secondary compilation; confirm with bank before relying."
-LK_INDIAN_BANK,banks/LK_INDIAN_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_INDIAN_OVERSEAS_BANK,banks/LK_INDIAN_OVERSEAS_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_MCB_BANK,banks/LK_MCB_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_NATIONAL_DEVELOPMENT_BANK,banks/LK_NATIONAL_DEVELOPMENT_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_NATIONS_TRUST_BANK,banks/LK_NATIONS_TRUST_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_PAN_ASIA_BANKING_CORPORATION,banks/LK_PAN_ASIA_BANKING_CORPORATION.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_PEOPLES_BANK,banks/LK_PEOPLES_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_PUBLIC_BANK_BERHAD,banks/LK_PUBLIC_BANK_BERHAD.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_SAMPATH_BANK,banks/LK_SAMPATH_BANK.csv,populated_secondary,"Rate rows use a secondary compilation; confirm with bank before relying."
-LK_SEYLAN_BANK,banks/LK_SEYLAN_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_STANDARD_CHARTERED_BANK,banks/LK_STANDARD_CHARTERED_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_STATE_BANK_OF_INDIA,banks/LK_STATE_BANK_OF_INDIA.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_HSBC,banks/LK_HSBC.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_UNION_BANK_OF_COLOMBO,banks/LK_UNION_BANK_OF_COLOMBO.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_HDFC_BANK,banks/LK_HDFC_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_NATIONAL_SAVINGS_BANK,banks/LK_NATIONAL_SAVINGS_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_PRADESHIYA_SANWARDHANA_BANK,banks/LK_PRADESHIYA_SANWARDHANA_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_SANASA_DEVELOPMENT_BANK,banks/LK_SANASA_DEVELOPMENT_BANK.csv,populated_direct,"Current LKR rate rows sourced from bank-published page or schedule."
-LK_SRI_LANKA_SAVINGS_BANK,banks/LK_SRI_LANKA_SAVINGS_BANK.csv,no_public_rate_verified,"No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only."
-LK_STATE_MORTGAGE_AND_INVESTMENT_BANK,banks/LK_STATE_MORTGAGE_AND_INVESTMENT_BANK.csv,populated_secondary,"Rate rows use a secondary compilation; confirm with bank before relying."
+bank_id,bank_key,options_file,research_status,research_notes
+LK_AMANA_BANK,amana,banks/LK_AMANA_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_BANK_OF_CEYLON,boc,banks/LK_BANK_OF_CEYLON.csv,populated_secondary,Rate rows use a secondary compilation; confirm with bank before relying.
+LK_BANK_OF_CHINA,bank_of_china,banks/LK_BANK_OF_CHINA.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_CARGILLS_BANK,cargills,banks/LK_CARGILLS_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_CITIBANK,citibank,banks/LK_CITIBANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_COMMERCIAL_BANK_OF_CEYLON,commercial,banks/LK_COMMERCIAL_BANK_OF_CEYLON.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_DEUTSCHE_BANK,deutsche,banks/LK_DEUTSCHE_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_DFCC_BANK,dfcc,banks/LK_DFCC_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_HABIB_BANK,habib,banks/LK_HABIB_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_HATTON_NATIONAL_BANK,hnb,banks/LK_HATTON_NATIONAL_BANK.csv,populated_secondary,Rate rows use a secondary compilation; confirm with bank before relying.
+LK_INDIAN_BANK,indian_bank,banks/LK_INDIAN_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_INDIAN_OVERSEAS_BANK,indian_overseas,banks/LK_INDIAN_OVERSEAS_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_MCB_BANK,mcb,banks/LK_MCB_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_NATIONAL_DEVELOPMENT_BANK,ndb,banks/LK_NATIONAL_DEVELOPMENT_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_NATIONS_TRUST_BANK,ntb,banks/LK_NATIONS_TRUST_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_PAN_ASIA_BANKING_CORPORATION,pan_asia,banks/LK_PAN_ASIA_BANKING_CORPORATION.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_PEOPLES_BANK,peoples,banks/LK_PEOPLES_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_PUBLIC_BANK_BERHAD,public_bank,banks/LK_PUBLIC_BANK_BERHAD.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_SAMPATH_BANK,sampath,banks/LK_SAMPATH_BANK.csv,populated_secondary,Rate rows use a secondary compilation; confirm with bank before relying.
+LK_SEYLAN_BANK,seylan,banks/LK_SEYLAN_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_STANDARD_CHARTERED_BANK,standard_chartered,banks/LK_STANDARD_CHARTERED_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_STATE_BANK_OF_INDIA,sbi,banks/LK_STATE_BANK_OF_INDIA.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_HSBC,hsbc,banks/LK_HSBC.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_UNION_BANK_OF_COLOMBO,union,banks/LK_UNION_BANK_OF_COLOMBO.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_HDFC_BANK,hdfc,banks/LK_HDFC_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_NATIONAL_SAVINGS_BANK,nsb,banks/LK_NATIONAL_SAVINGS_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_PRADESHIYA_SANWARDHANA_BANK,pradeshiya,banks/LK_PRADESHIYA_SANWARDHANA_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_SANASA_DEVELOPMENT_BANK,sanasa,banks/LK_SANASA_DEVELOPMENT_BANK.csv,populated_direct,Current LKR rate rows sourced from bank-published page or schedule.
+LK_SRI_LANKA_SAVINGS_BANK,slsb,banks/LK_SRI_LANKA_SAVINGS_BANK.csv,no_public_rate_verified,No sufficiently current public LKR retail FD rate schedule verified in this research pass; file intentionally contains headers only.
+LK_STATE_MORTGAGE_AND_INVESTMENT_BANK,smib,banks/LK_STATE_MORTGAGE_AND_INVESTMENT_BANK.csv,populated_secondary,Rate rows use a secondary compilation; confirm with bank before relying.
