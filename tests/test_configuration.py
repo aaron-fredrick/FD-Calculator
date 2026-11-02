@@ -217,10 +217,10 @@ class ConfigurationTests(unittest.TestCase):
         self._write_config()
 
         loaded = load_configuration(self.config_path)
-        self.assertEqual(len(loaded["options"]), 2)
-        one_month = next(option for option in loaded["options"] if option.days == 30)
-        self.assertEqual(one_month.label, "1m eFD")
-        self.assertTrue(one_month.is_efd)
+        self.assertEqual(len(loaded["options"]), 3)
+        one_month = [option for option in loaded["options"] if option.days == 30]
+        self.assertEqual({option.label for option in one_month}, {"1m Standard", "1m eFD"})
+        self.assertEqual({option.is_efd for option in one_month}, {False, True})
         two_month = next(option for option in loaded["options"] if option.days == 60)
         self.assertFalse(two_month.is_efd)
 
