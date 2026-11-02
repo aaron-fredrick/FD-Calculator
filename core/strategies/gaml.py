@@ -282,9 +282,53 @@ def _pick_daily_gaml_plan(
         # the next event. Future cash for accounts whose current balance is
         # deployed is projected separately, as it remains outside today's FD.
         if plan["type"] == "CARRY":
-            for acc in all_accounts.values():
-                pooled = acc.balance + next_event_cash.get(acc.id, 0.0)
-                value += project_cash(pooled, acc.bank_key, next_event_date)
+            # Value the wait action as a real future portfolio decision. At the
+            # next event, cash from every account is available for local
+            # investment or consolidation into any configured destination.
+            # Previously this projected each account independently, which
+            # systematically undervalued waiting when pooling crossed the
+            # minimum investment threshold.
+            future_cash = {
+                acc.id: acc.balance + next_event_cash.get(acc.id, 0.0)
+                for acc in all_accounts.values()
+            }
+            local_value = sum(
+                project_cash(amount, all_accounts[account_id].bank_key, next_event_date)
+                for account_id, amount in future_cash.items()
+            )
+            value = local_value
+
+            for target in all_accounts.values():
+                deployable = 0.0
+                transfer_fees = 0.0
+                feasible = True
+                for source in all_accounts.values():
+                    amount = future_cash.get(source.id, 0.0)
+                    if amount <= 0.001:
+                        continue
+                    if source.id == target.id:
+                        deployable += amount
+                        continue
+                    fee = fee_config.get_fee(source.bank_key, target.bank_key)
+                    if amount <= fee:
+                        # The balance cannot economically be transferred;
+                        # retain it at source and value it independently.
+                        continue
+                    deployable += amount - fee
+                    transfer_fees += fee
+
+                consolidated_value = project_cash(
+                    deployable, target.bank_key, next_event_date
+                ) + sum(
+                    project_cash(amount, all_accounts[account_id].bank_key, next_event_date)
+                    for account_id, amount in future_cash.items()
+                    if amount > 0.001
+                    and account_id != target.id
+                    and amount <= fee_config.get_fee(
+                        all_accounts[account_id].bank_key, target.bank_key
+                    )
+                ) - transfer_fees
+                value = max(value, consolidated_value)
         else:
             for acc in plan.get("carries", []):
                 pooled = acc.balance + next_event_cash.get(acc.id, 0.0)
