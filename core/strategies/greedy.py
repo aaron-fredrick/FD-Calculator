@@ -251,7 +251,7 @@ class GreedyStrategy(BaseStrategy):
         if consolidation_account_id is None:
             consolidation_account_id = inflow_account_id
 
-        inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
+        inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)\n        outflow_schedule = outflow_schedule or {}
         accounts_map = {
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
             for acc in accounts
@@ -286,6 +286,27 @@ class GreedyStrategy(BaseStrategy):
                         bank_key=accounts_map[account_id].bank_key,
                     ),
                 )
+
+        # Seed cash-out events. They are processed after same-day incoming cash.
+        for outflow_date, entries in sorted(outflow_schedule.items()):
+            if outflow_date < start or outflow_date > end:
+                raise ValueError(f"Outflow date {outflow_date} is outside the investment period")
+            for entry in entries:
+                account_id = str(entry.get("account_id", ""))
+                if account_id not in accounts_map:
+                    raise ValueError(f"Outflow destination account {account_id!r} is not configured")
+                self._add_event(timeline, Event(
+                    event_type=EventType.OUTFLOW,
+                    on_date=outflow_date,
+                    amount=float(entry["amount"]),
+                    label=str(entry.get("name", "Outflow")),
+                    account_id=account_id,
+                    bank_key=accounts_map[account_id].bank_key,
+                ))
+
+        pending_obligations: list[dict] = []
+        total_outflows_paid = 0.0
+        strict_payment_failed = False
 
         # ── Step 1b: ensure start date is processed if any account has an
         #            opening balance (seed a zero-amount marker so the greedy
@@ -329,6 +350,64 @@ class GreedyStrategy(BaseStrategy):
                     e.bank_key = target_acc.bank_key
                     e.balance_after = target_acc.balance
                     e.total_balance_after = sum(a.balance for a in accounts_map.values())
+
+            # b) Process due payments and outstanding obligations before investing.
+            # New inflows and FD cash flows above are available for same-day payments.
+            due = [e for e in day_events if e.event_type == EventType.OUTFLOW]
+            for event in due:
+                pending_obligations.append({
+                    "name": event.label,
+                    "account_id": event.account_id,
+                    "remaining": event.amount,
+                    "payment_policy": next(
+                        (str(item.get("payment_policy", "strict")) for item in outflow_schedule.get(today, [])
+                         if str(item.get("name", "Outflow")) == event.label
+                         and str(item.get("account_id", "")) == event.account_id
+                         and abs(float(item.get("amount", 0.0)) - event.amount) < 0.001),
+                        "strict",
+                    ),
+                    "due_date": today,
+                })
+
+            still_pending = []
+            for obligation in pending_obligations:
+                account = accounts_map[obligation["account_id"]]
+                required = float(obligation["remaining"])
+                policy = obligation["payment_policy"]
+                if policy == "strict":
+                    if account.balance + 0.001 < required:
+                        strict_payment_failed = True
+                        still_pending.append(obligation)
+                        continue
+                    paid = required
+                elif policy == "defer":
+                    if account.balance + 0.001 < required:
+                        still_pending.append(obligation)
+                        continue
+                    paid = required
+                else:  # best_effort
+                    paid = min(account.balance, required)
+                    if paid + 0.001 < required:
+                        obligation = {**obligation, "remaining": round(required - paid, 2)}
+                        still_pending.append(obligation)
+                if paid > 0.001:
+                    account.balance = round(account.balance - paid, 2)
+                    total_outflows_paid += paid
+                    self._add_event(timeline, Event(
+                        event_type=EventType.OUTFLOW,
+                        on_date=today,
+                        amount=-paid,
+                        label=f"Paid {obligation['name']} ({policy})",
+                        account_id=account.id,
+                        bank_key=account.bank_key,
+                        balance_after=account.balance,
+                        total_balance_after=sum(a.balance for a in accounts_map.values()),
+                    ))
+            pending_obligations = still_pending
+
+            if strict_payment_failed:
+                # A strict payment failure invalidates this greedy path.
+                break
 
             # b) Make decisions for accounts holding liquid cash
             plan = _pick_daily_greedy_plan(
