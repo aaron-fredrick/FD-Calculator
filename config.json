@@ -10,13 +10,15 @@
       "id": "com",
       "bank_key": "commercial",
       "label": "Commercial",
-      "balance": 10030
+      "balance": 10030,
+      "supports_efd": true
     },
     {
       "id": "dfcc",
       "bank_key": "dfcc",
       "label": "DFCC",
-      "balance": 0
+      "balance": 0,
+      "supports_efd": true
     }
   ],
   "inflows": [
