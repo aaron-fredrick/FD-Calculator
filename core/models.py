@@ -93,6 +93,7 @@ class Event:
     fee:                 float = 0.0 # transfer fee if transfer event
     balance_after:       float = -1.0 # balance of this specific account after the event
     total_balance_after: float = -1.0 # total liquid cash across all accounts after the event
+    decision_context: dict = field(default_factory=dict) # final-path decision snapshot; empty for non-decision events
 
     @property
     def date_key(self) -> int:
@@ -268,6 +269,7 @@ class SimResult:
     total_outflows_paid: float = 0.0
     outstanding_outflows: list[dict] = field(default_factory=list)
     valid: bool = True
+    decision_log: list[dict] = field(default_factory=list)
 
     @property
     def total_interest(self) -> float:
