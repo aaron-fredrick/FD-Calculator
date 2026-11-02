@@ -147,6 +147,15 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         bank_ids=bank_ids,
     )
 
+    consolidation_account_id = str(
+        config.get("consolidation_account_id", accounts[0].id)
+    ).strip()
+    if consolidation_account_id not in account_ids:
+        raise ValueError(
+            "consolidation_account_id must reference an account ID defined in 'accounts'; "
+            f"got {consolidation_account_id!r}"
+        )
+
     for account in accounts:
         eligible_options = [
             option for option in options
@@ -307,6 +316,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "options_path": options_path,
         "strategy": strategy,
         "accounts": accounts,
+        "consolidation_account_id": consolidation_account_id,
         "options": options,
         "start": start,
         "end": end,
