@@ -17,7 +17,8 @@ VALID_PAYOUT_TYPES = {CUMULATIVE, PERIODIC_INTEREST, INSTALLMENT}
 
 class EventType(Enum):
     """All things that can appear on the event timeline."""
-    INFLOW           = "inflow"           # scheduled new cash arrives\n    OUTFLOW          = "outflow"          # scheduled cash payment
+    INFLOW           = "inflow"           # scheduled new cash arrives
+    OUTFLOW          = "outflow"          # scheduled cash payment
     TRANSFER         = "transfer"         # cash transferred between bank accounts (may incur fee)
     BOOKING          = "booking"          # an FD is booked (decision)
     CASH_FLOW        = "cash_flow"        # periodic interest / installment payment received
