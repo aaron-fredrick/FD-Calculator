@@ -8,6 +8,7 @@ from pathlib import Path
 
 from core.configuration import load_configuration
 from core.interest import add_period
+from core.strategies.greedy import GreedyStrategy
 
 
 COMMERCIAL_ID = "LK_COMMERCIAL_BANK_OF_CEYLON"
@@ -101,6 +102,29 @@ class ConfigurationTests(unittest.TestCase):
             {account.bank_id for account in loaded["accounts"]},
             {COMMERCIAL_ID, DFCC_ID},
         )
+
+    def test_strategy_replay_preserves_bank_ids_from_configuration(self) -> None:
+        repository_config = Path(__file__).resolve().parent.parent / "config.json"
+        loaded = load_configuration(repository_config)
+        result = GreedyStrategy(
+            compound=loaded["compound"],
+            actual_leap_year=loaded["actual_leap_year"],
+        ).simulate(
+            options=loaded["options"],
+            start=loaded["start"],
+            end=loaded["end"],
+            inflow_schedule=loaded["inflow_schedule"],
+            accounts=loaded["accounts"],
+            inflow_account_id=loaded["accounts"][0].id,
+            fee_config=loaded["fee_config"],
+            consolidation_account_id=loaded["accounts"][0].id,
+            outflow_schedule=loaded["outflow_schedule"],
+        )
+        self.assertEqual(result.accounts["com"].bank_id, COMMERCIAL_ID)
+        self.assertEqual(result.accounts["dfcc"].bank_id, DFCC_ID)
+        self.assertTrue(result.bookings)
+        self.assertTrue(all(booking.bank_id in {COMMERCIAL_ID, DFCC_ID} for booking in result.bookings))
+        self.assertTrue(all(event.bank_id in {COMMERCIAL_ID, DFCC_ID, ""} for day in result.timeline.values() for event in day))
 
     def test_unknown_bank_id_is_rejected_against_bank_catalogue(self) -> None:
         self.config["accounts"]["cash"]["bank_id"] = "commercial"
