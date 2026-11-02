@@ -37,6 +37,51 @@ EVENT_COLORS = {
 }
 
 
+def _xirr(result: SimResult) -> float | None:
+    """Money-weighted annualised return from dated capital contributions."""
+    dated_events = [event for events in result.timeline.values() for event in events]
+    if not dated_events:
+        return None
+    contributions: dict[date, float] = {}
+    for event in dated_events:
+        if event.event_type == EventType.INFLOW and event.amount > 0:
+            contributions[event.on_date] = contributions.get(event.on_date, 0.0) + event.amount
+    opening_capital = max(0.0, result.total_principal - sum(contributions.values()))
+    first_date = min(event.on_date for event in dated_events)
+    flows: list[tuple[date, float]] = []
+    if opening_capital > 0:
+        flows.append((first_date, -opening_capital))
+    flows.extend((day, -amount) for day, amount in contributions.items() if amount > 0)
+    flows.append((result.end_date, result.final_value))
+    if not any(amount < 0 for _, amount in flows):
+        return None
+    origin = min(day for day, _ in flows)
+    dated = [((day - origin).days / 365.0, amount) for day, amount in flows]
+    def npv(rate: float) -> float:
+        return sum(amount / ((1.0 + rate) ** years) for years, amount in dated)
+    low, high = -0.999999, 1.0
+    low_value, high_value = npv(low), npv(high)
+    while low_value * high_value > 0 and high < 1_000_000:
+        high = high * 2.0 + 1.0
+        high_value = npv(high)
+    if low_value * high_value > 0:
+        return None
+    for _ in range(200):
+        mid = (low + high) / 2.0
+        mid_value = npv(mid)
+        if abs(mid_value) < 1e-8:
+            return mid * 100.0
+        if low_value * mid_value <= 0:
+            high, high_value = mid, mid_value
+        else:
+            low, low_value = mid, mid_value
+    return ((low + high) / 2.0) * 100.0
+
+
+def _summary_line(label: str, value: str, color: str) -> None:
+    print(f"  {color}{label:<18}{RESET} : {BOLD}{value}{RESET}")
+
+
 # ---------------------------------------------------------------------------
 # Options table
 # ---------------------------------------------------------------------------
@@ -185,20 +230,23 @@ def print_simulation(
     if show_event_timeline:
         print_event_timeline(result)
 
-    # -- Grand summary --
+    # -- Shared financial summary (same layout for every strategy) --
     print()
     print(divider("="))
     print(f"  GRAND SUMMARY  [{result.strategy_name}]")
-    print(f"  Strategy       : {result.strategy_name}")
-    print(f"  Total Inflow   : {result.total_principal:>14,.2f}")
-    print(f"  Gross Interest : {result.total_interest:>14,.2f}")
-    if result.total_transfer_fees > 0:
-        print(f"  Transfer Fees  : {result.total_transfer_fees:>14,.2f}")
-        print(f"  Net Interest   : {result.net_interest:>14,.2f}")
-    print(f"  Net Yield      : {net_ret:>13.3f}%")
+    print(divider("-"))
+    annualised = _xirr(result)
+    _summary_line("Total Capital", f"{result.total_principal:,.2f} LKR", EVENT_COLORS[EventType.INFLOW])
+    _summary_line("Gross Interest", f"{result.total_interest:,.2f} LKR", EVENT_COLORS[EventType.MATURITY])
+    _summary_line("Transfer Fees", f"{result.total_transfer_fees:,.2f} LKR", EVENT_COLORS[EventType.TRANSFER])
+    _summary_line("Net Interest", f"{result.net_interest:,.2f} LKR", EVENT_COLORS[EventType.CASH_FLOW])
+    _summary_line("Net Yield", f"{net_ret:.3f}%", EVENT_COLORS[EventType.BOOKING])
+    annualised_text = f"{annualised:.3f}% p.a. (XIRR)" if annualised is not None else "N/A"
+    _summary_line("Annualised Rate", annualised_text, EVENT_COLORS[EventType.MATURITY])
+    _summary_line("Final Balance", f"{result.final_value:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
+    print(f"  {COLOR_DESC}{'Valuation Date':<18}{RESET} : {result.end_date}")
     if result.total_decisions_evaluated is not None:
-        print(f"  Decisions Eval : {result.total_decisions_evaluated:>14,}")
-    print(f"  Final Balance  : {result.final_value:>14,.2f}  (at {result.end_date})")
+        print(f"  {COLOR_DESC}{'Decisions Evaluated':<18}{RESET} : {result.total_decisions_evaluated:>14,}")
 
     # -- Comparison with other strategies (only other net interest shown) --
     if comparison:
