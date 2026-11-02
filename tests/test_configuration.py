@@ -138,12 +138,12 @@ class ConfigurationTests(unittest.TestCase):
         header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\n"
         bank_a.write_text(
             header
-            + "1m eFD,fixed_deposit,1m,9,1000,cumulative,,true,LKR,,,,\n"
+            + "1m eFD,fixed_deposit,1m,9,,cumulative,,true,LKR,,,,\n"
             + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\n",
             encoding="utf-8",
         )
         bank_b.write_text(
-            header + "1m eFD,fixed_deposit,1m,10,1000,cumulative,,true,LKR,,,,\n",
+            header + "1m eFD,fixed_deposit,1m,10,,cumulative,,true,LKR,,,,\n",
             encoding="utf-8",
         )
         index.write_text(
@@ -164,6 +164,10 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(
             {(option.bank_key, option.annual_rate) for option in loaded["options"]},
             {("commercial", 9.0), ("dfcc", 10.0)},
+        )
+        self.assertEqual(
+            {option.bank_key: option.min_amount for option in loaded["options"]},
+            {"commercial": 25_000.0, "dfcc": 10_000.0},
         )
 
     def test_csv_efd_only_false_loads_standard_and_efd(self) -> None:
