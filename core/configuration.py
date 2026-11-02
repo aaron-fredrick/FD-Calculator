@@ -263,10 +263,14 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     for index, item in enumerate(fees_data.get("custom_fees", [])):
         if not isinstance(item, dict):
             raise ValueError(f"transfer_fees.custom_fees[{index}] must be an object")
-        from_bank = str(item.get("from_bank", "")).strip().lower()
-        to_bank = str(item.get("to_bank", "")).strip().lower()
+        from_bank_id = str(item.get("from_bank_id", "")).strip()
+        to_bank_id = str(item.get("to_bank_id", "")).strip()
         fee = float(item.get("amount", 0.0))
-        if not from_bank or not to_bank or not isfinite(fee) or fee < 0:
+        if from_bank_id not in bank_registry or to_bank_id not in bank_registry:
+            raise ValueError(f"Custom transfer fee at index {index} must reference valid from_bank_id/to_bank_id values from data/banks/banks.csv")
+        from_bank = bank_key_by_id[from_bank_id]
+        to_bank = bank_key_by_id[to_bank_id]
+        if not isfinite(fee) or fee < 0:
             raise ValueError(f"Invalid custom transfer fee at index {index}")
         custom_fees[(from_bank, to_bank)] = fee
 
