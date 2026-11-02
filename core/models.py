@@ -340,6 +340,9 @@ def build_fd_options(
             payout_type = str(entry.get("payout_type", CUMULATIVE))
             payout_period_str = str(entry.get("payout_period_str") or entry.get("payout_period", ""))
             b_key = str(entry.get("bank_key") or bank_key)
+            raw_efd = entry.get("is_efd", entry.get("eFD", False))
+            if not isinstance(raw_efd, bool):
+                raise ValueError(f"Option {label!r} is_efd must be a boolean")
             result.append(
                 FDOption(
                     label=label,
@@ -349,7 +352,7 @@ def build_fd_options(
                     payout_type=payout_type,
                     payout_period_str=payout_period_str,
                     bank_key=b_key,
-                    is_efd=bool(entry.get("is_efd", entry.get("eFD", False))),
+                    is_efd=raw_efd,
                 )
             )
         elif len(entry) == 3:
