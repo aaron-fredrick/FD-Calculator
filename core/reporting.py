@@ -243,7 +243,8 @@ def print_simulation(
     _summary_line("Total Capital", f"{result.total_principal:,.2f} LKR", EVENT_COLORS[EventType.INFLOW])
     _summary_line("Gross Interest", f"{result.total_interest:,.2f} LKR", EVENT_COLORS[EventType.MATURITY])
     _summary_line("Transfer Fees", f"{result.total_transfer_fees:,.2f} LKR", EVENT_COLORS[EventType.TRANSFER])
-    if result.total_outflows_paid or result.outstanding_outflows:
+    if result.total_outflows_due:
+        _summary_line("Total Outflows", f"{result.total_outflows_due:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
         _summary_line("Outflows Paid", f"{result.total_outflows_paid:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
         if result.outstanding_outflows:
             outstanding_total = sum(float(item.get("remaining", 0.0)) for item in result.outstanding_outflows)
@@ -258,6 +259,9 @@ def print_simulation(
     annualised_text = f"{annualised:.3f}% p.a. (XIRR, money-weighted)" if annualised is not None else "N/A"
     _summary_line("Annualised Return", annualised_text, EVENT_COLORS[EventType.MATURITY])
     _summary_line("Final Balance", f"{result.final_value:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
+    if result.total_outflows_due:
+        _summary_line("Cash Retained", f"{result.cash_retained:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
+        _summary_line("Cash-Flow Net Worth", f"{result.cash_flow_net_worth:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
     print(f"  {COLOR_DESC}{'Valuation Date':<18}{RESET} : {result.end_date}")
     if result.total_decisions_evaluated is not None:
         print(f"  {COLOR_DESC}{'Decisions Evaluated':<18}{RESET} : {result.total_decisions_evaluated:>14,}")
