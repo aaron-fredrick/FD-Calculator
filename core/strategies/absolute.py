@@ -213,10 +213,16 @@ class AbsoluteStrategy(BaseStrategy):
         compound: bool = False,
         actual_leap_year: bool = True,
         max_decisions: Optional[int] = None,
+        max_local_branches: Optional[int] = None,
     ):
+        if max_decisions is not None and max_decisions < 1:
+            raise ValueError("max_decisions must be at least 1")
+        if max_local_branches is not None and max_local_branches < 1:
+            raise ValueError("max_local_branches must be at least 1")
         self.compound = compound
         self.actual_leap_year = actual_leap_year
         self.max_decisions = max_decisions
+        self.max_local_branches = max_local_branches
 
     def simulate(
         self,
@@ -508,26 +514,68 @@ class AbsoluteStrategy(BaseStrategy):
                 for sz in slot_sizes:
                     total_combos *= sz
 
-                indices = [0] * n
                 local_branches = []
-                for _ in range(total_combos):
-                    chosen = [(acc_list[i], opt_slots[i][indices[i]]) for i in range(n)]
-                    valid_bookings = [
-                        {"account_id": aid, "option": opt, "principal": bal_dict[aid]}
-                        for aid, opt in chosen if opt is not None
-                    ]
-                    if valid_bookings:
-                        est_profit = sum(
-                            b_info["option"].total_interest_on(b_info["principal"], today, self.compound, self.actual_leap_year)
-                            for b_info in valid_bookings
-                        )
-                        local_branches.append((est_profit, valid_bookings))
+                if self.max_local_branches is None:
+                    # Absolute: enumerate the complete Cartesian product.
+                    indices = [0] * n
+                    for _ in range(total_combos):
+                        chosen = [(acc_list[i], opt_slots[i][indices[i]]) for i in range(n)]
+                        valid_bookings = [
+                            {"account_id": aid, "option": opt, "principal": bal_dict[aid]}
+                            for aid, opt in chosen if opt is not None
+                        ]
+                        if valid_bookings:
+                            est_profit = sum(
+                                item["option"].total_interest_on(
+                                    item["principal"], today, self.compound, self.actual_leap_year
+                                )
+                                for item in valid_bookings
+                            )
+                            local_branches.append((est_profit, valid_bookings))
 
-                    for i in range(n - 1, -1, -1):
-                        indices[i] += 1
-                        if indices[i] < slot_sizes[i]:
-                            break
-                        indices[i] = 0
+                        for i in range(n - 1, -1, -1):
+                            indices[i] += 1
+                            if indices[i] < slot_sizes[i]:
+                                break
+                            indices[i] = 0
+                else:
+                    # GAML: keep only the top K partial combinations at each
+                    # account. Local booking values are additive and independent,
+                    # so this retains the K highest immediate-value combinations
+                    # without materialising the full Cartesian product.
+                    partials: list[tuple[float, list[tuple[str, Optional[FDOption]]]]] = [
+                        (0.0, [])
+                    ]
+                    for aid in acc_list:
+                        account_options = sorted(
+                            local_opts_per_acc[aid],
+                            key=lambda opt: opt.total_interest_on(
+                                bal_dict[aid], today, self.compound, self.actual_leap_year
+                            ),
+                            reverse=True,
+                        )
+                        choices: list[Optional[FDOption]] = [None, *account_options]
+                        expanded: list[
+                            tuple[float, list[tuple[str, Optional[FDOption]]]]
+                        ] = []
+                        for partial_profit, partial_choices in partials:
+                            for opt in choices:
+                                profit = partial_profit
+                                if opt is not None:
+                                    profit += opt.total_interest_on(
+                                        bal_dict[aid], today, self.compound, self.actual_leap_year
+                                    )
+                                expanded.append((profit, [*partial_choices, (aid, opt)]))
+                        expanded.sort(key=lambda item: item[0], reverse=True)
+                        partials = expanded[: self.max_local_branches]
+
+                    for est_profit, chosen in partials:
+                        valid_bookings = [
+                            {"account_id": aid, "option": opt, "principal": bal_dict[aid]}
+                            for aid, opt in chosen if opt is not None
+                        ]
+                        if valid_bookings:
+                            local_branches.append((est_profit, valid_bookings))
 
                 local_branches.sort(key=lambda x: x[0], reverse=True)
                 for _, valid_bookings in local_branches:
