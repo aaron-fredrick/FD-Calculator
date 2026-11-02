@@ -42,5 +42,5 @@
   "show_plots": true,
   "plot_output_dir": "plots",
   "account_banks_only": true,
-  "efd_only": true
+  "efd_only": false
 }
