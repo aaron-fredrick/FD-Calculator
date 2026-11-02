@@ -292,10 +292,25 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
             raise ValueError(f"Invalid custom transfer fee at index {index}")
         custom_fees[(from_bank, to_bank)] = fee
 
+    bank_fees: dict[str, tuple[float, float]] = {}
+    for bank_id, bank_row in bank_registry.items():
+        bank_key = bank_key_by_id.get(bank_id, "")
+        if not bank_key:
+            continue
+        try:
+            intra_fee = float(bank_row.get("intra_bank_transfer_fee") or fees_data.get("same_bank_fee", 0.0))
+            inter_fee = float(bank_row.get("domestic_inter_bank_transfer_fee") or fees_data.get("default_inter_bank_fee", 30.0))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid transfer fee data for bank_id {bank_id!r}") from exc
+        if not isfinite(intra_fee) or not isfinite(inter_fee) or intra_fee < 0 or inter_fee < 0:
+            raise ValueError(f"Transfer fees for bank_id {bank_id!r} must be finite and non-negative")
+        bank_fees[bank_key] = (intra_fee, inter_fee)
+
     fee_config = TransferFeeConfig(
         default_inter_bank_fee=float(fees_data.get("default_inter_bank_fee", 30.0)),
         same_bank_fee=float(fees_data.get("same_bank_fee", 0.0)),
         custom_fees=custom_fees,
+        bank_fees=bank_fees,
     )
     if (
         not isfinite(fee_config.default_inter_bank_fee)
