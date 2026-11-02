@@ -31,7 +31,7 @@ class EventType(Enum):
 class Account:
     """A bank account holding liquid cash."""
     id: str
-    bank_key: str
+    bank_key: str  # internal FD-options routing key; config uses bank_id
     label: str = ""
     balance: float = 0.0
     supports_efd: bool = True
@@ -59,7 +59,7 @@ class TransferFeeConfig:
     Configuration for inter-bank and intra-bank transfer fees.
 
     - Same-bank transfer fee: 0.0 by default.
-    - Inter-bank transfer fee: default_inter_bank_fee (e.g. 30.0 LKR), or customized per pair.
+    - Inter-bank transfer fee: bank-specific sending-bank tariff, then directional bank-ID override, then fallback.
     """
     default_inter_bank_fee: float = 30.0
     same_bank_fee: float = 0.0
@@ -120,7 +120,7 @@ class FDOption:
     min_amount: float = DEFAULT_MIN_INVESTMENT
     payout_type: str = CUMULATIVE
     payout_period_str: str = ""
-    bank_key: str = ""
+    bank_key: str = ""  # internal FD-options routing key
     is_efd: bool = False
     bank_id: str = ""
 
@@ -242,7 +242,7 @@ class Booking:
     start: date
     cash_flows: list[tuple[date, float]]
     account_id: str = ""
-    bank_key: str = ""
+    bank_key: str = ""  # internal FD-options routing key
     bank_id: str = ""
 
     @property
