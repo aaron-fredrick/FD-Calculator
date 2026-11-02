@@ -147,7 +147,10 @@ def print_event_timeline(result: SimResult) -> None:
         ]
         for e_idx, e in enumerate(day_events):
             if e.event_type == EventType.TRANSFER:
-                lbl = "[INTRA-BANK]" if e.transfer_channel == "intra_bank" else "[DOMESTIC CEFT]"
+                lbl = {
+                    "intra_bank": "[INTRA-BANK]",
+                    "domestic_ceft": "[DOMESTIC CEFT]",
+                }.get(e.transfer_channel, "[TRANSFER]")
             else:
                 lbl = _EVENT_LABELS.get(e.event_type, "[?]      ")
             col = EVENT_COLORS.get(e.event_type, "")
