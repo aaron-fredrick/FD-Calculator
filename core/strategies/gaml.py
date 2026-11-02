@@ -394,24 +394,39 @@ class GAMLStrategy(BaseStrategy):
         local_combination_pruned_count: int = 0
         memo_visited: dict[tuple, float] = {}
         alternative_leaf_net_interests: list[float] = []
-        account_rate_cache: dict[tuple[str, date], float] = {}
+        account_rate_cache: dict[
+            tuple[str, date], tuple[tuple[float, ...], tuple[float, ...]]
+        ] = {}
         root_strategy_peak = 0
 
-        def _best_account_rate(account_id: str, on_date: date) -> float:
+        def _best_account_rate(account_id: str, on_date: date, amount: float) -> float:
+            # Cache a min-deposit threshold curve per account/date. This keeps
+            # ranking account-aware without repeatedly scanning every product
+            # for every cash-flow bucket.
             key = (account_id, on_date)
-            cached = account_rate_cache.get(key)
-            if cached is not None:
-                return cached
-            rate = max(
-                (
-                    opt.annual_rate
+            curve = account_rate_cache.get(key)
+            if curve is None:
+                eligible = sorted(
+                    (
+                        opt.min_amount,
+                        opt.annual_rate,
+                    )
                     for opt in options_by_account[account_id]
                     if opt.fits_before(on_date, end)
-                ),
-                default=0.0,
-            )
-            account_rate_cache[key] = rate
-            return rate
+                )
+                thresholds: list[float] = []
+                prefix_rates: list[float] = []
+                best_rate = 0.0
+                for minimum, rate in eligible:
+                    best_rate = max(best_rate, rate)
+                    thresholds.append(minimum)
+                    prefix_rates.append(best_rate)
+                curve = (tuple(thresholds), tuple(prefix_rates))
+                account_rate_cache[key] = curve
+
+            thresholds, prefix_rates = curve
+            index = bisect.bisect_right(thresholds, amount) - 1
+            return prefix_rates[index] if index >= 0 else 0.0
 
         state_cap_label = f"{self.max_decisions:,}" if self.max_decisions is not None else "unlimited"
         print(
@@ -843,29 +858,36 @@ class GAMLStrategy(BaseStrategy):
             # This estimate respects each account's bank/eFD eligibility and
             # remaining term. It is a ranking heuristic only, never a prune.
             estimate = state_paid - sum(item[2] for item in state_obligations)
+            cash_buckets: dict[tuple[str, date], float] = {}
 
-            def add_estimated_cash(account_id: str, amount: float, cash_date: date) -> None:
-                nonlocal estimate
-                if amount <= 0.0 or cash_date > end:
-                    return
-                rate = max(0.0, _best_account_rate(account_id, cash_date)) / 100.0
-                years_left = max(0, (end - cash_date).days) / 365.0
-                estimate += amount * math.exp(rate * years_left)
+            def add_cash_bucket(account_id: str, amount: float, cash_date: date) -> None:
+                if amount > 0.0 and cash_date <= end:
+                    key = (account_id, cash_date)
+                    cash_buckets[key] = cash_buckets.get(key, 0.0) + amount
 
             for account_id, amount in state_bal:
-                add_estimated_cash(account_id, amount, state_date)
+                add_cash_bucket(account_id, amount, state_date)
 
             for account_id, amount in fixed_inflows.get(state_date, {}).items():
-                add_estimated_cash(account_id, amount, state_date)
+                add_cash_bucket(account_id, amount, state_date)
 
             for flow_date, entries in state_flows:
                 for account_id, amount in entries:
-                    add_estimated_cash(account_id, amount, flow_date)
+                    add_cash_bucket(account_id, amount, flow_date)
 
             for inflow_date, account_amounts in fixed_inflows.items():
                 if state_date < inflow_date <= end:
                     for account_id, amount in account_amounts.items():
-                        add_estimated_cash(account_id, amount, inflow_date)
+                        add_cash_bucket(account_id, amount, inflow_date)
+
+            # Aggregate cash arriving in the same account on the same date
+            # before applying minimum-deposit thresholds.
+            for (account_id, cash_date), amount in cash_buckets.items():
+                rate = max(
+                    0.0, _best_account_rate(account_id, cash_date, amount)
+                ) / 100.0
+                years_left = max(0, (end - cash_date).days) / 365.0
+                estimate += amount * math.exp(rate * years_left)
 
             # A small fraction of the admissible bound preserves some optimism
             # for cross-account consolidation and future reinvestment that this
