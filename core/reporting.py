@@ -102,7 +102,7 @@ def print_options_table(options: list[FDOption]) -> None:
     print(f"  {'-'*24} {'-'*10} {'-'*9} {'-'*8} {'-'*5}  {'-'*9}  {'-'*12}  {'-'*18} {'-'*6}")
     for o in options:
         pp = o.payout_period_str if o.payout_period_str else "-"
-        bank_str = (o.bank_key.title() if o.bank_key else "-")[:10]
+        bank_str = (o.bank_id or o.bank_key or "-")[:10]
         fd_type = "eFD" if o.is_efd else "Standard"
         print(f"  {o.label:<24} {bank_str:<10} {fd_type:<9} {o.period_str:<8} {o.days:>5}  {o.annual_rate:>8.4f}%  {o.min_amount:>12,.2f}  {PAYOUT_ABBR[o.payout_type]:<18} {pp:<6}")
     print(divider("-"))
@@ -201,7 +201,7 @@ def print_booking_ledger(result: SimResult) -> None:
     for idx, b in enumerate(result.bookings, start=1):
         ref = f"FD-{idx:04d}"
         payout_tag = PAYOUT_ABBR[b.payout_type]
-        bank_str = (b.bank_key.title() if b.bank_key else "-")[:12]
+        bank_str = (b.bank_id or b.bank_key or "-")[:12]
         fd_type = "eFD" if b.option.is_efd else "Standard"
         if b.payout_type == "cumulative":
             print(f"  {ref:<9} {bank_str:<12} {fd_type:<9} {b.option.label:<23} {payout_tag:<18} {str(b.start):<11} {str(b.end):<11} {b.principal:>12,.2f} {b.total_interest:>10,.2f} {b.total_received:>12,.2f}")
@@ -308,7 +308,7 @@ def build_decision_log(result: SimResult) -> list[dict]:
             "relevant_events": relevant,
             "action": action_label,
             "account_id": booking.account_id,
-            "bank": booking.bank_key,
+            "bank": booking.bank_id or booking.bank_key,
             "product": option.label,
             "fd_type": "eFD" if option.is_efd else "Standard FD",
             "rate": option.annual_rate,
