@@ -214,17 +214,21 @@ class GAMLStrategy(BaseStrategy):
         self,
         compound: bool = False,
         actual_leap_year: bool = True,
-        max_decisions: int = 15_000,
+        max_decisions: Optional[int] = None,
         max_local_branches: int = 128,
+        beam_width: int = 256,
     ):
-        if max_decisions < 1:
-            raise ValueError("max_decisions must be at least 1")
+        if max_decisions is not None and max_decisions < 1:
+            raise ValueError("max_decisions must be at least 1 when configured")
         if max_local_branches < 1:
             raise ValueError("max_local_branches must be at least 1")
         self.compound = compound
         self.actual_leap_year = actual_leap_year
         self.max_decisions = max_decisions
         self.max_local_branches = max_local_branches
+        if beam_width < 1:
+            raise ValueError("beam_width must be at least 1")
+        self.beam_width = beam_width
 
     def simulate(
         self,
@@ -364,25 +368,10 @@ class GAMLStrategy(BaseStrategy):
 
         print(f"  [{self.name} Strategy] Initializing bounded GAML global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
 
-        def search(
-            today: date,
-            balances: BalanceTuple,
-            pending_flows: FlowsTuple,
-            obligations: Obligations,
-            paid_outflows: float,
-            parent_node: Optional[SearchTreeNode],
-        ) -> None:
+        def expand(state: tuple) -> list[tuple]:
             nonlocal best_final_val, best_leaf, tally, leaf_count, pruned_count
-
-            # Enforce GAML's deterministic work budget.
-            if self.max_decisions is not None and tally >= self.max_decisions:
-                return
-
-            tally += 1
-
-            # Decision progress tally reporting
-            if tally % 25_000 == 0:
-                print(f"  [Decision Tally: #{tally:,}] Evaluated {tally:,} branches ({leaf_count:,} leaves reached, {pruned_count:,} pruned) | Current best final value: {best_final_val:,.2f}")
+            today, balances, pending_flows, obligations, paid_outflows, parent_node = state
+            children: list[tuple] = []
 
             # 1. Apply today's inflows
             bal = balances
@@ -439,6 +428,8 @@ class GAMLStrategy(BaseStrategy):
                 else:
                     # Defer alternative reporting until the search has finished.
                     alternative_leaf_net_interests.append(net_intr)
+                    alternative_leaf_net_interests.sort(reverse=True)
+                    del alternative_leaf_net_interests[10:]
                 return
 
             # 4. Upper bound pruning
@@ -456,8 +447,8 @@ class GAMLStrategy(BaseStrategy):
             next_date_default = _next_event_date(today, active_pf)
             active_accs = [aid for aid, b in bal if b > 0.001]
             if not active_accs:
-                search(next_date_default, bal, active_pf, active_obligations, paid_total, parent_node)
-                return
+                children.append((next_date_default, bal, active_pf, active_obligations, paid_total, parent_node))
+                return children
 
             bal_dict = dict(bal)
 
@@ -542,7 +533,7 @@ class GAMLStrategy(BaseStrategy):
                     action=CarryAction(carries=list(active_accs)),
                     today=today,
                 )
-                search(next_date_default, bal, active_pf, active_obligations, paid_total, wait_node)
+                children.append((next_date_default, bal, active_pf, active_obligations, paid_total, wait_node))
 
             # ── Branch 1: Consolidate into target account T ──────────────
             consolidation_branches = []
@@ -606,7 +597,7 @@ class GAMLStrategy(BaseStrategy):
                     carries=carries,
                 )
                 child_node = SearchTreeNode(parent=parent_node, action=act, today=today)
-                search(b_next, b_bal, b_flows, active_obligations, paid_total, child_node)
+                children.append((b_next, b_bal, b_flows, active_obligations, paid_total, child_node))
 
             # ── Branch 2: Local bookings ─────────────────────────────────
             local_opts_per_acc: dict[str, list[FDOption]] = {}
@@ -714,7 +705,7 @@ class GAMLStrategy(BaseStrategy):
 
                     act = LocalBookingsAction(bookings=valid_bookings, carries=carries)
                     child_node = SearchTreeNode(parent=parent_node, action=act, today=today)
-                    search(b_next, b_bal, b_flows, active_obligations, paid_total, child_node)
+                    children.append((b_next, b_bal, b_flows, active_obligations, paid_total, child_node))
 
             # ── Branch 3: Carry forward (hold all cash) ──────────────────
             # If waiting was prioritised above, this branch has already been
@@ -722,7 +713,9 @@ class GAMLStrategy(BaseStrategy):
             if not prioritise_wait and (self.max_decisions is None or tally < self.max_decisions):
                 carry_act = CarryAction(carries=list(active_accs))
                 child_node = SearchTreeNode(parent=parent_node, action=carry_act, today=today)
-                search(next_date_default, bal, active_pf, active_obligations, paid_total, child_node)
+                children.append((next_date_default, bal, active_pf, active_obligations, paid_total, child_node))
+
+            return children
 
         # ----------------------------------------------------------------
         # Run Branch-and-Bound search from start date
@@ -730,7 +723,46 @@ class GAMLStrategy(BaseStrategy):
         t0 = time.time()
         init_bal = _make_balances({acc.id: acc.balance for acc in accounts})
         root_node = SearchTreeNode(parent=None, action=None, today=start)
-        search(start, init_bal, (), (), 0.0, root_node)
+        root_state = (start, init_bal, (), (), 0.0, root_node)
+
+        # Fixed-width best-first beam: expansion cost is bounded by event count,
+        # beam width, and per-state action generation, not by branch_factor ** horizon.
+        beam_width = self.beam_width
+        frontier: list[tuple[float, int, tuple]] = []
+        sequence = 0
+        beam_pruned_count = 0
+
+        def frontier_priority(state: tuple) -> float:
+            state_date, state_bal, state_flows, state_obligations, state_paid, _ = state
+            bound = calc_upper_bound(
+                state_date, state_bal, state_flows, state_obligations, state_paid
+            )
+            today_inflows = sum(fixed_inflows.get(state_date, {}).values())
+            remaining_years = max(0, (end - state_date).days) / 365.0
+            return bound + today_inflows * math.exp(max(0.0, max_rate) * remaining_years)
+
+        frontier.append((-frontier_priority(root_state), sequence, root_state))
+        while frontier and (self.max_decisions is None or tally < self.max_decisions):
+            frontier.sort(key=lambda item: (item[0], item[1]))
+            _, _, state = frontier.pop(0)
+            tally += 1
+            if tally % 25_000 == 0:
+                print(
+                    f"  [Decision Tally: #{tally:,}] Expanded {tally:,} states "
+                    f"({leaf_count:,} leaves, {pruned_count:,} bound-pruned, "
+                    f"{beam_pruned_count:,} beam-pruned) | "
+                    f"Current best final value: {best_final_val:,.2f}"
+                )
+
+            for child_state in expand(state):
+                sequence += 1
+                frontier.append((-frontier_priority(child_state), sequence, child_state))
+
+            if len(frontier) > beam_width:
+                frontier.sort(key=lambda item: (item[0], item[1]))
+                beam_pruned_count += len(frontier) - beam_width
+                del frontier[beam_width:]
+
         elapsed = time.time() - t0
 
         best_net_interest = best_final_val - total_capital
@@ -751,11 +783,16 @@ class GAMLStrategy(BaseStrategy):
                 )
 
         budget_note = (
-            f", budget {self.max_decisions:,} reached"
+            f", state budget {self.max_decisions:,} reached"
             if self.max_decisions is not None and tally >= self.max_decisions
             else ""
         )
-        print(f"  [{self.name} Search Complete] {tally:,} decisions ({leaf_count:,} leaves, {pruned_count:,} bound-pruned{budget_note}) in {elapsed:.2f}s")
+        search_status = (
+            "optimality proven"
+            if not frontier and beam_pruned_count == 0 and not budget_note
+            else "best solution found; optimality not proven"
+        )
+        print(f"  [{self.name} Search Complete] {tally:,} states ({leaf_count:,} leaves, {pruned_count:,} bound-pruned, {beam_pruned_count:,} beam-pruned{budget_note}) in {elapsed:.2f}s | {search_status}")
 
         # Greedy is a valid, fully simulated incumbent. If the budget expires
         # before a better complete leaf is found, return that incumbent rather
