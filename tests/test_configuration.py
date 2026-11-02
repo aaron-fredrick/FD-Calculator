@@ -185,8 +185,8 @@ class ConfigurationTests(unittest.TestCase):
         }]
         self._write_config()
         loaded = load_configuration(self.config_path)
-        self.assertEqual(loaded["fee_config"].get_fee("commercial", "dfcc"), 12.0)
-        self.assertEqual(loaded["fee_config"].get_fee("dfcc", "commercial"), 30.0)
+        self.assertEqual(loaded["fee_config"].get_fee(COMMERCIAL_ID, DFCC_ID), 12.0)
+        self.assertEqual(loaded["fee_config"].get_fee(DFCC_ID, COMMERCIAL_ID), 30.0)
 
     def test_custom_transfer_fee_rejects_unknown_bank_id(self) -> None:
         self.config["transfer_fees"]["custom_fees"] = [{
