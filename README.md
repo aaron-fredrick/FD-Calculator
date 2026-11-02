@@ -246,7 +246,7 @@ Fees affect the simulated value, so use the fees that apply to your actual accou
 | `actual_leap_year` | `true` uses actual 366-day leap years where applicable; `false` uses a 365-day basis. |
 | `show_timeline` | Show the event timeline in the terminal. |
 | `show_ledger` | Show the booking ledger in the terminal. |
-| `decision_log_output_file` | JSON file for the selected-path decision log; defaults to `decision_log.txt` beside the config file. |
+| `decision_log_output_file` | Plain-text execution log for the selected strategy path; defaults to `decision_log.txt` beside the config file. |
 | `show_plots` | Generate and display charts. |
 | `plot_output_dir` | Folder for saved charts; defaults to `plots`. |
 
