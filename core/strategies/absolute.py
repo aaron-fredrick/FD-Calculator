@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import bisect
+import math
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Optional
@@ -312,26 +313,32 @@ class AbsoluteStrategy(BaseStrategy):
             return min(candidates)
 
         def calc_upper_bound(today: date, bal: BalanceTuple, active_pf: FlowsTuple) -> float:
-            liquid_cash = sum(b for _, b in bal)
-            rem_days = (end - today).days
-            liquid_intr = liquid_cash * max_rate * (rem_days / 365.0)
+            # Assume every available rupee can continuously reinvest at the
+            # highest eligible annual rate, with no minimums, fees or idle gaps.
+            # exp(r * t) is a conservative envelope for repeated simple-interest
+            # reinvestments and compound products, unlike the old linear estimate
+            # which could underestimate multi-rollover growth and prune a winner.
+            rate = max(0.0, max_rate)
+            terminal_bound = sum(
+                amount * math.exp(rate * max(0, (end - today).days) / 365.0)
+                for _, amount in bal
+            )
 
-            pf_cash = 0.0
-            pf_intr = 0.0
             for dt, entries in active_pf:
-                day_amt = sum(amt for _, amt in entries)
-                pf_cash += day_amt
-                pf_intr += day_amt * max_rate * ((end - dt).days / 365.0)
+                if dt <= end:
+                    amount = sum(value for _, value in entries)
+                    terminal_bound += amount * math.exp(
+                        rate * max(0, (end - dt).days) / 365.0
+                    )
 
-            fin_cash = 0.0
-            fin_intr = 0.0
             for dt, amounts in fixed_inflows.items():
-                if dt > today:
-                    amt = sum(amounts.values())
-                    fin_cash += amt
-                    fin_intr += amt * max_rate * ((end - dt).days / 365.0)
+                if today < dt <= end:
+                    amount = sum(amounts.values())
+                    terminal_bound += amount * math.exp(
+                        rate * max(0, (end - dt).days) / 365.0
+                    )
 
-            return liquid_cash + pf_cash + fin_cash + liquid_intr + pf_intr + fin_intr
+            return terminal_bound
 
         total_capital = sum(amount for amounts in inflow_schedule.values() for amount in amounts.values()) + sum(a.balance for a in accounts)
         best_leaf: Optional[SearchTreeNode] = None
