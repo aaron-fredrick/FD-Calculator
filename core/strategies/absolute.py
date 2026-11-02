@@ -670,6 +670,7 @@ class AbsoluteStrategy(BaseStrategy):
                     amount=float(entry["amount"]),
                     label=str(entry.get("name", "Outflow")),
                     account_id=str(entry["account_id"]),
+                    payment_policy=str(entry.get("payment_policy", "strict")),
                     bank_key=accounts_map[str(entry["account_id"])].bank_key,
                 ))
 
@@ -713,14 +714,10 @@ class AbsoluteStrategy(BaseStrategy):
 
             due = [e for e in day_events if e.event_type == EventType.OUTFLOW]
             for event in due:
-                match = next((item for item in outflow_schedule.get(today, [])
-                    if str(item.get("name", "Outflow")) == event.label
-                    and str(item.get("account_id", "")) == event.account_id
-                    and abs(float(item.get("amount", 0.0)) - event.amount) < 0.001), {})
                 pending_obligations.append({
                     "name": event.label, "account_id": event.account_id,
                     "remaining": event.amount,
-                    "payment_policy": str(match.get("payment_policy", "strict")),
+                    "payment_policy": event.payment_policy or "strict",
                     "due_date": today,
                 })
             still_pending = []
