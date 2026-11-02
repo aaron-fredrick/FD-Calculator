@@ -218,6 +218,7 @@ Each bank CSV uses these main fields:
 | `source_url`, `source_effective_date`, `source_type`, `notes` | Provenance and research notes; retained in the dataset for auditing. |
 
 AER is intentionally not used as the simulator's annual rate. The nominal rate and payout frequency are represented separately so periodic-interest products are modelled using the bank's stated nominal rate.
+If a bank CSV row omits `min_amount`, the loader falls back to LKR 25,000 for Commercial Bank, LKR 10,000 for DFCC, and the general LKR 25,000 default for other banks. Published tenure-specific minimums are stored explicitly in the Commercial Bank CSV and take precedence over these fallbacks.
 
 Rates, minimums, terms, and payout conditions can change. Verify the source schedule before relying on a simulation. Rows without verified rates are not invented or silently filled.
 
