@@ -232,7 +232,7 @@ The bank-specific CSV index is the supported options source. The older `options.
 ```
 
 - `default_inter_bank_fee` and `same_bank_fee`: Fallback values when the bank catalogue does not provide a fee.
-- `custom_fees`: Optional bank-pair overrides, each with `from_bank`, `to_bank`, and `amount`. These override catalogue defaults. Catalogue inter-bank fees are selected using the sending bank.
+- `custom_fees`: Optional bank-pair overrides, each with `from_bank_id`, `to_bank_id`, and `amount`. Both IDs must match `data/banks/banks.csv`. Overrides are directional and take precedence over catalogue defaults. Catalogue inter-bank fees are selected using the sending bank.
 
 Fees affect the simulated value, so use the fees that apply to your actual accounts.
 
