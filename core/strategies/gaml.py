@@ -435,6 +435,28 @@ class GAMLStrategy(BaseStrategy):
 
             bal_dict = dict(bal)
 
+            # GAML prioritises waiting when a scheduled contribution is close.
+            # This lets existing liquidity pool with near-term inflows instead
+            # of paying a transfer fee or locking a smaller principal too early.
+            next_inflow_index = bisect.bisect_right(sorted_inflow_dates, today)
+            next_inflow_date = (
+                sorted_inflow_dates[next_inflow_index]
+                if next_inflow_index < len(sorted_inflow_dates)
+                else None
+            )
+            prioritise_wait = (
+                next_inflow_date is not None
+                and 0 < (next_inflow_date - today).days <= 30
+                and any(amount > 0.001 for _, amount in bal)
+            )
+            if prioritise_wait and (self.max_decisions is None or tally < self.max_decisions):
+                wait_node = SearchTreeNode(
+                    parent=parent_node,
+                    action=CarryAction(carries=list(active_accs)),
+                    today=today,
+                )
+                search(next_date_default, bal, active_pf, wait_node)
+
             # ── Branch 1: Consolidate into target account T ──────────────
             consolidation_branches = []
             for tgt_id, tgt_acc in accounts_meta.items():
@@ -608,7 +630,9 @@ class GAMLStrategy(BaseStrategy):
                     search(b_next, b_bal, b_flows, child_node)
 
             # ── Branch 3: Carry forward (hold all cash) ──────────────────
-            if self.max_decisions is None or tally < self.max_decisions:
+            # If waiting was prioritised above, this branch has already been
+            # explored first; do not duplicate the same state transition.
+            if not prioritise_wait and (self.max_decisions is None or tally < self.max_decisions):
                 carry_act = CarryAction(carries=list(active_accs))
                 child_node = SearchTreeNode(parent=parent_node, action=carry_act, today=today)
                 search(next_date_default, bal, active_pf, child_node)
