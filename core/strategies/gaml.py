@@ -730,47 +730,63 @@ class GAMLStrategy(BaseStrategy):
         t0 = time.time()
         init_bal = _make_balances({acc.id: acc.balance for acc in accounts})
         root_node = SearchTreeNode(parent=None, action=None, today=start)
-        root_state = (start, init_bal, (), (), 0.0, root_node)
+        beam = [(start, init_bal, (), (), 0.0, root_node)]
 
-        # Fixed-width best-first beam: expansion cost is bounded by event count,
-        # beam width, and per-state action generation, not by branch_factor ** horizon.
+        # Layered beam search: expand at most W states per decision depth, then
+        # retain the W children with the strongest optimistic terminal values.
+        # This bounds expanded states by O(event_depth * W), rather than
+        # traversing the exponentially growing full decision tree.
         beam_width = self.beam_width
-        frontier: list[tuple[float, int, tuple]] = []
         sequence = 0
         beam_pruned_count = 0
+        budget_stopped = False
 
         def frontier_priority(state: tuple) -> float:
             state_date, state_bal, state_flows, state_obligations, state_paid, _ = state
             bound = calc_upper_bound(
                 state_date, state_bal, state_flows, state_obligations, state_paid
             )
+            # The bound helper intentionally excludes inflows occurring today;
+            # include them for ordering. This is a ranking heuristic, not pruning.
             today_inflows = sum(fixed_inflows.get(state_date, {}).values())
             remaining_years = max(0, (end - state_date).days) / 365.0
             return bound + today_inflows * math.exp(max(0.0, max_rate) * remaining_years)
 
-        frontier.append((-frontier_priority(root_state), sequence, root_state))
-        while frontier and (self.max_decisions is None or tally < self.max_decisions):
-            frontier.sort(key=lambda item: (item[0], item[1]))
-            _, _, state = frontier.pop(0)
-            tally += 1
-            if tally % 25_000 == 0:
-                print(
-                    f"  [Decision Tally: #{tally:,}] Expanded {tally:,} states "
-                    f"({leaf_count:,} leaves, {pruned_count:,} bound-pruned, "
-                    f"{beam_pruned_count:,} beam-pruned, "
-                    f"{local_combination_pruned_count:,} local-combination-pruned) | "
-                    f"Current best final value: {best_final_val:,.2f}"
-                )
+        while beam:
+            next_beam: list[tuple[float, int, tuple]] = []
+            for state in beam:
+                if self.max_decisions is not None and tally >= self.max_decisions:
+                    budget_stopped = True
+                    break
 
-            for child_state in expand(state):
-                sequence += 1
-                frontier.append((-frontier_priority(child_state), sequence, child_state))
+                tally += 1
+                if tally % 25_000 == 0:
+                    print(
+                        f"  [Decision Tally: #{tally:,}] Expanded {tally:,} states "
+                        f"({leaf_count:,} leaves, {pruned_count:,} bound-pruned, "
+                        f"{beam_pruned_count:,} beam-pruned, "
+                        f"{local_combination_pruned_count:,} local-combination-pruned) | "
+                        f"Current best final value: {best_final_val:,.2f}"
+                    )
 
-            if len(frontier) > beam_width:
-                frontier.sort(key=lambda item: (item[0], item[1]))
-                beam_pruned_count += len(frontier) - beam_width
-                del frontier[beam_width:]
+                for child_state in expand(state):
+                    sequence += 1
+                    next_beam.append((frontier_priority(child_state), sequence, child_state))
 
+                # Trim incrementally so transient memory is O(W + per-state branches),
+                # not the size of the entire layer's unpruned child set.
+                if len(next_beam) > beam_width:
+                    next_beam.sort(key=lambda item: (-item[0], item[1]))
+                    beam_pruned_count += len(next_beam) - beam_width
+                    del next_beam[beam_width:]
+
+            if budget_stopped:
+                break
+
+            next_beam.sort(key=lambda item: (-item[0], item[1]))
+            beam = [item[2] for item in next_beam]
+
+        search_exhausted = not beam and not budget_stopped
         elapsed = time.time() - t0
 
         best_net_interest = best_final_val - total_capital
@@ -797,7 +813,7 @@ class GAMLStrategy(BaseStrategy):
         )
         search_status = (
             "optimality proven"
-            if not frontier and beam_pruned_count == 0 and local_combination_pruned_count == 0 and not budget_note
+            if search_exhausted and beam_pruned_count == 0 and local_combination_pruned_count == 0 and not budget_note
             else "best solution found; optimality not proven"
         )
         print(f"  [{self.name} Search Complete] {tally:,} states ({leaf_count:,} leaves, {pruned_count:,} bound-pruned, {beam_pruned_count:,} beam-pruned, {local_combination_pruned_count:,} local-combination-pruned{budget_note}) in {elapsed:.2f}s | {search_status}")
