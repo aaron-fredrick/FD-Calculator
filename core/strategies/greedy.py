@@ -369,7 +369,13 @@ class GreedyStrategy(BaseStrategy):
                 })
 
             still_pending = []
-            for obligation in pending_obligations:
+            for obligation in sorted(
+                pending_obligations,
+                key=lambda item: (
+                    {"strict": 0, "defer": 1, "best_effort": 2}.get(item["payment_policy"], 3),
+                    item["due_date"],
+                ),
+            ):
                 account = accounts_map[obligation["account_id"]]
                 required = float(obligation["remaining"])
                 policy = obligation["payment_policy"]
