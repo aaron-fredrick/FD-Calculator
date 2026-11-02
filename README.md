@@ -223,6 +223,7 @@ If a bank CSV row omits `min_amount`, the loader falls back to LKR 25,000 for Co
 Rates, minimums, terms, and payout conditions can change. Verify the source schedule before relying on a simulation. Rows without verified rates are not invented or silently filled.
 
 Legacy JSON options files remain supported when explicitly selected through `options_file`; the CSV index is the default.
+Legacy JSON files do not contain an `eFD` field, so `efd_only` cannot distinguish standard FD from eFD when a JSON options file is selected. Use the CSV index for eFD filtering.
 
 ### Transfer fees
 
