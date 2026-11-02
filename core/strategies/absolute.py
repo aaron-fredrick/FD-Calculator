@@ -208,9 +208,15 @@ class AbsoluteStrategy(BaseStrategy):
 
     name: str = "Absolute"
 
-    def __init__(self, compound: bool = False, actual_leap_year: bool = True):
+    def __init__(
+        self,
+        compound: bool = False,
+        actual_leap_year: bool = True,
+        max_decisions: Optional[int] = None,
+    ):
         self.compound = compound
         self.actual_leap_year = actual_leap_year
+        self.max_decisions = max_decisions
 
     def simulate(
         self,
@@ -329,7 +335,7 @@ class AbsoluteStrategy(BaseStrategy):
         memo_visited: dict[tuple[date, BalanceTuple, FlowsTuple], float] = {}
         alternative_leaf_net_interests: list[float] = []
 
-        print(f"  [Absolute Strategy] Initializing global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
+        print(f"  [{self.name} Strategy] Initializing bounded global search with Greedy baseline: {greedy_res.net_interest:,.2f} LKR net interest")
 
         def search(
             today: date,
@@ -338,6 +344,11 @@ class AbsoluteStrategy(BaseStrategy):
             parent_node: Optional[SearchTreeNode],
         ) -> None:
             nonlocal best_final_val, best_leaf, tally, leaf_count, pruned_count
+
+            # Optional deterministic work budget used by bounded strategies.
+            # Absolute leaves this unset and retains its full branch-and-bound search.
+            if self.max_decisions is not None and tally >= self.max_decisions:
+                return
 
             tally += 1
 
@@ -455,6 +466,8 @@ class AbsoluteStrategy(BaseStrategy):
             # Prioritize high profit branches first
             consolidation_branches.sort(key=lambda x: x[0], reverse=True)
             for _, tgt_id, opt, transfers, deployable, carries in consolidation_branches:
+                if self.max_decisions is not None and tally >= self.max_decisions:
+                    break
                 b_bal = bal
                 for t in transfers:
                     b_bal = _bal_set(b_bal, t["src_id"], 0.0)
@@ -518,6 +531,8 @@ class AbsoluteStrategy(BaseStrategy):
 
                 local_branches.sort(key=lambda x: x[0], reverse=True)
                 for _, valid_bookings in local_branches:
+                    if self.max_decisions is not None and tally >= self.max_decisions:
+                        break
                     booked_ids = {b_info["account_id"] for b_info in valid_bookings}
                     carries = [aid for aid in active_accs if aid not in booked_ids]
 
@@ -539,9 +554,10 @@ class AbsoluteStrategy(BaseStrategy):
                     search(b_next, b_bal, b_flows, child_node)
 
             # ── Branch 3: Carry forward (hold all cash) ──────────────────
-            carry_act = CarryAction(carries=list(active_accs))
-            child_node = SearchTreeNode(parent=parent_node, action=carry_act, today=today)
-            search(next_date_default, bal, active_pf, child_node)
+            if self.max_decisions is None or tally < self.max_decisions:
+                carry_act = CarryAction(carries=list(active_accs))
+                child_node = SearchTreeNode(parent=parent_node, action=carry_act, today=today)
+                search(next_date_default, bal, active_pf, child_node)
 
         # ----------------------------------------------------------------
         # Run Branch-and-Bound search from start date
@@ -569,9 +585,22 @@ class AbsoluteStrategy(BaseStrategy):
                     f"(diff vs best: {difference_str} LKR)"
                 )
 
-        print(f"  [Absolute Search Complete] {tally:,} total decisions evaluated ({leaf_count:,} leaves reached, {pruned_count:,} pruned by branch-and-bound) in {elapsed:.2f}s")
+        budget_note = (
+            f", budget {self.max_decisions:,} reached"
+            if self.max_decisions is not None and tally >= self.max_decisions
+            else ""
+        )
+        print(f"  [{self.name} Search Complete] {tally:,} decisions ({leaf_count:,} leaves, {pruned_count:,} bound-pruned{budget_note}) in {elapsed:.2f}s")
 
-        best_path: list[tuple[date, DailyAction]] = best_leaf.get_path() if best_leaf is not None else []
+        # Greedy is a valid, fully simulated incumbent. If the budget expires
+        # before a better complete leaf is found, return that incumbent rather
+        # than replaying an incomplete search path.
+        if best_leaf is None:
+            greedy_res.strategy_name = self.name
+            greedy_res.total_decisions_evaluated = tally
+            return greedy_res
+
+        best_path: list[tuple[date, DailyAction]] = best_leaf.get_path()
 
         return self._replay_simulation(
             best_path=best_path,
