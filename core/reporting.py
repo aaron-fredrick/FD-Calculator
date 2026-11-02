@@ -53,7 +53,16 @@ def _xirr(result: SimResult) -> float | None:
     if opening_capital > 0:
         flows.append((first_date, -opening_capital))
     flows.extend((day, -amount) for day, amount in contributions.items() if amount > 0)
-    flows.append((result.end_date, result.final_value))
+    withdrawals: dict[date, float] = {}
+    for event in dated_events:
+        if event.event_type == EventType.OUTFLOW and event.amount < 0:
+            withdrawals[event.on_date] = withdrawals.get(event.on_date, 0.0) - event.amount
+    flows.extend((day, amount) for day, amount in withdrawals.items() if amount > 0)
+    terminal_liabilities = sum(
+        float(item.get("remaining", 0.0)) for item in result.outstanding_outflows
+    )
+    terminal_value = result.final_value - result.total_outflows_paid - terminal_liabilities
+    flows.append((result.end_date, terminal_value))
     if not any(amount < 0 for _, amount in flows):
         return None
     origin = min(day for day, _ in flows)
