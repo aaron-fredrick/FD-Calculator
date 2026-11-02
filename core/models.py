@@ -35,10 +35,17 @@ class Account:
     bank_key: str
     label: str = ""
     balance: float = 0.0
+    supports_efd: bool = True
 
     def __post_init__(self):
         if not self.label:
             self.label = f"{self.bank_key.title()} Account"
+        if not isinstance(self.supports_efd, bool):
+            raise ValueError("supports_efd must be a boolean")
+
+    def can_use_option(self, option: "FDOption") -> bool:
+        """Whether this specific account can open the given bank product."""
+        return not option.is_efd or self.supports_efd
 
 
 @dataclass
@@ -342,6 +349,7 @@ def build_fd_options(
                     payout_type=payout_type,
                     payout_period_str=payout_period_str,
                     bank_key=b_key,
+                    is_efd=bool(entry.get("is_efd", entry.get("eFD", False))),
                 )
             )
         elif len(entry) == 3:
@@ -531,22 +539,8 @@ def load_options_from_bank_csv(
                 raise ValueError(f"FD option in {bank_file} has an empty name")
             bank_options.append(option)
 
-        # When standard and eFD products are otherwise identical, retain eFD.
-        preferred: dict[tuple, FDOption] = {}
-        for option in bank_options:
-            signature = (
-                option.bank_key,
-                option.period_str.strip().lower(),
-                option.annual_rate,
-                option.min_amount,
-                option.payout_type,
-                option.payout_period_str.strip().lower(),
-            )
-            existing = preferred.get(signature)
-            if existing is None or (option.is_efd and not existing.is_efd):
-                preferred[signature] = option
-        bank_options = list(preferred.values())
-
+        # Keep standard and eFD variants distinct: account-level eligibility
+        # determines which product can be booked, even when terms are identical.
         if account_banks_only and not bank_options:
             mode = "eFD" if efd_only else "standard/eFD"
             raise ValueError(
