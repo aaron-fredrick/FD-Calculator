@@ -25,6 +25,7 @@ class BaseStrategy(ABC):
         inflow_account_id: Optional[str] = None,
         fee_config: Optional[TransferFeeConfig] = None,
         consolidation_account_id: Optional[str] = None,
+        outflow_schedule: Optional[dict[date, list[dict]]] = None,
     ) -> SimResult:
         """
         Run the strategy over the given horizon.
