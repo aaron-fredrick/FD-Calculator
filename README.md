@@ -250,7 +250,7 @@ Fees affect the simulated value, so use the fees that apply to your actual accou
 | `show_plots` | Generate and display charts. |
 | `plot_output_dir` | Folder for saved charts; defaults to `plots`. |
 
-Final consolidation transfers remaining account balances to the **first account listed in `accounts`**. Any applicable transfer fee is included in the simulation.
+Final consolidation transfers remaining account balances to the account referenced by `consolidation_account_id`. That value must match an account ID under `accounts`. Any applicable transfer fee is included in the simulation.
 
 ## 4. Charts and output files
 
