@@ -175,7 +175,7 @@ class StrategyCashFlowTests(unittest.TestCase):
         }
         for strategy in [AbsoluteStrategy(), GAMLStrategy(max_decisions=1000)]:
             with self.subTest(strategy=strategy.name):
-                with self.assertRaisesRegex(ValueError, "No feasible strategy"):
+                with self.assertRaisesRegex(ValueError, "strict outflows"):
                     strategy.simulate(
                         options=self.options,
                         start=self.start,
