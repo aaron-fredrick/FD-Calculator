@@ -307,6 +307,12 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     ):
         raise ValueError("Transfer fees must be finite and non-negative")
 
+    decision_log_output_file = str(
+        config.get("decision_log_output_file", "decision_log.json")
+    ).strip()
+    if not decision_log_output_file:
+        raise ValueError("decision_log_output_file must be a non-empty path")
+
     strategy = str(config.get("strategy", "absolute")).strip().lower()
     if strategy not in {"absolute", "greedy", "gaml"}:
         raise ValueError(f"Unsupported strategy {strategy!r}; use 'absolute', 'greedy', or 'gaml'")
@@ -329,7 +335,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "actual_leap_year": bool(config.get("actual_leap_year", True)),
         "show_timeline": bool(config.get("show_timeline", True)),
         "show_ledger": bool(config.get("show_ledger", False)),
-        "show_decision_log": bool(config.get("show_decision_log", True)),
+        "decision_log_output_file": decision_log_output_file,
         "show_plots": bool(config.get("show_plots", True)),
         "plot_output_dir": str(config.get("plot_output_dir", "plots")),
     }
