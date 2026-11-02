@@ -17,7 +17,7 @@ VALID_PAYOUT_TYPES = {CUMULATIVE, PERIODIC_INTEREST, INSTALLMENT}
 
 class EventType(Enum):
     """All things that can appear on the event timeline."""
-    INFLOW           = "inflow"           # periodic new cash arrives
+    INFLOW           = "inflow"           # scheduled new cash arrives\n    OUTFLOW          = "outflow"          # scheduled cash payment
     TRANSFER         = "transfer"         # cash transferred between bank accounts (may incur fee)
     BOOKING          = "booking"          # an FD is booked (decision)
     CASH_FLOW        = "cash_flow"        # periodic interest / installment payment received
@@ -251,7 +251,7 @@ class SimResult:
     accounts:            dict[str, Account] = field(default_factory=dict)
     total_transfer_fees: float = 0.0
     total_decisions_evaluated: Optional[int] = None
-    alternative_leaf_net_interests: list[float] = field(default_factory=list)
+    alternative_leaf_net_interests: list[float] = field(default_factory=list)\n    total_outflows_paid: float = 0.0\n    outstanding_outflows: list[dict] = field(default_factory=list)\n    valid: bool = True
 
     @property
     def total_interest(self) -> float:
