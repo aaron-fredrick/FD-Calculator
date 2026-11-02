@@ -96,7 +96,7 @@ class ConfigurationTests(unittest.TestCase):
         loaded = load_configuration(repository_config)
         self.assertEqual(
             {account.id for account in loaded["accounts"]},
-            {"com", "dfcc"},
+            {"comfp", "comfs", "dfcc"},
         )
         self.assertEqual(
             {account.bank_id for account in loaded["accounts"]},
@@ -117,14 +117,21 @@ class ConfigurationTests(unittest.TestCase):
             accounts=loaded["accounts"],
             inflow_account_id=loaded["accounts"][0].id,
             fee_config=loaded["fee_config"],
-            consolidation_account_id=loaded["accounts"][0].id,
+            consolidation_account_id=loaded["consolidation_account_id"],
             outflow_schedule=loaded["outflow_schedule"],
         )
-        self.assertEqual(result.accounts["com"].bank_id, COMMERCIAL_ID)
+        self.assertEqual(result.accounts["comfp"].bank_id, COMMERCIAL_ID)
+        self.assertEqual(result.accounts["comfs"].bank_id, COMMERCIAL_ID)
         self.assertEqual(result.accounts["dfcc"].bank_id, DFCC_ID)
         self.assertTrue(result.bookings)
         self.assertTrue(all(booking.bank_id in {COMMERCIAL_ID, DFCC_ID} for booking in result.bookings))
         self.assertTrue(all(event.bank_id in {COMMERCIAL_ID, DFCC_ID} for day in result.timeline.values() for event in day if event.account_id))
+
+    def test_unknown_consolidation_account_id_is_rejected(self) -> None:
+        self.config["consolidation_account_id"] = "missing-account"
+        self._write_config()
+        with self.assertRaisesRegex(ValueError, "consolidation_account_id"):
+            load_configuration(self.config_path)
 
     def test_unknown_bank_id_is_rejected_against_bank_catalogue(self) -> None:
         self.config["accounts"]["cash"]["bank_id"] = "commercial"
