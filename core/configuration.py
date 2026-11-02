@@ -142,6 +142,19 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         if not options:
             raise ValueError(f"No FD options were loaded from {options_path}")
 
+    for account in accounts:
+        eligible_options = [
+            option for option in options
+            if (not option.bank_key or option.bank_key == account.bank_key)
+            and account.can_use_option(option)
+        ]
+        if not eligible_options:
+            capability = "eFD-capable" if account.supports_efd else "standard-FD-only"
+            raise ValueError(
+                f"Account {account.id!r} ({account.bank_key}) is {capability}, "
+                f"but no compatible FD options were loaded. Check efd_only and the bank CSV."
+            )
+
     def build_schedule(raw_events: Any, kind: str) -> tuple[dict[date, list[dict[str, Any]]], list[dict[str, Any]]]:
         if not isinstance(raw_events, list):
             raise ValueError(f"'{kind}s' must be a list")
