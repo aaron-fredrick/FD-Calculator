@@ -334,7 +334,7 @@ def build_decision_log(result: SimResult) -> list[dict]:
             carry_reason += f"; cash remains liquid until the next scheduled event ({milestone})"
         records.append({
             "date": event.on_date,
-            "available_funds": {event.account_id: event.amount},
+            "available_funds": dict(event.decision_context.get("balances_before", {event.account_id: event.amount})),
             "relevant_events": [
                 f"{item.event_type.value}: {item.label} ({item.amount:,.2f} LKR)"
                 for item in by_day.get(event.on_date, [])
