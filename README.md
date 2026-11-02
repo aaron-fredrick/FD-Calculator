@@ -94,7 +94,7 @@ It applies Absolute's dominated-option pruning, counts horizon-eligible options 
 
 ## 3. Configure `config.json`
 
-Edit this file to describe your investment scenario. Amounts and fees are in **LKR**; rates in `options.json` are annual percentages.
+Edit this file to describe your investment scenario. Amounts and fees are in **LKR**; FD rates are annual nominal percentages loaded from the bank-specific CSV files under `data/fd_options/`.
 
 ### Investment period
 
@@ -135,7 +135,7 @@ Periods use `d` (days), `m` (calendar months), or `y` (years). For example, `30d
 - `label`: Human-readable name shown in reports; optional.
 - `balance`: Starting available funds for this account.
 
-At least one account is required. Only FD options for banks used by these accounts are loaded. Each configured bank must have a non-empty options list.
+At least one account is required. Only FD options for banks used by these accounts are loaded. Each configured bank must have matching entries in `data/fd_options/fd_options.csv` and a non-empty eligible options list after applying the eFD filter.
 
 ### Inflows
 
@@ -180,30 +180,48 @@ Recurring occurrences are anchored to the first occurrence and use calendar-rela
 
 For complete standalone examples, see [examples/inflows.example.json](examples/inflows.example.json).
 
-### FD options — `options.json`
+### FD options — bank-specific CSV files
 
-This file defines the products the simulator can choose from, grouped by bank key.
+FD options are stored under `data/fd_options/`:
+
+- `fd_options.csv`: index mapping each `bank_key` to its bank-specific options CSV.
+- `banks/<bank_id>.csv`: the bank's individual FD products, nominal rates, minimum amounts, payout frequencies, eFD status, and source metadata.
+
+The runtime reads the index and only opens the bank files required by the configuration filters. The index's `bank_key` must match the `bank_key` used by an account.
+
+**Configuration switches:**
 
 ```json
-"commercial": [
-  {
-    "label": "12 Months",
-    "period": "12m",
-    "annual_rate": 10.0,
-    "min_amount": 25000,
-    "payout_type": "cumulative"
-  }
-]
+{
+  "options_file": "data/fd_options/fd_options.csv",
+  "account_banks_only": true,
+  "efd_only": true
+}
 ```
 
-- `label`: Product name shown in results and charts.
-- `period`: FD term, such as `100d`, `6m`, or `12m`.
-- `annual_rate`: Annual interest rate as a percentage, e.g. `10.0` means 10%.
-- `min_amount`: Minimum principal needed to open the FD.
-- `payout_type`: `cumulative` pays interest with the principal at maturity; `periodic_interest` pays interest during the term.
-- `payout_period`: Required for `periodic_interest`; defines how often interest is paid, e.g. `1m` or `1y`.
+- `options_file`: CSV index path. Paths are resolved relative to the configuration file first, then the repository.
+- `account_banks_only`: defaults to `true`. When enabled, only options for banks referenced by configured accounts are loaded. Set to `false` to load options for every bank in the index.
+- `efd_only`: defaults to `true`. When enabled, only rows explicitly marked `eFD=true` are loaded. Set to `false` to load both standard FD (`eFD=false`) and eFD entries. The two product types are kept separate even when their rates and terms match.
 
-Keep each bank key consistent with the accounts' `bank_key`. Verify rates, minimums, terms, and payout conditions against the bank's current published terms before relying on results.
+Each bank CSV uses these main fields:
+
+| Field | Meaning |
+| --- | --- |
+| `name` | Product/option label displayed by the simulator. |
+| `period` | Deposit term, e.g. `100d`, `6m`, `12m`. |
+| `annual_rate` | Nominal annual interest rate as a percentage; e.g. `10.5` means 10.5%. |
+| `min_amount` | Minimum principal required to open the FD, in LKR. |
+| `payout_type` | `cumulative` pays at maturity; `periodic_interest` pays during the term. |
+| `payout_period` | Frequency for periodic interest, e.g. `1m`, `3m`, `6m`, or `1y`. |
+| `eFD` | Boolean product flag. `true` is eFD; `false` is standard FD. |
+| `currency` | Product currency. |
+| `source_url`, `source_effective_date`, `source_type`, `notes` | Provenance and research notes; retained in the dataset for auditing. |
+
+AER is intentionally not used as the simulator's annual rate. The nominal rate and payout frequency are represented separately so periodic-interest products are modelled using the bank's stated nominal rate.
+
+Rates, minimums, terms, and payout conditions can change. Verify the source schedule before relying on a simulation. Rows without verified rates are not invented or silently filled.
+
+Legacy JSON options files remain supported when explicitly selected through `options_file`; the CSV index is the default.
 
 ### Transfer fees
 
@@ -249,7 +267,7 @@ The account-value chart is an estimate for comparison: interest is shown as accr
 
 ## 5. Before using results
 
-1. Update `options.json` with verified, current FD terms.
+1. Update the relevant bank CSV under `data/fd_options/banks/` with verified, current FD terms and keep the index in `data/fd_options/fd_options.csv` aligned.
 2. Check minimum deposits and transfer fees.
 3. Run the simulation and review the chosen bookings, final value, and interest.
 4. Treat the output as a model, not a guaranteed return or financial advice.
