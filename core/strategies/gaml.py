@@ -456,18 +456,57 @@ class GAMLStrategy(BaseStrategy):
                             and option.can_invest(amount, today, end)
                         ):
                             maturity_date = today + timedelta(days=option.days)
-                            days_before_inflow = (next_inflow_date - maturity_date).days
-                            if 0 <= days_before_inflow <= 7:
-                                has_maturity_aligned_to_inflow = True
-                                break
+                            inflow_index = bisect.bisect_left(sorted_inflow_dates, maturity_date)
+                            if inflow_index < len(sorted_inflow_dates):
+                                following_inflow = sorted_inflow_dates[inflow_index]
+                                days_before_inflow = (following_inflow - maturity_date).days
+                                if 0 <= days_before_inflow <= 7:
+                                    has_maturity_aligned_to_inflow = True
+                                    break
                     if has_maturity_aligned_to_inflow:
                         break
+
+            def best_available_rate(balance_state: BalanceTuple) -> float:
+                best_rate = 0.0
+                state_balances = dict(balance_state)
+                for target_id, target_account in accounts_meta.items():
+                    deployable = 0.0
+                    for source_id, amount in state_balances.items():
+                        if amount <= 0.001:
+                            continue
+                        if source_id == target_id:
+                            deployable += amount
+                        else:
+                            fee = fee_config.get_fee(
+                                accounts_meta[source_id].bank_key,
+                                target_account.bank_key,
+                            )
+                            if amount > fee:
+                                deployable += amount - fee
+                    for option in effective_options:
+                        if (
+                            (not option.bank_key or option.bank_key == target_account.bank_key)
+                            and option.can_invest(deployable, today, end)
+                        ):
+                            best_rate = max(best_rate, option.annual_rate)
+                return best_rate
+
+            current_best_rate = best_available_rate(bal)
+            projected_balances = bal
+            for account_id, amount in fixed_inflows.get(next_inflow_date, {}).items():
+                projected_balances = _bal_add(projected_balances, account_id, amount)
+            contribution_unlocks_better_rate = (
+                best_available_rate(projected_balances) > current_best_rate + 0.001
+            )
 
             prioritise_wait = (
                 next_inflow_date is not None
                 and 0 < (next_inflow_date - today).days <= 30
                 and any(amount > 0.001 for _, amount in bal)
-                and not has_maturity_aligned_to_inflow
+                and (
+                    not has_maturity_aligned_to_inflow
+                    or contribution_unlocks_better_rate
+                )
             )
             if prioritise_wait and (self.max_decisions is None or tally < self.max_decisions):
                 wait_node = SearchTreeNode(
