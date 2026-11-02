@@ -766,6 +766,7 @@ class AbsoluteStrategy(BaseStrategy):
 
                 if isinstance(act, ConsolidateAction):
                     tgt_acc = accounts_map[act.target_id]
+                    decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
 
                     for t in act.transfers:
                         src     = accounts_map[t["src_id"]]
@@ -798,10 +799,7 @@ class AbsoluteStrategy(BaseStrategy):
                             fee=0.0,
                             balance_after=tgt.balance,
                             total_balance_after=sum(a.balance for a in accounts_map.values()),
-                        ))
-
-                    decision_balances_before = {aid: account.balance for aid, account in accounts_map.items()}
-                    principal       = tgt_acc.balance
+                        ))                    principal       = tgt_acc.balance
                     tgt_acc.balance = 0.0
                     booking_counter += 1
                     ref = f"FD-{booking_counter:04d}"
