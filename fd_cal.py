@@ -32,8 +32,6 @@ def main(
     selected_strategy = (strategy_override or config["strategy"]).strip().lower()
     if selected_strategy not in {"absolute", "greedy", "gaml"}:
         raise ValueError(f"Unsupported strategy {selected_strategy!r}; use 'absolute', 'greedy', or 'gaml'")
-    if outflow_schedule and selected_strategy != "greedy":
-        raise ValueError("Outflows are currently supported by the greedy strategy only; absolute/GAML search integration is not yet available.")
 
     days = (end - start).days + 1
     total_new_money = sum(
@@ -108,9 +106,8 @@ def main(
         inflow_account_id=default_account_id,
         fee_config=fee_config,
         consolidation_account_id=default_account_id,
+        outflow_schedule=outflow_schedule,
     )
-    if selected_strategy == "greedy":
-        common_kwargs["outflow_schedule"] = outflow_schedule
     result = strategy.simulate(**common_kwargs)
 
     comparison_result = None
