@@ -135,21 +135,21 @@ class ConfigurationTests(unittest.TestCase):
         index = self.root / "fd_options.csv"
         bank_a = self.root / "bank_a.csv"
         bank_b = self.root / "bank_b.csv"
-        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\\n"
+        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\n"
         bank_a.write_text(
             header
-            + "1m eFD,fixed_deposit,1m,9,1000,cumulative,,true,LKR,,,,\\n"
-            + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\\n",
+            + "1m eFD,fixed_deposit,1m,9,1000,cumulative,,true,LKR,,,,\n"
+            + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\n",
             encoding="utf-8",
         )
         bank_b.write_text(
-            header + "1m eFD,fixed_deposit,1m,10,1000,cumulative,,true,LKR,,,,\\n",
+            header + "1m eFD,fixed_deposit,1m,10,1000,cumulative,,true,LKR,,,,\n",
             encoding="utf-8",
         )
         index.write_text(
-            "bank_id,bank_key,options_file,research_status,research_notes\\n"
-            "LK_A,commercial,bank_a.csv,populated_direct,\\n"
-            "LK_B,dfcc,bank_b.csv,populated_direct,\\n",
+            "bank_id,bank_key,options_file,research_status,research_notes\n"
+            "LK_A,commercial,bank_a.csv,populated_direct,\n"
+            "LK_B,dfcc,bank_b.csv,populated_direct,\n",
             encoding="utf-8",
         )
         self.config["options_file"] = "fd_options.csv"
@@ -169,16 +169,16 @@ class ConfigurationTests(unittest.TestCase):
     def test_csv_efd_only_false_loads_standard_and_efd(self) -> None:
         index = self.root / "fd_options.csv"
         bank_a = self.root / "bank_a.csv"
-        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\\n"
+        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\n"
         bank_a.write_text(
             header
-            + "1m eFD,fixed_deposit,1m,9,1000,cumulative,,true,LKR,,,,\\n"
-            + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\\n",
+            + "1m eFD,fixed_deposit,1m,9,1000,cumulative,,true,LKR,,,,\n"
+            + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\n",
             encoding="utf-8",
         )
         index.write_text(
-            "bank_id,bank_key,options_file,research_status,research_notes\\n"
-            "LK_A,commercial,bank_a.csv,populated_direct,\\n",
+            "bank_id,bank_key,options_file,research_status,research_notes\n"
+            "LK_A,commercial,bank_a.csv,populated_direct,\n",
             encoding="utf-8",
         )
         self.config["options_file"] = "fd_options.csv"
