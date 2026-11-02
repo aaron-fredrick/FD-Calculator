@@ -126,7 +126,7 @@ def main() -> None:
     print("    Let A = accounts, F = pending cash-flow entries,")
     print("        S = memoised states, C = local combinations, Q = consolidation choices.")
     print("    Time  : O(B^K * (C log C + Q log Q + A + F))")
-    print("    Space : O(S * (A + F) + K * (C + Q)))")
+    print("    Space : O(S * (A + F) + K * (C + Q))")
     print()
     print("  Interpretation / limitations:")
     print("    - These are conservative structural upper bounds, not expected counts.")
