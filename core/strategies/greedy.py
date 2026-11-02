@@ -58,7 +58,7 @@ def _pick_daily_greedy_plan(
     for acc in active_accounts:
         local_opts = [
             o for o in options
-            if (not o.bank_key or o.bank_key == acc.bank_key) and o.can_invest(acc.balance, today, end)
+            if (not o.bank_key or o.bank_key == acc.bank_key) and acc.can_use_option(o) and o.can_invest(acc.balance, today, end)
         ]
         if local_opts:
             best_opt = local_opts[0]
@@ -147,7 +147,7 @@ def _pick_daily_greedy_plan(
 
         tgt_opts = [
             o for o in options
-            if (not o.bank_key or o.bank_key == tgt_bank) and o.can_invest(total_deployable, today, end)
+            if (not o.bank_key or o.bank_key == tgt_bank) and tgt_acc.can_use_option(o) and o.can_invest(total_deployable, today, end)
         ]
         if not tgt_opts:
             continue
@@ -256,7 +256,7 @@ class GreedyStrategy(BaseStrategy):
         inflow_schedule = normalize_inflow_schedule(inflow_schedule, inflow_account_id)
         outflow_schedule = outflow_schedule or {}
         accounts_map = {
-            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
+            acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance, supports_efd=acc.supports_efd)
             for acc in accounts
         }
         validate_outflow_schedule(outflow_schedule, start, end, set(accounts_map))
