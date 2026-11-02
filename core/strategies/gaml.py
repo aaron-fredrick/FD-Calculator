@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Optional
 
-from core.cashflows import Obligations, process_outflows
+from core.cashflows import Obligations, process_outflows, validate_outflow_schedule
 from core.models import (
     Account,
     Booking,
@@ -260,6 +260,7 @@ class GAMLStrategy(BaseStrategy):
             acc.id: Account(id=acc.id, bank_key=acc.bank_key, label=acc.label, balance=acc.balance)
             for acc in accounts
         }
+        validate_outflow_schedule(outflow_schedule, start, end, set(accounts_meta))
         consol_acc_id = consolidation_account_id
         consol_bank   = accounts_meta[consol_acc_id].bank_key
 
