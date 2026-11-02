@@ -36,40 +36,40 @@ All strategies use the same investment dates, accounts, inflows, FD options, fee
 
 Let:
 
-- \(A\) = number of accounts.
-- \(O\) = number of effective FD options after dominated options are removed.
-- \(o_i\) = number of eligible options for account \(i\) at a decision date.
-- \(K\) = maximum number of decision dates along a path. This depends on the investment window, scheduled inflows, and FD cash-flow/maturity dates.
-- \(F\) = number of pending cash-flow entries in a search state.
+- $A$ = number of accounts.
+- $O$ = number of effective FD options after dominated options are removed.
+- $o_i$ = number of eligible options for account $i$ at a decision date.
+- $K$ = maximum number of decision dates along a path. This depends on the investment window, scheduled inflows, and FD cash-flow/maturity dates.
+- $F$ = number of pending cash-flow entries in a search state.
 
 At one decision date, define:
 
-- \(C=\prod_{i=1}^{A}(1+o_i)-1\): non-empty combinations of local bookings.
-- \(Q=\sum_{i=1}^{A}o_{bank(i)}\): consolidation choices, where \(o_{bank(i)}\) is the number of horizon-eligible effective options for account \(i\)'s bank.
+- $C=\prod_{i=1}^{A}(1+o_i)-1$: non-empty combinations of local bookings.
+- $Q=\sum_{i=1}^{A}o_{bank(i)}$: consolidation choices, where $o_{bank(i)}$ is the number of horizon-eligible effective options for account $i$'s bank.
 - One carry-forward choice.
 
 A configuration-level upper bound on the branching factor is therefore:
 
-\[
+$$
 B \leq Q+C+1
 =Q+\prod_{i=1}^{A}(1+o_i)
-\]
+$$
 
 This ignores current balances and minimum-deposit feasibility, so the actual branch count at a state is usually lower.
 
-Across at most \(K\) decision levels, the unpruned search tree has a worst-case size of:
+Across at most $K$ decision levels, the unpruned search tree has a worst-case size of:
 
-\[
+$$
 O(B^K)
-\]
+$$
 
 A conservative time bound including local-combination generation and sorting is:
 
-\[
+$$
 O\left(B^K \left(C\log C + Q\log Q + A + F\right)\right)
-\]
+$$
 
-Worst-case auxiliary space is \(O(S(A+F)+K(C+Q))\), where \(S\) is the number of distinct states retained by memoisation. The search stack can retain each level's generated branch lists; \(S\) can also be exponential in \(K\).
+Worst-case auxiliary space is $O(S(A+F)+K(C+Q))$, where $S$ is the number of distinct states retained by memoisation. The search stack can retain each level's generated branch lists; $S$ can also be exponential in $K$.
 
 These are worst-case bounds, not expected runtime. Branch-and-bound, memoisation, and option pruning can reduce the explored search substantially, but do not change the exponential worst-case nature. In practice, runtime is most sensitive to the number of accounts, eligible options per account, and the number of event dates created by inflows and FD cash flows. Absolute is therefore best suited to smaller scenarios or when a thorough search is worth the additional runtime.
 
