@@ -130,6 +130,67 @@ class ConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "has no entry"):
             load_configuration(self.config_path)
 
+
+    def test_csv_options_default_to_account_banks_and_efd_only(self) -> None:
+        index = self.root / "fd_options.csv"
+        bank_a = self.root / "bank_a.csv"
+        bank_b = self.root / "bank_b.csv"
+        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\\n"
+        bank_a.write_text(
+            header
+            + "1m eFD,fixed_deposit,1m,9,1000,cumulative,,true,LKR,,,,\\n"
+            + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\\n",
+            encoding="utf-8",
+        )
+        bank_b.write_text(
+            header + "1m eFD,fixed_deposit,1m,10,1000,cumulative,,true,LKR,,,,\\n",
+            encoding="utf-8",
+        )
+        index.write_text(
+            "bank_id,bank_key,options_file,research_status,research_notes\\n"
+            "LK_A,commercial,bank_a.csv,populated_direct,\\n"
+            "LK_B,dfcc,bank_b.csv,populated_direct,\\n",
+            encoding="utf-8",
+        )
+        self.config["options_file"] = "fd_options.csv"
+        self.config["accounts"].append({
+            "id": "other", "bank_key": "dfcc", "label": "Other", "balance": 0,
+        })
+        self._write_config()
+
+        loaded = load_configuration(self.config_path)
+        self.assertEqual(loaded["account_banks_only"], True)
+        self.assertEqual(loaded["efd_only"], True)
+        self.assertEqual(
+            {(option.bank_key, option.annual_rate) for option in loaded["options"]},
+            {("commercial", 9.0), ("dfcc", 10.0)},
+        )
+
+    def test_csv_efd_only_false_loads_standard_and_efd(self) -> None:
+        index = self.root / "fd_options.csv"
+        bank_a = self.root / "bank_a.csv"
+        header = "name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes\\n"
+        bank_a.write_text(
+            header
+            + "1m eFD,fixed_deposit,1m,9,1000,cumulative,,true,LKR,,,,\\n"
+            + "1m Standard,fixed_deposit,1m,8,1000,cumulative,,false,LKR,,,,\\n",
+            encoding="utf-8",
+        )
+        index.write_text(
+            "bank_id,bank_key,options_file,research_status,research_notes\\n"
+            "LK_A,commercial,bank_a.csv,populated_direct,\\n",
+            encoding="utf-8",
+        )
+        self.config["options_file"] = "fd_options.csv"
+        self.config["efd_only"] = False
+        self._write_config()
+
+        loaded = load_configuration(self.config_path)
+        self.assertEqual(
+            {option.annual_rate for option in loaded["options"]},
+            {8.0, 9.0},
+        )
+
     def test_end_before_start_is_rejected(self) -> None:
         self.config["investment"]["end_date"] = "2000-01-01"
         self._write_config()
