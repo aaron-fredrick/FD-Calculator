@@ -3,7 +3,7 @@
   "strategy": "gaml",
   "options_file": "data/fd_options/fd_options.csv",
   "account_banks_only": true,
-  "efd_only": true,
+  "efd_only": false,
   "investment": {
     "start_date": "today",
     "end_date": "2027-06-30"
