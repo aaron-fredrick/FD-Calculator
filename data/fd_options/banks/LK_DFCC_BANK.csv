@@ -1,0 +1,17 @@
+name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD
+1 Month,fixed_deposit,1m,7.75,10000,cumulative,,true
+2 Months,fixed_deposit,2m,7.75,10000,cumulative,,true
+3 Months,fixed_deposit,3m,10,10000,cumulative,,true
+3 Months (Monthly),fixed_deposit,3m,9.92,10000,periodic_interest,1m,true
+6 Months,fixed_deposit,6m,10,10000,cumulative,,true
+6 Months (Monthly),fixed_deposit,6m,9.8,10000,periodic_interest,1m,true
+12 Months,fixed_deposit,12m,10.5,10000,cumulative,,true
+12 Months (Monthly),fixed_deposit,12m,10.03,10000,periodic_interest,1m,true
+24 Months,fixed_deposit,24m,11,10000,cumulative,,true
+24 Months (Monthly),fixed_deposit,24m,9.98,10000,periodic_interest,1m,true
+36 Months,fixed_deposit,36m,11.25,10000,cumulative,,true
+36 Months (Monthly),fixed_deposit,36m,9.73,10000,periodic_interest,1m,true
+48 Months,fixed_deposit,48m,12,10000,cumulative,,true
+48 Months (Monthly),fixed_deposit,48m,9.84,10000,periodic_interest,1m,true
+60 Months,fixed_deposit,60m,12.5,10000,cumulative,,true
+60 Months (Monthly),fixed_deposit,60m,9.75,10000,periodic_interest,1m,true
