@@ -241,8 +241,8 @@ def print_simulation(
     _summary_line("Transfer Fees", f"{result.total_transfer_fees:,.2f} LKR", EVENT_COLORS[EventType.TRANSFER])
     _summary_line("Net Interest", f"{result.net_interest:,.2f} LKR", EVENT_COLORS[EventType.CASH_FLOW])
     _summary_line("Net Yield", f"{net_ret:.3f}%", EVENT_COLORS[EventType.BOOKING])
-    annualised_text = f"{annualised:.3f}% p.a. (XIRR)" if annualised is not None else "N/A"
-    _summary_line("Annualised Rate", annualised_text, EVENT_COLORS[EventType.MATURITY])
+    annualised_text = f"{annualised:.3f}% p.a. (XIRR, money-weighted)" if annualised is not None else "N/A"
+    _summary_line("Annualised Return", annualised_text, EVENT_COLORS[EventType.MATURITY])
     _summary_line("Final Balance", f"{result.final_value:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
     print(f"  {COLOR_DESC}{'Valuation Date':<18}{RESET} : {result.end_date}")
     if result.total_decisions_evaluated is not None:
