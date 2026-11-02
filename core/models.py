@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import Enum
@@ -324,67 +323,6 @@ class SimResult:
         return sorted(self.timeline.keys())
 
 
-def build_fd_options(
-    options_config: list,
-    default_min_invest: float = DEFAULT_MIN_INVESTMENT,
-    bank_key: str = "",
-) -> list[FDOption]:
-    result = []
-    for entry in options_config:
-        if isinstance(entry, FDOption):
-            if bank_key and not entry.bank_key:
-                entry.bank_key = bank_key
-            result.append(entry)
-        elif isinstance(entry, dict):
-            label = str(entry.get("label", ""))
-            period_str = str(entry.get("period_str") or entry.get("period", ""))
-            annual_rate = float(entry.get("annual_rate") if "annual_rate" in entry else entry.get("rate", 0.0))
-            min_val = entry.get("min_amount") if "min_amount" in entry else entry.get("minimum", entry.get("min_invest", default_min_invest))
-            min_amount = float(min_val) if min_val is not None else default_min_invest
-            payout_type = str(entry.get("payout_type", CUMULATIVE))
-            payout_period_str = str(entry.get("payout_period_str") or entry.get("payout_period", ""))
-            b_key = str(entry.get("bank_key") or bank_key)
-            raw_efd = entry.get("is_efd", entry.get("eFD", False))
-            if not isinstance(raw_efd, bool):
-                raise ValueError(f"Option {label!r} is_efd must be a boolean")
-            result.append(
-                FDOption(
-                    label=label,
-                    period_str=period_str,
-                    annual_rate=annual_rate,
-                    min_amount=min_amount,
-                    payout_type=payout_type,
-                    payout_period_str=payout_period_str,
-                    bank_key=b_key,
-                    is_efd=raw_efd,
-                )
-            )
-        elif len(entry) == 3:
-            label, period, rate = entry
-            result.append(FDOption(label, period, rate, min_amount=default_min_invest, bank_key=bank_key))
-        elif len(entry) == 4:
-            label, period, rate, val4 = entry
-            if isinstance(val4, (int, float)):
-                result.append(FDOption(label, period, rate, min_amount=float(val4), bank_key=bank_key))
-            else:
-                result.append(FDOption(label, period, rate, min_amount=default_min_invest, payout_type=str(val4), bank_key=bank_key))
-        elif len(entry) == 5:
-            label, period, rate, val4, val5 = entry
-            if isinstance(val4, (int, float)):
-                result.append(FDOption(label, period, rate, min_amount=float(val4), payout_type=str(val5), bank_key=bank_key))
-            else:
-                result.append(FDOption(label, period, rate, min_amount=default_min_invest, payout_type=str(val4), payout_period_str=str(val5), bank_key=bank_key))
-        elif len(entry) == 6:
-            label, period, rate, val4, val5, val6 = entry
-            if isinstance(val4, (int, float)):
-                result.append(FDOption(label, period, rate, min_amount=float(val4), payout_type=str(val5), payout_period_str=str(val6), bank_key=bank_key))
-            else:
-                result.append(FDOption(label, period, rate, min_amount=float(val6), payout_type=str(val4), payout_period_str=str(val5), bank_key=bank_key))
-        else:
-            raise ValueError(f"OPTIONS entry must be 3 to 6 elements, got {len(entry)}: {entry!r}")
-    return result
-
-
 def normalize_inflow_schedule(
     schedule: dict[date, float] | dict[date, dict[str, float]],
     default_account_id: str,
@@ -406,62 +344,6 @@ def normalize_inflow_schedule(
         if day_entries:
             normalized[inflow_date] = day_entries
     return normalized
-
-
-def load_options_from_json(
-    filepath: str | Path = "options.json",
-    bank_key: Optional[str] = None,
-    default_min_invest: float = DEFAULT_MIN_INVESTMENT,
-) -> list[FDOption]:
-    """
-    Load FD options from a JSON file.
-
-    If ``bank_key`` is provided (e.g. 'commercial'), only that bank's options
-    are returned.
-    If ``bank_key`` is None or 'all', options across all banks in the file
-    are returned as a combined list with their ``bank_key`` populated.
-    """
-    path = Path(filepath)
-    if not path.is_absolute() and not path.exists():
-        base_dir = Path(__file__).resolve().parent.parent
-        candidate = base_dir / path
-        if candidate.exists():
-            path = candidate
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    if bank_key is not None and bank_key.lower() != "all":
-        if bank_key not in data:
-            available = list(data.keys())
-            raise KeyError(f"Key {bank_key!r} not found in {path}. Available keys: {available}")
-        return build_fd_options(data[bank_key], default_min_invest=default_min_invest, bank_key=bank_key)
-
-    all_options: list[FDOption] = []
-    for b_key, opt_list in data.items():
-        all_options.extend(build_fd_options(opt_list, default_min_invest=default_min_invest, bank_key=b_key))
-    return all_options
-
-
-def load_all_options_from_json(
-    filepath: str | Path = "options.json",
-    default_min_invest: float = DEFAULT_MIN_INVESTMENT,
-) -> dict[str, list[FDOption]]:
-    """Load options grouped by bank key into a dict."""
-    path = Path(filepath)
-    if not path.is_absolute() and not path.exists():
-        base_dir = Path(__file__).resolve().parent.parent
-        candidate = base_dir / path
-        if candidate.exists():
-            path = candidate
-
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    return {
-        b_key: build_fd_options(opt_list, default_min_invest=default_min_invest, bank_key=b_key)
-        for b_key, opt_list in data.items()
-    }
 
 
 def load_options_from_bank_csv(
