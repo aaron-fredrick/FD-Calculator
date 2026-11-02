@@ -1,5 +1,4 @@
 from datetime import date
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -32,13 +31,16 @@ class DecisionLogTests(unittest.TestCase):
         self.assertTrue(carry["next_milestone"])
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            output = Path(temp_dir) / "reports" / "decisions.json"
-            written = _write_decision_log(result, output)
-            payload = json.loads(written.read_text(encoding="utf-8"))
+            output = Path(temp_dir) / "reports" / "decisions.txt"
+            written = _write_decision_log(result, output, date(2026, 1, 1))
+            report = written.read_text(encoding="utf-8")
             self.assertEqual(written, output)
-            self.assertEqual(payload["strategy"], "Greedy")
-            self.assertEqual(payload["decision_count"], len(payload["decisions"]))
-            self.assertEqual(payload["decisions"][0]["date"], "2026-01-01")
+            self.assertIn("FD CALCULATOR — DECISION / EXECUTION LOG", report)
+            self.assertIn("Strategy          : Greedy", report)
+            self.assertIn("Simulation period : 2026-01-01 to 2026-01-01", report)
+            self.assertIn("Carry cash forward", report)
+            self.assertIn("Available balances before action:", report)
+            self.assertIn("END OF LOG", report)
 
     def test_log_explains_selected_consolidation_for_each_strategy(self):
         strategies = [
