@@ -58,7 +58,7 @@ def _pick_daily_greedy_plan(
     for acc in active_accounts:
         local_opts = [
             o for o in options
-            if (not o.bank_key or o.bank_key == acc.bank_key) and acc.can_use_option(o) and o.can_invest(acc.balance, today, end)
+            if (not o.bank_identity or o.bank_identity == acc.bank_identity) and acc.can_use_option(o) and o.can_invest(acc.balance, today, end)
         ]
         if local_opts:
             best_opt = local_opts[0]
@@ -147,7 +147,7 @@ def _pick_daily_greedy_plan(
 
         tgt_opts = [
             o for o in options
-            if (not o.bank_key or o.bank_key == tgt_bank) and tgt_acc.can_use_option(o) and o.can_invest(total_deployable, today, end)
+            if (not o.bank_identity or o.bank_identity == tgt_bank) and tgt_acc.can_use_option(o) and o.can_invest(total_deployable, today, end)
         ]
         if not tgt_opts:
             continue
