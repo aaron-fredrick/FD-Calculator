@@ -558,7 +558,7 @@ class AbsoluteStrategy(BaseStrategy):
 
                     act = LocalBookingsAction(bookings=valid_bookings, carries=carries)
                     child_node = SearchTreeNode(parent=parent_node, action=act, today=today)
-                    search(b_next, b_bal, b_flows, child_node)
+                    search(b_next, b_bal, b_flows, active_obligations, paid_total, child_node)
 
             # ── Branch 3: Carry forward (hold all cash) ──────────────────
             carry_act = CarryAction(carries=list(active_accs))
