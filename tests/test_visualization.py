@@ -8,6 +8,7 @@ def test_cash_flow_series_categorizes_receipts_uses_and_transfers():
     day = date(2027, 1, 15)
     events = [
         Event(EventType.INFLOW, day, 1_000, "Monthly savings"),
+        Event(EventType.OUTFLOW, day, 200, "Rent obligation seeded"),
         Event(EventType.OUTFLOW, day, -200, "Paid rent"),
         Event(EventType.BOOKING, day, 500, "Book FD"),
         Event(EventType.CASH_FLOW, day, 10, "Periodic interest"),
