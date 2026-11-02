@@ -67,7 +67,7 @@ O\\left(B^K \\left(C\\log C + AO\\log(AO) + A + F\\right)\\right),
 \\quad C=\\prod_{i=1}^{A}(1+o_i)
 \\]
 
-Worst-case auxiliary space is \\(O(S(A+F)+K+C)\\), where \\(S\\) is the number of distinct states retained by memoisation; in the worst case, \\(S\\) can be exponential in \\(K\\).
+Worst-case auxiliary space is \\(O(S(A+F)+K(C+AO))\\), where \\(S\\) is the number of distinct states retained by memoisation. The search stack can retain each level's generated branch lists; \\(S\\) can also be exponential in \\(K\\).
 
 These are worst-case bounds, not expected runtime. Branch-and-bound, memoisation, and option pruning can reduce the explored search substantially, but do not change the exponential worst-case nature. In practice, runtime is most sensitive to the number of accounts, eligible options per account, and the number of event dates created by inflows and FD cash flows. Absolute is therefore best suited to smaller scenarios or when a thorough search is worth the additional runtime.
 
@@ -185,7 +185,7 @@ Fees affect the simulated value, so use the fees that apply to your actual accou
 
 | Field | Meaning |
 | --- | --- |
-| `strategy` | Default strategy: `"absolute"` or `"greedy"`. |
+| `strategy` | Default strategy: `"greedy"`, `"gaml"`, or `"absolute"`. |
 | `options_file` | FD options JSON path; defaults to `options.json`. |
 | `compound` | `true` enables the simulator's compound-interest calculations; `false` uses simple-interest calculations. |
 | `actual_leap_year` | `true` uses actual 366-day leap years where applicable; `false` uses a 365-day basis. |
