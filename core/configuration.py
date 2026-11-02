@@ -80,6 +80,9 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         account_id = str(entry.get("id", "")).strip()
         bank_key = str(entry.get("bank_key", "")).strip().lower()
         label = str(entry.get("label", "")).strip()
+        supports_efd = entry.get("supports_efd", True)
+        if not isinstance(supports_efd, bool):
+            raise ValueError(f"accounts[{index}].supports_efd must be a boolean")
         try:
             balance = float(entry.get("balance", 0.0))
         except (TypeError, ValueError) as exc:
@@ -95,7 +98,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         account_ids.add(account_id)
         if bank_key not in bank_keys:
             bank_keys.append(bank_key)
-        accounts.append(Account(id=account_id, bank_key=bank_key, label=label, balance=balance))
+        accounts.append(Account(id=account_id, bank_key=bank_key, label=label, balance=balance, supports_efd=supports_efd))
 
     options_file_value = str(config.get("options_file", "data/fd_options/fd_options.csv"))
     options_path = Path(options_file_value).expanduser()
