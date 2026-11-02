@@ -8,6 +8,24 @@ from core.strategies.greedy import GreedyStrategy
 
 
 class DecisionLogTests(unittest.TestCase):
+    def test_carry_decision_logs_all_available_account_balances(self):
+        result = GreedyStrategy().simulate(
+            options=[FDOption("Commercial 1m", "1m", 8.0, 10000, bank_key="commercial")],
+            start=date(2026, 1, 1),
+            end=date(2026, 1, 1),
+            inflow_schedule={},
+            accounts=[
+                Account("cash", "commercial", "Cash", 5000),
+                Account("reserve", "commercial", "Reserve", 2500),
+            ],
+            inflow_account_id="cash",
+            consolidation_account_id="cash",
+        )
+        carry = next(item for item in result.decision_log if item["action"] == "Carry cash forward")
+        self.assertEqual(carry["available_funds"], {"cash": 5000, "reserve": 2500})
+        self.assertTrue(carry["reason"])
+        self.assertTrue(carry["next_milestone"])
+
     def test_log_explains_selected_consolidation_for_each_strategy(self):
         strategies = [
             GreedyStrategy(),
