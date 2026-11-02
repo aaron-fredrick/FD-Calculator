@@ -421,7 +421,7 @@ class GAMLStrategy(BaseStrategy):
                         final_bal[consol_acc_id] += (b - fee)
                         final_bal[aid] = 0.0
                 terminal_val = (
-                    sum(final_bal.values()) + paid_total
+                    final_bal.get(consol_acc_id, 0.0) + paid_total
                     - sum(item[2] for item in active_obligations)
                 )
                 net_intr = terminal_val - total_capital
@@ -755,6 +755,8 @@ class GAMLStrategy(BaseStrategy):
         # before a better complete leaf is found, return that incumbent rather
         # than replaying an incomplete search path.
         if best_leaf is None:
+            if not greedy_res.valid:
+                raise ValueError("No feasible strategy can satisfy all strict outflows within the investment period")
             greedy_res.strategy_name = self.name
             greedy_res.total_decisions_evaluated = tally
             return greedy_res
