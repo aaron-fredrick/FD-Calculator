@@ -278,8 +278,10 @@ class GAMLStrategy(BaseStrategy):
             consolidation_account_id=consolidation_account_id,
             outflow_schedule=outflow_schedule,
         )
-        best_final_val: float = greedy_res.final_value if greedy_res.valid else float("-inf")
-        initial_greedy_final: float = best_final_val
+        greedy_liabilities = sum(float(item.get("remaining", 0.0)) for item in greedy_res.outstanding_outflows)
+        greedy_objective = greedy_res.final_value - greedy_liabilities
+        best_final_val: float = greedy_objective if greedy_res.valid else float("-inf")
+        initial_greedy_final: float = greedy_objective
 
         # Maximum possible annualized interest rate achievable within the remaining horizon
         fitting_rates = [o.annual_rate for o in effective_options if o.fits_before(start, end)]
