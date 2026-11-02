@@ -302,6 +302,8 @@ def build_decision_log(result: SimResult) -> list[dict]:
                 EventType.CASH_FLOW, EventType.MATURITY
             }
         ]
+        milestone = next_milestone(event.on_date)
+        reasons.append(f"Liquidity checkpoint: {milestone}")
         records.append({
             "date": event.on_date,
             "available_funds": dict(balances),
@@ -316,7 +318,7 @@ def build_decision_log(result: SimResult) -> list[dict]:
             "principal": booking.principal,
             "expected_return": booking.total_interest,
             "reason": reasons,
-            "next_milestone": next_milestone(event.on_date),
+            "next_milestone": milestone,
         })
 
     # Carry records represent final-path decisions that intentionally retained
@@ -324,6 +326,12 @@ def build_decision_log(result: SimResult) -> list[dict]:
     for event in dated_events:
         if event.event_type != EventType.CARRY_FORWARD:
             continue
+        milestone = next_milestone(event.on_date)
+        carry_reason = event.label
+        if "outflow" in milestone.lower():
+            carry_reason += f"; liquidity retained ahead of the upcoming obligation ({milestone})"
+        else:
+            carry_reason += f"; cash remains liquid until the next scheduled event ({milestone})"
         records.append({
             "date": event.on_date,
             "available_funds": {event.account_id: event.amount},
@@ -344,8 +352,8 @@ def build_decision_log(result: SimResult) -> list[dict]:
             "term": None,
             "principal": 0.0,
             "expected_return": 0.0,
-            "reason": [event.label],
-            "next_milestone": next_milestone(event.on_date),
+            "reason": [carry_reason],
+            "next_milestone": milestone,
         })
 
     records.sort(key=lambda item: (item["date"], item["action"], item["account_id"]))
