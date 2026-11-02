@@ -124,7 +124,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(result.accounts["dfcc"].bank_id, DFCC_ID)
         self.assertTrue(result.bookings)
         self.assertTrue(all(booking.bank_id in {COMMERCIAL_ID, DFCC_ID} for booking in result.bookings))
-        self.assertTrue(all(event.bank_id in {COMMERCIAL_ID, DFCC_ID, ""} for day in result.timeline.values() for event in day))
+        self.assertTrue(all(event.bank_id in {COMMERCIAL_ID, DFCC_ID} for day in result.timeline.values() for event in day if event.account_id))
 
     def test_unknown_bank_id_is_rejected_against_bank_catalogue(self) -> None:
         self.config["accounts"]["cash"]["bank_id"] = "commercial"
