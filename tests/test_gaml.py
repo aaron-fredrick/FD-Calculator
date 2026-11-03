@@ -95,6 +95,42 @@ class GAMLStrategyTests(unittest.TestCase):
         self.assertTrue(result.bookings)
         self.assertTrue(result.bookings[0].option.is_efd)
 
+    def test_greedy_applies_ait_before_reinvesting_fd_proceeds(self):
+        account = Account(
+            id="com", bank_key="commercial", label="Commercial", balance=10000.0
+        )
+        option = FDOption(
+            "Commercial 1m", "1m", 10.0, 10000.0, bank_key="commercial"
+        )
+        result = GreedyStrategy(ait_enabled=True).simulate(
+            options=[option],
+            start=self.start,
+            end=date(2026, 3, 1),
+            inflow_schedule={},
+            accounts=[account],
+            inflow_account_id="com",
+            fee_config=self.fees,
+            consolidation_account_id="com",
+        )
+        self.assertGreater(result.ait_withheld, 0.0)
+        self.assertTrue(result.ait_enabled)
+        first_booking = result.bookings[0]
+        gross_payout = first_booking.cash_flows[0][1]
+        payout_events = [
+            event
+            for events in result.timeline.values()
+            for event in events
+            if event.booking_ref == "FD-0001" and event.event_type.value in {"cash_flow", "maturity"}
+        ]
+        self.assertTrue(payout_events)
+        self.assertLess(payout_events[0].amount, gross_payout)
+        self.assertAlmostEqual(
+            payout_events[0].amount,
+            first_booking.option.generate_cash_flows_after_ait(
+                first_booking.principal, first_booking.start, 0.10
+            )[0][1],
+        )
+
     def test_ait_is_included_in_strategy_objective_when_enabled(self):
         option = FDOption(
             "Commercial Standard",
