@@ -1,26 +1,18 @@
 # Migration status
 
-The JavaScript migration is incremental. A green unit-test run confirms only the modules exercised by that run; it does not mean the calculator is feature-complete.
-
 ## Implemented and tested
 
-- Calendar period parsing and month-end date arithmetic.
-- Simple and daily-compound interest with leap-year basis.
-- Account, FD-option and transfer-fee primitives.
-- Gross payout generation and AIT cash-flow adjustment.
-- Immutable outflow helper and outflow schedule validation.
-- Runtime-neutral configuration validation when the caller supplies bank catalogue rows, bank-key index and loaded FD options.
-- Recurring and explicitly scheduled inflow/outflow expansion, including deterministic resolution of relative date tokens.
+- Calendar date arithmetic, interest calculations, account/product primitives and AIT payout generation.
+- Runtime-neutral configuration validation and recurring/scheduled cash schedule expansion.
+- Event-driven Greedy simulation port: multi-account balances, inflows, outflows, same-day payout ordering, transfer fees/channels, consolidation, split booking, maturity and periodic payout events, carry-forward, final cash sweep, and result accounting.
+- Greedy tests for booking lifecycle and account-specific eFD eligibility.
 
-## Not yet ported / not working as a complete application
+## In progress / not yet complete
 
-- CSV catalogue and FD product-file loading adapters.
-- Full event-driven simulation, event ledger, booking lifecycle and account cash accounting.
-- Greedy, GAML and Absolute strategy implementations in JavaScript.
-- Python-vs-JavaScript golden fixture parity.
-- Decision log, console timeline, standalone HTML report and interactive charts.
-- Node CLI configuration/data loading and report generation.
-- Browser configuration UI and report rendering.
-- GitHub Pages deployment.
+- Python-vs-JavaScript golden fixture parity across representative real configurations.
+- GAML beam search and Absolute strategy JavaScript ports.
+- Decision-log generation and console timeline.
+- CSV bank/product loading adapters and configuration-file loading.
+- Standalone HTML report, interactive charts, CLI, browser configuration UI, and Pages deployment.
 
-The existing CLI and web entrypoints remain migration placeholders. Do not use them for financial decisions yet.
+The CLI and web entrypoints remain placeholders. Do not use this migration branch for financial decisions until parity and application integration are complete.
