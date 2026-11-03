@@ -70,6 +70,10 @@ class HtmlReportAccountChartTests(unittest.TestCase):
         self.assertEqual(by_name["DFCC"]["lineStyle"], "dotted")
         self.assertEqual(by_name["Commercial"]["color"], by_name["Commercial Savings"]["color"])
         self.assertNotEqual(by_name["Commercial"]["color"], by_name["DFCC"]["color"])
+        # DFCC occupies the third account slot, so its hue uses the final
+        # palette position rather than the second distinct-bank position.
+        self.assertEqual(by_name["Commercial"]["color"], "#0000ff")
+        self.assertEqual(by_name["DFCC"]["color"], "#ff9500")
         self.assertEqual(chart["fd_principal"], [])
 
     def test_stage_number_resets_each_day_and_each_series_has_every_stage(self):
