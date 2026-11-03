@@ -288,7 +288,17 @@ class SimResult:
 
     @property
     def net_interest(self) -> float:
+        """Interest after transfer fees, before AIT; retained as the strategy objective."""
         return self.total_interest - self.total_transfer_fees
+
+    @property
+    def ait_withheld(self) -> float:
+        """Estimated 10% AIT on gross FD interest; excluded from strategy decisions."""
+        return self.total_interest * 0.10
+
+    @property
+    def net_interest_after_ait(self) -> float:
+        return self.net_interest - self.ait_withheld
 
     @property
     def total_outflows_due(self) -> float:
@@ -328,7 +338,13 @@ class SimResult:
 
     @property
     def final_value(self) -> float:
+        """Pre-AIT terminal value used by the optimisation strategies."""
         return self.total_principal + self.total_interest - self.total_transfer_fees
+
+    @property
+    def final_value_after_ait(self) -> float:
+        """Estimated terminal value after AIT, for reporting only."""
+        return self.final_value - self.ait_withheld
 
     def sorted_dates(self) -> list[int]:
         """Timeline keys in ascending chronological order."""
