@@ -45,6 +45,7 @@ export function buildCashSchedule(rawEvents = [], kind, { start, end, accountIds
     const eventType = String(entry.type ?? "recurring").trim().toLowerCase();
     if (!["recurring", "scheduled"].includes(eventType)) throw new RangeError(`${kind} ${name} type must be recurring or scheduled.`);
     let dates = [];
+    let interval = "";
 
     if (eventType === "scheduled") {
       if (!Array.isArray(entry.dates) || entry.dates.length === 0) throw new TypeError(`${kind} ${name} requires a non-empty dates array.`);
@@ -52,7 +53,7 @@ export function buildCashSchedule(rawEvents = [], kind, { start, end, accountIds
       const unique = new Set(dates.map(formatISODate));
       if (unique.size !== dates.length) throw new RangeError(`${kind} ${name} contains duplicate scheduled dates.`);
     } else {
-      const interval = String(entry.interval ?? "").trim().toLowerCase();
+      interval = String(entry.interval ?? "").trim().toLowerCase();
       const { amount: intervalAmount } = parsePeriod(interval);
       if (intervalAmount <= 0) throw new RangeError(`${kind} ${name} interval must be positive.`);
       const first = entry.start_date == null ? addPeriod(startDate, interval) : resolveDate(entry.start_date, { investmentStart: startDate, investmentEnd: endDate, today });
