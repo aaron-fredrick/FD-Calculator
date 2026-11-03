@@ -125,8 +125,8 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
           ctx.beginPath();ctx.arc(point.x,point.y,2,0,Math.PI*2);ctx.fillStyle="#172334";ctx.fill();
         });
         ctx.restore();layer.style.opacity="0";requestAnimationFrame(()=>layer.style.opacity="1");
-        const details=[selected.event,...intersections.map(point=>point.name+": LKR "+fmt(point.value))];
-        show(e,selected.date+" · "+selected.stage,details);
+        const details=intersections.map(point=>point.name+": LKR "+fmt(point.value));
+        show(e,selected.date,details);
       }else if(id==="cashflow-chart"){
         const series=(data.cashflows||[]),visible=[...panel.querySelectorAll(".chart-toolbar button")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.textContent);
         const active=series.filter(s=>!visible.length||visible.includes(s.name)),dates=[...new Set(active.flatMap(s=>(s.points||[]).map(p=>p.x)))].sort();
