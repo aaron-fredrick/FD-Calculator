@@ -215,12 +215,14 @@ export function generateHtmlReport(result,config) {
   const start=iso(config.start),end=iso(config.end),days=dayCount(start,end)+1;
   const accountDisplay={};
   for(const a of Object.values(result.accounts||{})){
-    const bank=String(a.bank_id||a.bank_key||"Bank").replace(/^LK_/,"").replaceAll("_"," ").replace(/\b\w/g,c=>c.toUpperCase());
+    const bankId=a.bank_id||a.bank_key||"Bank";
+    const bank=bankNamesFromConfig(config)[bankId]||String(bankId).replace(/^LK_/,"").replaceAll("_"," ").replace(/\b\w/g,c=>c.toUpperCase());
     accountDisplay[a.id]=(a.label||a.id)+" · "+bank;
   }
   const configured=Array.isArray(config.accounts)?config.accounts:Object.values(config.accounts||{});
   const openingBalances=Object.fromEntries(configured.map(a=>[a.id,Number(a.balance||0)]));
-  const accountRows=Object.values(result.accounts||{}).map(a=>({label:a.label||a.id,id:a.id,bank:String(a.bank_id||a.bank_key||"").replace(/^LK_/,"").replaceAll("_"," "),balance:amount(openingBalances[a.id]??a.balance),efd:a.supports_efd?"Enabled":"Standard FD only",role:a.id===config.consolidation_account_id?"Consolidation account":"Investment account"}));
+  const bankNames=bankNamesFromConfig(config);
+  const accountRows=Object.values(result.accounts||{}).map(a=>({label:a.label||a.id,id:a.id,bank:bankNames[a.bank_id||a.bank_key]||String(a.bank_id||a.bank_key||"").replace(/^LK_/,"").replaceAll("_"," "),balance:amount(openingBalances[a.id]??a.balance),efd:a.supports_efd?"Enabled":"Standard FD only",role:a.id===config.consolidation_account_id?"Consolidation account":"Investment account"}));
   const inflows=(config.inflow_summaries||[]).map(x=>({name:x.name,amount:amount(x.amount),schedule:scheduleText(x),account:result.accounts?.[x.account_id]?.label||x.account_id,occurrences:x.occurrences,total:amount(x.total)}));
   const outflows=(config.outflow_summaries||[]).map(x=>({name:x.name,amount:amount(x.amount),schedule:scheduleText(x),account:result.accounts?.[x.account_id]?.label||x.account_id,occurrences:x.occurrences,total:amount(x.total),policy:x.payment_policy||"—"}));
   const accountTable=table("Accounts",[["label","Account"],["id","Account ID"],["bank","Bank"],["balance","Opening balance (LKR)"],["efd","eFD capability"],["role","Role"]],accountRows);
