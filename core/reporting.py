@@ -400,10 +400,9 @@ def build_decision_log(result: SimResult) -> list[dict]:
             if item.event_type == EventType.TRANSFER
         ]
         milestone = next_milestone(event.on_date)
-        net_flows = option.generate_cash_flows_after_ait(
-            booking.principal, booking.start,
+        net_flows = option.apply_ait_to_cash_flows(
+            booking.principal, booking.cash_flows,
             result.ait_rate if result.ait_enabled else 0.0,
-            compound=False,
         )
         expected_ait = round(booking.total_received - sum(amount for _, amount in net_flows), 2)
         reasons.append(f"Liquidity checkpoint: {milestone}")
