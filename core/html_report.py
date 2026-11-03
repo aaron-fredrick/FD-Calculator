@@ -100,8 +100,8 @@ def generate_html_report(
         "account": (result.accounts[x["account_id"]].label if x["account_id"] in result.accounts else x["account_id"]), "occurrences": x["occurrences"], "total": _amount(x["total"]),
     } for x in inflows]
     outflow_rows = [{
-        "name": x["name"], "amount": _money(x["amount"]), "schedule": _schedule_text(x),
-        "account": account_display.get(x["account_id"], x["account_id"]), "occurrences": x["occurrences"],
+        "name": x["name"], "amount": _amount(x["amount"]), "schedule": _schedule_text(x),
+        "account": (result.accounts[x["account_id"]].label if x["account_id"] in result.accounts else x["account_id"]), "occurrences": x["occurrences"],
         "total": _amount(x["total"]), "policy": x.get("payment_policy", "—"),
     } for x in outflows]
 
@@ -122,8 +122,8 @@ def generate_html_report(
         [("name", "Inflow"), ("amount", "Per occurrence (LKR)"), ("schedule", "Schedule"),
          ("account", "Credit account"), ("occurrences", "Count"), ("total", "Total (LKR)")], inflow_rows)
     outflow_table = table("Planned outflows",
-        [("name", "Outflow"), ("amount", "Per occurrence"), ("schedule", "Schedule"),
-         ("account", "Debit account"), ("occurrences", "Count"), ("total", "Total"),
+        [("name", "Outflow"), ("amount", "Per occurrence (LKR)"), ("schedule", "Schedule"),
+         ("account", "Debit account"), ("occurrences", "Count"), ("total", "Total (LKR)"),
          ("policy", "Payment policy")], outflow_rows)
 
     decision_cards = []
