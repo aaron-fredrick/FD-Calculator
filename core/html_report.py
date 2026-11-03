@@ -109,9 +109,11 @@ def generate_html_report(
          ("policy", "Payment policy")], outflow_rows)
 
     decision_cards = []
-    rendered_transfer_days: set[date] = set()
     investment_rows = []
     capital_flow_rows = []
+    records_by_day: dict[date, list[dict]] = {}
+    for record in records:
+        records_by_day.setdefault(record["date"], []).append(record)
 
     def _instruction_transfer(step: dict, step_number: int) -> str:
         description = str(step.get("description", ""))
@@ -119,10 +121,11 @@ def generate_html_report(
             return ""
         destination_label = description.removeprefix("Transfer to ")
         destination = account_display_by_label.get(destination_label, destination_label)
-        source = str(step.get("account_label") or step.get("account_id") or "Source account")
         source_id = str(step.get("account_id") or "")
-        source_display = account_display.get(source_id, source)
-        channel = str(step.get("channel", "TRANSFER")).replace("DOMESTIC CEFT", "Inter-bank CEFT").replace("INTRA-BANK", "Same-bank transfer")
+        source_display = account_display.get(source_id, str(step.get("account_label") or source_id))
+        channel = str(step.get("channel", "TRANSFER")).replace(
+            "DOMESTIC CEFT", "Inter-bank CEFT"
+        ).replace("INTRA-BANK", "Same-bank transfer")
         return f"""
           <div class="instruction transfer-instruction">
             <div class="instruction-title"><span>STEP {step_number}</span> Transfer funds</div>
@@ -138,30 +141,51 @@ def generate_html_report(
             </div>
           </div>"""
 
-    for index, item in enumerate(records, 1):
-        is_booking = bool(item.get("product"))
-        # Only outgoing, actionable transfers are instructions. Incoming ledger
-        # counterparts and terminal final-sweep movements are deliberately omitted.
-        transfer_steps = []
-        if item["date"] not in rendered_transfer_days:
-            transfer_steps = [
-                step for step in item.get("transfer_steps", [])
-                if str(step.get("description", "")).startswith("Transfer to ")
-            ]
-            if transfer_steps:
-                rendered_transfer_days.add(item["date"])
-        transfers = "".join(_instruction_transfer(step, step_number) for step_number, step in enumerate(transfer_steps, 1))
-        reasons = "".join(f"<li>{escape(str(reason))}</li>" for reason in item.get("reason", []))
+    for decision_day, day_records in sorted(records_by_day.items()):
+        booking_records = [item for item in day_records if item.get("product")]
+        carry_records = [item for item in day_records if not item.get("product")]
+        transfer_steps = [
+            step for item in day_records for step in item.get("transfer_steps", [])
+            if str(step.get("description", "")).startswith("Transfer to ")
+        ]
+        # build_decision_log repeats the day's transfer events on every booking
+        # record. Deduplicate by source account, description and amount.
+        unique_transfers = []
+        seen_transfers = set()
+        for step in transfer_steps:
+            identity = (
+                step.get("account_id"), step.get("description"),
+                round(float(step.get("amount", 0)), 2), round(float(step.get("fee", 0)), 2),
+            )
+            if identity not in seen_transfers:
+                seen_transfers.add(identity)
+                unique_transfers.append(step)
+        transfer_steps = unique_transfers
+        transfers = "".join(
+            _instruction_transfer(step, number)
+            for number, step in enumerate(transfer_steps, 1)
+        )
+
+        reasons = []
+        for record in day_records:
+            for reason in record.get("reason", []):
+                if reason not in reasons:
+                    reasons.append(reason)
+        reasons_html = "".join(f"<li>{escape(str(reason))}</li>" for reason in reasons)
+        first_record = booking_records[0] if booking_records else day_records[0]
         balances = "".join(
             f'<span class="chip">{escape(account_display.get(str(account_id), str(account_id)))}: {_money(float(balance))}</span>'
-            for account_id, balance in item.get("available_funds", {}).items()
+            for account_id, balance in first_record.get("available_funds", {}).items()
         )
-        if is_booking:
+
+        booking_actions = []
+        expected_blocks = []
+        for booking_index, item in enumerate(booking_records, len(transfer_steps) + 1):
             account_id = str(item.get("account_id", ""))
             account_name = account_display.get(account_id, item.get("account_label", account_id))
-            action_detail = f"""
+            booking_actions.append(f"""
               <div class="instruction booking-instruction">
-                <div class="instruction-title"><span>STEP {len(transfer_steps) + 1}</span> Open the fixed deposit</div>
+                <div class="instruction-title"><span>STEP {booking_index}</span> Open the fixed deposit</div>
                 <div class="detail-grid">
                   <div><small>Account</small><b>{escape(str(account_name))}</b></div>
                   <div><small>Product</small><b>{escape(str(item.get('product', '—')))} · {escape(str(item.get('fd_type', '—')))}</b></div>
@@ -170,7 +194,15 @@ def generate_html_report(
                   <div><small>Booking → maturity</small><b>{_date(item['booking_start'])} → {_date(item['maturity_date'])}</b></div>
                   <div><small>Payout</small><b>{escape(str(item.get('payout_type', '—')))}</b></div>
                 </div>
-              </div>"""
+              </div>""")
+            expected_blocks.append(f"""
+              <div class="expected">
+                <b>{escape(str(item.get('booking_ref', 'FD')))} expected outcome</b>
+                <span>Gross interest {_money(item.get('expected_return', 0))}</span>
+                <span>AIT <b class="negative">{_money(item.get('expected_ait', 0))}</b></span>
+                <span>Net interest <b class="positive">{_money(item.get('expected_net_return', 0))}</b></span>
+                <span>Maturity <b>{_date(item['maturity_date'])}</b></span>
+              </div>""")
             investment_rows.append({
                 "account": account_name, "product": f"{item.get('product', '—')} · {item.get('fd_type', '—')}",
                 "principal": _money(item["principal"]), "rate": f"{float(item['rate']):.3f}%",
@@ -180,30 +212,41 @@ def generate_html_report(
                 "ait": _money(item.get("expected_ait", 0)),
                 "net": _money(item.get("expected_net_return", 0)),
             })
-            title = "Transfer funds and open an FD" if transfers else "Open an FD using available funds"
-            expected = f"""
-              <div class="expected">
-                <span>Gross interest <b>{_money(item.get('expected_return', 0))}</b></span>
-                <span>AIT <b class="negative">{_money(item.get('expected_ait', 0))}</b></span>
-                <span>Net interest <b class="positive">{_money(item.get('expected_net_return', 0))}</b></span>
-                <span>Maturity <b>{_date(item['maturity_date'])}</b></span>
-              </div>"""
+
+        if booking_records:
+            title = (
+                "Transfer funds and open multiple FDs" if transfers and len(booking_records) > 1
+                else "Transfer funds and open an FD" if transfers
+                else "Open multiple FDs across accounts" if len(booking_records) > 1
+                else "Open an FD using available funds"
+            )
+            action_html = transfers + "".join(booking_actions)
+            expected_html = "".join(expected_blocks)
         else:
-            title = "Keep funds available"
-            account_name = account_display.get(str(item.get("account_id", "")), item.get("account_label", "account"))
-            action_detail = f'<div class="retained-note"><b>No bank transaction required.</b> Keep available cash in {escape(str(account_name))} until the next liquidity checkpoint.</div>'
-            expected = ""
-        action_parts = (transfers + action_detail) if transfers or is_booking else action_detail
+            retained_accounts = sorted({
+                account_display.get(str(item.get("account_id", "")), str(item.get("account_label", "account")))
+                for item in carry_records
+            })
+            title = "Transfer funds between accounts" if transfers else "Keep funds available"
+            retained = (
+                '<div class="retained-note"><b>No FD booking required.</b> '
+                f'Keep available cash in {escape(", ".join(retained_accounts))} until the next liquidity checkpoint.</div>'
+                if carry_records else ""
+            )
+            action_html = transfers + retained
+            expected_html = ""
+
+        checkpoint = first_record.get("next_milestone", "—")
         decision_cards.append(f"""
           <article class="decision">
-            <div class="decision-head"><span class="step">DECISION {index:02d}</span>
-              <span class="date">{_date(item['date'])}</span><h3>{escape(title)}</h3></div>
+            <div class="decision-head"><span class="step">DECISION {len(decision_cards)+1:02d}</span>
+              <span class="date">{_date(decision_day)}</span><h3>{escape(title)}</h3></div>
             <h4>Action required</h4>
-            {action_parts}
-            {('<h4>Why this decision</h4><ul class="compact">' + reasons + '</ul>') if reasons else ''}
-            {expected}
+            {action_html if action_html else '<p class="muted">No external bank action is required at this point.</p>'}
+            {('<h4>Why this decision</h4><ul class="compact">' + reasons_html + '</ul>') if reasons_html else ''}
+            {expected_html}
             {('<h4>Balances before decision</h4><div class="chips">' + balances + '</div>') if balances else ''}
-            <p class="checkpoint"><b>Next checkpoint:</b> {escape(str(item.get('next_milestone', '—')))}</p>
+            <p class="checkpoint"><b>Next checkpoint:</b> {escape(str(checkpoint))}</p>
           </article>""")
 
     for key in result.sorted_dates():
