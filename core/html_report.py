@@ -113,7 +113,7 @@ def generate_html_report(
     investment_rows = []
     capital_flow_rows = []
 
-    def _instruction_transfer(step: dict) -> str:
+    def _instruction_transfer(step: dict, step_number: int) -> str:
         description = str(step.get("description", ""))
         if not description.startswith("Transfer to "):
             return ""
@@ -125,7 +125,7 @@ def generate_html_report(
         channel = str(step.get("channel", "TRANSFER")).replace("DOMESTIC CEFT", "Inter-bank CEFT").replace("INTRA-BANK", "Same-bank transfer")
         return f"""
           <div class="instruction transfer-instruction">
-            <div class="instruction-title"><span>STEP 1</span> Transfer funds</div>
+            <div class="instruction-title"><span>STEP {step_number}</span> Transfer funds</div>
             <div class="route">
               <div><small>FROM · SOURCE ACCOUNT</small><b>{escape(source_display)}</b></div>
               <span class="route-arrow">→</span>
@@ -150,7 +150,7 @@ def generate_html_report(
             ]
             if transfer_steps:
                 rendered_transfer_days.add(item["date"])
-        transfers = "".join(_instruction_transfer(step) for step in transfer_steps)
+        transfers = "".join(_instruction_transfer(step, step_number) for step_number, step in enumerate(transfer_steps, 1))
         reasons = "".join(f"<li>{escape(str(reason))}</li>" for reason in item.get("reason", []))
         balances = "".join(
             f'<span class="chip">{escape(account_display.get(str(account_id), str(account_id)))}: {_money(float(balance))}</span>'
@@ -161,7 +161,7 @@ def generate_html_report(
             account_name = account_display.get(account_id, item.get("account_label", account_id))
             action_detail = f"""
               <div class="instruction booking-instruction">
-                <div class="instruction-title"><span>STEP {2 if transfer_steps else 1}</span> Open the fixed deposit</div>
+                <div class="instruction-title"><span>STEP {len(transfer_steps) + 1}</span> Open the fixed deposit</div>
                 <div class="detail-grid">
                   <div><small>Account</small><b>{escape(str(account_name))}</b></div>
                   <div><small>Product</small><b>{escape(str(item.get('product', '—')))} · {escape(str(item.get('fd_type', '—')))}</b></div>
