@@ -573,7 +573,7 @@ def print_simulation(
                 )
     _summary_line("Net Interest (after AIT)", f"{result.net_interest_after_ait:,.2f} LKR", EVENT_COLORS[EventType.CASH_FLOW])
     _summary_line("Net Yield (after AIT)", f"{net_ret:.3f}%", EVENT_COLORS[EventType.BOOKING])
-    annualised_text = f"{annualised:.3f}% p.a. (XIRR, pre-AIT)" if annualised is not None else "N/A"
+    annualised_text = f"{annualised:.3f}% p.a. (XIRR, after AIT)" if annualised is not None and result.ait_enabled else (f"{annualised:.3f}% p.a. (XIRR)" if annualised is not None else "N/A")
     _summary_line("Annualised Return", annualised_text, EVENT_COLORS[EventType.MATURITY])
     _summary_line("Final Balance (after AIT)", f"{result.final_value_after_ait:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
     print("  AIT withholding is applied to interest payouts before cash is reused." if result.ait_enabled else "  AIT is disabled; interest payouts are modelled gross.")
@@ -587,7 +587,7 @@ def print_simulation(
     # -- Comparison with other strategies (only other net interest shown) --
     if comparison:
         print()
-        print("  Other Strategy Net Interest (before AIT; strategy objective):")
+        print("  Other Strategy Net Interest (after configured AIT; strategy objective):")
         for strat_name, other_net in sorted(comparison.items()):
             delta = other_net - result.net_interest
             delta_str = f"+{delta:,.2f}" if delta >= 0 else f"{delta:,.2f}"
