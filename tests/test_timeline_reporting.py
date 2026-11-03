@@ -33,7 +33,7 @@ class TimelineReportingTests(unittest.TestCase):
         )
         events = [
             Event(
-                EventType.TRANSFER, start, 970.0,
+                EventType.TRANSFER, start, 1000.0,
                 "Transfer to DFCC (Amt: 970.00, Fee: 30.00)",
                 account_id="com", transfer_channel="domestic_ceft",
                 fee=30.0, balance_after=0.0,
