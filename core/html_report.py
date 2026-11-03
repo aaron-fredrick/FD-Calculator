@@ -242,6 +242,7 @@ def generate_html_report(
             <div class="decision-head"><span class="step">DECISION {len(decision_cards)+1:02d}</span>
               <span class="date">{_date(decision_day)}</span><h3>{escape(title)}</h3></div>
             <h4>Action required</h4>
+            {'<p class="muted">Strategy classification: Carry cash forward.</p>' if carry_records and not booking_records else ''}
             {action_html if action_html else '<p class="muted">No external bank action is required at this point.</p>'}
             {('<h4>Why this decision</h4><ul class="compact">' + reasons_html + '</ul>') if reasons_html else ''}
             {expected_html}
@@ -469,7 +470,7 @@ footer{{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;color:
 <section><h2>04 · Investment portfolio</h2><h3>Accounts</h3>{account_table}<h3>Selected fixed deposits</h3>{investment_table}</section>
 <section><h2>05 · Scheduled cash flows</h2><div class="grid2"><div><h3>Planned inflows</h3>{inflow_table}</div><div><h3>Planned outflows</h3>{outflow_table}</div></div></section>
 <section><h2>06 · Performance charts</h2>{''.join(chart_items) if chart_items else '<p class="muted">Charts were not generated for this run. Enable show_plots to include them.</p>'}</section>
-<section><h2>08 · Scenario assumptions</h2><div class="panel"><div class="grid2">
+<section><h2>08 · Scenario assumptions</h2><p class="muted">Scenario conditions used for this simulation.</p><div class="panel"><div class="grid2">
 <div><small>Strategy</small><p><b>{escape(result.strategy_name)}</b></p></div>
 <div><small>Interest method</small><p><b>{"Compound" if config.get("compound") else "Simple"} interest</b></p></div>
 <div><small>Day-count basis</small><p><b>{"Actual leap-year basis" if config.get("actual_leap_year") else "365-day basis"}</b></p></div>
@@ -477,7 +478,7 @@ footer{{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;color:
 <div><small>Consolidation account</small><p><b>{escape(account_display.get(config.get("consolidation_account_id"), config.get("consolidation_account_id", "—")))}</b></p></div>
 <div><small>Transfer fee defaults</small><p><b>Inter-bank {_money(config.get("fee_config").default_inter_bank_fee)} · Same-bank {_money(config.get("fee_config").same_bank_fee)}</b></p></div>
 </div></div></section>
-<section><h2>07 · Full event ledger</h2><p class="muted">Complete accounting audit trail, including both sides of transfers, fees, bookings, interest, AIT and maturities. This ledger records what the simulation accounts for; it is not an execution checklist.</p>
+<section><h2>07 · Full event ledger</h2><p class="muted">Full event timeline and complete accounting audit trail, including both sides of transfers, fees, bookings, interest, AIT and maturities. This ledger records what the simulation accounts for; it is not an execution checklist.</p>
 <div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount</th><th>Description</th><th class="num">Balance after</th></tr></thead><tbody>{''.join(event_rows) if event_rows else '<tr><td colspan="6" class="empty">No events</td></tr>'}</tbody></table></div></section>
 <footer><b>Important:</b> This report is a simulation and manual planning aid. It does not execute bank transfers or open fixed deposits. Interest, rates, minimums, tax treatment, fees and product availability may differ in practice. Confirm all details directly with the relevant bank. Portfolio charts estimate accrued interest between booking and maturity; contractual cash-flow events and the final summary are authoritative within this simulation.</footer>
 </main></body></html>"""
