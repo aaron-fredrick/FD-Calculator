@@ -1,10 +1,12 @@
 from datetime import date
+import unittest
 
 from core.html_report import _build_account_balance_series
 from core.models import Account, Event, EventType, SimResult
 
 
-def test_account_history_ignores_unposted_outflow_placeholder_and_tracks_cash_flows():
+class HtmlReportAccountChartTests(unittest.TestCase):
+    def test_account_history_ignores_unposted_outflow_placeholder_and_tracks_cash_flows(self):
     start = date(2027, 1, 1)
     day_2 = date(2027, 1, 2)
     day_3 = date(2027, 1, 3)
@@ -57,15 +59,15 @@ def test_account_history_ignores_unposted_outflow_placeholder_and_tracks_cash_fl
         result, {"cash": 500.0}, start, day_4, "cash"
     )
 
-    assert series[0]["points"] == [
+    self.assertEqual(series[0]["points"], [
         {"x": "2027-01-01", "y": 1_300.0},
         {"x": "2027-01-02", "y": 1_325.0},
         {"x": "2027-01-03", "y": 2_325.0},
         {"x": "2027-01-04", "y": 2_025.0},
-    ]
+    ])
 
 
-def test_account_history_uses_distinct_colors_and_relationship_line_styles():
+    def test_account_history_uses_distinct_colors_and_relationship_line_styles(self):
     accounts = {
         "commercial-primary": Account(
             "commercial-primary", "LK_COMMERCIAL_BANK_OF_CEYLON",
@@ -97,9 +99,13 @@ def test_account_history_uses_distinct_colors_and_relationship_line_styles():
     )
 
     by_name = {item["name"]: item for item in series}
-    assert by_name["Commercial Primary"]["lineStyle"] == "solid"
-    assert by_name["Commercial Savings"]["lineStyle"] == "dashed"
-    assert by_name["DFCC Savings"]["lineStyle"] == "dotted"
-    assert len({item["color"] for item in series}) == 3
-    assert by_name["Commercial Primary"]["points"][0]["y"] == 10_000.0
-    assert by_name["Commercial Savings"]["points"][0]["y"] == 20_000.0
+    self.assertEqual(by_name["Commercial Primary"]["lineStyle"], "solid")
+    self.assertEqual(by_name["Commercial Savings"]["lineStyle"], "dashed")
+    self.assertEqual(by_name["DFCC Savings"]["lineStyle"], "dotted")
+    self.assertEqual(len({item["color"] for item in series}), 3)
+    self.assertEqual(by_name["Commercial Primary"]["points"][0]["y"], 10_000.0)
+    self.assertEqual(by_name["Commercial Savings"]["points"][0]["y"], 20_000.0)
+
+
+if __name__ == "__main__":
+    unittest.main()
