@@ -62,8 +62,15 @@ def generate_html_report(
     path.parent.mkdir(parents=True, exist_ok=True)
     records = sorted(build_decision_log(result), key=lambda item: (item["date"], item.get("booking_ref", "")))
     bank_names = _load_bank_names()
+    def _bank_display_name(bank_id: str | None, bank_key: str | None) -> str:
+        registered = bank_names.get(bank_id or "") or bank_names.get(bank_key or "")
+        if registered:
+            return registered
+        fallback = (bank_key or bank_id or "Bank").removeprefix("LK_")
+        return fallback.replace("_", " ").title()
+
     account_display = {
-        account.id: f"{account.label or account.id} · {bank_names.get(account.bank_id, account.bank_id or account.bank_key)}"
+        account.id: f"{account.label or account.id} · {_bank_display_name(account.bank_id, account.bank_key)}"
         for account in result.accounts.values()
     }
     account_display_by_label = {
@@ -76,7 +83,7 @@ def generate_html_report(
         account_rows.append({
             "label": account.label or account.id,
             "id": account.id,
-            "bank": bank_names.get(account.bank_id, account.bank_id or account.bank_key),
+            "bank": _bank_display_name(account.bank_id, account.bank_key),
             "balance": _money(account.balance),
             "efd": "Enabled" if account.supports_efd else "Standard FD only",
             "role": "Consolidation account" if account.id == config.get("consolidation_account_id") else "Investment account",
@@ -284,19 +291,26 @@ def generate_html_report(
         f"FD-{index:04d}": booking
         for index, booking in enumerate(result.bookings, 1)
     }
-
     last_event_day = None
+    last_group_day = None
+    last_group_title = None
 
-    def append_event_row(day, account_label, label, amount, description, balance, css_type):
-        nonlocal last_event_day
-        amount_class = "positive" if amount > 0 else "negative" if amount < 0 else "muted"
+    def append_event_row(day, account_label, label, amount, description, balance, css_type, group_title):
+        nonlocal last_event_day, last_group_day, last_group_title
         is_new_day = day != last_event_day
         date_cell = _date(day) if is_new_day else ""
         row_class = ' class="day-start"' if is_new_day and last_event_day is not None else ""
+        if day != last_group_day or group_title != last_group_title:
+            event_rows.append(
+                f'<tr class="event-subgroup"><td colspan="6">{escape(group_title)}</td></tr>'
+            )
+            last_group_day = day
+            last_group_title = group_title
+        signed_amount = f"+{_money(amount)}" if amount > 0 else _money(amount)
         event_rows.append(
             f'<tr{row_class}><td class="event-date">{date_cell}</td><td>{escape(account_label)}</td>'
             f'<td><span class="event-pill {escape(css_type)}">{escape(label)}</span></td>'
-            f'<td class="num {amount_class}">{_money(amount)}</td>'
+            f'<td class="num event-amount {escape(css_type)}">{signed_amount}</td>'
             f'<td>{escape(description)}</td><td class="num">{_money(balance)}</td></tr>'
         )
         last_event_day = day
@@ -310,12 +324,12 @@ def generate_html_report(
             event_type = event.event_type.value.replace("_", " ").title()
             display_amount = float(event.amount)
             display_balance = float(event.balance_after)
-
             booking = booking_by_ref.get(event.booking_ref)
+
             if event.event_type == EventType.BOOKING:
                 append_event_row(
                     event.on_date, account_label, "BOOK", -abs(display_amount),
-                    event.label, display_balance, "booking",
+                    event.label, display_balance, "booking", "FD BOOKINGS",
                 )
                 continue
 
@@ -326,17 +340,18 @@ def generate_html_report(
                     append_event_row(
                         event.on_date, account_label, f"{channel} TO",
                         -(event.amount - event.fee), event.label,
-                        display_balance + event.fee, "transfer-to",
+                        display_balance + event.fee, "transfer-to", f"{channel} TRANSFERS",
                     )
                     if event.fee > 0:
                         append_event_row(
                             event.on_date, account_label, f"{channel} TF", -event.fee,
                             f"Transfer fee for {event.label}", event.balance_after, "outflow",
+                            f"{channel} TRANSFERS",
                         )
                 else:
                     append_event_row(
                         event.on_date, account_label, f"{channel} TI", event.amount,
-                        event.label, display_balance, "transfer",
+                        event.label, display_balance, "transfer", f"{channel} TRANSFERS",
                     )
                 continue
 
@@ -350,35 +365,42 @@ def generate_html_report(
                     if booking.payout_type == "periodic_interest":
                         period = (booking.option.payout_period_str or "").strip().lower()
                         label = "YEAR INTEREST" if period.startswith("y") else "MONTH INTEREST" if period.startswith("m") else f"{period.upper()} INTEREST".strip()
+                        group_title = "PERIODIC INTEREST PAYOUT · AIT" if ait > 0.005 else "PERIODIC INTEREST PAYOUT"
                     else:
                         label = "INSTALLMENT"
+                        group_title = "INSTALLMENT PAYOUT · AIT" if ait > 0.005 else "INSTALLMENT PAYOUT"
                     append_event_row(
                         event.on_date, account_label, label, float(gross_amount),
-                        event.label, display_balance + ait, "cash_flow",
+                        event.label, display_balance + ait, "cash_flow", group_title,
                     )
                 elif booking.payout_type in {"cumulative", "periodic_interest"}:
                     maturity_interest = float(event.amount) - booking.principal
                     gross_interest = float(gross_amount) - booking.principal
+                    maturity_group = "FD MATURITY · PRINCIPAL · INTEREST · AIT"
                     append_event_row(
                         event.on_date, account_label, "MATURE PRINCIPAL",
                         booking.principal, f"Principal returned {event.booking_ref}",
                         display_balance - max(0.0, maturity_interest), "mature-principal",
+                        maturity_group,
                     )
                     if gross_interest > 0:
                         append_event_row(
                             event.on_date, account_label, "MATURE INTEREST",
                             gross_interest, f"Interest paid at maturity {event.booking_ref}",
-                            display_balance + ait, "cash_flow",
+                            display_balance + ait, "cash_flow", maturity_group,
                         )
                 else:
+                    maturity_group = "FD MATURITY · CASH FLOW · AIT"
                     append_event_row(
                         event.on_date, account_label, "MATURE CASH FLOW",
                         float(gross_amount), event.label, display_balance + ait, "maturity",
+                        maturity_group,
                     )
                 if ait > 0.005:
                     append_event_row(
                         event.on_date, account_label, "AIT WITHHELD", -ait,
                         "AIT deducted from interest payout", event.balance_after, "outflow",
+                        maturity_group if event.event_type == EventType.MATURITY else group_title,
                     )
                 continue
 
@@ -386,9 +408,16 @@ def generate_html_report(
                 EventType.INFLOW: "INFLOW", EventType.OUTFLOW: "OUTFLOW",
                 EventType.CARRY_FORWARD: "CARRY FORWARD", EventType.IDLE: "IDLE",
             }
+            label = labels.get(event.event_type, event_type).upper()
+            group_title = {
+                EventType.INFLOW: "AVAILABLE CAPITAL · INFLOWS",
+                EventType.OUTFLOW: "CASH REQUIREMENTS · OUTFLOWS",
+                EventType.CARRY_FORWARD: "RETAINED CASH · NO TRANSACTION",
+                EventType.IDLE: "IDLE / UNALLOCATED CASH",
+            }.get(event.event_type, "OTHER LEDGER EVENTS")
             append_event_row(
-                event.on_date, account_label, labels.get(event.event_type, event_type).upper(),
-                display_amount, event.label, display_balance, event.event_type.value,
+                event.on_date, account_label, label, display_amount,
+                event.label, display_balance, event.event_type.value, group_title,
             )
 
     chart_items = []
@@ -443,7 +472,9 @@ p{{margin:8px 0}}.muted,small{{color:var(--muted)}}section{{margin-top:34px}}.pa
 .detail-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}}.detail-grid div{{background:var(--panel2);padding:11px;border-radius:9px}}.detail-grid small{{display:block;font-size:11px}}.detail-grid b{{display:block;margin-top:4px;font-size:13px}}
 ul.compact{{padding-left:20px;color:#c7d0dc}}ul.compact li{{margin:5px 0}}.chips{{display:flex;gap:8px;flex-wrap:wrap}}.chip{{background:var(--panel2);padding:5px 9px;border-radius:7px;color:#c7d0dc;font-size:12px}}.checkpoint{{border-top:1px solid var(--line);padding-top:12px;color:var(--muted);font-size:13px}}
 figure{{margin:0 0 18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}}figure img{{display:block;width:100%;height:auto;border-radius:8px}}figcaption{{padding:10px 4px 2px}}figcaption b,figcaption span{{display:block}}figcaption span{{font-size:12px;color:var(--muted);margin-top:3px}}
-.event-pill{{display:inline-block;padding:3px 8px;border-radius:20px;background:#253143;color:#b9d9ef;font-size:11px;white-space:nowrap}}.event-pill.inflow{{background:#1e3442;color:#82aaff}}.event-pill.outflow{{background:#3a2227;color:#ff7777}}.event-pill.transfer{{background:#243143;color:#56d8e8}}.event-pill.transfer-to{{background:#3b2b1b;color:#e9ad58}}.event-pill.carry_forward{{background:#3a321d;color:#e9d15b}}.event-pill.booking{{background:#332742;color:#d78bfa}}.event-pill.maturity{{background:#173b25;color:#32b65b}}.event-pill.cash_flow{{background:#183c2b;color:#55c99a}}.event-pill.idle{{background:#292d33;color:#9ba8b8}}.event-pill.mature-principal{{background:#332b42;color:#bd93f9}}
+.event-subgroup td{{padding:8px 13px;background:#202b3a;color:#a9bbcf;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid #3b4b60;border-bottom:1px solid #293445}}
+.event-amount.inflow{{color:var(--blue)}}.event-amount.outflow{{color:var(--red)}}.event-amount.transfer{{color:#56d8e8}}.event-amount.transfer-to{{color:var(--amber)}}.event-amount.booking{{color:var(--purple)}}.event-amount.cash_flow{{color:var(--green)}}.event-amount.maturity{{color:var(--green)}}.event-amount.mature-principal{{color:#f08ab5}}.event-amount.carry_forward{{color:#e9d15b}}.event-amount.idle{{color:#9ba8b8}}
+.event-pill{{display:inline-block;padding:3px 8px;border-radius:20px;background:#253143;color:#b9d9ef;font-size:11px;white-space:nowrap}}.event-pill.inflow{{background:#1e3442;color:#82aaff}}.event-pill.outflow{{background:#3a2227;color:#ff7777}}.event-pill.transfer{{background:#243143;color:#56d8e8}}.event-pill.transfer-to{{background:#3b2b1b;color:#e9ad58}}.event-pill.carry_forward{{background:#3a321d;color:#e9d15b}}.event-pill.booking{{background:#332742;color:#d78bfa}}.event-pill.maturity{{background:#173b25;color:#32b65b}}.event-pill.cash_flow{{background:#183c2b;color:#55c99a}}.event-pill.idle{{background:#292d33;color:#9ba8b8}}.event-pill.mature-principal{{background:#422638;color:#f08ab5}}
 footer{{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;color:var(--muted);font-size:12px}}
 @media(max-width:600px){{main{{padding:22px 14px 48px}}.tag{{margin-left:0}}.metric strong{{font-size:19px}}.route{{grid-template-columns:1fr}}.route-arrow{{transform:rotate(90deg);justify-self:start}}}}
 @media print{{body{{background:#fff;color:#17202b}}.panel,.decision,.metric,figure,table{{background:#fff;color:#17202b;break-inside:avoid}}.muted,small,figcaption span{{color:#526070}}}}
