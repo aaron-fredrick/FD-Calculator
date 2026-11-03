@@ -49,31 +49,55 @@ def _build_account_balance_series(
     start: date,
     end: date,
     consolidation_account_id: str | None,
+    *,
+    compound: bool = False,
+    actual_leap_year: bool = True,
 ) -> list[dict[str, Any]]:
-    """Build daily liquid-account balances from valid post-event ledger checkpoints.
+    """Build daily account portfolio values: liquid cash plus active FD value.
 
-    Positive OUTFLOW events are obligation placeholders, not posted cash movements;
-    their default balance_after sentinel (-1) must never enter the account history.
+    Cash is reconstructed from posted ledger movements rather than relying on
+    Event.balance_after. A booking converts cash into an FD asset, not a loss
+    of portfolio value. Active FDs include principal plus accrued gross interest,
+    less gross payouts already made. Cash-flow events contain the net amount
+    actually received, so AIT reduces portfolio value when withheld.
     """
     if end < start:
         raise ValueError("end date must not be earlier than start date")
 
-    checkpoints: dict[str, dict[date, float]] = {
+    from core.interest import calc_interest
+
+    cash_movements: dict[str, dict[date, float]] = {
         account_id: {} for account_id in result.accounts
     }
+
+    def add_cash(account_id: str, day: date, amount: float) -> None:
+        if account_id not in result.accounts or not start <= day <= end:
+            return
+        daily = cash_movements.setdefault(account_id, {})
+        daily[day] = daily.get(day, 0.0) + amount
+
     for events in result.timeline.values():
         for event in events:
-            if not start <= event.on_date <= end:
-                continue
-            account = result.accounts.get(event.account_id)
-            if account is None:
-                continue
-            balance_after = float(event.balance_after)
-            # Account balances are non-negative in this simulator. -1 is the
-            # Event dataclass sentinel used by unposted obligation placeholders.
-            if balance_after < 0:
-                continue
-            checkpoints.setdefault(account.id, {})[event.on_date] = balance_after
+            account_id = str(event.account_id or "")
+            amount = float(event.amount)
+            if event.event_type == EventType.INFLOW:
+                add_cash(account_id, event.on_date, amount)
+            elif event.event_type == EventType.OUTFLOW:
+                if amount < 0:
+                    add_cash(account_id, event.on_date, amount)
+            elif event.event_type == EventType.BOOKING:
+                add_cash(account_id, event.on_date, -abs(amount))
+            elif event.event_type in {EventType.CASH_FLOW, EventType.MATURITY}:
+                add_cash(account_id, event.on_date, amount)
+            elif event.event_type == EventType.TRANSFER:
+                if event.label.startswith(("Transfer to ", "Final sweep to ")):
+                    add_cash(account_id, event.on_date, -abs(amount))
+                elif event.label.startswith(("Transfer received", "Final sweep received")):
+                    add_cash(account_id, event.on_date, amount)
+
+    bookings_by_account: dict[str, list] = {}
+    for booking in result.bookings:
+        bookings_by_account.setdefault(booking.account_id, []).append(booking)
 
     accounts = list(result.accounts.values())
     if consolidation_account_id in result.accounts:
@@ -85,14 +109,37 @@ def _build_account_balance_series(
     series: list[dict[str, Any]] = []
 
     for color_index, account in enumerate(accounts):
-        balance = float(opening_balances.get(account.id, 0.0))
-        daily = checkpoints.get(account.id, {})
+        cash = float(opening_balances.get(account.id, 0.0))
+        daily_movements = cash_movements.get(account.id, {})
+        account_bookings = bookings_by_account.get(account.id, [])
         points = []
+
         for offset in range(day_count + 1):
             day = start + timedelta(days=offset)
-            if day in daily:
-                balance = daily[day]
-            points.append({"x": _date(day), "y": balance})
+            cash += daily_movements.get(day, 0.0)
+            fd_value = 0.0
+
+            for booking in account_bookings:
+                if day < booking.start or day >= booking.end:
+                    continue
+                elapsed_days = (day - booking.start).days
+                accrued_interest = calc_interest(
+                    booking.principal,
+                    booking.option.annual_rate,
+                    elapsed_days,
+                    booking.start,
+                    compound,
+                    actual_leap_year,
+                )
+                gross_paid = sum(
+                    flow_amount
+                    for flow_date, flow_amount in booking.cash_flows
+                    if flow_date <= day
+                )
+                remaining_value = booking.principal + accrued_interest - gross_paid
+                fd_value += max(0.0, remaining_value)
+
+            points.append({"x": _date(day), "y": round(cash + fd_value, 2)})
 
         bank_identity = account.bank_identity.strip().upper()
         same_bank_as_consolidation = bool(
@@ -109,7 +156,6 @@ def _build_account_balance_series(
             ),
         })
     return series
-
 
 def _table_rows(items: Sequence[dict], columns: Sequence[tuple[str, str]]) -> str:
     if not items:
@@ -604,6 +650,8 @@ def generate_html_report(
         start,
         end,
         config.get("consolidation_account_id"),
+        compound=bool(config.get("compound", False)),
+        actual_leap_year=bool(config.get("actual_leap_year", True)),
     )
     flow_chart = [{"name": name, "points": [{"x": d, "y": v} for d, v in sorted(points.items())]}
                   for name, points in flow_totals.items()]
@@ -640,7 +688,7 @@ def generate_html_report(
         "{{EXECUTION_CONTENT}}": ''.join(decision_cards) if decision_cards else '<div class="panel">No FD bookings or actionable transfers were selected.</div>',
         "{{PORTFOLIO_CONTENT}}": f"{account_table}{investment_table}",
         "{{CASHFLOW_CONTENT}}": f'<div class="grid2"><div>{inflow_table}</div><div>{outflow_table}</div></div>',
-        "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account value history</h3><canvas id="account-chart" aria-label="Account balance history"></canvas><p class="muted">Recorded account balances from the event timeline. FD principal is shown separately in the maturity schedule.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
+        "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account value history</h3><canvas id="account-chart" aria-label="Account balance history"></canvas><p class="muted">Total value by account: liquid cash plus active FD principal and accrued interest. Booking moves value from cash into an FD; payouts and maturities return it to cash, net of AIT.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
         "{{PORTFOLIO_AUDIT_CONTENT}}": capital_flow_table,
         "{{LEDGER_CONTENT}}": ledger_html,
         "{{CHART_DATA}}": chart_json,
