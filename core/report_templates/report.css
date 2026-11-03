@@ -11,3 +11,16 @@ main{max-width:1440px;margin-left:236px;padding:38px clamp(22px,4vw,64px) 72px}.
 @media(max-width:620px){.sidebar{position:sticky;inset:0 0 auto;width:100%;height:auto;padding:8px 10px;display:block;border-right:0;border-bottom:1px solid var(--line)}.brand{display:none}.section-nav{display:flex;overflow-x:auto;gap:4px}.section-nav a{flex:0 0 auto;padding:8px 10px}.nav-index{display:none}.nav-label{display:inline;font-size:11px}.sidebar-foot{display:none}main{margin:0;padding:22px 14px 48px}.chart-grid{grid-template-columns:1fr}.chart-panel canvas{height:240px}.equation{justify-content:flex-start}.route{grid-template-columns:1fr}.route-arrow{transform:rotate(90deg);justify-self:start}.table-wrap{margin-right:-2px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 @media print{.sidebar{display:none}main{margin:0;max-width:none}.panel,.decision,.chart-panel,table{background:#fff;color:#17202b;break-inside:avoid}.muted,small{color:#526070}.chart-panel canvas{height:220px}}
+
+.chart-panel{position:relative;isolation:isolate}
+.chart-panel canvas{cursor:crosshair;touch-action:pan-y}
+.chart-tooltip{position:absolute;z-index:5;max-width:min(290px,calc(100% - 24px));min-width:150px;display:flex;flex-direction:column;gap:5px;padding:11px 13px;border:1px solid #40546b;border-radius:10px;background:rgba(12,18,27,.96);box-shadow:0 12px 32px rgba(0,0,0,.38);color:#dce6f2;font-size:11px;line-height:1.4;pointer-events:none;backdrop-filter:blur(12px);overflow-wrap:anywhere;white-space:normal}
+.chart-tooltip[hidden]{display:none}
+.chart-tooltip-title{color:#fff;font-size:12px;font-weight:750;line-height:1.35;overflow-wrap:anywhere}
+.chart-tooltip-line{display:block;color:#c0ccda;overflow-wrap:anywhere}
+.chart-toolbar{margin:10px 0 2px}
+.chart-toolbar button{transition:background .16s,border-color .16s,color .16s,transform .16s}
+.chart-toolbar button:hover{transform:translateY(-1px);color:#fff;border-color:#6687a6}
+.collapsible-table{box-shadow:0 5px 18px rgba(0,0,0,.12)}
+.collapsible-table>summary{min-height:46px;transition:background .16s,color .16s}
+.collapsible-table>summary:hover{background:#1b2634;color:#fff}
