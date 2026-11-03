@@ -209,7 +209,7 @@ class AbsoluteStrategy(BaseStrategy):
 
     name: str = "Absolute"
 
-    def __init__(self, compound: bool = False, actual_leap_year: bool = True, ait_enabled: bool = True, ait_rate: float = 0.10):
+    def __init__(self, compound: bool = False, actual_leap_year: bool = True, ait_enabled: bool = False, ait_rate: float = 0.10):
         self.compound = compound
         self.actual_leap_year = actual_leap_year
         self.ait_enabled = ait_enabled
