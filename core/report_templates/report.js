@@ -12,7 +12,7 @@ function axes(ctx,g,min,max,labels){for(let i=0;i<=4;i++){const y=g.t+g.ph*i/4;c
 function clearChartExtras(canvas){canvas.parentElement.querySelectorAll(".chart-toolbar,.chart-tooltip").forEach(node=>node.remove())}
 function lineChart(canvas,series){clearChartExtras(canvas);const activeSeries=series.filter(s=>!s._fdHidden);const {ctx,w,h}=setupCanvas(canvas),g=frame(ctx,w,h);const points=activeSeries.flatMap(s=>s.points||[]);if(!points.length){ctx.fillStyle="#9ba8b8";ctx.fillText("No account balance events available",g.l,g.t+30);return}
 const labels=[...new Set(points.map(p=>p.x))].sort(),values=points.map(p=>p.y),min=Math.min(0,...values),max=Math.max(1,...values);axes(ctx,g,min,max,labels.filter((_,i)=>i===0||i===labels.length-1||i===Math.floor(labels.length/2)));
-activeSeries.forEach((s,index)=>{const list=s.points||[];if(!list.length)return;ctx.strokeStyle=palette[index%palette.length];ctx.lineWidth=2;ctx.beginPath();list.forEach((p,i)=>{const x=g.l+g.pw*(labels.indexOf(p.x)/Math.max(labels.length-1,1)),y=g.t+g.ph-(p.y-min)/(max-min)*g.ph;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()});
+activeSeries.forEach((s,index)=>{const list=s.points||[];if(!list.length)return;ctx.strokeStyle=palette[(s.colorIndex??index)%palette.length];ctx.lineWidth=s.lineStyle==="solid"?2.8:2;ctx.setLineDash(s.lineStyle==="dashed"?[8,5]:s.lineStyle==="dotted"?[2,5]:[]);ctx.beginPath();list.forEach((p,i)=>{const x=g.l+g.pw*(labels.indexOf(p.x)/Math.max(labels.length-1,1)),y=g.t+g.ph-(p.y-min)/(max-min)*g.ph;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()});
 const legend=document.createElement("div");legend.className="chart-toolbar";series.forEach((s,i)=>{const b=document.createElement("button");b.type="button";b.textContent=s.name;b.setAttribute("aria-pressed",s._fdHidden?"false":"true");b.onclick=()=>{if(!s._fdHidden&&series.filter(x=>!x._fdHidden).length===1)return;s._fdHidden=!s._fdHidden;lineChart(canvas,series)};legend.appendChild(b)});canvas.parentElement.insertBefore(legend,canvas.nextSibling);
 canvas.onmousemove=event=>{const r=canvas.getBoundingClientRect(),x=(event.clientX-r.left)/r.width,idx=Math.min(labels.length-1,Math.max(0,Math.round(x*(labels.length-1))));const day=labels[idx];const details=activeSeries.map(s=>{const p=(s.points||[]).find(v=>v.x===day);return p?s.name+": "+money(p.y):null}).filter(Boolean);let tip=canvas.parentElement.querySelector(".chart-tooltip");if(!tip){tip=document.createElement("div");tip.className="chart-tooltip";canvas.after(tip)}tip.textContent=day+" · "+details.join(" · ")};
 }
@@ -57,6 +57,15 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
       ctx.beginPath();ctx.arc(x,y,r+5,0,Math.PI*2);ctx.fillStyle="rgba(220,232,245,.16)";ctx.fill();
       ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle="#f4f7fb";ctx.fill();
       ctx.lineWidth=2;ctx.strokeStyle="#172334";ctx.stroke();ctx.restore();
+      layer.style.opacity="0";requestAnimationFrame(()=>layer.style.opacity="1");
+    }
+    function drawBar(x,y,width,height,color){
+      const ctx=layer.getContext("2d"),w=layer.clientWidth,h=layer.clientHeight;
+      ctx.clearRect(0,0,w,h);ctx.fillStyle="rgba(4,8,14,.48)";ctx.fillRect(0,0,w,h);
+      ctx.save();ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;
+      ctx.fillRect(x,y,width,height);ctx.shadowBlur=0;ctx.lineWidth=2;
+      ctx.strokeStyle="rgba(255,255,255,.95)";ctx.strokeRect(x+.5,y+.5,Math.max(0,width-1),Math.max(0,height-1));
+      ctx.restore();layer.style.opacity="0";requestAnimationFrame(()=>layer.style.opacity="1");
     }
     function show(e,title,lines){
       card.replaceChildren();const h=document.createElement("strong");h.textContent=title;card.appendChild(h);
@@ -88,19 +97,19 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
         const g={l:58,r:14,t:16,b:50},slot=(rect.width-g.l-g.r)/dates.length,min=Math.min(0,...active.flatMap(s=>s.points.map(p=>p.y))),max=Math.max(1,...active.flatMap(s=>s.points.map(p=>p.y))),range=max-min||1;
         let hit=null;
         active.forEach((s,si)=>s.points.forEach(p=>{const di=dates.indexOf(p.x),bw=Math.max(2,Math.min(15,slot/Math.max(1,active.length)*.72)),x=g.l+di*slot+slot/2+(si-(active.length-1)/2)*bw,y=g.t+(rect.height-g.t-g.b)-(p.y-min)/range*(rect.height-g.t-g.b),zero=g.t+(rect.height-g.t-g.b)-(0-min)/range*(rect.height-g.t-g.b);if(mx>=x-bw&&mx<=x+bw&&my>=Math.min(y,zero)-4&&my<=Math.max(y,zero)+4)hit={s,p,x,y}}));
-        if(!hit)return hide();draw(hit.x,hit.y,7);show(e,hit.p.x,[hit.s.name+": "+(hit.p.y<0?"−":"+")+"LKR "+fmt(Math.abs(hit.p.y))]);
+        if(!hit)return hide();const zeroY=g.t+(rect.height-g.t-g.b)-(0-min)/range*(rect.height-g.t-g.b),barTop=Math.min(hit.y,zeroY),barHeight=Math.max(2,Math.abs(zeroY-hit.y));drawBar(hit.x-bw/2,barTop,bw,barHeight,palette[(hit.s.colorIndex??series.indexOf(hit.s))%8]);show(e,hit.p.x,[hit.s.name+": "+(hit.p.y<0?"−":"+")+"LKR "+fmt(Math.abs(hit.p.y))]);
       }else if(id==="maturity-chart"){
         const items=data.maturities||[];if(!items.length)return hide();
         const g={l:12,r:14,t:18,b:34},row=Math.max(24,(rect.height-g.t-g.b)/items.length),min=Math.min(...items.map(v=>dayDate(v.start))),max=Math.max(...items.map(v=>dayDate(v.end))),span=Math.max(1,max-min);
         const i=Math.floor((my-g.t-5)/row);if(i<0||i>=items.length)return hide();
         const v=items[i],x=g.l+(dayDate(v.start)-min)/span*(rect.width-g.l-g.r),width=Math.max(3,(dayDate(v.end)-dayDate(v.start))/span*(rect.width-g.l-g.r));
-        if(mx<x-5||mx>x+width+5)return hide();draw(clamp(mx,x,x+width),g.t+i*row+12,8);
+        if(mx<x-5||mx>x+width+5)return hide();drawBar(x,g.t+i*row+5,width,Math.min(15,row-7),palette[i%8]);
         show(e,v.name,[v.start+" → "+v.end,"Principal: LKR "+fmt(v.principal),"Expected interest: LKR "+fmt(v.interest),v.rate.toFixed(3)+"% p.a."]);
       }else if(id==="returns-chart"){
         const items=data.returns||[],total=items.reduce((n,v)=>n+Math.max(0,v.value),0);if(!total)return hide();
         const g={l:12,r:12,t:18},barY=g.t+35,barH=32;let x=g.l,hit=null;
         items.forEach((v,i)=>{const width=(rect.width-g.l-g.r)*Math.max(0,v.value)/total;if(my>=barY-6&&my<=barY+barH+6&&mx>=x&&mx<=x+width)hit={v,i,x:x+width/2,y:barY+barH/2};x+=width});
-        if(!hit)return hide();draw(hit.x,hit.y,8);show(e,hit.v.name,["LKR "+fmt(hit.v.value),(hit.v.value/total*100).toFixed(2)+"% of displayed components"]);
+        if(!hit)return hide();const segWidth=(rect.width-g.l-g.r)*Math.max(0,hit.v.value)/total;drawBar(hit.x-segWidth/2,barY,segWidth,barH,palette[hit.i%8]);show(e,hit.v.name,["LKR "+fmt(hit.v.value),(hit.v.value/total*100).toFixed(2)+"% of displayed components"]);
       }
     }
     canvas.addEventListener("mousemove",move);
