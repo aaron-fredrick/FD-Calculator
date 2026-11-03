@@ -479,20 +479,19 @@ class AbsoluteStrategy(BaseStrategy):
                         consolidation_branches.append((gross_intr - actual_fees, tgt_id, opt, transfers, deployable, carries))
 
             # Prioritize high profit branches first
-            consolidation_term_keys = {
-                option.economic_terms_key
-                for option in effective_options
-                if (
-                    (not option.bank_identity or option.bank_identity == tgt_bank)
-                    and tgt_acc.can_use_option(option)
-                    and option.can_invest(deployable, today, end)
-                    and not option.is_efd
-                )
-            }
             consolidation_branches.sort(
                 key=lambda item: (
                     item[0],
-                    item[2].is_efd and item[2].economic_terms_key in consolidation_term_keys,
+                    item[2].is_efd
+                    and item[2].economic_terms_key in {
+                        option.economic_terms_key
+                        for option in effective_options
+                        if (
+                            (not option.bank_identity or option.bank_identity == accounts_meta[item[1]].bank_identity)
+                            and accounts_meta[item[1]].can_use_option(option)
+                            and not option.is_efd
+                        )
+                    },
                 ),
                 reverse=True,
             )
