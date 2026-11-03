@@ -142,6 +142,11 @@ def print_event_timeline(result: SimResult) -> None:
     bookings_by_ref = {
         f"FD-{idx:04d}": booking for idx, booking in enumerate(result.bookings, start=1)
     }
+    gross_flow_by_ref_date = {
+        (ref, flow_date): amount
+        for ref, booking in bookings_by_ref.items()
+        for flow_date, amount in booking.cash_flows
+    }
     orange = "\033[38;5;208m"
     light_purple = "\033[38;5;183m"
 
@@ -178,6 +183,8 @@ def print_event_timeline(result: SimResult) -> None:
 
             booking = bookings_by_ref.get(event.booking_ref)
             if event.event_type == EventType.CASH_FLOW and booking is not None:
+                gross_amount = gross_flow_by_ref_date.get((event.booking_ref, event.on_date), event.amount)
+                ait_for_flow = max(0.0, gross_amount - event.amount)
                 if booking.payout_type == "periodic_interest":
                     period = (booking.option.payout_period_str or "").strip().lower()
                     if period.startswith("y"):
@@ -189,11 +196,16 @@ def print_event_timeline(result: SimResult) -> None:
                     rows.append((event, label, event.amount, EVENT_COLORS[EventType.CASH_FLOW], event.label))
                 else:
                     rows.append((event, "INSTALLMENT", event.amount, EVENT_COLORS[EventType.CASH_FLOW], event.label))
+                if ait_for_flow > 0.001:
+                    rows.append((event, "AIT WITHHELD", -ait_for_flow, EVENT_COLORS[EventType.OUTFLOW], "AIT deducted from this interest payout"))
                 continue
 
             if event.event_type == EventType.MATURITY and booking is not None:
+                gross_amount = gross_flow_by_ref_date.get((event.booking_ref, event.on_date), event.amount)
                 if booking.payout_type in {"cumulative", "periodic_interest"}:
                     maturity_interest = event.amount - booking.principal
+                    gross_interest = gross_amount - booking.principal
+                    ait_for_flow = max(0.0, gross_interest - maturity_interest)
                     rows.append((
                         event, "MATURE PRINCIPAL", booking.principal,
                         light_purple, f"Principal returned [{event.booking_ref}]",
@@ -203,11 +215,16 @@ def print_event_timeline(result: SimResult) -> None:
                             event, "MATURE INTEREST", maturity_interest,
                             EVENT_COLORS[EventType.CASH_FLOW], f"Interest paid at maturity [{event.booking_ref}]",
                         ))
+                    if ait_for_flow > 0.001:
+                        rows.append((event, "AIT WITHHELD", -ait_for_flow, EVENT_COLORS[EventType.OUTFLOW], "AIT deducted from maturity interest"))
                 else:
                     rows.append((
                         event, "MATURE CASH FLOW", event.amount,
                         EVENT_COLORS[EventType.MATURITY], event.label,
                     ))
+                    ait_for_flow = max(0.0, gross_amount - event.amount)
+                    if ait_for_flow > 0.001:
+                        rows.append((event, "AIT WITHHELD", -ait_for_flow, EVENT_COLORS[EventType.OUTFLOW], "AIT deducted from maturity payout"))
                 continue
 
             label = _EVENT_LABELS.get(event.event_type, "[?]")
