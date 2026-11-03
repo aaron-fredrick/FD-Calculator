@@ -295,6 +295,13 @@ def generate_html_report(
     last_group_day = None
     last_group_title = None
 
+    def _event_account_reference(label: str) -> str:
+        for prefix in ("Transfer to ", "Transfer from ", "Final sweep to ", "Final sweep from "):
+            if label.startswith(prefix):
+                account_label = label.removeprefix(prefix)
+                return prefix + account_display_by_label.get(account_label, account_label)
+        return label
+
     def append_event_row(day, account_label, label, amount, description, balance, css_type, group_title):
         nonlocal last_event_day, last_group_day, last_group_title
         is_new_day = day != last_event_day
@@ -345,13 +352,13 @@ def generate_html_report(
                     if event.fee > 0:
                         append_event_row(
                             event.on_date, account_label, f"{channel} TF", -event.fee,
-                            f"Transfer fee for {event.label}", event.balance_after, "outflow",
+                            f"Transfer fee for {_event_account_reference(event.label)}", event.balance_after, "outflow",
                             f"{channel} TRANSFERS",
                         )
                 else:
                     append_event_row(
                         event.on_date, account_label, f"{channel} TI", event.amount,
-                        event.label, display_balance, "transfer", f"{channel} TRANSFERS",
+                        _event_account_reference(event.label), display_balance, "transfer", f"{channel} TRANSFERS",
                     )
                 continue
 
