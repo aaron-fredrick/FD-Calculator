@@ -43,7 +43,7 @@
     "custom_fees": []
   },
   "compound": false,
-  "ait_enabled": true,
+  "ait_enabled": false,
   "actual_leap_year": true,
   "show_timeline": true,
   "show_ledger": false,
