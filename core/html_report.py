@@ -131,14 +131,21 @@ def generate_html_report(
         for index, booking in enumerate(result.bookings, 1)
     }
 
+    last_event_day = None
+
     def append_event_row(day, account_label, label, amount, description, balance, css_type):
+        nonlocal last_event_day
         amount_class = "positive" if amount > 0 else "negative" if amount < 0 else "muted"
+        is_new_day = day != last_event_day
+        date_cell = _date(day) if is_new_day else ""
+        row_class = ' class="day-start"' if is_new_day and last_event_day is not None else ""
         event_rows.append(
-            f'<tr><td>{_date(day)}</td><td>{escape(account_label)}</td>'
+            f'<tr{row_class}><td class="event-date">{date_cell}</td><td>{escape(account_label)}</td>'
             f'<td><span class="event-pill {escape(css_type)}">{escape(label)}</span></td>'
             f'<td class="num {amount_class}">{_money(amount)}</td>'
             f'<td>{escape(description)}</td><td class="num">{_money(balance)}</td></tr>'
         )
+        last_event_day = day
 
     for key in result.sorted_dates():
         for event in result.timeline[key]:
@@ -266,7 +273,7 @@ main{{max-width:1180px;margin:0 auto;padding:38px 24px 70px}}header{{padding:24p
 h1{{font-size:clamp(30px,5vw,46px);line-height:1.1;margin:10px 0}}h2{{font-size:22px;margin:0 0 16px}}h3{{font-size:17px;margin:0 0 12px}}h4{{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px}}
 p{{margin:8px 0}}.muted,small{{color:var(--muted)}}section{{margin-top:34px}}.panel,.decision{{background:linear-gradient(145deg,var(--panel),#10151d);border:1px solid var(--line);border-radius:16px;padding:20px;margin:12px 0}}
 .metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px}}.metric{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:17px}}.metric small{{display:block;font-size:12px}}.metric strong{{display:block;font-size:22px;margin-top:5px;font-variant-numeric:tabular-nums}}
-.grid2{{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}}.table-wrap{{overflow-x:auto;border:1px solid var(--line);border-radius:12px}}table{{border-collapse:collapse;width:100%;min-width:700px;background:var(--panel);font-size:13px}}th,td{{padding:11px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}}th{{background:var(--panel2);color:#b8c7d8;font-size:11px;text-transform:uppercase;letter-spacing:.07em}}tr:last-child td{{border-bottom:0}}.empty{{color:var(--muted);text-align:center}}.num{{text-align:right;font-variant-numeric:tabular-nums}}
+.grid2{{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}}.table-wrap{{overflow-x:auto;border:1px solid var(--line);border-radius:12px}}table{{border-collapse:collapse;width:100%;min-width:700px;background:var(--panel);font-size:13px}}th,td{{padding:11px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}}th{{background:var(--panel2);color:#b8c7d8;font-size:11px;text-transform:uppercase;letter-spacing:.07em}}tr:last-child td{{border-bottom:0}}.empty{{color:var(--muted);text-align:center}}.num{{text-align:right;font-variant-numeric:tabular-nums}}.event-date{{white-space:nowrap;color:#8fa5bd;font-weight:700;font-variant-numeric:tabular-nums}}tr.day-start td{{border-top:2px solid #40516a;padding-top:16px}}tr.day-start:first-child td{{border-top:0}}
 .positive{{color:var(--green)}}.negative{{color:var(--red)}}.warning{{color:var(--amber);background:#382817;padding:12px;border-radius:10px}}
 .decision{{border-left:3px solid var(--amber);padding:20px 22px}}.decision-head{{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}}.step{{font-size:11px;color:var(--amber);font-weight:800;letter-spacing:.12em}}.date{{font-weight:700}}.tag{{margin-left:auto;border:1px solid #795a31;color:#f0bd77;background:#302416;border-radius:30px;padding:4px 10px;font-size:12px}}
 .detail-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}}.detail-grid div{{background:var(--panel2);padding:11px;border-radius:9px}}.detail-grid small{{display:block;font-size:11px}}.detail-grid b{{display:block;margin-top:4px;font-size:13px}}
