@@ -40,7 +40,7 @@ function timelineText(result,on){
    else if(["cash_flow","maturity"].includes(e.event_type)){const b=refs.get(e.booking_ref),g=gross.get(e.booking_ref+"|"+date(e.on_date))??e.amount,ait=Math.max(0,g-e.amount);if(lbl==="MATURE PRINCIPAL"&&b)bal-=Math.max(0,e.amount-b.principal);else if(lbl!=="AIT WITHHELD"&&ait>.001)bal+=ait;}
    const balance=bal>=0?money(bal).padStart(14):"--".padStart(14);
    const sign=["carry_forward","idle"].includes(e.event_type)?"":amountValue>0?"+":amountValue<0?"-":"";
-   const amountText=sign+money(Math.abs(amountValue)).padStart(13);
+   const amountText=sign?sign+money(Math.abs(amountValue)).padStart(13):money(Math.abs(amountValue)).padStart(14);
    const row="  "+color(pad(ri===0?date(e.on_date):"",12),C.date,on)+" "+pad(acc,12)+" "+color(pad(lbl,typeWidth),col,on)+" "+color(amountText,col,on)+" "+balance+"   "+color(desc,C.desc,on);out.push(row);
   });if(di<keys.length-1)out.push(color(sep,C.sep,on));
  });out.push(line("="));return out.join("\n");
