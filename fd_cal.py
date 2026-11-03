@@ -45,7 +45,8 @@ def main(
     )
     starting_funds = sum(account.balance for account in accounts)
 
-    clean_output = config["show_plots"]
+    # Plot generation must not suppress the normal console simulation output.
+    clean_output = False
     if not clean_output:
         print()
         print(divider("="))
