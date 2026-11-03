@@ -88,8 +88,11 @@ def _xirr(result: SimResult) -> float | None:
     return ((low + high) / 2.0) * 100.0
 
 
+SUMMARY_LABEL_WIDTH = 34
+
+
 def _summary_line(label: str, value: str, color: str) -> None:
-    print(f"  {color}{label:<18}{RESET} : {BOLD}{value}{RESET}")
+    print(f"  {color}{label:<{SUMMARY_LABEL_WIDTH}}{RESET} : {BOLD}{value}{RESET}")
 
 
 # ---------------------------------------------------------------------------
@@ -125,18 +128,24 @@ _EVENT_LABELS = {
 
 
 def print_event_timeline(result: SimResult) -> None:
-    """Print every event in chronological order -- grouped by date with running balance and colors."""
+    """Print a chronological cash ledger with explicit transfer and FD components."""
     print()
     print(divider("="))
     print(f"  EVENT TIMELINE  [{result.strategy_name} strategy]")
     print(divider("="))
-    header = f"  {'Date':<12} {'Account':<12} {'Type':<16} {'Amount':>14} {'Balance':>14}   {'Description'}"
+    type_width = 20
+    header = f"  {'Date':<12} {'Account':<12} {'Type':<{type_width}} {'Amount':>14} {'Balance':>14}   {'Description'}"
     print(f"{BOLD}{header}{RESET}")
-    sep_line = f"  {'-'*12} {'-'*12} {'-'*16} {'-'*14} {'-'*14}   {'-'*55}"
+    sep_line = f"  {'-'*12} {'-'*12} {'-'*type_width} {'-'*14} {'-'*14}   {'-'*55}"
     print(f"{COLOR_SEP}{sep_line}{RESET}")
 
-    sorted_dates = result.sorted_dates()
-    for d_idx, key in enumerate(sorted_dates):
+    bookings_by_ref = {
+        f"FD-{idx:04d}": booking for idx, booking in enumerate(result.bookings, start=1)
+    }
+    orange = "\033[38;5;208m"
+    light_purple = "\033[38;5;183m"
+
+    for d_idx, key in enumerate(result.sorted_dates()):
         day_events = [
             event for event in result.timeline[key]
             if not (
@@ -145,58 +154,94 @@ def print_event_timeline(result: SimResult) -> None:
                 and event.label == "Opening balance trigger"
             )
         ]
-        for e_idx, e in enumerate(day_events):
-            if e.event_type == EventType.TRANSFER:
-                lbl = {
-                    "intra_bank": "[INTRA-BANK]",
-                    "domestic_ceft": "[DOMESTIC CEFT]",
-                }.get(e.transfer_channel, "[TRANSFER]")
-            else:
-                lbl = _EVENT_LABELS.get(e.event_type, "[?]      ")
-            col = EVENT_COLORS.get(e.event_type, "")
-
-            if e.event_type == EventType.BOOKING:
-                amt_str = f"{'-' + f'{e.amount:,.2f}':>14}"
-            elif e.event_type == EventType.TRANSFER:
-                if "to " in e.label.lower():
-                    amt_str = f"{'-' + f'{e.amount:,.2f}':>14}"
+        rows: list[tuple[Event, str, float, str, str]] = []
+        for event in day_events:
+            if event.event_type == EventType.TRANSFER:
+                channel = "INTRA-BANK" if event.transfer_channel == "intra_bank" else "INTER-BANK"
+                if "to " in event.label.lower():
+                    rows.append((
+                        event, f"{channel} TO", -(event.amount - event.fee), orange,
+                        event.label,
+                    ))
+                    if event.fee > 0:
+                        rows.append((
+                            event, f"{channel} TF", -event.fee,
+                            EVENT_COLORS[EventType.OUTFLOW],
+                            f"Transfer fee for {event.label}",
+                        ))
                 else:
-                    amt_str = f"{'+' + f'{e.amount:,.2f}':>14}"
-            elif e.event_type in (EventType.INFLOW, EventType.CASH_FLOW, EventType.MATURITY):
-                amt_str = f"{'+' + f'{e.amount:,.2f}':>14}"
-            elif e.event_type == EventType.OUTFLOW:
-                amt_str = f"{e.amount:>14,.2f}"
-            else:
-                amt_str = f"{e.amount:>14,.2f}" if e.amount > 0 else f"{'--':>14}"
+                    rows.append((
+                        event, f"{channel} TI", event.amount,
+                        EVENT_COLORS[EventType.TRANSFER], event.label,
+                    ))
+                continue
 
-            bal_str = f"{e.balance_after:>14,.2f}" if e.balance_after >= 0 else f"{'--':>14}"
-            date_str = str(e.on_date) if e_idx == 0 else ""
+            booking = bookings_by_ref.get(event.booking_ref)
+            if event.event_type == EventType.CASH_FLOW and booking is not None:
+                if booking.payout_type == "periodic_interest":
+                    period = (booking.option.payout_period_str or "").strip().lower()
+                    if period.startswith("y"):
+                        label = "YEAR INTEREST"
+                    elif period.startswith("m"):
+                        label = "MONTH INTEREST"
+                    else:
+                        label = f"{period.upper()} INTEREST".strip()
+                    rows.append((event, label, event.amount, EVENT_COLORS[EventType.CASH_FLOW], event.label))
+                else:
+                    rows.append((event, "INSTALLMENT", event.amount, EVENT_COLORS[EventType.CASH_FLOW], event.label))
+                continue
 
+            if event.event_type == EventType.MATURITY and booking is not None:
+                if booking.payout_type in {"cumulative", "periodic_interest"}:
+                    maturity_interest = event.amount - booking.principal
+                    rows.append((
+                        event, "MATURE PRINCIPAL", booking.principal,
+                        EVENT_COLORS[EventType.MATURITY], f"Principal returned [{event.booking_ref}]",
+                    ))
+                    if maturity_interest > 0:
+                        rows.append((
+                            event, "MATURE INTEREST", maturity_interest,
+                            light_purple, f"Interest paid at maturity [{event.booking_ref}]",
+                        ))
+                else:
+                    rows.append((
+                        event, "MATURE CASH FLOW", event.amount,
+                        EVENT_COLORS[EventType.MATURITY], event.label,
+                    ))
+                continue
+
+            label = _EVENT_LABELS.get(event.event_type, "[?]")
+            rows.append((
+                event, label, event.amount,
+                EVENT_COLORS.get(event.event_type, ""), event.label,
+            ))
+
+        for row_idx, (event, label, amount, color, description) in enumerate(rows):
             acc_label = ""
-            if result.accounts and e.account_id in result.accounts:
-                acc_label = result.accounts[e.account_id].label[:12]
-            elif e.account_id:
-                acc_label = e.account_id[:12]
+            if result.accounts and event.account_id in result.accounts:
+                acc_label = result.accounts[event.account_id].label[:12]
+            elif event.account_id:
+                acc_label = event.account_id[:12]
 
-            # Pad raw text first for alignment, then wrap with color
-            c_date = f"{COLOR_DATE}{date_str:<12}{RESET}"
-            c_acc  = f"{acc_label:<12}"
-            c_type = f"{col}{lbl:<16}{RESET}"
-            c_amt  = f"{col}{amt_str}{RESET}"
-            c_bal  = bal_str
-            c_desc = f"{COLOR_DESC}{e.label}{RESET}"
+            if event.event_type in (EventType.BOOKING, EventType.OUTFLOW):
+                amount_text = f"{-abs(amount):>14,.2f}"
+            else:
+                amount_text = f"{amount:>+14,.2f}"
 
-            print(f"  {c_date} {c_acc} {c_type} {c_amt} {c_bal}   {c_desc}")
+            balance_text = f"{event.balance_after:>14,.2f}" if event.balance_after >= 0 else f"{'--':>14}"
+            date_text = str(event.on_date) if row_idx == 0 else ""
+            c_date = f"{COLOR_DATE}{date_text:<12}{RESET}"
+            c_acc = f"{acc_label:<12}"
+            c_type = f"{color}{label:<{type_width}}{RESET}"
+            c_amount = f"{color}{amount_text}{RESET}"
+            c_desc = f"{COLOR_DESC}{description}{RESET}"
+            print(f"  {c_date} {c_acc} {c_type} {c_amount} {balance_text}   {c_desc}")
 
-        if d_idx < len(sorted_dates) - 1:
+        if d_idx < len(result.sorted_dates()) - 1:
             print(f"{COLOR_SEP}{sep_line}{RESET}")
 
     print(divider("="))
 
-
-# ---------------------------------------------------------------------------
-# Booking ledger
-# ---------------------------------------------------------------------------
 
 def print_booking_ledger(result: SimResult) -> None:
     """Print every FD contract booked, with its cash-flow schedule."""
@@ -513,9 +558,9 @@ def print_simulation(
     if result.total_outflows_due:
         _summary_line("Cash Retained", f"{result.cash_retained:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
         _summary_line("Cash-Flow Net Worth", f"{result.cash_flow_net_worth:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
-    print(f"  {COLOR_DESC}{'Valuation Date':<18}{RESET} : {result.end_date}")
+    print(f"  {COLOR_DESC}{'Valuation Date':<{SUMMARY_LABEL_WIDTH}}{RESET} : {result.end_date}")
     if result.total_decisions_evaluated is not None:
-        print(f"  {COLOR_DESC}{'Decisions Evaluated':<18}{RESET} : {result.total_decisions_evaluated:>14,}")
+        print(f"  {COLOR_DESC}{'Decisions Evaluated':<{SUMMARY_LABEL_WIDTH}}{RESET} : {result.total_decisions_evaluated:>14,}")
 
     # -- Comparison with other strategies (only other net interest shown) --
     if comparison:
