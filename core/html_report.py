@@ -143,7 +143,7 @@ def _build_account_balance_series(
             "bankId": bank,
             "points": [],
             "color": fd_colors.get(bank, "#808080"),
-            "lineStyle": "solid",
+            "lineStyle": "solid" if bank == main_bank else "dotted",
         })
 
     series_by_account = {item["accountId"]: item for item in account_series}
