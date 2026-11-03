@@ -47,6 +47,7 @@ async function main() {
     bankRegistry: loaded.bankRegistry, bankKeyById: loaded.bankKeyById,
     options: loaded.options, today: todayLocal()
   });
+  config.bank_registry = loaded.bankRegistry;
   config.options_path = loaded.optionsPath;
   config.source_path = loaded.resolvedConfig;
 
