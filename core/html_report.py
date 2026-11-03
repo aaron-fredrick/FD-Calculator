@@ -150,7 +150,7 @@ def generate_html_report(
         chart = Path(chart)
         key = next((name for name in chart_captions if name in chart.name), "")
         caption, description = chart_captions.get(key, (chart.stem.replace("_", " ").title(), "Simulation chart"))
-        relative = os.path.relpath(chart.resolve(), path.resolve().parent)
+        relative = Path(os.path.relpath(chart.resolve(), path.resolve().parent)).as_posix()
         chart_items.append(
             f'<figure><img src="{escape(relative, quote=True)}" alt="{escape(caption)}">'
             f'<figcaption><b>{escape(caption)}</b><span>{escape(description)}</span></figcaption></figure>'
