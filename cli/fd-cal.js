@@ -10,7 +10,7 @@ import { formatSimulation } from "../src/reporting/console.js";
 import { generateHtmlReport } from "../src/reporting/html.js";
 
 function parseArgs(argv) {
-  const out = { config: "config.json", strategy: null, beam_width: null, max_local_branches: null, max_decisions: null, help: false };
+  const out = { config: "config.json", strategy: null, beam_width: undefined, max_local_branches: undefined, max_decisions: undefined, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") out.help = true;
@@ -72,7 +72,7 @@ async function main() {
   } else {
     const settings = { ...config.gaml_settings };
     for (const key of ["beam_width", "max_local_branches", "max_decisions"]) {
-      if (cli[key] !== null) settings[key] = cli[key];
+      if (cli[key] !== undefined) settings[key] = cli[key];
     }
     strategy = new GAMLStrategy({
       compound: config.compound, actual_leap_year: config.actual_leap_year,
