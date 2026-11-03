@@ -52,80 +52,187 @@ def _build_account_balance_series(
     *,
     compound: bool = False,
     actual_leap_year: bool = True,
-) -> list[dict[str, Any]]:
-    """Build daily liquid-cash balances for each bank account.
+) -> dict[str, list[dict[str, Any]]]:
+    """Build event-stage liquid-cash and bank-level outstanding-FD-principal series."""
+    import colorsys
 
-    Fixed deposits are separate instruments/accounts and are intentionally
-    excluded from this chart. Only posted cash movements affect the series.
-    """
     if end < start:
         raise ValueError("end date must not be earlier than start date")
-
-    cash_movements: dict[str, dict[date, float]] = {
-        account_id: {} for account_id in result.accounts
-    }
-
-    def add_cash(account_id: str, day: date, amount: float) -> None:
-        if account_id not in result.accounts or not start <= day <= end:
-            return
-        daily = cash_movements.setdefault(account_id, {})
-        daily[day] = daily.get(day, 0.0) + amount
-
-    for events in result.timeline.values():
-        for event in events:
-            account_id = str(event.account_id or "")
-            amount = float(event.amount)
-            if event.event_type == EventType.INFLOW:
-                add_cash(account_id, event.on_date, amount)
-            elif event.event_type == EventType.OUTFLOW:
-                # Positive outflows are obligation markers, not posted cash movements.
-                if amount < 0:
-                    add_cash(account_id, event.on_date, amount)
-            elif event.event_type == EventType.BOOKING:
-                # Cash is moved out of the bank account into a separate FD.
-                add_cash(account_id, event.on_date, -abs(amount))
-            elif event.event_type in {EventType.CASH_FLOW, EventType.MATURITY}:
-                add_cash(account_id, event.on_date, amount)
-            elif event.event_type == EventType.TRANSFER:
-                if event.label.startswith(("Transfer to ", "Final sweep to ")):
-                    add_cash(account_id, event.on_date, -abs(amount))
-                elif event.label.startswith(("Transfer received", "Final sweep received")):
-                    add_cash(account_id, event.on_date, amount)
 
     accounts = list(result.accounts.values())
     if consolidation_account_id in result.accounts:
         accounts.sort(key=lambda account: account.id != consolidation_account_id)
 
+    def identity(value: str) -> str:
+        return str(value or "").strip().upper()
+
     consolidation = result.accounts.get(consolidation_account_id or "")
-    consolidation_bank = consolidation.bank_identity.strip().upper() if consolidation else ""
-    day_count = (end - start).days
-    series: list[dict[str, Any]] = []
+    main_bank = identity(consolidation.bank_identity) if consolidation else ""
+    bank_order: list[str] = []
+    for account in accounts:
+        bank = identity(account.bank_identity)
+        if bank and bank not in bank_order:
+            bank_order.append(bank)
+    if main_bank in bank_order:
+        bank_order.remove(main_bank)
+        bank_order.insert(0, main_bank)
 
-    for color_index, account in enumerate(accounts):
-        cash = float(opening_balances.get(account.id, 0.0))
-        daily_movements = cash_movements.get(account.id, {})
-        points = []
+    # Bank hues run from blue through cyan/green to yellow-orange. Every
+    # account at one bank shares its bank hue; FD principal uses a muted
+    # version of that exact hue.
+    bank_colors: dict[str, str] = {}
+    fd_colors: dict[str, str] = {}
+    for index, bank in enumerate(bank_order):
+        fraction = index / max(1, len(bank_order) - 1)
+        hue = (220.0 - 185.0 * fraction) / 360.0
+        brightness = 1.0 if bank == main_bank else 0.8
+        rgb = colorsys.hsv_to_rgb(hue, 1.0, brightness)
+        bank_colors[bank] = "#" + "".join(f"{round(channel * 255):02x}" for channel in rgb)
+        fd_rgb = colorsys.hsv_to_rgb(hue, 0.5, 0.5)
+        fd_colors[bank] = "#" + "".join(f"{round(channel * 255):02x}" for channel in fd_rgb)
 
-        for offset in range(day_count + 1):
-            day = start + timedelta(days=offset)
-            cash += daily_movements.get(day, 0.0)
-            points.append({"x": _date(day), "y": round(cash, 2)})
+    bank_names = _load_bank_names()
+    display_names = {
+        bank: bank_names.get(bank, bank.removeprefix("LK_").replace("_", " ").title())
+        for bank in bank_order
+    }
+    cash = {account.id: float(opening_balances.get(account.id, 0.0)) for account in accounts}
 
-        bank_identity = account.bank_identity.strip().upper()
-        same_bank_as_consolidation = bool(
-            consolidation_bank and bank_identity == consolidation_bank
-        )
-        is_consolidation = account.id == consolidation_account_id
-        series.append({
+    booking_events = [
+        event for day_key in result.sorted_dates()
+        for event in result.timeline[day_key]
+        if event.event_type == EventType.BOOKING
+    ]
+    booking_by_ref = {
+        event.booking_ref: booking
+        for event, booking in zip(booking_events, result.bookings)
+        if event.booking_ref
+    }
+    fd_principal: dict[str, float] = {bank: 0.0 for bank in bank_order}
+    for booking in result.bookings:
+        bank = identity(booking.bank_id or booking.option.bank_identity or booking.bank_key)
+        if bank and booking.start < start <= booking.end:
+            fd_principal[bank] = fd_principal.get(bank, 0.0) + float(booking.principal)
+
+    account_series = []
+    for account in accounts:
+        bank = identity(account.bank_identity)
+        is_main_account = account.id == consolidation_account_id
+        same_main_bank = bool(main_bank and bank == main_bank)
+        account_series.append({
             "name": account.label or account.id,
-            "points": points,
-            "color": _ACCOUNT_CHART_COLORS[color_index % len(_ACCOUNT_CHART_COLORS)],
-            "colorIndex": color_index,
-            "lineStyle": "solid" if is_consolidation else (
-                "dashed" if same_bank_as_consolidation else "dotted"
-            ),
+            "seriesType": "account",
+            "accountId": account.id,
+            "bankId": bank,
+            "points": [],
+            "color": bank_colors.get(bank, "#56b4e9"),
+            "lineStyle": "solid" if is_main_account else ("dashed" if same_main_bank else "dotted"),
         })
-    return series
+
+    fd_series = []
+    booked_banks = []
+    for booking in result.bookings:
+        bank = identity(booking.bank_id or booking.option.bank_identity or booking.bank_key)
+        if bank and bank not in booked_banks:
+            booked_banks.append(bank)
+    booked_banks.sort(key=lambda bank: bank_order.index(bank) if bank in bank_order else len(bank_order))
+    for bank in booked_banks:
+        fd_series.append({
+            "name": f"{display_names.get(bank, bank)} · FD principal",
+            "seriesType": "fd_principal",
+            "bankId": bank,
+            "points": [],
+            "color": fd_colors.get(bank, "#808080"),
+            "lineStyle": "solid",
+        })
+
+    series_by_account = {item["accountId"]: item for item in account_series}
+    series_by_bank = {item["bankId"]: item for item in fd_series}
+    stages: list[dict[str, Any]] = []
+    sequence = 0
+
+    def append_stage(day: date, stage_number: int, label: str) -> None:
+        nonlocal sequence
+        sequence += 1
+        stage = {
+            "x": sequence,
+            "date": _date(day),
+            "stage": f"S{stage_number}",
+            "event": label,
+        }
+        stages.append(stage)
+        for account in account_series:
+            account["points"].append({
+                **stage, "y": round(cash.get(account["accountId"], 0.0), 2)
+            })
+        for bank_series in fd_series:
+            bank_series["points"].append({
+                **stage, "y": round(fd_principal.get(bank_series["bankId"], 0.0), 2)
+            })
+
+    for day_key in result.sorted_dates():
+        events = result.timeline[day_key]
+        day = events[0].on_date if events else date.fromisoformat(str(day_key))
+        if not start <= day <= end:
+            continue
+        stage_number = 0
+        for event in events:
+            account_id = str(event.account_id or "")
+            amount = float(event.amount)
+            label = event.label or event.event_type.value.upper()
+
+            if event.event_type == EventType.INFLOW:
+                cash[account_id] = cash.get(account_id, 0.0) + amount
+                stage_number += 1
+                append_stage(day, stage_number, label)
+            elif event.event_type == EventType.OUTFLOW:
+                if amount < 0:
+                    cash[account_id] = cash.get(account_id, 0.0) + amount
+                    stage_number += 1
+                    append_stage(day, stage_number, label)
+            elif event.event_type == EventType.BOOKING:
+                cash[account_id] = cash.get(account_id, 0.0) - abs(amount)
+                bank = identity(event.bank_id or event.bank_key)
+                if not bank and event.booking_ref in booking_by_ref:
+                    booking = booking_by_ref[event.booking_ref]
+                    bank = identity(booking.bank_id or booking.option.bank_identity or booking.bank_key)
+                if bank:
+                    fd_principal[bank] = fd_principal.get(bank, 0.0) + abs(amount)
+                stage_number += 1
+                append_stage(day, stage_number, label)
+            elif event.event_type in {EventType.CASH_FLOW, EventType.MATURITY}:
+                cash[account_id] = cash.get(account_id, 0.0) + amount
+                if event.event_type == EventType.MATURITY:
+                    booking = booking_by_ref.get(event.booking_ref)
+                    bank = identity(
+                        (booking.bank_id or booking.option.bank_identity or booking.bank_key)
+                        if booking else (event.bank_id or event.bank_key)
+                    )
+                    principal = float(booking.principal) if booking else 0.0
+                    if bank and principal:
+                        fd_principal[bank] = max(0.0, fd_principal.get(bank, 0.0) - principal)
+                stage_number += 1
+                append_stage(day, stage_number, label)
+            elif event.event_type == EventType.TRANSFER:
+                if label.startswith(("Transfer to ", "Final sweep to ")):
+                    cash[account_id] = cash.get(account_id, 0.0) - abs(amount)
+                    stage_number += 1
+                    append_stage(day, stage_number, label)
+                    # The fee is a distinct ledger movement and therefore gets
+                    # its own chart stage after the transfer principal.
+                    if event.fee > 0:
+                        cash[account_id] = cash.get(account_id, 0.0) - abs(float(event.fee))
+                        stage_number += 1
+                        channel = "INTRA-BANK" if event.transfer_channel == "intra_bank" else "INTER-BANK"
+                        append_stage(day, stage_number, f"{channel} TF")
+                elif label.startswith(("Transfer received", "Final sweep received")):
+                    cash[account_id] = cash.get(account_id, 0.0) + amount
+                    stage_number += 1
+                    append_stage(day, stage_number, label)
+
+    return {"accounts": account_series, "fd_principal": fd_series, "stages": stages}
+
+
 
 def _table_rows(items: Sequence[dict], columns: Sequence[tuple[str, str]]) -> str:
     if not items:
@@ -632,7 +739,8 @@ def generate_html_report(
         "rate": float(booking.option.annual_rate),
     } for booking in result.bookings]
     chart_data = {
-        "accounts": account_chart, "cashflows": flow_chart, "maturities": maturity_chart,
+        "accounts": account_chart["accounts"], "fd_principal": account_chart["fd_principal"],
+        "stages": account_chart["stages"], "cashflows": flow_chart, "maturities": maturity_chart,
         "returns": [
             {"name": "Net interest", "value": float(net_interest)},
             {"name": "AIT withheld", "value": float(result.ait_withheld)},
@@ -658,7 +766,7 @@ def generate_html_report(
         "{{EXECUTION_CONTENT}}": ''.join(decision_cards) if decision_cards else '<div class="panel">No FD bookings or actionable transfers were selected.</div>',
         "{{PORTFOLIO_CONTENT}}": f"{account_table}{investment_table}",
         "{{CASHFLOW_CONTENT}}": f'<div class="grid2"><div>{inflow_table}</div><div>{outflow_table}</div></div>',
-        "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account value history</h3><canvas id="account-chart" aria-label="Account balance history"></canvas><p class="muted">Liquid cash held in each bank account. FD principal and accrued interest are tracked separately and are excluded from this chart.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
+        "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account cash and bank FD principal</h3><canvas id="account-chart" aria-label="Intra-day account cash and bank fixed deposit principal by event stage"></canvas><p class="muted">Each plotted stage is the state immediately after a ledger event. Account lines show liquid cash; bank FD lines aggregate outstanding principal only. Interest is excluded from FD principal.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
         "{{PORTFOLIO_AUDIT_CONTENT}}": capital_flow_table,
         "{{LEDGER_CONTENT}}": ledger_html,
         "{{CHART_DATA}}": chart_json,
