@@ -70,10 +70,10 @@ function buildAccountChart(result,config,start,end,openingBalances) {
   const accountSeries=[],fdSeries=[],firstHue=new Map(),fdColor=new Map();
   accounts.forEach((a,i)=>{
     const bank=identity(a.bank_id||a.bank_key),hue=220-185*i/Math.max(1,accounts.length-1);
-    const brightness=a.id===consolidation?50:40;
+    const brightness=a.id===consolidation?0.5:0.4;
     accountSeries.push({name:a.label||a.id,seriesType:"account",accountId:a.id,bankId:bank,points:[],
       color:hsl(hue,100,brightness),lineStyle:a.id===consolidation?"solid":bank===mainBank?"dashed":"dotted"});
-    if(bank&&!firstHue.has(bank)){firstHue.set(bank,hue);fdColor.set(bank,hsl(hue,50,25));}
+    if(bank&&!firstHue.has(bank)){firstHue.set(bank,hue);fdColor.set(bank,hsl(hue,0.5,0.25));}
   });
   const bookedBanks=[...new Set((result.bookings||[]).map(b=>identity(b.bank_id||b.option?.bank_identity||b.bank_key)).filter(Boolean))]
     .sort((a,b)=>(bankOrder.get(a)??999)-(bankOrder.get(b)??999));
@@ -188,7 +188,6 @@ function buildExecution(result,accountDisplay) {
       const netInterest=netFlows.reduce((s,f)=>s+f.amount,0)-b.principal,ait=gross-netInterest;
       const step=unique.length+i+1;
       actionParts.push('<div class="instruction booking-instruction"><div class="instruction-title"><span>STEP '+step+'</span> Open the fixed deposit</div><div class="detail-grid"><div><small>Account</small><b>'+esc(accountName)+'</b></div><div><small>Product</small><b>'+esc(product)+' · '+fdType+'</b></div><div><small>Investment amount</small><b>'+money(b.principal)+'</b></div><div><small>Rate / term</small><b>'+Number(b.option.annual_rate).toFixed(3)+'% p.a. · '+esc(b.option.period_str)+'</b></div><div><small>Booking → maturity</small><b>'+start+' → '+maturity+'</b></div><div><small>Payout</small><b>'+esc(payoutName(b.payout_type))+'</b></div></div></div>');
-      cards.push; // keeps this block side-effect free for the table below
       investmentRows.push({account:accountName,product:product+" · "+fdType,principal:amount(b.principal),rate:Number(b.option.annual_rate).toFixed(3)+"%",term:b.option.period_str,booking:start,maturity,gross:amount(gross),ait:amount(ait),net:amount(netInterest)});
       const context=bookingEvents.find(x=>x.booking_ref===ref)?.decision_context||{};
     });
