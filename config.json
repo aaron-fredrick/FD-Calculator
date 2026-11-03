@@ -46,7 +46,7 @@
   "actual_leap_year": true,
   "show_timeline": true,
   "show_ledger": false,
-  "show_plots": true,
+  "show_plots": false,
   "plot_output_dir": "plots",
   "decision_log_output_file": "decision_log.txt"
 }
