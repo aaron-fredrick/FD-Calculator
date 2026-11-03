@@ -321,7 +321,7 @@ class SimResult:
     outstanding_outflows: list[dict] = field(default_factory=list)
     valid: bool = True
     decision_log: list[dict] = field(default_factory=list)
-    ait_enabled: bool = True
+    ait_enabled: bool = False
     ait_rate: float = 0.10
 
     @property
@@ -330,7 +330,7 @@ class SimResult:
 
     @property
     def net_interest(self) -> float:
-        """Interest after transfer fees, before AIT; retained as the strategy objective."""
+        """Interest after transfer fees and any enabled AIT withholding."""
         return self.total_interest - self.total_transfer_fees - self.ait_withheld
 
     @property
