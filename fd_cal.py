@@ -130,6 +130,8 @@ def main(
     fee_config = config["fee_config"]
     compound = config["compound"]
     actual_leap_year = config["actual_leap_year"]
+    ait_enabled = config["ait_enabled"]
+    ait_rate = config["ait_rate"]
     selected_strategy = (strategy_override or config["strategy"]).strip().lower()
     if selected_strategy not in {"absolute", "greedy", "gaml"}:
         raise ValueError(f"Unsupported strategy {selected_strategy!r}; use 'absolute', 'greedy', or 'gaml'")
@@ -160,6 +162,7 @@ def main(
             f"starting funds {account.balance:,.2f} LKR | "
             f"eFD {'enabled' if account.supports_efd else 'disabled'}"
         )
+    print(f"  AIT withholding: {'enabled' if ait_enabled else 'disabled'}" + (f" ({ait_rate:.1%} of interest)" if ait_enabled else ""))
     print(
         f"  Transfer fees: inter-bank {fee_config.default_inter_bank_fee:,.2f} LKR | "
         f"same-bank {fee_config.same_bank_fee:,.2f} LKR"
@@ -195,9 +198,9 @@ def main(
     )
 
     strategy_class = {"absolute": AbsoluteStrategy, "greedy": GreedyStrategy, "gaml": GAMLStrategy}[selected_strategy]
-    strategy = strategy_class(compound=compound, actual_leap_year=actual_leap_year)
+    strategy = strategy_class(compound=compound, actual_leap_year=actual_leap_year, ait_enabled=ait_enabled, ait_rate=ait_rate)
     compare_strategy = (
-        GreedyStrategy(compound=compound, actual_leap_year=actual_leap_year)
+        GreedyStrategy(compound=compound, actual_leap_year=actual_leap_year, ait_enabled=ait_enabled, ait_rate=ait_rate)
         if selected_strategy in {"absolute", "gaml"}
         else None
     )
