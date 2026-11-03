@@ -123,20 +123,14 @@ def _build_account_balance_series(
                 if day < booking.start or day >= booking.end:
                     continue
                 elapsed_days = (day - booking.start).days
-                accrued_interest = calc_interest(
-                    booking.principal,
-                    booking.option.annual_rate,
-                    elapsed_days,
-                    booking.start,
-                    compound,
-                    actual_leap_year,
-                )
                 interest_paid = 0.0
                 principal_returned = 0.0
                 flow_count = len(booking.cash_flows)
+                paid_flow_dates = []
                 for flow_index, (flow_date, flow_amount) in enumerate(booking.cash_flows):
                     if flow_date > day:
                         continue
+                    paid_flow_dates.append(flow_date)
                     if booking.payout_type == "cumulative":
                         interest_component = flow_amount - booking.principal
                     elif booking.payout_type == "periodic_interest":
@@ -150,8 +144,36 @@ def _build_account_balance_series(
                     interest_paid += interest_component
                     principal_returned += flow_amount - interest_component
 
+                if booking.payout_type == "periodic_interest":
+                    # Periodic-interest FDs pay each accrual period without
+                    # capitalising prior interest into the principal.
+                    accrual_start = max(paid_flow_dates, default=booking.start)
+                    accrued_interest = calc_interest(
+                        booking.principal,
+                        booking.option.annual_rate,
+                        (day - accrual_start).days,
+                        accrual_start,
+                        compound,
+                        actual_leap_year,
+                    )
+                elif booking.payout_type == "cumulative":
+                    accrued_interest = calc_interest(
+                        booking.principal,
+                        booking.option.annual_rate,
+                        elapsed_days,
+                        booking.start,
+                        compound,
+                        actual_leap_year,
+                    )
+                else:
+                    # Installment interest is allocated evenly over the
+                    # contract's scheduled installments.
+                    tenor_days = max(1, (booking.end - booking.start).days)
+                    accrued_to_date = booking.total_interest * elapsed_days / tenor_days
+                    accrued_interest = max(0.0, accrued_to_date - interest_paid)
+
                 remaining_principal = max(0.0, booking.principal - principal_returned)
-                remaining_interest = max(0.0, accrued_interest - interest_paid)
+                remaining_interest = max(0.0, accrued_interest)
                 accrued_ait = (
                     remaining_interest * result.ait_rate if result.ait_enabled else 0.0
                 )
