@@ -313,6 +313,10 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     if not decision_log_output_file:
         raise ValueError("decision_log_output_file must be a non-empty path")
 
+    ait_enabled = config.get("ait_enabled", True)
+    if not isinstance(ait_enabled, bool):
+        raise ValueError("'ait_enabled' must be a boolean (true or false)")
+
     strategy = str(config.get("strategy", "absolute")).strip().lower()
     if strategy not in {"absolute", "greedy", "gaml"}:
         raise ValueError(f"Unsupported strategy {strategy!r}; use 'absolute', 'greedy', or 'gaml'")
@@ -333,6 +337,8 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "fee_config": fee_config,
         "compound": bool(config.get("compound", False)),
         "actual_leap_year": bool(config.get("actual_leap_year", True)),
+        "ait_enabled": ait_enabled,
+        "ait_rate": 0.10,
         "show_timeline": bool(config.get("show_timeline", True)),
         "show_ledger": bool(config.get("show_ledger", False)),
         "decision_log_output_file": decision_log_output_file,
