@@ -649,7 +649,7 @@ class GAMLStrategy(BaseStrategy):
                 for opt in effective_options:
                     if (not opt.bank_identity or opt.bank_identity == tgt_bank) and tgt_acc.can_use_option(opt) and opt.can_invest(deployable, today, end):
                         gross_intr = opt.total_interest_on(deployable, today, self.compound, self.actual_leap_year)
-                        if gross_intr <= actual_fees:
+                        if gross_intr * (1.0 - self.effective_ait_rate) <= actual_fees:
                             continue
                         consolidation_branches.append((gross_intr * (1.0 - self.effective_ait_rate) - actual_fees, tgt_id, opt, transfers, deployable, carries))
 
