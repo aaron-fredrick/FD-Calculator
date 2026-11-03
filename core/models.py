@@ -160,6 +160,18 @@ class FDOption:
         """Canonical bank ID; bank_key is only a legacy/internal fallback."""
         return self.bank_id or self.bank_key
 
+    @property
+    def economic_terms_key(self) -> tuple:
+        """Terms that must match before eFD can win a standard-FD tie-break."""
+        return (
+            self.bank_identity,
+            self.days,
+            self.annual_rate,
+            self.min_amount,
+            self.payout_type,
+            self.payout_period_str,
+        )
+
     def maturity_date(self, start: date) -> date:
         return add_period(start, self.period_str)
 
