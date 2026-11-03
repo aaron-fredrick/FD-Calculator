@@ -593,8 +593,9 @@ function replay(path, context, strategy, diagnostics) {
 
     const action = actions.get(date);
     if (!action) continue;
-    const before = Object.fromEntries([...accounts].map(([id, account]) => [id, account.balance]));
-    const recordCarry = ids => {
+    const snapshotBalances = () => Object.fromEntries([...accounts].map(([id, account]) => [id, account.balance]));
+    const before = snapshotBalances();
+    const recordCarry = (ids, balancesBefore = snapshotBalances()) => {
       for (const id of ids || []) {
         const account = accounts.get(id);
         if (account?.balance > EPS) addEvent(new Event({
@@ -602,11 +603,11 @@ function replay(path, context, strategy, diagnostics) {
           label: "Holding liquidity; balance " + account.balance.toFixed(2) + " carries forward",
           account_id: id, bank_key: account.bank_key, bank_id: account.bank_id,
           balance_after: account.balance, total_balance_after: totalBalance(),
-          decision_context: { action: "carry", balances_before: { ...before } }
+          decision_context: { action: "carry", balances_before: { ...balancesBefore } }
         }));
       }
     };
-    const book = (account, option, actionName) => {
+    const book = (account, option, actionName, balancesBefore = snapshotBalances()) => {
       const principal = account.balance;
       if (principal <= EPS) return;
       account.balance = 0;
@@ -621,7 +622,7 @@ function replay(path, context, strategy, diagnostics) {
         label: "Book " + option.label + " @ " + option.annual_rate.toFixed(2) + "% -> matures " + formatISODate(booking.end),
         booking_ref: ref, account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id,
         balance_after: account.balance, total_balance_after: totalBalance(),
-        decision_context: { action: actionName, balances_before: { ...before } } }));
+        decision_context: { action: actionName, balances_before: { ...balancesBefore } } }));
       netFlows.forEach((flow, index) => {
         const isMaturity = flow.date.getTime() === booking.end.getTime() &&
           (option.payout_type === "cumulative" || index === netFlows.length - 1);
@@ -648,12 +649,15 @@ function replay(path, context, strategy, diagnostics) {
           bank_key: target.bank_key, bank_id: target.bank_id, transfer_channel: channel,
           balance_after: target.balance, total_balance_after: totalBalance() }));
       }
-      book(target, action.option, "consolidate");
-      recordCarry(action.carries);
+      book(target, action.option, "consolidate", before);
+      recordCarry(action.carries, before);
     } else if (action.type === "local") {
-      for (const item of action.bookings) book(accounts.get(item.account_id), item.option, "split");
-      recordCarry(action.carries);
-    } else if (action.type === "carry") recordCarry(action.carries);
+      for (const item of action.bookings) {
+        const balancesBefore = snapshotBalances();
+        book(accounts.get(item.account_id), item.option, "split", balancesBefore);
+      }
+      recordCarry(action.carries, snapshotBalances());
+    } else if (action.type === "carry") recordCarry(action.carries, before);
   }
 
   const target = accounts.get(context.consolidationId);
