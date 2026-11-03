@@ -70,7 +70,7 @@ function buildAccountChart(result,config,start,end,openingBalances) {
   const accountSeries=[],fdSeries=[],firstHue=new Map(),fdColor=new Map();
   accounts.forEach((a,i)=>{
     const bank=identity(a.bank_id||a.bank_key),hue=220-185*i/Math.max(1,accounts.length-1);
-    const brightness=a.id===consolidation?0.5:0.4;
+    const brightness=a.id===consolidation?1:0.8;
     accountSeries.push({name:a.label||a.id,seriesType:"account",accountId:a.id,bankId:bank,points:[],
       color:hsv(hue,1,brightness),lineStyle:a.id===consolidation?"solid":bank===mainBank?"dashed":"dotted"});
     if(bank&&!firstHue.has(bank)){firstHue.set(bank,hue);fdColor.set(bank,hsv(hue,0.5,0.5));}
