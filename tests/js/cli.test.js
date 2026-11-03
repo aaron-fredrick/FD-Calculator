@@ -34,6 +34,10 @@ test("Greedy CLI executes from JSON config and writes a standalone report",async
   assert.match(run.stdout,/Report saved:/);
   const html=await readFile(reportPath,"utf8");
   assert.match(html,/Full event ledger/);assert.match(html,/Portfolio outcome/);
+  assert.match(html,/class="sidebar"/);assert.match(html,/class="equation-panel"/);
+  assert.match(html,/id="account-chart"/);assert.match(html,/id="cashflow-chart"/);
+  assert.match(html,/id="maturity-chart"/);assert.match(html,/id="returns-chart"/);
+  assert.match(html,/prefers-reduced-motion/);assert.match(html,/event-day-start/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
 
