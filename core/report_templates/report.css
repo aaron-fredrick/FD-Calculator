@@ -24,3 +24,10 @@ main{max-width:1440px;margin-left:236px;padding:38px clamp(22px,4vw,64px) 72px}.
 .collapsible-table{box-shadow:0 5px 18px rgba(0,0,0,.12)}
 .collapsible-table>summary{min-height:46px;transition:background .16s,color .16s}
 .collapsible-table>summary:hover{background:#1b2634;color:#fff}
+
+.chart-focus-layer{position:absolute;z-index:2;pointer-events:none;display:block}
+.chart-hover-card{position:absolute;z-index:6;max-width:min(300px,calc(100% - 24px));min-width:170px;display:flex;flex-direction:column;gap:5px;padding:12px 14px;border:1px solid #4a6079;border-radius:11px;background:rgba(10,16,25,.97);box-shadow:0 14px 38px rgba(0,0,0,.44);backdrop-filter:blur(14px);color:#dce6f2;font-size:11px;line-height:1.45;pointer-events:none;overflow-wrap:anywhere;white-space:normal}
+.chart-hover-card[hidden]{display:none}
+.chart-hover-card strong{font-size:12px;font-weight:750;color:#fff;line-height:1.35;overflow-wrap:anywhere}
+.chart-hover-card span{display:block;color:#c5d2e0;overflow-wrap:anywhere}
+.chart-tooltip{display:none!important}
