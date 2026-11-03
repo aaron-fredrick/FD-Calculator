@@ -54,7 +54,7 @@ function bookingText(result){
   else{out.push("  "+pad(ref,9)+" "+pad(bank,12)+" "+pad(type,9)+" "+pad(b.option.label,23)+" "+pad(p,18)+" "+pad(date(b.start),11)+" "+pad(date(b.end),11)+" "+money(b.principal).padStart(12)+" "+" ".repeat(10)+" "+" ".repeat(12));(b.cash_flows||[]).forEach((f,j)=>{const last=j===b.cash_flows.length-1,lbl=last&&b.payout_type==="periodic_interest"?"capital+interest":last?"last instalment":"payment "+(j+1);out.push("  "+" ".repeat(9)+"   * "+pad(lbl,22)+" ".repeat(18)+" ".repeat(11)+" "+pad(date(f.date),11)+" ".repeat(12)+" ".repeat(10)+" "+money(f.amount).padStart(12));});}
  });out.push(line("-"));return out.join("\n");
 }
-export function formatSimulation(result,config,configPath,optionsPath,{color:useColor=Boolean(process.stdout?.isTTY&&!process.env.NO_COLOR)}={}){
+export function formatSimulation(result,config,configPath,optionsPath,{color:useColor=Boolean(process.stdout?.isTTY&&!process.env.NO_COLOR),showEventTimeline=true,showBookingLedger=true}={}){
  const out=["",line("="),"  MULTI-BANK FIXED DEPOSIT INVESTMENT CALCULATOR",line("="),"  Config: "+configPath,"  FD options: "+optionsPath];
  const days=Math.round((new Date(config.end)-new Date(config.start))/86400000)+1;
  out.push("  Window: "+date(config.start)+" -> "+date(config.end)+" ("+days+" days) | Method: "+(config.compound?"Compound":"Simple interest")+" ("+(config.actual_leap_year?"366d leap":"365d")+")","  Accounts:");
@@ -64,7 +64,7 @@ export function formatSimulation(result,config,configPath,optionsPath,{color:use
  out.push("  Planned outflows:");if(!config.outflow_summaries?.length)out.push("    - None");for(const x of config.outflow_summaries||[])out.push("    - "+x.name+": "+money(x.amount)+" LKR x "+x.occurrences+" ("+x.payment_policy+") on "+(x.dates||[]).map(date).join(", "));
  const start=config.accounts.reduce((s,a)=>s+a.balance,0),inflows=(config.inflow_summaries||[]).reduce((s,x)=>s+x.total,0);
  out.push("  Starting funds: "+money(start)+" LKR | Scheduled new money: "+money(inflows)+" LKR | Total planned capital: "+money(start+inflows)+" LKR");
- out.push(timelineText(result,useColor));
+ if(showEventTimeline)out.push(timelineText(result,useColor));
  if(result.decision_log?.length){} // The legacy decision log is opt-in; CLI disables it by default.
  out.push("",line("="),"  GRAND SUMMARY  ["+result.strategy_name+"]",line("-"));
  const totalRet=result.total_principal>0?result.total_interest/result.total_principal*100:0,netRet=result.total_principal>0?result.net_interest_after_ait/result.total_principal*100:0,annual=xirr(result);
@@ -77,6 +77,6 @@ export function formatSimulation(result,config,configPath,optionsPath,{color:use
  if(result.total_decisions_evaluated!==null&&result.total_decisions_evaluated!==undefined)out.push("  "+color(pad("Decisions Evaluated",34),C.desc,useColor)+" : "+String(result.total_decisions_evaluated).padStart(14));
  if(result.alternative_leaf_net_interests?.length){const unique=[...new Set(result.alternative_leaf_net_interests)].sort((a,b)=>b-a);out.push("", "  Alternative Leaf Net Interests ("+result.alternative_leaf_net_interests.length.toLocaleString()+" non-best completed paths evaluated, "+unique.length.toLocaleString()+" distinct outcomes):");unique.slice(0,10).forEach((n,i)=>out.push("    - Leaf #"+String(i+1).padStart(2,"0")+" Net Interest : "+money(n).padStart(14)+" LKR  (diff vs best: "+((n-result.net_interest)>=0?"+":"")+money(n-result.net_interest)+")"));if(unique.length>10)out.push("      ... and "+(unique.length-10)+" more distinct leaf outcomes down to "+money(Math.min(...unique))+" LKR");}
  if(Object.keys(result.accounts||{}).length){out.push("","  Ending Balances by Account:");for(const a of Object.values(result.accounts))out.push("    - "+pad(a.label,20)+" ("+a.bank_key+"): "+money(a.balance).padStart(12));}
- out.push(line("="),"",bookingText(result));
+ out.push(line("="));if(showBookingLedger)out.push("",bookingText(result));
  return out.join("\n");
 }

@@ -15,7 +15,7 @@ async function main(){const cli=parseArgs(process.argv.slice(2));if(cli.help){co
  const config=validateConfiguration(loaded.raw,{bankRegistry:loaded.bankRegistry,bankKeyById:loaded.bankKeyById,options:loaded.options,today:todayLocal()});config.options_path=loaded.optionsPath;config.source_path=loaded.resolvedConfig;
  const result=new GreedyStrategy({compound:config.compound,actual_leap_year:config.actual_leap_year,ait_enabled:config.ait_enabled,ait_rate:config.ait_rate}).simulate({options:config.options,start:config.start,end:config.end,inflow_schedule:config.inflow_schedule,accounts:config.accounts,inflow_account_id:config.accounts[0].id,fee_config:config.fee_config,consolidation_account_id:config.consolidation_account_id,outflow_schedule:config.outflow_schedule});
  if(!result.valid)throw new Error("The selected strategy cannot satisfy one or more strict outflows.");
- console.log(formatSimulation(result,config,loaded.resolvedConfig,loaded.optionsPath));
+ console.log(formatSimulation(result,config,loaded.resolvedConfig,loaded.optionsPath,{showEventTimeline:config.show_timeline,showBookingLedger:config.show_ledger}));
  const output=resolve(dirname(loaded.resolvedConfig),config.report_output_file);await mkdir(dirname(output),{recursive:true});await writeFile(output,generateHtmlReport(result,config),"utf8");console.log("Report saved: "+output);
 }
 main().catch(e=>{console.error("FD Calculator error: "+e.message);process.exitCode=1;});
