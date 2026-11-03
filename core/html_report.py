@@ -256,7 +256,7 @@ def generate_html_report(
             if event.event_type == EventType.TRANSFER and event.label.startswith("Transfer to "):
                 capital_flow_rows.append({
                     "date": _date(event.on_date), "movement": "Account transfer",
-                    "source": account_name, "destination": event.label.removeprefix("Transfer to "),
+                    "source": account_name, "destination": account_display_by_label.get(event.label.removeprefix("Transfer to "), event.label.removeprefix("Transfer to ")),
                     "amount": _money(event.amount), "fee": _money(event.fee),
                 })
             elif event.event_type == EventType.BOOKING:
