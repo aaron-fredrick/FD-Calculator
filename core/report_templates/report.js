@@ -93,11 +93,34 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
         const active=series.filter(s=>!visible.length||visible.includes(s.name)),pts=active.flatMap(s=>(s.points||[]).map(p=>({s,p})));
         const labels=[...new Set(pts.map(v=>v.p.x))].sort(),g={l:62,r:18,t:18,b:42};
         if(!labels.length)return hide();
-        const day=labels[clamp(Math.round((mx-g.l)/(rect.width-g.l-g.r)*(labels.length-1)),0,labels.length-1)];
-        const candidates=pts.filter(v=>v.p.x===day).map(v=>({ ...v,x:g.l+(rect.width-g.l-g.r)*labels.indexOf(day)/Math.max(1,labels.length-1),y:g.t+(rect.height-g.t-g.b)-(v.p.y-Math.min(0,...pts.map(z=>z.p.y)))/(Math.max(1,...pts.map(z=>z.p.y))-Math.min(0,...pts.map(z=>z.p.y)))*(rect.height-g.t-g.b)}));
-        const hit=candidates.sort((a,b)=>Math.hypot(a.x-mx,a.y-my)-Math.hypot(b.x-mx,b.y-my))[0];
-        if(!hit||Math.hypot(hit.x-mx,hit.y-my)>38)return hide();
-        draw(hit.x,hit.y,8);show(e,day,active.map(s=>{const p=(s.points||[]).find(v=>v.x===day);return p?s.name+": LKR "+fmt(p.y):null}).filter(Boolean));
+        // Snap horizontally to the nearest plotted day; the pointer need not
+        // be close to any particular account line.
+        const plotWidth=Math.max(1,rect.width-g.l-g.r);
+        const dayIndex=clamp(Math.round((mx-g.l)/plotWidth*(labels.length-1)),0,labels.length-1);
+        const day=labels[dayIndex],plotHeight=rect.height-g.t-g.b;
+        const values=pts.map(v=>v.p.y),min=Math.min(0,...values),max=Math.max(1,...values),range=max-min||1;
+        const crossX=g.l+plotWidth*dayIndex/Math.max(1,labels.length-1);
+        const intersections=active.map((s,i)=>{
+          const p=(s.points||[]).find(v=>v.x===day);
+          if(!p)return null;
+          return {name:s.name,value:p.y,x:crossX,y:g.t+plotHeight-(p.y-min)/range*plotHeight,color:s.color||palette[(s.colorIndex??i)%palette.length]};
+        }).filter(Boolean);
+        if(!intersections.length)return hide();
+        // A neutral grey vertical crosshair plus a coloured marker at every
+        // account's intersection makes coincident and nearby series readable.
+        const ctx=layer.getContext("2d"),w=layer.clientWidth,h=layer.clientHeight;
+        clearTimeout(clearLayerTimer);ctx.clearRect(0,0,w,h);ctx.save();
+        ctx.strokeStyle="rgba(155,168,184,.78)";ctx.lineWidth=1.25;ctx.setLineDash([3,4]);
+        ctx.beginPath();ctx.moveTo(crossX,8);ctx.lineTo(crossX,h-34);ctx.stroke();ctx.setLineDash([]);
+        intersections.forEach(point=>{
+          ctx.beginPath();ctx.arc(point.x,point.y,7,0,Math.PI*2);
+          ctx.fillStyle=point.color;ctx.fill();
+          ctx.lineWidth=2;ctx.strokeStyle="rgba(235,241,248,.95)";ctx.stroke();
+          ctx.beginPath();ctx.arc(point.x,point.y,2,0,Math.PI*2);
+          ctx.fillStyle="#172334";ctx.fill();
+        });
+        ctx.restore();layer.style.opacity="0";requestAnimationFrame(()=>layer.style.opacity="1");
+        show(e,day,intersections.map(point=>point.name+": LKR "+fmt(point.value)));
       }else if(id==="cashflow-chart"){
         const series=(data.cashflows||[]),visible=[...panel.querySelectorAll(".chart-toolbar button")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.textContent);
         const active=series.filter(s=>!visible.length||visible.includes(s.name)),dates=[...new Set(active.flatMap(s=>(s.points||[]).map(p=>p.x)))].sort();
