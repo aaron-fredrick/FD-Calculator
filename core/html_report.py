@@ -5,6 +5,7 @@ import csv
 from html import escape
 from pathlib import Path
 import os
+import json
 from typing import Any, Sequence
 
 from core.reporting import build_decision_log, _xirr
@@ -26,6 +27,10 @@ def _load_bank_names() -> dict[str, str]:
 
 def _money(value: float) -> str:
     return f"LKR {value:,.2f}"
+
+
+def _amount(value: float) -> str:
+    return f"{value:,.2f}"
 
 
 def _date(value: Any) -> str:
@@ -84,20 +89,20 @@ def generate_html_report(
             "label": account.label or account.id,
             "id": account.id,
             "bank": _bank_display_name(account.bank_id, account.bank_key),
-            "balance": _money(account.balance),
+            "balance": _amount(account.balance),
             "efd": "Enabled" if account.supports_efd else "Standard FD only",
             "role": "Consolidation account" if account.id == config.get("consolidation_account_id") else "Investment account",
         })
     inflows = config.get("inflow_summaries", [])
     outflows = config.get("outflow_summaries", [])
     inflow_rows = [{
-        "name": x["name"], "amount": _money(x["amount"]), "schedule": _schedule_text(x),
-        "account": account_display.get(x["account_id"], x["account_id"]), "occurrences": x["occurrences"], "total": _money(x["total"]),
+        "name": x["name"], "amount": _amount(x["amount"]), "schedule": _schedule_text(x),
+        "account": (result.accounts[x["account_id"]].label if x["account_id"] in result.accounts else x["account_id"]), "occurrences": x["occurrences"], "total": _amount(x["total"]),
     } for x in inflows]
     outflow_rows = [{
         "name": x["name"], "amount": _money(x["amount"]), "schedule": _schedule_text(x),
         "account": account_display.get(x["account_id"], x["account_id"]), "occurrences": x["occurrences"],
-        "total": _money(x["total"]), "policy": x.get("payment_policy", "—"),
+        "total": _amount(x["total"]), "policy": x.get("payment_policy", "—"),
     } for x in outflows]
 
     def table(title: str, headers: Sequence[tuple[str, str]], rows: Sequence[dict]) -> str:
@@ -111,11 +116,11 @@ def generate_html_report(
         )
 
     account_table = table("Accounts", 
-        [("label", "Account"), ("id", "Account ID"), ("bank", "Bank"), ("balance", "Opening balance"),
+        [("label", "Account"), ("id", "Account ID"), ("bank", "Bank"), ("balance", "Opening balance (LKR)"),
          ("efd", "eFD capability"), ("role", "Role")], account_rows)
     inflow_table = table("Planned inflows",
-        [("name", "Inflow"), ("amount", "Per occurrence"), ("schedule", "Schedule"),
-         ("account", "Credit account"), ("occurrences", "Count"), ("total", "Total")], inflow_rows)
+        [("name", "Inflow"), ("amount", "Per occurrence (LKR)"), ("schedule", "Schedule"),
+         ("account", "Credit account"), ("occurrences", "Count"), ("total", "Total (LKR)")], inflow_rows)
     outflow_table = table("Planned outflows",
         [("name", "Outflow"), ("amount", "Per occurrence"), ("schedule", "Schedule"),
          ("account", "Debit account"), ("occurrences", "Count"), ("total", "Total"),
@@ -187,7 +192,7 @@ def generate_html_report(
         reasons_html = "".join(f"<li>{escape(str(reason))}</li>" for reason in reasons)
         first_record = booking_records[0] if booking_records else day_records[0]
         balances = "".join(
-            f'<span class="chip">{escape(account_display.get(str(account_id), str(account_id)))}: {_money(float(balance))}</span>'
+            f'<span class="chip">{escape((result.accounts[str(account_id)].label if str(account_id) in result.accounts else str(account_id)))}: {_money(float(balance))}</span>'
             for account_id, balance in first_record.get("available_funds", {}).items()
         )
 
@@ -195,7 +200,7 @@ def generate_html_report(
         expected_blocks = []
         for booking_index, item in enumerate(booking_records, len(transfer_steps) + 1):
             account_id = str(item.get("account_id", ""))
-            account_name = account_display.get(account_id, item.get("account_label", account_id))
+            account_name = str(item.get("account_label", account_id))
             booking_actions.append(f"""
               <div class="instruction booking-instruction">
                 <div class="instruction-title"><span>STEP {booking_index}</span> Open the fixed deposit</div>
@@ -217,13 +222,13 @@ def generate_html_report(
                 <span>Maturity <b>{_date(item['maturity_date'])}</b></span>
               </div>""")
             investment_rows.append({
-                "account": account_name, "product": f"{item.get('product', '—')} · {item.get('fd_type', '—')}",
-                "principal": _money(item["principal"]), "rate": f"{float(item['rate']):.3f}%",
+                "account": str(item.get("account_label", account_name)), "product": f"{item.get('product', '—')} · {item.get('fd_type', '—')}",
+                "principal": _amount(item["principal"]), "rate": f"{float(item['rate']):.3f}%",
                 "term": item.get("term", "—"), "booking": _date(item["booking_start"]),
                 "maturity": _date(item["maturity_date"]),
-                "gross": _money(item.get("expected_return", 0)),
-                "ait": _money(item.get("expected_ait", 0)),
-                "net": _money(item.get("expected_net_return", 0)),
+                "gross": _amount(item.get("expected_return", 0)),
+                "ait": _amount(item.get("expected_ait", 0)),
+                "net": _amount(item.get("expected_net_return", 0)),
             })
 
         if booking_records:
@@ -237,7 +242,7 @@ def generate_html_report(
             expected_html = "".join(expected_blocks)
         else:
             retained_accounts = sorted({
-                account_display.get(str(item.get("account_id", "")), str(item.get("account_label", "account")))
+                str(item.get("account_label", item.get("account_id", "account")))
                 for item in carry_records
             })
             title = "Transfer funds between accounts" if transfers else "Keep funds available"
@@ -266,29 +271,29 @@ def generate_html_report(
     for key in result.sorted_dates():
         for event in result.timeline[key]:
             account = result.accounts.get(event.account_id)
-            account_name = account_display.get(event.account_id, event.account_id or "—")
+            account_name = (account.label if account else (event.account_id or "—"))
             if event.event_type == EventType.TRANSFER and event.label.startswith("Transfer to "):
                 capital_flow_rows.append({
                     "date": _date(event.on_date), "movement": "Account transfer",
-                    "source": account_name, "destination": account_display_by_label.get(event.label.removeprefix("Transfer to "), event.label.removeprefix("Transfer to ")),
-                    "amount": _money(event.amount), "fee": _money(event.fee),
+                    "source": account_name, "destination": event.label.removeprefix("Transfer to "),
+                    "amount": _amount(event.amount), "fee": _amount(event.fee),
                 })
             elif event.event_type == EventType.BOOKING:
                 capital_flow_rows.append({
                     "date": _date(event.on_date), "movement": "FD booking",
                     "source": account_name, "destination": event.label,
-                    "amount": _money(abs(event.amount)), "fee": "—",
+                    "amount": _amount(abs(event.amount)), "fee": "—",
                 })
 
     investment_table = table("Selected fixed deposits",
-        [("account", "Account / bank"), ("product", "FD product"), ("principal", "Principal"),
+        [("account", "Account"), ("product", "FD product"), ("principal", "Principal (LKR)"),
          ("rate", "Rate"), ("term", "Term"), ("booking", "Booking date"), ("maturity", "Maturity"),
-         ("gross", "Gross interest"), ("ait", "AIT"), ("net", "Net interest")],
+         ("gross", "Gross interest (LKR)"), ("ait", "AIT (LKR)"), ("net", "Net interest (LKR)")],
         investment_rows,
     )
     capital_flow_table = table("Capital movements",
         [("date", "Date"), ("movement", "Movement"), ("source", "From / account"),
-         ("destination", "To / product"), ("amount", "Amount"), ("fee", "Fee")],
+         ("destination", "To / product"), ("amount", "Amount (LKR)"), ("fee", "Fee (LKR)")],
         capital_flow_rows,
     )
 
@@ -323,8 +328,8 @@ def generate_html_report(
         last_group_day = day
         last_group_title = group_title
         signed_amount = (
-            f"LKR +{amount:,.2f}" if amount > 0
-            else _money(amount)
+            f"+{amount:,.2f}" if amount > 0
+            else _amount(amount)
         )
         event_rows.append(
             f'<tr{row_class}><td class="event-date">{date_cell}</td><td>{escape(account_label)}</td>'
@@ -439,122 +444,116 @@ def generate_html_report(
                 event.label, display_balance, event.event_type.value, group_title,
             )
 
-    chart_items = []
-    chart_captions = {
-        "account_values": ("Portfolio value by account", "Estimated account value includes modelled accrued interest between booking and maturity; it is not a bank statement."),
-        "decision_timeline": ("FD booking and maturity schedule", "Each bar shows the active term of an FD, with its booking and maturity dates."),
-        "cash_flows": ("Cash movement timeline", "Positive bars are receipts; negative bars are uses of cash, transfers and investments."),
-    }
-    for chart in chart_paths:
-        chart = Path(chart)
-        key = next((name for name in chart_captions if name in chart.name), "")
-        caption, description = chart_captions.get(key, (chart.stem.replace("_", " ").title(), "Simulation chart"))
-        relative = Path(os.path.relpath(chart.resolve(), path.resolve().parent)).as_posix()
-        chart_items.append(
-            f'<figure><img src="{escape(relative, quote=True)}" alt="{escape(caption)}">'
-            f'<figcaption><b>{escape(caption)}</b><span>{escape(description)}</span></figcaption></figure>'
-        )
 
     xirr = _xirr(result)
     gross_interest = result.total_interest
     net_interest = result.net_interest
     total_capital = result.total_principal
     yield_pct = (net_interest / total_capital * 100.0) if total_capital else 0.0
-    search_status = getattr(result, "search_diagnostics", None)
     summary_note = ""
     if result.outstanding_outflows:
         summary_note = f'<p class="warning">Outstanding outflows remain: {escape(str(result.outstanding_outflows))}</p>'
 
-    html = f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FD Cal · Simulation Report</title>
-<style>
-:root{{--bg:#0b0e13;--panel:#131923;--panel2:#192230;--line:#293445;--text:#e8edf5;--muted:#9ba8b8;--blue:#56b4e9;--green:#55c99a;--red:#ef7777;--amber:#e9ad58;--purple:#bd93f9}}
-*{{box-sizing:border-box}}body{{margin:0;background:radial-gradient(ellipse at 15% 0%,#172334 0,transparent 42%),var(--bg);color:var(--text);font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}}
-main{{max-width:1180px;margin:0 auto;padding:38px 24px 70px}}header{{padding:24px 0 30px;border-bottom:1px solid var(--line)}}
-.section-nav{{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:10px 12px;margin:0 -12px;background:rgba(11,14,19,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);scrollbar-width:thin}}
-.section-nav a{{flex:0 0 auto;padding:8px 12px;border:1px solid transparent;border-radius:9px;color:var(--muted);font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap}}
-.section-nav a:hover,.section-nav a:focus-visible{{color:var(--text);background:var(--panel2);border-color:var(--line);outline:none}}
-section{{scroll-margin-top:76px}}.eyebrow{{color:var(--blue);font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}}
-h1{{font-size:clamp(30px,5vw,46px);line-height:1.1;margin:10px 0}}h2{{font-size:22px;margin:0 0 16px}}h3{{font-size:17px;margin:0 0 12px}}h4{{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px}}
-p{{margin:8px 0}}.muted,small{{color:var(--muted)}}section{{margin-top:34px}}.panel,.decision{{background:linear-gradient(145deg,var(--panel),#10151d);border:1px solid var(--line);border-radius:16px;padding:20px;margin:12px 0}}
-.metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px}}.metric{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:17px}}.metric small{{display:block;font-size:12px}}.metric strong{{display:block;font-size:22px;margin-top:5px;font-variant-numeric:tabular-nums}}
+    fee_config = config.get("fee_config")
+    overview_html = f"""
+      <div class="overview-grid">
+        <article class="panel"><small>Simulation window</small><strong>{_date(start)} → {_date(end)}</strong><p>{(end-start).days + 1} calendar days</p></article>
+        <article class="panel"><small>Strategy</small><strong>{escape(result.strategy_name)}</strong><p>Selected simulation path</p></article>
+        <article class="panel"><small>Interest calculation</small><strong>{"Compound" if config.get("compound") else "Simple"}</strong><p>{"Actual leap-year basis" if config.get("actual_leap_year") else "365-day basis"}</p></article>
+        <article class="panel"><small>Tax treatment</small><strong>{f"AIT · {result.ait_rate:.1%}" if result.ait_enabled else "AIT disabled"}</strong><p>Applied to interest payouts</p></article>
+        <article class="panel"><small>Consolidation account</small><strong>{escape(account_display.get(config.get("consolidation_account_id"), config.get("consolidation_account_id", "—")))}</strong><p>Terminal cash destination</p></article>
+        <article class="panel"><small>Default transfer fees</small><strong>{_money(fee_config.default_inter_bank_fee if fee_config else 0)}</strong><p>Inter-bank · Same-bank {_money(fee_config.same_bank_fee if fee_config else 0)}</p></article>
+      </div>
+    """
+    outcome_html = f"""
+      <div class="equation-panel"><b>Net interest reconciliation</b>
+      <div class="equation">
+        <div><small>Gross interest (LKR)</small><strong class="positive">{_amount(gross_interest)}</strong></div><span>−</span>
+        <div><small>AIT withheld (LKR)</small><strong class="negative">{_amount(result.ait_withheld)}</strong></div><span>−</span>
+        <div><small>Transfer fees (LKR)</small><strong class="negative">{_amount(result.total_transfer_fees)}</strong></div><span>=</span>
+        <div class="equation-result"><small>Net interest (LKR)</small><strong>{_amount(net_interest)}</strong></div>
+      </div><p class="muted">Net interest = gross interest − AIT − transfer fees. AIT is withheld from interest; transfer fees are deducted from cash.</p></div>
+      <div class="outcome-grid">
+        <div class="outcome-metric"><small>Total capital contributed (LKR)</small><strong>{_amount(total_capital)}</strong><p>Opening funds plus scheduled deposits.</p></div>
+        <div class="outcome-metric"><small>Final simulated portfolio value (LKR)</small><strong>{_amount(result.final_value)}</strong><p>Cash held across accounts at the end of the simulation.</p></div>
+        <div class="outcome-metric"><small>Net return on contributed capital</small><strong>{yield_pct:.3f}%</strong><p>Net interest divided by total contributed capital.</p></div>
+        <div class="outcome-metric"><small>Annualised money-weighted return</small><strong>{f"{xirr:.3f}% p.a." if xirr is not None else "N/A"}</strong><p>XIRR accounts for the timing of deposits and withdrawals.</p></div>
+      </div>{summary_note}
+    """
+    # Build compact, source-derived chart datasets. No browser-side financial
+    # calculations are used for headline results.
+    flow_totals: dict[str, dict[str, float]] = {}
+    account_points: dict[str, dict[str, float]] = {}
+    for day_key in result.sorted_dates():
+        for event in result.timeline[day_key]:
+            day = _date(event.on_date)
+            account = result.accounts.get(event.account_id)
+            if account and event.event_type not in {EventType.CARRY_FORWARD, EventType.IDLE}:
+                account_points.setdefault(account.label or account.id, {})[day] = float(event.balance_after)
+            category = None
+            amount = float(event.amount)
+            if event.event_type == EventType.INFLOW:
+                category = "Deposits"
+            elif event.event_type == EventType.OUTFLOW and amount < 0:
+                category = "Outflows"
+            elif event.event_type == EventType.BOOKING:
+                category, amount = "FD investments", -abs(amount)
+            elif event.event_type == EventType.CASH_FLOW:
+                category = "Interest payouts"
+            elif event.event_type == EventType.MATURITY:
+                category = "FD maturities"
+            elif event.event_type == EventType.TRANSFER:
+                if event.label.startswith(("Transfer to ", "Final sweep to ")):
+                    category, amount = "Transfers out", -abs(amount)
+                elif event.label.startswith(("Transfer received", "Final sweep received")):
+                    category = "Transfers in"
+            if category and abs(amount) >= 0.005:
+                bucket = flow_totals.setdefault(category, {})
+                bucket[day] = bucket.get(day, 0.0) + amount
 
-.equation-panel{{background:linear-gradient(145deg,#142333,#111923);border:1px solid #36506a;border-radius:16px;padding:22px;margin:14px 0}}
-.equation{{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:16px 0}}
-.equation>div{{display:flex;flex-direction:column;gap:5px;min-width:125px}}.equation small,.outcome-metric small{{font-size:11px;color:var(--muted)}}.equation strong{{font-size:clamp(17px,2vw,23px);font-variant-numeric:tabular-nums}}.equation>span{{font-size:22px;color:#8292a6}}.equation-result{{border-left:2px solid var(--green);padding-left:14px}}.equation-result strong{{color:var(--green)}}
-.outcome-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px}}.outcome-metric{{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px}}.outcome-metric strong{{display:block;font-size:21px;margin:5px 0;font-variant-numeric:tabular-nums}}.outcome-metric p{{font-size:12px;color:var(--muted);margin:0}}
-.instruction{{border:1px solid var(--line);border-radius:12px;padding:15px;margin:12px 0;background:var(--panel2)}}.transfer-instruction{{border-left:3px solid var(--amber)}}.booking-instruction{{border-left:3px solid var(--purple)}}
-.instruction-title{{font-weight:750;margin-bottom:12px}}.instruction-title span{{font-size:10px;letter-spacing:.1em;color:var(--muted);margin-right:10px}}
-.route{{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:14px;align-items:center}}.route small,.instruction-meta small{{display:block;color:var(--muted);font-size:10px;letter-spacing:.06em}}.route b{{display:block;margin-top:4px;font-size:13px}}.route-arrow{{font-size:23px;color:var(--amber)}}
-.instruction-meta{{display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}}.instruction-meta b{{display:block;margin-top:4px;font-size:13px}}
-.expected{{display:flex;gap:18px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px;margin-top:14px;font-size:12px;color:var(--muted)}}.expected b{{color:var(--text)}}.retained-note{{padding:13px;background:#202833;border:1px solid #3b4655;border-radius:10px;color:#c7d0dc}}
-.grid2{{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}}
-.collapsible-table{{margin:10px 0 16px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}}
-.collapsible-table>summary{{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 15px;cursor:pointer;list-style:none;color:var(--text);font-size:13px;font-weight:750}}
-.collapsible-table>summary::-webkit-details-marker{{display:none}}
-.collapsible-table>summary::after{{content:"＋";color:var(--blue);font-size:17px;font-weight:500}}
-.collapsible-table[open]>summary::after{{content:"−"}}
-.collapsible-table>summary span{{margin-left:auto;color:var(--muted);font-size:11px;font-weight:500}}
-.collapsible-table[open]>summary{{border-bottom:1px solid var(--line);background:var(--panel2)}}
-.table-wrap{{overflow-x:auto}}table{{border-collapse:collapse;width:100%;min-width:700px;background:var(--panel);font-size:13px}}th,td{{padding:11px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}}th{{background:var(--panel2);color:#b8c7d8;font-size:11px;text-transform:uppercase;letter-spacing:.07em}}tr:last-child td{{border-bottom:0}}.empty{{color:var(--muted);text-align:center}}.num{{text-align:right;font-variant-numeric:tabular-nums}}.event-date{{white-space:nowrap;color:#8fa5bd;font-weight:700;font-variant-numeric:tabular-nums}}tr.event-item-start td{{border-top:1px dashed #46505e}}
-tr.event-subgroup-start td{{border-top:1px solid #788596}}
-tr.event-day-start td{{border-top:2px solid #4d91c7;padding-top:13px}}
-tr.event-day-start .event-date{{padding-top:13px}}
-.positive{{color:var(--green)}}.negative{{color:var(--red)}}.warning{{color:var(--amber);background:#382817;padding:12px;border-radius:10px}}
-.decision{{border-left:3px solid var(--amber);padding:20px 22px}}.decision-head{{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}}.decision-head h3{{margin:0;line-height:1.25;align-self:center}}.step{{font-size:11px;color:var(--amber);font-weight:800;letter-spacing:.12em}}.date{{font-weight:700}}.tag{{margin-left:auto;border:1px solid #795a31;color:#f0bd77;background:#302416;border-radius:30px;padding:4px 10px;font-size:12px}}
-.detail-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}}.detail-grid div{{background:var(--panel2);padding:11px;border-radius:9px}}.detail-grid small{{display:block;font-size:11px}}.detail-grid b{{display:block;margin-top:4px;font-size:13px}}
-ul.compact{{padding-left:20px;color:#c7d0dc}}ul.compact li{{margin:5px 0}}.chips{{display:flex;gap:8px;flex-wrap:wrap}}.chip{{background:var(--panel2);padding:5px 9px;border-radius:7px;color:#c7d0dc;font-size:12px}}.checkpoint{{border-top:1px solid var(--line);padding-top:12px;color:var(--muted);font-size:13px}}
-figure{{margin:0 0 18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}}figure img{{display:block;width:100%;height:auto;border-radius:8px}}figcaption{{padding:10px 4px 2px}}figcaption b,figcaption span{{display:block}}figcaption span{{font-size:12px;color:var(--muted);margin-top:3px}}
-.event-subgroup td{{padding:8px 13px;background:#202b3a;color:#a9bbcf;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;border-top:1px solid #3b4b60;border-bottom:1px solid #293445}}
-.event-amount.inflow{{color:var(--blue)}}.event-amount.outflow{{color:var(--red)}}.event-amount.transfer{{color:#56d8e8}}.event-amount.transfer-to{{color:var(--amber)}}.event-amount.booking{{color:var(--purple)}}.event-amount.cash_flow{{color:var(--green)}}.event-amount.maturity{{color:var(--green)}}.event-amount.mature-principal{{color:#f08ab5}}.event-amount.carry_forward{{color:#e9d15b}}.event-amount.idle{{color:#9ba8b8}}
-.event-pill{{display:inline-block;padding:3px 8px;border-radius:20px;background:#253143;color:#b9d9ef;font-size:11px;white-space:nowrap}}.event-pill.inflow{{background:#1e3442;color:#82aaff}}.event-pill.outflow{{background:#3a2227;color:#ff7777}}.event-pill.transfer{{background:#243143;color:#56d8e8}}.event-pill.transfer-to{{background:#3b2b1b;color:#e9ad58}}.event-pill.carry_forward{{background:#3a321d;color:#e9d15b}}.event-pill.booking{{background:#332742;color:#d78bfa}}.event-pill.maturity{{background:#173b25;color:#32b65b}}.event-pill.cash_flow{{background:#183c2b;color:#55c99a}}.event-pill.idle{{background:#292d33;color:#9ba8b8}}.event-pill.mature-principal{{background:#422638;color:#f08ab5}}
-footer{{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;color:var(--muted);font-size:12px}}
-@media(max-width:600px){{main{{padding:22px 14px 48px}}.tag{{margin-left:0}}.metric strong{{font-size:19px}}.route{{grid-template-columns:1fr}}.route-arrow{{transform:rotate(90deg);justify-self:start}}}}
-@media print{{body{{background:#fff;color:#17202b}}.panel,.decision,.metric,figure,table{{background:#fff;color:#17202b;break-inside:avoid}}.muted,small,figcaption span{{color:#526070}}}}
-</style></head><body><main>
-<header><div class="eyebrow">FD Cal · Portfolio planning</div><h1>Investment simulation report</h1>
-<p class="muted">{_date(start)} — {_date(end)} · { (end-start).days + 1 } calendar days · {escape(result.strategy_name)} strategy</p>
-<p class="muted">Generated from the selected simulation path. Use the highlighted action cards as a manual execution checklist; verify all terms with each bank before transacting.</p></header>
-<nav class="section-nav" aria-label="Report sections">
-<a href="#outcome">01 · Outcome</a><a href="#capital-flow">02 · Capital flow</a>
-<a href="#execution-plan">03 · Execution plan</a><a href="#portfolio">04 · Portfolio</a>
-<a href="#cash-flows">05 · Cash flows</a><a href="#charts">06 · Charts</a>
-<a href="#event-ledger">07 · Event ledger</a><a href="#assumptions">08 · Assumptions</a>
-</nav>
-<section id="outcome" class="outcome"><h2>01 · Portfolio outcome</h2>
-<div class="equation-panel"><b>Net interest calculation</b>
-<div class="equation">
-<div><small>Gross interest earned</small><strong class="positive">{_money(gross_interest)}</strong></div><span>−</span>
-<div><small>AIT withheld</small><strong class="negative">{_money(result.ait_withheld)}</strong></div><span>−</span>
-<div><small>Transfer fees</small><strong class="negative">{_money(result.total_transfer_fees)}</strong></div><span>=</span>
-<div class="equation-result"><small>Net interest earned</small><strong>{_money(net_interest)}</strong></div>
-</div><p class="muted">Net interest = gross interest − AIT − transfer fees. AIT is withheld from interest; transfer fees are deducted from cash.</p></div>
-<div class="outcome-grid">
-<div class="outcome-metric"><small>Total capital contributed</small><strong>{_money(total_capital)}</strong><p>Opening funds plus scheduled deposits.</p></div>
-<div class="outcome-metric"><small>Final simulated portfolio value</small><strong>{_money(result.final_value)}</strong><p>Cash held across accounts at the end of the simulation.</p></div>
-<div class="outcome-metric"><small>Net return on contributed capital</small><strong>{yield_pct:.3f}%</strong><p>Net interest divided by total contributed capital.</p></div>
-<div class="outcome-metric"><small>Annualised money-weighted return (XIRR)</small><strong>{f"{xirr:.3f}% p.a." if xirr is not None else "N/A"}</strong><p>Accounts for the timing of deposits and withdrawals.</p></div>
-</div>{summary_note}</section>
-<section id="capital-flow"><h2>02 · Capital flow</h2><p class="muted">Transfers and FD bookings selected by the strategy. Incoming transfer accounting entries are intentionally not duplicated here; they remain in the full event ledger.</p>{capital_flow_table}</section>
-<section id="execution-plan"><h2>03 · Execution plan</h2><p class="muted">This is the manual bank checklist. Each transfer is listed once from the sending account; the receiving-side entry is accounting only. Final cash sweeps are excluded because they are terminal valuation movements, not planned execution tasks. Confirm rates, fees, minimums and product availability with the bank before acting.</p>{''.join(decision_cards) if decision_cards else '<div class="panel">No FD bookings or actionable transfers were selected.</div>'}</section>
-<section id="portfolio"><h2>04 · Investment portfolio</h2><h3>Accounts</h3>{account_table}<h3>Selected fixed deposits</h3>{investment_table}</section>
-<section id="cash-flows"><h2>05 · Scheduled cash flows</h2><div class="grid2"><div><h3>Planned inflows</h3>{inflow_table}</div><div><h3>Planned outflows</h3>{outflow_table}</div></div></section>
-<section id="charts"><h2>06 · Performance charts</h2>{''.join(chart_items) if chart_items else '<p class="muted">Charts were not generated for this run. Enable show_plots to include them.</p>'}</section>
-
-<section id="event-ledger"><h2>07 · Full event ledger</h2><p class="muted">Full event timeline and complete accounting audit trail, including both sides of transfers, fees, bookings, interest, AIT and maturities. This ledger records what the simulation accounts for; it is not an execution checklist.</p>
-<details class="collapsible-table"><summary>Full event ledger <span>{len(event_rows)} rows · click to expand</span></summary>
-<div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount</th><th>Description</th><th class="num">Balance after</th></tr></thead><tbody>{''.join(event_rows) if event_rows else '<tr><td colspan="6" class="empty">No events</td></tr>'}</tbody></table></div></details></section>
-<section id="assumptions"><h2>08 · Scenario assumptions</h2><p class="muted">Scenario conditions used for this simulation.</p><div class="panel"><div class="grid2">
-<div><small>Strategy</small><p><b>{escape(result.strategy_name)}</b></p></div>
-<div><small>Interest method</small><p><b>{"Compound" if config.get("compound") else "Simple"} interest</b></p></div>
-<div><small>Day-count basis</small><p><b>{"Actual leap-year basis" if config.get("actual_leap_year") else "365-day basis"}</b></p></div>
-<div><small>Withholding tax</small><p><b>{f"AIT enabled · {result.ait_rate:.1%} of interest" if result.ait_enabled else "AIT disabled"}</b></p></div>
-<div><small>Consolidation account</small><p><b>{escape(account_display.get(config.get("consolidation_account_id"), config.get("consolidation_account_id", "—")))}</b></p></div>
-<div><small>Transfer fee defaults</small><p><b>Inter-bank {_money(config.get("fee_config").default_inter_bank_fee)} · Same-bank {_money(config.get("fee_config").same_bank_fee)}</b></p></div>
-</div></div></section>
-
-<footer><b>Important:</b> This report is a simulation and manual planning aid. It does not execute bank transfers or open fixed deposits. Interest, rates, minimums, tax treatment, fees and product availability may differ in practice. Confirm all details directly with the relevant bank. Portfolio charts estimate accrued interest between booking and maturity; contractual cash-flow events and the final summary are authoritative within this simulation.</footer>
-</main></body></html>"""
+    account_chart = [{"name": name, "points": [{"x": d, "y": v} for d, v in sorted(points.items())]}
+                     for name, points in account_points.items()]
+    flow_chart = [{"name": name, "points": [{"x": d, "y": v} for d, v in sorted(points.items())]}
+                  for name, points in flow_totals.items()]
+    maturity_chart = [{
+        "name": f"{booking.option.label} · {booking.account_id}",
+        "start": _date(booking.start), "end": _date(booking.end),
+        "principal": float(booking.principal), "interest": float(booking.total_interest),
+        "rate": float(booking.option.annual_rate),
+    } for booking in result.bookings]
+    chart_data = {
+        "accounts": account_chart, "cashflows": flow_chart, "maturities": maturity_chart,
+        "returns": [
+            {"name": "Net interest", "value": float(net_interest)},
+            {"name": "AIT withheld", "value": float(result.ait_withheld)},
+            {"name": "Transfer fees", "value": float(result.total_transfer_fees)},
+        ],
+    }
+    chart_json = json.dumps(chart_data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    ledger_html = f"""
+      <details class="collapsible-table"><summary>Full event ledger <span>{len(event_rows)} rows · expand</span></summary>
+      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount (LKR)</th><th>Description</th><th class="num">Balance after (LKR)</th></tr></thead><tbody>{''.join(event_rows) if event_rows else '<tr><td colspan="6" class="empty">No events</td></tr>'}</tbody></table></div></details>
+    """
+    template_dir = Path(__file__).resolve().parent / "report_templates"
+    template = (template_dir / "report.html").read_text(encoding="utf-8")
+    css = (template_dir / "report.css").read_text(encoding="utf-8")
+    js = (template_dir / "report.js").read_text(encoding="utf-8")
+    html = template.replace("{{REPORT_CSS}}", css)
+    html = html.replace("{{REPORT_JS}}", js)
+    replacements = {
+        "{{REPORT_TITLE}}": "FD Cal · Simulation Report",
+        "{{REPORT_PERIOD}}": f"{_date(start)} — {_date(end)} · {(end-start).days + 1} calendar days · {escape(result.strategy_name)} strategy",
+        "{{OVERVIEW_CONTENT}}": overview_html,
+        "{{OUTCOME_CONTENT}}": outcome_html,
+        "{{EXECUTION_CONTENT}}": ''.join(decision_cards) if decision_cards else '<div class="panel">No FD bookings or actionable transfers were selected.</div>',
+        "{{PORTFOLIO_CONTENT}}": f"<h3>Accounts</h3>{account_table}<h3>Selected fixed deposits</h3>{investment_table}",
+        "{{CASHFLOW_CONTENT}}": f'<div class="grid2"><div><h3>Planned inflows</h3>{inflow_table}</div><div><h3>Planned outflows</h3>{outflow_table}</div></div>',
+        "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account value history</h3><canvas id="account-chart" aria-label="Account balance history"></canvas><p class="muted">Recorded account balances from the event timeline. FD principal is shown separately in the maturity schedule.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
+        "{{PORTFOLIO_AUDIT_CONTENT}}": capital_flow_table,
+        "{{LEDGER_CONTENT}}": ledger_html,
+        "{{CHART_DATA}}": chart_json,
+    }
+    for token, value in replacements.items():
+        html = html.replace(token, value)
     path.write_text(html, encoding="utf-8")
     return path
