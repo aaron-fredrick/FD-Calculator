@@ -13,11 +13,11 @@ function scenario() {
   const options = [
     new FDOption({
       label: "Standard 1M", bank_id: "BANK_A", bank_key: "bank_a",
-      period_str: "1 month", annual_rate: 12, min_amount: 25000
+      period_str: "31d", annual_rate: 12, min_amount: 25000
     }),
     new FDOption({
       label: "eFD 1M", bank_id: "BANK_A", bank_key: "bank_a",
-      period_str: "1 month", annual_rate: 12, min_amount: 25000, is_efd: true
+      period_str: "31d", annual_rate: 12, min_amount: 25000, is_efd: true
     })
   ];
   return {
