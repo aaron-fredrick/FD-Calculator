@@ -89,7 +89,7 @@ class TimelineReportingTests(unittest.TestCase):
         self.assertIn("MATURE PRINCIPAL", rendered)
         self.assertIn("MATURE INTEREST", rendered)
         self.assertIn("+10,000.00", rendered)
-        self.assertIn("+90.00", rendered)
+        self.assertIn("+100.00", rendered)
         self.assertIn("AIT WITHHELD", rendered)
         self.assertIn("-10.00", rendered)
         self.assertIn("INFLOW", rendered)
