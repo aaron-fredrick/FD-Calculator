@@ -312,16 +312,20 @@ def generate_html_report(
         nonlocal last_event_day, last_group_day, last_group_title
         is_new_day = day != last_event_day
         date_cell = _date(day) if is_new_day else ""
-        row_class = ' class="day-start"' if is_new_day and last_event_day is not None else ""
-        if day != last_group_day:
-            if last_group_day is not None:
-                event_rows.append('<tr class="event-day-separator"><td colspan="6"></td></tr>')
-            last_group_day = day
-            last_group_title = group_title
-        elif group_title != last_group_title:
-            event_rows.append('<tr class="event-subgroup-separator"><td colspan="6"></td></tr>')
-            last_group_title = group_title
-        signed_amount = f"+{_money(amount)}" if amount > 0 else _money(amount)
+        if last_event_day is None:
+            row_class = ""
+        elif is_new_day:
+            row_class = ' class="event-day-start"'
+        elif day != last_group_day or group_title != last_group_title:
+            row_class = ' class="event-subgroup-start"'
+        else:
+            row_class = ' class="event-item-start"'
+        last_group_day = day
+        last_group_title = group_title
+        signed_amount = (
+            f"LKR +{amount:,.2f}" if amount > 0
+            else _money(amount)
+        )
         event_rows.append(
             f'<tr{row_class}><td class="event-date">{date_cell}</td><td>{escape(account_label)}</td>'
             f'<td><span class="event-pill {escape(css_type)}">{escape(label)}</span></td>'
@@ -335,7 +339,7 @@ def generate_html_report(
             if event.event_type == EventType.INFLOW and event.amount == 0 and event.label == "Opening balance trigger":
                 continue
             account = result.accounts.get(event.account_id)
-            account_label = account_display.get(event.account_id, account.label if account else (event.account_id or "—"))
+            account_label = account.label if account else (event.account_id or "—")
             event_type = event.event_type.value.replace("_", " ").title()
             display_amount = float(event.amount)
             display_balance = float(event.balance_after)
@@ -493,9 +497,10 @@ p{{margin:8px 0}}.muted,small{{color:var(--muted)}}section{{margin-top:34px}}.pa
 .collapsible-table[open]>summary::after{{content:"−"}}
 .collapsible-table>summary span{{margin-left:auto;color:var(--muted);font-size:11px;font-weight:500}}
 .collapsible-table[open]>summary{{border-bottom:1px solid var(--line);background:var(--panel2)}}
-.table-wrap{{overflow-x:auto}}table{{border-collapse:collapse;width:100%;min-width:700px;background:var(--panel);font-size:13px}}th,td{{padding:11px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}}th{{background:var(--panel2);color:#b8c7d8;font-size:11px;text-transform:uppercase;letter-spacing:.07em}}tr:last-child td{{border-bottom:0}}.empty{{color:var(--muted);text-align:center}}.num{{text-align:right;font-variant-numeric:tabular-nums}}.event-date{{white-space:nowrap;color:#8fa5bd;font-weight:700;font-variant-numeric:tabular-nums}}tr.day-start td{{border-top:0;padding-top:11px}}
-.event-subgroup-separator td{{height:1px;padding:0;border:0;border-top:1px dashed #46505e;background:transparent}}
-.event-day-separator td{{height:9px;padding:0;border:0;border-top:2px solid #4d91c7;background:transparent}}
+.table-wrap{{overflow-x:auto}}table{{border-collapse:collapse;width:100%;min-width:700px;background:var(--panel);font-size:13px}}th,td{{padding:11px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}}th{{background:var(--panel2);color:#b8c7d8;font-size:11px;text-transform:uppercase;letter-spacing:.07em}}tr:last-child td{{border-bottom:0}}.empty{{color:var(--muted);text-align:center}}.num{{text-align:right;font-variant-numeric:tabular-nums}}.event-date{{white-space:nowrap;color:#8fa5bd;font-weight:700;font-variant-numeric:tabular-nums}}tr.event-item-start td{{border-top:1px dashed #46505e}}
+tr.event-subgroup-start td{{border-top:1px solid #788596}}
+tr.event-day-start td{{border-top:2px solid #4d91c7;padding-top:13px}}
+tr.event-day-start .event-date{{padding-top:13px}}
 .positive{{color:var(--green)}}.negative{{color:var(--red)}}.warning{{color:var(--amber);background:#382817;padding:12px;border-radius:10px}}
 .decision{{border-left:3px solid var(--amber);padding:20px 22px}}.decision-head{{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}}.decision-head h3{{margin:0;line-height:1.25;align-self:center}}.step{{font-size:11px;color:var(--amber);font-weight:800;letter-spacing:.12em}}.date{{font-weight:700}}.tag{{margin-left:auto;border:1px solid #795a31;color:#f0bd77;background:#302416;border-radius:30px;padding:4px 10px;font-size:12px}}
 .detail-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}}.detail-grid div{{background:var(--panel2);padding:11px;border-radius:9px}}.detail-grid small{{display:block;font-size:11px}}.detail-grid b{{display:block;margin-top:4px;font-size:13px}}
