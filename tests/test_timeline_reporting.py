@@ -45,12 +45,12 @@ class TimelineReportingTests(unittest.TestCase):
                 balance_after=970.0,
             ),
             Event(
-                EventType.CASH_FLOW, month, 100.0,
+                EventType.CASH_FLOW, month, 90.0,
                 "Cash flow [FD-0001]", booking_ref="FD-0001",
                 account_id="com", balance_after=100.0,
             ),
             Event(
-                EventType.MATURITY, maturity, 10100.0,
+                EventType.MATURITY, maturity, 10090.0,
                 "Maturity [FD-0001]", booking_ref="FD-0001",
                 account_id="com", balance_after=10200.0,
             ),
@@ -65,6 +65,8 @@ class TimelineReportingTests(unittest.TestCase):
             bookings=[booking],
             total_principal=10000.0,
             end_date=maturity,
+            ait_enabled=True,
+            ait_rate=0.10,
             accounts={
                 "com": Account(id="com", bank_id="commercial", bank_key="commercial", label="Commercial"),
                 "dfcc": Account(id="dfcc", bank_id="dfcc", bank_key="dfcc", label="DFCC"),
@@ -87,7 +89,9 @@ class TimelineReportingTests(unittest.TestCase):
         self.assertIn("MATURE PRINCIPAL", rendered)
         self.assertIn("MATURE INTEREST", rendered)
         self.assertIn("+10,000.00", rendered)
-        self.assertIn("+100.00", rendered)
+        self.assertIn("+90.00", rendered)
+        self.assertIn("AIT WITHHELD", rendered)
+        self.assertIn("-10.00", rendered)
         self.assertIn("INFLOW", rendered)
         self.assertIn("CARRY FORWARD", rendered)
         self.assertNotIn("[INFLOW]", rendered)
