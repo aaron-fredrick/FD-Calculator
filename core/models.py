@@ -247,6 +247,34 @@ class FDOption:
     def num_periods(self) -> int:
         return max(1, round(self.days / self.payout_period_days))
 
+    def generate_cash_flows_after_ait(
+        self,
+        principal: float,
+        start: date,
+        ait_rate: float,
+        compound: bool = False,
+        actual_leap_year: bool = True,
+    ) -> list[tuple[date, float]]:
+        """Generate cash actually available after withholding AIT from interest only."""
+        gross_flows = self.generate_cash_flows(
+            principal, start, compound=compound, actual_leap_year=actual_leap_year
+        )
+        if ait_rate <= 0:
+            return gross_flows
+        total_interest = sum(amount for _, amount in gross_flows) - principal
+        net_flows: list[tuple[date, float]] = []
+        for index, (flow_date, amount) in enumerate(gross_flows):
+            if self.payout_type == CUMULATIVE:
+                interest_component = amount - principal
+            elif self.payout_type == PERIODIC_INTEREST:
+                principal_component = principal if index == len(gross_flows) - 1 else 0.0
+                interest_component = amount - principal_component
+            else:
+                interest_component = total_interest / len(gross_flows)
+            withheld = round(max(0.0, interest_component) * ait_rate, 2)
+            net_flows.append((flow_date, round(amount - withheld, 2)))
+        return net_flows
+
 
 @dataclass
 class Booking:
@@ -293,6 +321,8 @@ class SimResult:
     outstanding_outflows: list[dict] = field(default_factory=list)
     valid: bool = True
     decision_log: list[dict] = field(default_factory=list)
+    ait_enabled: bool = True
+    ait_rate: float = 0.10
 
     @property
     def total_interest(self) -> float:
@@ -301,16 +331,31 @@ class SimResult:
     @property
     def net_interest(self) -> float:
         """Interest after transfer fees, before AIT; retained as the strategy objective."""
-        return self.total_interest - self.total_transfer_fees
+        return self.total_interest - self.total_transfer_fees - self.ait_withheld
 
     @property
     def ait_withheld(self) -> float:
-        """Estimated 10% AIT on gross FD interest; excluded from strategy decisions."""
-        return self.total_interest * 0.10
+        """AIT actually withheld across scheduled FD payouts when enabled."""
+        if not self.ait_enabled:
+            return 0.0
+        total = 0.0
+        for booking in self.bookings:
+            gross_flows = booking.cash_flows
+            total_interest = booking.total_interest
+            for index, (_, amount) in enumerate(gross_flows):
+                if booking.payout_type == CUMULATIVE:
+                    interest_component = amount - booking.principal
+                elif booking.payout_type == PERIODIC_INTEREST:
+                    principal_component = booking.principal if index == len(gross_flows) - 1 else 0.0
+                    interest_component = amount - principal_component
+                else:
+                    interest_component = total_interest / len(gross_flows)
+                total += round(max(0.0, interest_component) * self.ait_rate, 2)
+        return round(total, 2)
 
     @property
     def net_interest_after_ait(self) -> float:
-        return self.net_interest - self.ait_withheld
+        return self.net_interest
 
     @property
     def total_outflows_due(self) -> float:
@@ -350,13 +395,13 @@ class SimResult:
 
     @property
     def final_value(self) -> float:
-        """Pre-AIT terminal value used by the optimisation strategies."""
-        return self.total_principal + self.total_interest - self.total_transfer_fees
+        """Terminal value after any AIT withholding applied during simulation."""
+        return self.total_principal + self.total_interest - self.total_transfer_fees - self.ait_withheld
 
     @property
     def final_value_after_ait(self) -> float:
-        """Estimated terminal value after AIT, for reporting only."""
-        return self.final_value - self.ait_withheld
+        """Terminal value; AIT is already reflected when enabled."""
+        return self.final_value
 
     def sorted_dates(self) -> list[int]:
         """Timeline keys in ascending chronological order."""
