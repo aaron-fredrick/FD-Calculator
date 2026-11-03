@@ -52,24 +52,26 @@ function bankNamesFromConfig(config) {
   const source=config.bank_registry||config.bankRegistry||{};
   return Object.fromEntries(Object.entries(source).map(([id,row])=>[id,typeof row==="string"?row:row?.name||id]));
 }
-function buildAccountChart(result,config,start,end,openingBalances) {
+export function buildAccountChart(result,config,start,end,openingBalances) {
   const accounts=Object.values(result.accounts||{});
   const names=bankNamesFromConfig(config);
   const bankLabel=id=>names[id]||String(id||"").replace(/^LK_/,"").replaceAll("_"," ").replace(/\b\w/g,c=>c.toUpperCase());
   const consolidation=config.consolidation_account_id||"";
   const main=result.accounts?.[consolidation];
   const mainBank=identity(main?.bank_id||main?.bank_key);
+  const compareCasefold=(a,b)=>String(a??"").localeCompare(String(b??""),"en",{sensitivity:"base"})||String(a??"").localeCompare(String(b??""));
   const banks=[...new Set(accounts.map(a=>identity(a.bank_id||a.bank_key)).filter(Boolean))]
-    .sort((a,b)=>bankLabel(a).localeCompare(bankLabel(b)));
+    .sort((a,b)=>compareCasefold(bankLabel(a),bankLabel(b)));
   if(mainBank&&banks.includes(mainBank)){banks.splice(banks.indexOf(mainBank),1);banks.unshift(mainBank);}
   const bankOrder=new Map(banks.map((b,i)=>[b,i]));
   accounts.sort((a,b)=>(a.id===consolidation?-1:b.id===consolidation?1:0)||
     (bankOrder.get(identity(a.bank_id||a.bank_key))??999)-(bankOrder.get(identity(b.bank_id||b.bank_key))??999)||
-    String(a.label||"").localeCompare(String(b.label||"")));
+    compareCasefold(a.label||"",b.label||"")||
+    String(a.id??"").localeCompare(String(b.id??"")));
   const hsv=(h,s,v)=>{h=((h%1)+1)%1*6;const i=Math.floor(h),f=h-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s),rgb=[[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][i%6];return "#"+rgb.map(x=>Math.round(x*255).toString(16).padStart(2,"0")).join("");};
   const accountSeries=[],fdSeries=[],firstHue=new Map(),fdColor=new Map();
   accounts.forEach((a,i)=>{
-    const bank=identity(a.bank_id||a.bank_key),hue=220-185*i/Math.max(1,accounts.length-1);
+    const bank=identity(a.bank_id||a.bank_key),hue=(220-185*i/Math.max(1,accounts.length-1))/360;
     const brightness=a.id===consolidation?1:0.8;
     accountSeries.push({name:a.label||a.id,seriesType:"account",accountId:a.id,bankId:bank,points:[],
       color:hsv(hue,1,brightness),lineStyle:a.id===consolidation?"solid":bank===mainBank?"dashed":"dotted"});
