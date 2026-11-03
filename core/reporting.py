@@ -589,11 +589,11 @@ def print_simulation(
                     f"    - {item.get('name', 'Outflow')} [{item.get('account_id', '')}]: "
                     f"{float(item.get('remaining', 0.0)):,.2f} LKR ({item.get('payment_policy', '')})"
                 )
-    _summary_line("Net Interest (after AIT)", f"{result.net_interest_after_ait:,.2f} LKR", EVENT_COLORS[EventType.CASH_FLOW])
-    _summary_line("Net Yield (after AIT)", f"{net_ret:.3f}%", EVENT_COLORS[EventType.BOOKING])
+    _summary_line("Net Interest (after AIT)" if result.ait_enabled else "Net Interest", f"{result.net_interest_after_ait:,.2f} LKR", EVENT_COLORS[EventType.CASH_FLOW])
+    _summary_line("Net Yield (after AIT)" if result.ait_enabled else "Net Yield", f"{net_ret:.3f}%", EVENT_COLORS[EventType.BOOKING])
     annualised_text = f"{annualised:.3f}% p.a. (XIRR, after AIT)" if annualised is not None and result.ait_enabled else (f"{annualised:.3f}% p.a. (XIRR)" if annualised is not None else "N/A")
     _summary_line("Annualised Return", annualised_text, EVENT_COLORS[EventType.MATURITY])
-    _summary_line("Final Balance (after AIT)", f"{result.final_value_after_ait:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
+    _summary_line("Final Balance (after AIT)" if result.ait_enabled else "Final Balance", f"{result.final_value_after_ait:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
     print("  AIT withholding is applied to interest payouts before cash is reused." if result.ait_enabled else "  AIT is disabled; interest payouts are modelled gross.")
     if result.total_outflows_due:
         _summary_line("Cash Retained", f"{result.cash_retained:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
@@ -605,7 +605,7 @@ def print_simulation(
     # -- Comparison with other strategies (only other net interest shown) --
     if comparison:
         print()
-        print("  Other Strategy Net Interest (after configured AIT; strategy objective):")
+        print("  Other Strategy Net Interest (after configured AIT; strategy objective):" if result.ait_enabled else "  Other Strategy Net Interest (strategy objective):")
         for strat_name, other_net in sorted(comparison.items()):
             delta = other_net - result.net_interest
             delta_str = f"+{delta:,.2f}" if delta >= 0 else f"{delta:,.2f}"
