@@ -79,6 +79,11 @@ async function main() {
       ait_enabled: config.ait_enabled, ait_rate: config.ait_rate,
       ...settings
     });
+    config.gaml_settings = {
+      beam_width: strategy.beam_width,
+      max_local_branches: strategy.max_local_branches,
+      max_decisions: strategy.max_decisions
+    };
   }
 
   const result = strategy.simulate(input);
@@ -98,9 +103,9 @@ async function main() {
       console.log("Local-combination pruned     : " + d.local_combination_pruned.toLocaleString("en-US"));
       console.log("Root strategy diversity peak : " + d.root_strategy_peak.toLocaleString("en-US"));
       console.log("Optimality                   : " + (d.optimality_proven ? "proven" : "not proven"));
-      console.log("GAML settings                : beam " + config.gaml_settings.beam_width +
-        ", local width " + config.gaml_settings.max_local_branches +
-        ", state cap " + (config.gaml_settings.max_decisions ?? "unlimited"));
+      console.log("GAML settings                : beam " + strategy.beam_width +
+        ", local width " + (strategy.max_local_branches ?? "unlimited") +
+        ", state cap " + (strategy.max_decisions ?? "unlimited"));
     } else console.log("Optimality                   : proven (exhaustive branch-and-bound)");
   }
 
