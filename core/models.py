@@ -259,8 +259,17 @@ class FDOption:
         gross_flows = self.generate_cash_flows(
             principal, start, compound=compound, actual_leap_year=actual_leap_year
         )
+        return self.apply_ait_to_cash_flows(principal, gross_flows, ait_rate)
+
+    def apply_ait_to_cash_flows(
+        self,
+        principal: float,
+        gross_flows: list[tuple[date, float]],
+        ait_rate: float,
+    ) -> list[tuple[date, float]]:
+        """Apply AIT to an existing gross payout schedule without recalculating interest."""
         if ait_rate <= 0:
-            return gross_flows
+            return list(gross_flows)
         total_interest = sum(amount for _, amount in gross_flows) - principal
         net_flows: list[tuple[date, float]] = []
         for index, (flow_date, amount) in enumerate(gross_flows):
