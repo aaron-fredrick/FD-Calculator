@@ -12,17 +12,21 @@ function scenario() {
   });
   const options = [
     new FDOption({
-      label: "Standard 1M", bank_id: "BANK_A", bank_key: "bank_a",
-      period_str: "31d", annual_rate: 12, min_amount: 25000
+      label: "Standard 30d", bank_id: "BANK_A", bank_key: "bank_a",
+      period_str: "30d", annual_rate: 10, min_amount: 25000
     }),
     new FDOption({
-      label: "eFD 1M", bank_id: "BANK_A", bank_key: "bank_a",
-      period_str: "31d", annual_rate: 12, min_amount: 25000, is_efd: true
+      label: "High-minimum 30d", bank_id: "BANK_A", bank_key: "bank_a",
+      period_str: "30d", annual_rate: 15, min_amount: 50000
+    }),
+    new FDOption({
+      label: "eFD 30d", bank_id: "BANK_A", bank_key: "bank_a",
+      period_str: "30d", annual_rate: 10, min_amount: 25000, is_efd: true
     })
   ];
   return {
-    options, start: "2026-01-01", end: "2026-02-01",
-    inflow_schedule: {}, accounts: [account], inflow_account_id: "main",
+    options, start: "2026-01-01", end: "2026-03-10",
+    inflow_schedule: { "2026-02-01": { main: 30000 } }, accounts: [account], inflow_account_id: "main",
     fee_config: new TransferFeeConfig(), consolidation_account_id: "main",
     outflow_schedule: {}
   };
