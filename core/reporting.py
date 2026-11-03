@@ -116,14 +116,14 @@ def print_options_table(options: list[FDOption]) -> None:
 # ---------------------------------------------------------------------------
 
 _EVENT_LABELS = {
-    EventType.INFLOW:        "[INFLOW] ",
-    EventType.OUTFLOW:       "[OUTFLOW]",
-    EventType.TRANSFER:      "[TRANSFER]",
-    EventType.BOOKING:       "[BOOK]   ",
-    EventType.CASH_FLOW:     "[CF]     ",
-    EventType.MATURITY:      "[MATURE] ",
-    EventType.CARRY_FORWARD: "[CARRY]  ",
-    EventType.IDLE:          "[IDLE]   ",
+    EventType.INFLOW:        "INFLOW",
+    EventType.OUTFLOW:       "OUTFLOW",
+    EventType.TRANSFER:      "TRANSFER",
+    EventType.BOOKING:       "BOOK",
+    EventType.CASH_FLOW:     "CASH FLOW",
+    EventType.MATURITY:      "MATURITY",
+    EventType.CARRY_FORWARD: "CARRY FORWARD",
+    EventType.IDLE:          "IDLE",
 }
 
 
@@ -160,7 +160,7 @@ def print_event_timeline(result: SimResult) -> None:
                 channel = "INTRA-BANK" if event.transfer_channel == "intra_bank" else "INTER-BANK"
                 if "to " in event.label.lower():
                     rows.append((
-                        event, f"{channel} TO", -(event.amount - event.fee), orange,
+                        event, f"{channel} TO", -event.amount, orange,
                         event.label,
                     ))
                     if event.fee > 0:
@@ -196,12 +196,12 @@ def print_event_timeline(result: SimResult) -> None:
                     maturity_interest = event.amount - booking.principal
                     rows.append((
                         event, "MATURE PRINCIPAL", booking.principal,
-                        EVENT_COLORS[EventType.MATURITY], f"Principal returned [{event.booking_ref}]",
+                        light_purple, f"Principal returned [{event.booking_ref}]",
                     ))
                     if maturity_interest > 0:
                         rows.append((
                             event, "MATURE INTEREST", maturity_interest,
-                            light_purple, f"Interest paid at maturity [{event.booking_ref}]",
+                            EVENT_COLORS[EventType.CASH_FLOW], f"Interest paid at maturity [{event.booking_ref}]",
                         ))
                 else:
                     rows.append((
@@ -228,7 +228,12 @@ def print_event_timeline(result: SimResult) -> None:
             else:
                 amount_text = f"{amount:>+14,.2f}"
 
-            balance_text = f"{event.balance_after:>14,.2f}" if event.balance_after >= 0 else f"{'--':>14}"
+            row_balance = (
+                event.balance_after + event.fee
+                if event.event_type == EventType.TRANSFER and label.endswith(" TO")
+                else event.balance_after
+            )
+            balance_text = f"{row_balance:>14,.2f}" if row_balance >= 0 else f"{'--':>14}"
             date_text = str(event.on_date) if row_idx == 0 else ""
             c_date = f"{COLOR_DATE}{date_text:<12}{RESET}"
             c_acc = f"{acc_label:<12}"
