@@ -131,13 +131,31 @@ def _build_account_balance_series(
                     compound,
                     actual_leap_year,
                 )
-                gross_paid = sum(
-                    flow_amount
-                    for flow_date, flow_amount in booking.cash_flows
-                    if flow_date <= day
+                interest_paid = 0.0
+                principal_returned = 0.0
+                flow_count = len(booking.cash_flows)
+                for flow_index, (flow_date, flow_amount) in enumerate(booking.cash_flows):
+                    if flow_date > day:
+                        continue
+                    if booking.payout_type == "cumulative":
+                        interest_component = flow_amount - booking.principal
+                    elif booking.payout_type == "periodic_interest":
+                        principal_component = (
+                            booking.principal if flow_index == flow_count - 1 else 0.0
+                        )
+                        interest_component = flow_amount - principal_component
+                    else:
+                        interest_component = booking.total_interest / max(1, flow_count)
+                    interest_component = max(0.0, interest_component)
+                    interest_paid += interest_component
+                    principal_returned += flow_amount - interest_component
+
+                remaining_principal = max(0.0, booking.principal - principal_returned)
+                remaining_interest = max(0.0, accrued_interest - interest_paid)
+                accrued_ait = (
+                    remaining_interest * result.ait_rate if result.ait_enabled else 0.0
                 )
-                remaining_value = booking.principal + accrued_interest - gross_paid
-                fd_value += max(0.0, remaining_value)
+                fd_value += remaining_principal + remaining_interest - accrued_ait
 
             points.append({"x": _date(day), "y": round(cash + fd_value, 2)})
 
