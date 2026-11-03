@@ -33,7 +33,7 @@ class TimelineReportingTests(unittest.TestCase):
         )
         events = [
             Event(
-                EventType.TRANSFER, start, 1000.0,
+                EventType.TRANSFER, start, 970.0,
                 "Transfer to DFCC (Amt: 970.00, Fee: 30.00)",
                 account_id="com", transfer_channel="domestic_ceft",
                 fee=30.0, balance_after=0.0,
@@ -78,6 +78,7 @@ class TimelineReportingTests(unittest.TestCase):
 
         self.assertIn("INTER-BANK TO", rendered)
         self.assertIn("-970.00", rendered)
+        self.assertIn("+30.00", rendered)  # intermediate source balance before fee
         self.assertIn("INTER-BANK TF", rendered)
         self.assertIn("-30.00", rendered)
         self.assertIn("INTER-BANK TI", rendered)
@@ -87,6 +88,10 @@ class TimelineReportingTests(unittest.TestCase):
         self.assertIn("MATURE INTEREST", rendered)
         self.assertIn("+10,000.00", rendered)
         self.assertIn("+100.00", rendered)
+        self.assertIn("INFLOW", rendered)
+        self.assertIn("CARRY FORWARD", rendered)
+        self.assertNotIn("[INFLOW]", rendered)
+        self.assertNotIn("[CARRY]", rendered)
 
 
 if __name__ == "__main__":
