@@ -321,7 +321,7 @@ export class GreedyStrategy {
 
     const totalInflow = Object.values(normalizedInflows).reduce((sum, amounts) =>
       sum + Object.values(amounts).reduce((inner, amount) => inner + amount, 0), 0);
-    const result = new SimResult({ strategy_name: this.name, timeline, bookings: this._bookings || [],
+    const result = new SimResult({ strategy_name: this.name, timeline, bookings,
       total_principal: totalInflow + originalCapital, end_date: endDate, accounts: accountMap,
       total_transfer_fees: totalFees, total_outflows_paid: totalOutflowsPaid,
       outstanding_outflows: pending, valid: !strictFailed, ait_enabled: this.ait_enabled, ait_rate: this.ait_rate });
