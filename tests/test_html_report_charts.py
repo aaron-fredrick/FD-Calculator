@@ -55,25 +55,29 @@ class HtmlReportAccountChartTests(unittest.TestCase):
         self.assertEqual(values, [10_000.0, 30_000.0, 30_000.0, 20_000.0])
         self.assertEqual(chart["fd_principal"][0]["lineStyle"], "solid")
 
-    def test_bank_hsv_palette_prioritizes_consolidation_bank_and_muted_fd_color(self):
+    def test_bank_hsv_palette_groups_accounts_but_assigns_each_account_its_own_hue(self):
         accounts = {
             "main": Account("main", "LK_COMMERCIAL_BANK_OF_CEYLON", "Commercial", 1_000.0),
-            "same": Account("same", "LK_COMMERCIAL_BANK_OF_CEYLON", "Commercial Savings", 2_000.0),
-            "other": Account("other", "LK_DFCC_BANK", "DFCC", 3_000.0),
+            "same_z": Account("same_z", "LK_COMMERCIAL_BANK_OF_CEYLON", "Z Savings", 2_000.0),
+            "same_y": Account("same_y", "LK_COMMERCIAL_BANK_OF_CEYLON", "Y Savings", 2_500.0),
+            "other_r": Account("other_r", "LK_DFCC_BANK", "R Savings", 3_000.0),
+            "other_p": Account("other_p", "LK_DFCC_BANK", "P Savings", 3_500.0),
+            "other_q": Account("other_q", "LK_DFCC_BANK", "Q Savings", 4_000.0),
         }
         result = SimResult("Greedy", {}, [], 0.0, self.start, accounts=accounts)
         chart = _build_account_balance_series(result, {k: v.balance for k, v in accounts.items()},
                                               self.start, date(2027, 1, 2), "main")
-        by_name = {item["name"]: item for item in chart["accounts"]}
-        self.assertEqual(by_name["Commercial"]["lineStyle"], "solid")
-        self.assertEqual(by_name["Commercial Savings"]["lineStyle"], "dashed")
-        self.assertEqual(by_name["DFCC"]["lineStyle"], "dotted")
-        self.assertEqual(by_name["Commercial"]["color"], by_name["Commercial Savings"]["color"])
-        self.assertNotEqual(by_name["Commercial"]["color"], by_name["DFCC"]["color"])
-        # Hue positions belong to bank groups, not individual account slots.
-        # The primary bank anchors blue; DFCC is the second distinct bank.
-        self.assertEqual(by_name["Commercial"]["color"], "#0055ff")
-        self.assertEqual(by_name["DFCC"]["color"], "#cc7700")
+        series = chart["accounts"]
+        self.assertEqual(
+            [item["accountId"] for item in series],
+            ["main", "same_y", "same_z", "other_p", "other_q", "other_r"],
+        )
+        self.assertEqual(series[0]["color"], "#0000ff")
+        self.assertEqual(len({item["color"] for item in series}), 6)
+        self.assertEqual(series[0]["lineStyle"], "solid")
+        self.assertEqual(series[1]["lineStyle"], "dashed")
+        self.assertEqual(series[2]["lineStyle"], "dashed")
+        self.assertEqual(series[3]["lineStyle"], "dotted")
         self.assertEqual(chart["fd_principal"], [])
 
     def test_stage_number_resets_each_day_and_each_series_has_every_stage(self):
