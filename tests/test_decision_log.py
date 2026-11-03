@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fd_cal import _write_decision_log
+from core.html_report import generate_html_report
 
 from core.models import Account, FDOption, TransferFeeConfig
 from core.strategies.absolute import AbsoluteStrategy
@@ -32,15 +32,26 @@ class DecisionLogTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             output = Path(temp_dir) / "reports" / "decisions.txt"
-            written = _write_decision_log(result, output, date(2026, 1, 1))
+            config = {
+                "consolidation_account_id": "cash",
+                "inflow_summaries": [],
+                "outflow_summaries": [],
+                "compound": False,
+                "actual_leap_year": True,
+                "fee_config": TransferFeeConfig(),
+            }
+            written = generate_html_report(
+                result, config, start=date(2026, 1, 1), end=date(2026, 1, 1),
+                output_path=output,
+            )
             report = written.read_text(encoding="utf-8")
             self.assertEqual(written, output)
-            self.assertIn("FD CALCULATOR — DECISION / EXECUTION LOG", report)
-            self.assertIn("Strategy          : Greedy", report)
-            self.assertIn("Simulation period : 2026-01-01 to 2026-01-01", report)
-            self.assertIn("CARRY CASH FORWARD", report)
-            self.assertIn("Available balances before action:", report)
-            self.assertIn("END OF LOG", report)
+            self.assertIn("Investment simulation report", report)
+            self.assertIn("Scenario conditions", report)
+            self.assertIn("Accounts", report)
+            self.assertIn("Carry cash forward", report)
+            self.assertIn("Balances before decision", report)
+            self.assertIn("Full event timeline", report)
 
     def test_log_explains_selected_consolidation_for_each_strategy(self):
         strategies = [
