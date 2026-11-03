@@ -1,0 +1,53 @@
+{
+  "strategy": "gaml",
+  "options_file": "data/fd_options/fd_options.csv",
+  "investment": {
+    "start_date": "today",
+    "end_date": "2027-06-30"
+  },
+  "accounts": {
+    "comfp": {
+      "bank_id": "LK_COMMERCIAL_BANK_OF_CEYLON",
+      "label": "Comm Flash Primary",
+      "balance": 0,
+      "supports_efd": true
+    },
+    "comfs": {
+      "bank_id": "LK_COMMERCIAL_BANK_OF_CEYLON",
+      "label": "Comm Flash Savings",
+      "balance": 10030,
+      "supports_efd": false
+    },
+    "dfcc": {
+      "bank_id": "LK_DFCC_BANK",
+      "label": "DFCC Savings",
+      "balance": 0,
+      "supports_efd": true
+    }
+  },
+  "consolidation_account_id": "comfs",
+  "inflows": [
+    {
+      "name": "Monthly new savings",
+      "amount": 11000,
+      "type": "recurring",
+      "interval": "1m",
+      "start_date": "2026-11-30",
+      "end_date": "end",
+      "account_id": "comfs"
+    }
+  ],
+  "transfer_fees": {
+    "default_inter_bank_fee": 30,
+    "same_bank_fee": 0,
+    "custom_fees": []
+  },
+  "compound": false,
+  "ait_enabled": false,
+  "actual_leap_year": true,
+  "show_timeline": true,
+  "show_ledger": false,
+  "show_plots": true,
+  "plot_output_dir": "plots",
+  "report_output_file": "fd_cal_report.html"
+}

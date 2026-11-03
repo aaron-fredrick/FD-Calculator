@@ -1,0 +1,75 @@
+from datetime import date
+import unittest
+
+from core.models import Account, FDOption, TransferFeeConfig
+from core.strategies.absolute import AbsoluteStrategy
+from core.strategies.gaml import GAMLStrategy
+from core.strategies.greedy import GreedyStrategy
+
+
+class AccountEFDStrategyTests(unittest.TestCase):
+    def test_consolidation_targets_an_efd_capable_account_at_same_bank(self):
+        accounts = [
+            Account(id="dfcc-1", bank_key="dfcc", label="DFCC standard", balance=10_000, supports_efd=False),
+            Account(id="dfcc-2", bank_key="dfcc", label="DFCC eFD A", balance=10_000, supports_efd=True),
+            Account(id="dfcc-3", bank_key="dfcc", label="DFCC eFD B", balance=10_000, supports_efd=True),
+        ]
+        options = [
+            FDOption("DFCC Standard 1m", "1m", 9.0, min_amount=25_000, bank_key="dfcc", is_efd=False),
+            FDOption("DFCC eFD 1m", "1m", 12.0, min_amount=25_000, bank_key="dfcc", is_efd=True),
+        ]
+
+        result = GreedyStrategy().simulate(
+            options=options,
+            start=date(2026, 1, 1),
+            end=date(2026, 3, 1),
+            inflow_schedule={},
+            accounts=accounts,
+            inflow_account_id="dfcc-1",
+            fee_config=TransferFeeConfig(same_bank_fee=0.0),
+            consolidation_account_id="dfcc-1",
+        )
+
+        self.assertTrue(result.valid)
+        self.assertGreaterEqual(len(result.bookings), 1)
+        # The first consolidation must target an eFD-enabled account. Later
+        # maturities may legitimately create additional bookings within the
+        # inclusive simulation window.
+        booking = result.bookings[0]
+        self.assertIn(booking.account_id, {"dfcc-2", "dfcc-3"})
+        self.assertTrue(booking.option.is_efd)
+        self.assertGreaterEqual(booking.principal, 25_000)
+        for item in result.bookings:
+            if item.option.is_efd:
+                eligible = next(account for account in accounts if account.id == item.account_id)
+                self.assertTrue(eligible.supports_efd)
+
+
+    def test_standard_only_account_never_books_efd_across_strategies(self):
+        strategies = [GreedyStrategy(), AbsoluteStrategy(), GAMLStrategy(max_decisions=500)]
+        for strategy in strategies:
+            with self.subTest(strategy=strategy.name):
+                account = Account(
+                    id="dfcc-standard",
+                    bank_key="dfcc",
+                    label="DFCC standard-only",
+                    balance=30_000,
+                    supports_efd=False,
+                )
+                options = [
+                    FDOption("DFCC Standard 1m", "1m", 9.0, min_amount=25_000, bank_key="dfcc"),
+                    FDOption("DFCC eFD 1m", "1m", 12.0, min_amount=25_000, bank_key="dfcc", is_efd=True),
+                ]
+                result = strategy.simulate(
+                    options=options,
+                    start=date(2026, 1, 1),
+                    end=date(2026, 3, 1),
+                    inflow_schedule={},
+                    accounts=[account],
+                    inflow_account_id=account.id,
+                    fee_config=TransferFeeConfig(same_bank_fee=0.0),
+                    consolidation_account_id=account.id,
+                )
+                self.assertTrue(result.valid)
+                self.assertTrue(result.bookings)
+                self.assertTrue(all(not booking.option.is_efd for booking in result.bookings))
