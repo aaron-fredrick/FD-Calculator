@@ -268,6 +268,7 @@ Fees affect the simulated value, so use the fees that apply to your actual accou
 | `options_file` | FD options CSV index path; defaults to `data/fd_options/fd_options.csv`. |
 | `compound` | `true` enables the simulator's compound-interest calculations; `false` uses simple-interest calculations. |
 | `actual_leap_year` | `true` uses actual 366-day leap years where applicable; `false` uses a 365-day basis. |
+| `ait_enabled` | `true` withholds the configured 10% AIT from interest payouts and includes the reduced cash flows in strategy decisions; `false` disables AIT modelling. Defaults to `true` in config files. |
 | `show_timeline` | Show the event timeline in the terminal. |
 | `show_ledger` | Show the booking ledger in the terminal. |
 | `decision_log_output_file` | Plain-text execution log for the selected strategy path; defaults to `decision_log.txt` beside the config file. |
@@ -289,9 +290,11 @@ A relative plot path is resolved from the directory containing the selected conf
 
 The account-value chart is an estimate for comparison: interest is shown as accruing between booking and maturity. Use the simulator's final results and cash-flow records for the calculated outcome; the chart is not a bank statement.
 
-### AIT / withholding tax in the summary
+### AIT / withholding tax
 
-The summary applies an estimated 10% AIT deduction to total gross FD interest. It reports gross interest, transfer fees, AIT, net interest after AIT, and the estimated final balance after AIT. AIT is deliberately excluded from strategy scoring and booking decisions; strategies continue to optimise the pre-AIT result. This is a summary-level estimate and does not model bank-by-bank withholding timing or an individual's eligibility for an exemption.
+Set `ait_enabled` to `true` or `false` in the root configuration. It defaults to `true`. When enabled, the simulator withholds 10% AIT from each FD interest payment before that cash becomes available for outflows, transfers, or reinvestment. Cumulative products are taxed at maturity; periodic-interest products are taxed on each interest payout; installment products allocate the interest component evenly across installments for withholding. Principal is not taxed.
+
+Greedy, GAML, and Absolute all evaluate the resulting after-AIT cash flows, so tax can change which FD, account, consolidation route, and reinvestment sequence is selected. The report retains gross interest and separately reports AIT withheld, transfer fees, net interest, and final balance. Set `ait_enabled` to `false` where AIT does not apply (for example, when a valid exemption applies). This is a simplified 10% withholding model; it does not infer individual tax eligibility or model bank-specific withholding exceptions.
 
 ## 5. Before using results
 
