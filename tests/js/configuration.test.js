@@ -1,0 +1,51 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { buildCashSchedule, resolveDate, validateConfiguration } from "../../src/core/configuration.js";
+import { FDOption } from "../../src/core/models.js";
+
+const start = "2026-01-31", end = "2026-06-30";
+const accountIds = new Set(["main", "secondary"]);
+
+test("date tokens resolve deterministically and reject implicit today", () => {
+  assert.equal(resolveDate("investment_start+1m", { investmentStart: start }).toISOString().slice(0, 10), "2026-02-28");
+  assert.throws(() => resolveDate("today"), /today value must be supplied/);
+  assert.equal(resolveDate("today", { today: "2026-03-01" }).toISOString().slice(0, 10), "2026-03-01");
+});
+
+test("recurring and scheduled cash events aggregate by date and account", () => {
+  const inflows = buildCashSchedule([
+    { name: "salary", account_id: "main", amount: 1000, interval: "1m", start_date: "2026-02-01", end_date: "2026-04-01" },
+    { name: "bonus", account_id: "main", amount: 250, type: "scheduled", dates: ["2026-02-01", "2026-04-01"] }
+  ], "inflow", { start, end, accountIds });
+  assert.deepEqual(inflows.schedule["2026-02-01"], { main: 1250 });
+  assert.equal(inflows.summaries[0].occurrences, 3);
+  const outflows = buildCashSchedule([
+    { name: "rent", account_id: "secondary", amount: 500, interval: "1m", payment_policy: "defer", start_date: "2026-02-01", end_date: "2026-03-01" }
+  ], "outflow", { start, end, accountIds });
+  assert.equal(outflows.schedule["2026-03-01"][0].payment_policy, "defer");
+});
+
+test("configuration validates bank identity, eFD account capability and transfer fees", () => {
+  const options = [
+    new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A", is_efd: false }),
+    new FDOption({ label: "efd", period_str: "1m", annual_rate: 8, bank_id: "BANK_A", is_efd: true })
+  ];
+  const config = validateConfiguration({
+    investment: { start_date: start, end_date: end },
+    accounts: { main: { bank_id: "BANK_A", balance: 50000, supports_efd: false } },
+    inflows: [{ account_id: "main", amount: 1000, interval: "1m" }],
+    transfer_fees: { default_inter_bank_fee: 30 }
+  }, {
+    bankRegistry: { BANK_A: { name: "Bank A", intra_bank_transfer_fee: 0, domestic_inter_bank_transfer_fee: 25 } },
+    bankKeyById: { BANK_A: "bank_a" }, options
+  });
+  assert.equal(config.accounts[0].canUseOption(options[1]), false);
+  assert.equal(config.fee_config.getFee("BANK_A", "BANK_B"), 25);
+  assert.equal(config.inflow_summaries[0].occurrences, 5);
+  assert.equal(config.ait_enabled, true);
+});
+
+test("invalid event references and payment policies fail validation", () => {
+  assert.throws(() => buildCashSchedule([{ account_id: "missing", amount: 1, interval: "1m" }], "inflow", { start, end, accountIds }), /unknown account/);
+  assert.throws(() => buildCashSchedule([{ account_id: "main", amount: 1, interval: "1m", payment_policy: "maybe" }], "outflow", { start, end, accountIds }), /invalid payment_policy/);
+});
