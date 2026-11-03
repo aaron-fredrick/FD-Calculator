@@ -220,16 +220,33 @@ def _pick_daily_greedy_plan(
     if not candidates:
         return {"type": "CARRY", "carries": active_accounts}
 
+    def equivalent_efd_count(plan: dict) -> int:
+        selected: list[tuple[Account, FDOption]] = [
+            (booking["account"], booking["option"])
+            for booking in plan.get("bookings", [])
+        ]
+        if plan.get("option") is not None and plan.get("target_account") is not None:
+            selected.append((plan["target_account"], plan["option"]))
+        return sum(
+            1
+            for account, option in selected
+            if option.is_efd
+            and any(
+                not standard.is_efd
+                and standard.economic_terms_key == option.economic_terms_key
+                and (not standard.bank_identity or standard.bank_identity == account.bank_identity)
+                and account.can_use_option(standard)
+                for standard in options
+            )
+        )
+
     candidates.sort(
         key=lambda p: (
             p["rate"],
             -p["days"],
             p["net_interest"],
             -p["fees_today"],
-            sum(
-                1 for booking in p.get("bookings", [])
-                if booking["option"].is_efd
-            ) + int(bool(p.get("option") and p["option"].is_efd)),
+            equivalent_efd_count(p),
         ),
         reverse=True,
     )
