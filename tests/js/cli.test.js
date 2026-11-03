@@ -21,7 +21,7 @@ test("root data catalogues load canonical banks and bank-specific FD products",a
 });
 test("Greedy CLI executes from JSON config and writes a standalone report",async()=>{
  const dir=await mkdtemp(join(tmpdir(),"fdcal-cli-")),configPath=join(dir,"scenario.json"),reportPath=join(dir,"report.html");
- const config={strategy:"greedy",options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-04-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"CLI Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath};
+ const config={strategy:"greedy",options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-04-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"CLI Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath,show_timeline:true,show_ledger:true};
  try{
   await writeFile(configPath,JSON.stringify(config,null,2));
   const run=spawnSync(process.execPath,[join(root,"cli/fd-cal.js"),"--config",configPath],{cwd:root,encoding:"utf8",timeout:30000});
