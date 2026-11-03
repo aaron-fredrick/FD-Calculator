@@ -58,6 +58,43 @@ class GAMLStrategyTests(unittest.TestCase):
         self.assertGreaterEqual(result.final_value + 0.01, greedy.final_value)
         self.assertIsNotNone(result.total_decisions_evaluated)
 
+    def test_efd_is_preferred_when_standard_product_has_identical_terms(self):
+        account = Account(
+            id="com",
+            bank_key="commercial",
+            label="Commercial",
+            balance=10000.0,
+            supports_efd=True,
+        )
+        standard = FDOption(
+            "Commercial Standard",
+            "1m",
+            8.0,
+            10000.0,
+            bank_key="commercial",
+            is_efd=False,
+        )
+        efd = FDOption(
+            "Commercial eFD",
+            "1m",
+            8.0,
+            10000.0,
+            bank_key="commercial",
+            is_efd=True,
+        )
+        result = GreedyStrategy().simulate(
+            options=[standard, efd],
+            start=self.start,
+            end=self.end,
+            inflow_schedule={},
+            accounts=[account],
+            inflow_account_id="com",
+            fee_config=self.fees,
+            consolidation_account_id="com",
+        )
+        self.assertTrue(result.bookings)
+        self.assertTrue(result.bookings[0].option.is_efd)
+
     def test_dominance_pruning_preserves_distinct_payout_schedules(self):
         cumulative = FDOption(
             "Higher-rate cumulative",
