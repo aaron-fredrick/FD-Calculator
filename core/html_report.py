@@ -66,6 +66,10 @@ def generate_html_report(
         account.id: f"{account.label or account.id} · {bank_names.get(account.bank_id, account.bank_id or account.bank_key)}"
         for account in result.accounts.values()
     }
+    account_display_by_label = {
+        account.label: account_display[account.id]
+        for account in result.accounts.values() if account.label
+    }
 
     account_rows = []
     for account in result.accounts.values():
@@ -113,14 +117,15 @@ def generate_html_report(
         description = str(step.get("description", ""))
         if not description.startswith("Transfer to "):
             return ""
-        destination = description.removeprefix("Transfer to ")
+        destination_label = description.removeprefix("Transfer to ")
+        destination = account_display_by_label.get(destination_label, destination_label)
         source = str(step.get("account_label") or step.get("account_id") or "Source account")
         source_id = str(step.get("account_id") or "")
         source_display = account_display.get(source_id, source)
         channel = str(step.get("channel", "TRANSFER")).replace("DOMESTIC CEFT", "Inter-bank CEFT").replace("INTRA-BANK", "Same-bank transfer")
         return f"""
           <div class="instruction transfer-instruction">
-            <div class="instruction-title"><span>TRANSFER</span> Move funds between accounts</div>
+            <div class="instruction-title"><span>STEP 1</span> Transfer funds</div>
             <div class="route">
               <div><small>FROM · SOURCE ACCOUNT</small><b>{escape(source_display)}</b></div>
               <span class="route-arrow">→</span>
@@ -156,7 +161,7 @@ def generate_html_report(
             account_name = account_display.get(account_id, item.get("account_label", account_id))
             action_detail = f"""
               <div class="instruction booking-instruction">
-                <div class="instruction-title"><span>FD BOOKING</span> Open the fixed deposit</div>
+                <div class="instruction-title"><span>STEP {2 if transfer_steps else 1}</span> Open the fixed deposit</div>
                 <div class="detail-grid">
                   <div><small>Account</small><b>{escape(str(account_name))}</b></div>
                   <div><small>Product</small><b>{escape(str(item.get('product', '—')))} · {escape(str(item.get('fd_type', '—')))}</b></div>
@@ -257,7 +262,7 @@ def generate_html_report(
             if event.event_type == EventType.INFLOW and event.amount == 0 and event.label == "Opening balance trigger":
                 continue
             account = result.accounts.get(event.account_id)
-            account_label = account.label if account else (event.account_id or "—")
+            account_label = account_display.get(event.account_id, account.label if account else (event.account_id or "—"))
             event_type = event.event_type.value.replace("_", " ").title()
             display_amount = float(event.amount)
             display_balance = float(event.balance_after)
