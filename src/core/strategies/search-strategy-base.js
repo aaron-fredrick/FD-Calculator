@@ -721,7 +721,7 @@ export class SearchStrategyBase {
     };
     const initial = {
       date: context.start,
-      balances: makeBalanceState([...context.accounts].map(([id, account]) => [id, account.balance])),
+      balances: makeBalanceState(Object.fromEntries([...context.accounts].map(([id, account]) => [id, account.balance]))),
       flows: [], obligations: [], paid: 0
     };
     const settings = {
