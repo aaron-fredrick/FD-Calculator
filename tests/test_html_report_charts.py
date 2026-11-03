@@ -2,7 +2,8 @@ from datetime import date
 import unittest
 
 from core.html_report import _build_account_balance_series
-from core.models import Account, Event, EventType, SimResult
+from core.models import Account, Event, EventType, FDOption, SimResult
+from core.strategies.greedy import GreedyStrategy
 
 
 class HtmlReportAccountChartTests(unittest.TestCase):
@@ -69,6 +70,53 @@ class HtmlReportAccountChartTests(unittest.TestCase):
             {"x": "2027-01-03", "y": 2_325.0},
             {"x": "2027-01-04", "y": 2_025.0},
         ])
+
+    def test_real_strategy_periodic_payouts_and_maturity_change_account_history(self):
+        start = date(2027, 1, 1)
+        end = date(2027, 4, 1)
+        account = Account(
+            id="cash",
+            bank_id="LK_COMMERCIAL_BANK_OF_CEYLON",
+            label="Commercial Primary",
+            balance=0.0,
+        )
+        option = FDOption(
+            label="Quarterly periodic FD",
+            period_str="3m",
+            annual_rate=12.0,
+            min_amount=100_000.0,
+            payout_type="periodic_interest",
+            payout_period_str="1m",
+            bank_key="commercial",
+            bank_id="LK_COMMERCIAL_BANK_OF_CEYLON",
+        )
+        result = GreedyStrategy().simulate(
+            options=[option],
+            start=start,
+            end=end,
+            inflow_schedule={start: {"cash": 100_000.0}},
+            accounts=[account],
+            inflow_account_id="cash",
+            consolidation_account_id="cash",
+        )
+
+        series = _build_account_balance_series(
+            result, {"cash": 0.0}, start, end, "cash"
+        )
+        values = {point["x"]: point["y"] for point in series[0]["points"]}
+
+        self.assertEqual(values["2027-01-01"], 0.0)
+        self.assertGreater(values["2027-02-01"], values["2027-01-31"])
+        self.assertGreater(values["2027-03-01"], values["2027-02-28"])
+        self.assertGreater(values["2027-04-01"], values["2027-03-31"])
+        self.assertTrue(any(
+            event.event_type == EventType.CASH_FLOW
+            for events in result.timeline.values() for event in events
+        ))
+        self.assertTrue(any(
+            event.event_type == EventType.MATURITY
+            for events in result.timeline.values() for event in events
+        ))
 
     def test_account_history_uses_distinct_colors_and_relationship_line_styles(self):
         accounts = {
