@@ -193,9 +193,9 @@ def print_event_timeline(result: SimResult) -> None:
                         label = "MONTH INTEREST"
                     else:
                         label = f"{period.upper()} INTEREST".strip()
-                    rows.append((event, label, event.amount, EVENT_COLORS[EventType.CASH_FLOW], event.label))
+                    rows.append((event, label, gross_amount, EVENT_COLORS[EventType.CASH_FLOW], event.label))
                 else:
-                    rows.append((event, "INSTALLMENT", event.amount, EVENT_COLORS[EventType.CASH_FLOW], event.label))
+                    rows.append((event, "INSTALLMENT", gross_amount, EVENT_COLORS[EventType.CASH_FLOW], event.label))
                 if ait_for_flow > 0.001:
                     rows.append((event, "AIT WITHHELD", -ait_for_flow, EVENT_COLORS[EventType.OUTFLOW], "AIT deducted from this interest payout"))
                 continue
@@ -212,14 +212,14 @@ def print_event_timeline(result: SimResult) -> None:
                     ))
                     if maturity_interest > 0:
                         rows.append((
-                            event, "MATURE INTEREST", maturity_interest,
+                            event, "MATURE INTEREST", gross_interest,
                             EVENT_COLORS[EventType.CASH_FLOW], f"Interest paid at maturity [{event.booking_ref}]",
                         ))
                     if ait_for_flow > 0.001:
                         rows.append((event, "AIT WITHHELD", -ait_for_flow, EVENT_COLORS[EventType.OUTFLOW], "AIT deducted from maturity interest"))
                 else:
                     rows.append((
-                        event, "MATURE CASH FLOW", event.amount,
+                        event, "MATURE CASH FLOW", gross_amount,
                         EVENT_COLORS[EventType.MATURITY], event.label,
                     ))
                     ait_for_flow = max(0.0, gross_amount - event.amount)
@@ -245,11 +245,19 @@ def print_event_timeline(result: SimResult) -> None:
             else:
                 amount_text = f"{amount:>+14,.2f}"
 
-            row_balance = (
-                event.balance_after + event.fee
-                if event.event_type == EventType.TRANSFER and label.endswith(" TO")
-                else event.balance_after
-            )
+            row_balance = event.balance_after
+            if event.event_type == EventType.TRANSFER and label.endswith(" TO"):
+                row_balance += event.fee
+            elif event.event_type in {EventType.CASH_FLOW, EventType.MATURITY}:
+                booking = bookings_by_ref.get(event.booking_ref)
+                gross_amount = gross_flow_by_ref_date.get((event.booking_ref, event.on_date), event.amount)
+                ait_for_flow = max(0.0, gross_amount - event.amount)
+                if label == "MATURE PRINCIPAL" and booking is not None:
+                    row_balance -= max(0.0, event.amount - booking.principal)
+                elif label == "AIT WITHHELD":
+                    row_balance = event.balance_after
+                elif ait_for_flow > 0.001:
+                    row_balance += ait_for_flow
             balance_text = f"{row_balance:>14,.2f}" if row_balance >= 0 else f"{'--':>14}"
             date_text = str(event.on_date) if row_idx == 0 else ""
             c_date = f"{COLOR_DATE}{date_text:<12}{RESET}"
