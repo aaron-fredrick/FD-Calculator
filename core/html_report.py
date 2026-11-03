@@ -551,7 +551,7 @@ def generate_html_report(
         "{{OUTCOME_CONTENT}}": outcome_html,
         "{{EXECUTION_CONTENT}}": ''.join(decision_cards) if decision_cards else '<div class="panel">No FD bookings or actionable transfers were selected.</div>',
         "{{PORTFOLIO_CONTENT}}": f"{account_table}{investment_table}",
-        "{{CASHFLOW_CONTENT}}": f'<div class="grid2"><div><h3>Planned inflows</h3>{inflow_table}</div><div><h3>Planned outflows</h3>{outflow_table}</div></div>',
+        "{{CASHFLOW_CONTENT}}": f'<div class="grid2"><div>{inflow_table}</div><div>{outflow_table}</div></div>',
         "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account value history</h3><canvas id="account-chart" aria-label="Account balance history"></canvas><p class="muted">Recorded account balances from the event timeline. FD principal is shown separately in the maturity schedule.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
         "{{PORTFOLIO_AUDIT_CONTENT}}": capital_flow_table,
         "{{LEDGER_CONTENT}}": ledger_html,
