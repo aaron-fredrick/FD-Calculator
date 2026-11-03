@@ -156,11 +156,25 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   if (typeof aitEnabled !== "boolean") throw new TypeError("ait_enabled must be boolean.");
   const strategy = String(raw.strategy ?? "absolute").trim().toLowerCase();
   if (!["absolute", "greedy", "gaml"].includes(strategy)) throw new RangeError(`Unsupported strategy ${strategy}.`);
+  const gamlRaw = raw.gaml_settings ?? raw.gaml ?? raw.strategy_settings?.gaml ?? {};
+  if (!gamlRaw || typeof gamlRaw !== "object" || Array.isArray(gamlRaw)) throw new TypeError("gaml_settings must be an object.");
+  const positiveInteger = (value, field, fallback, allowNull = false) => {
+    if (value === undefined) return fallback;
+    if (value === null && allowNull) return null;
+    const number = Number(value);
+    if (!Number.isInteger(number) || number < 1) throw new RangeError(field + " must be a positive integer" + (allowNull ? " or null." : "."));
+    return number;
+  };
+  const gamlSettings = {
+    beam_width: positiveInteger(gamlRaw.beam_width, "gaml_settings.beam_width", 256),
+    max_local_branches: positiveInteger(gamlRaw.max_local_branches, "gaml_settings.max_local_branches", 128, true),
+    max_decisions: positiveInteger(gamlRaw.max_decisions ?? gamlRaw.state_cap, "gaml_settings.max_decisions", null, true)
+  };
   return {
     start, end, accounts, accountIds, bankIds, options, consolidation_account_id: consolidationAccountId,
     inflow_schedule: inflows.schedule, inflow_summaries: inflows.summaries,
     outflow_schedule: outflows.schedule, outflow_summaries: outflows.summaries,
-    fee_config: feeConfig, strategy, compound: Boolean(raw.compound),
+    fee_config: feeConfig, strategy, gaml_settings: gamlSettings, compound: Boolean(raw.compound),
     actual_leap_year: raw.actual_leap_year ?? true, ait_enabled: aitEnabled, ait_rate: 0.10,
     report_output_file: String(raw.report_output_file ?? "fd_cal_report.html").trim()
   };
