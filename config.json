@@ -3,7 +3,7 @@
   "options_file": "data/fd_options/fd_options.csv",
   "investment": {
     "start_date": "today",
-    "end_date": "2027-06-30"
+    "end_date": "2027-12-31"
   },
   "accounts": {
     "comfp": {
@@ -15,7 +15,7 @@
     "comfs": {
       "bank_id": "LK_COMMERCIAL_BANK_OF_CEYLON",
       "label": "Comm Flash Savings",
-      "balance": 10030,
+      "balance": 40000,
       "supports_efd": false
     },
     "dfcc": {
@@ -29,7 +29,7 @@
   "inflows": [
     {
       "name": "Monthly new savings",
-      "amount": 10000,
+      "amount": 40000,
       "type": "recurring",
       "interval": "1m",
       "start_date": "2026-11-30",
