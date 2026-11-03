@@ -1,42 +1,66 @@
 # JavaScript CLI
 
-## Current support
+## Strategy support
 
-The Node CLI currently supports the Greedy strategy. GAML and Absolute remain unavailable in JavaScript and fail explicitly; they are not silently substituted with Greedy.
+The CLI supports all three JavaScript strategies:
+
+- **Greedy** — fast baseline heuristic.
+- **Absolute** — exhaustive branch-and-bound search. It uses Greedy as a feasible lower-bound incumbent and proves optimality when the search completes.
+- **GAML** — bounded layered beam search. It uses the same financial state transitions and replay path as Absolute, but limits frontier width and local booking combinations.
 
 ## Run
 
 From the repository root:
 
-\`\`\`powershell
+```powershell
 npm install
 npm test
 npm run cli -- --config .\config.json --strategy greedy
-\`\`\`
+npm run cli -- --config .\config.json --strategy absolute
+npm run cli -- --config .\config.json --strategy gaml
+```
 
-If the configuration already selects Greedy, omit --strategy:
+If `strategy` is present in the JSON configuration, `--strategy` is optional.
 
-\`\`\`powershell
-npm run cli -- --config .\config.json
-\`\`\`
+## GAML settings
 
-Help:
+GAML accepts these settings in the configuration JSON:
 
-\`\`\`powershell
-npm run cli -- --help
-\`\`\`
+```json
+{
+  "strategy": "gaml",
+  "gaml_settings": {
+    "beam_width": 256,
+    "max_local_branches": 128,
+    "max_decisions": null
+  }
+}
+```
 
-The CLI reads the JSON configuration, resolves the bank registry and bank-specific FD product CSVs from root data/, validates the configuration, runs the shared JavaScript Greedy strategy, prints a console event timeline and booking summary, and writes a standalone HTML report to report_output_file (relative paths resolve against the configuration file directory).
+Defaults mirror the archived Python implementation. `max_decisions: null` means no hard expanded-state cap. `max_local_branches: null` enumerates all local booking combinations rather than truncating the combination search.
 
-The root data/ directory is copied from the archived catalogue. Do not edit archive/ to update live catalogue data; update root data/ and review the corresponding source/effective-date notes.
+CLI flags override the JSON values:
 
-## Known differences from the Python CLI
+```powershell
+npm run cli -- --config .\config.json --strategy gaml --beam-width 512 --max-local-branches 256 --max-decisions 100000
+```
 
-- Only Greedy is implemented in JavaScript.
-- No Greedy-vs-selected-strategy comparison.
-- No Absolute/GAML diagnostics or optimization metrics.
-- No matplotlib chart generation.
-- Console output is a functional initial formatter, not byte-for-byte Python output.
-- The HTML report is a basic offline report with the eight section anchors and event/booking tables. It does not yet reproduce the Python report's execution decision cards, interactive charts, XIRR, account/FD principal history, or detailed styling.
+Use `none` to explicitly disable a configured local-combination or state cap:
 
-Do not treat JavaScript output as financially validated until golden parity fixtures have been run against the archived Python implementation.
+```powershell
+npm run cli -- --strategy gaml --max-local-branches none --max-decisions none
+```
+
+The JSON key `gaml_settings` is canonical. For compatibility, `gaml` and `strategy_settings.gaml` are also accepted.
+
+GAML reports expanded states, terminal leaves, bound/memo pruning, beam pruning, local-combination pruning, root-strategy diversity and whether optimality was proven. If beam width, local combinations or a state budget truncate the search, the result is an incumbent solution, not a proof of global optimality.
+
+## Data and report output
+
+The CLI reads the JSON configuration, resolves the bank registry and bank-specific FD product CSVs from root `data/`, validates the configuration, runs the selected JavaScript strategy, prints the event timeline and booking summary, and writes a standalone HTML report to `report_output_file` (relative paths resolve against the configuration file directory).
+
+The root `data/` directory is copied from the archived catalogue. Do not edit `archive/` to update live catalogue data; update root `data/` and review the corresponding source/effective-date notes.
+
+## Validation status
+
+The strategy implementations require regression parity against archived Python scenarios before financial output should be treated as fully validated. Unit and CLI integration tests alone do not establish parity for every payout type, outflow policy, multi-account topology or large GAML search.
