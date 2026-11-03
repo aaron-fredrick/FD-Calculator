@@ -49,3 +49,26 @@ test("invalid event references and payment policies fail validation", () => {
   assert.throws(() => buildCashSchedule([{ account_id: "missing", amount: 1, interval: "1m" }], "inflow", { start, end, accountIds }), /unknown account/);
   assert.throws(() => buildCashSchedule([{ account_id: "main", amount: 1, interval: "1m", payment_policy: "maybe" }], "outflow", { start, end, accountIds }), /invalid payment_policy/);
 });
+
+test("configuration exposes validated Python-compatible GAML settings", () => {
+  const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
+  const base = {
+    investment: { start_date: start, end_date: end },
+    accounts: { main: { bank_id: "BANK_A", balance: 50000 } },
+    strategy: "gaml",
+    gaml_settings: { beam_width: 512, max_local_branches: 64, max_decisions: null }
+  };
+  const config = validateConfiguration(base, {
+    bankRegistry: { BANK_A: { name: "Bank A" } },
+    bankKeyById: { BANK_A: "bank_a" }, options
+  });
+  assert.deepEqual(config.gaml_settings, {
+    beam_width: 512, max_local_branches: 64, max_decisions: null
+  });
+  assert.throws(() => validateConfiguration({
+    ...base, gaml_settings: { beam_width: 0 }
+  }, {
+    bankRegistry: { BANK_A: { name: "Bank A" } },
+    bankKeyById: { BANK_A: "bank_a" }, options
+  }), /beam_width/);
+});
