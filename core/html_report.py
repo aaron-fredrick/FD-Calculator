@@ -77,9 +77,8 @@ def _build_account_balance_series(
         bank_order.insert(0, main_bank)
 
     bank_position = {bank: index for index, bank in enumerate(bank_order)}
-    # Keep each bank's accounts together. The consolidation account anchors
-    # the primary bank first; remaining bank groups are alphabetized, with
-    # account labels alphabetized within each group.
+    # Keep accounts contiguous by bank. The consolidation account is first;
+    # remaining accounts are grouped by alphabetized bank, then account label.
     accounts.sort(key=lambda account: (
         account.id != consolidation_account_id,
         bank_position.get(identity(account.bank_identity), len(bank_position)),
@@ -87,18 +86,24 @@ def _build_account_balance_series(
         account.id,
     ))
 
-    # Each bank group receives one evenly spaced hue. All accounts at that
-    # bank reuse it, and FD principal uses a muted version of the same hue.
-    bank_colors: dict[str, str] = {}
+    # Hue is assigned per account slot across the complete grouped account
+    # sequence. Accounts at one bank therefore have distinct hues, while
+    # remaining adjacent as a bank group. Each bank's FD series reuses the
+    # hue of that bank's first account, with muted saturation/brightness.
+    account_colors: dict[str, str] = {}
+    first_bank_hues: dict[str, float] = {}
     fd_colors: dict[str, str] = {}
-    for index, bank in enumerate(bank_order):
-        fraction = index / max(1, len(bank_order) - 1)
+    for index, account in enumerate(accounts):
+        bank = identity(account.bank_identity)
+        fraction = index / max(1, len(accounts) - 1)
         hue = (220.0 - 185.0 * fraction) / 360.0
-        brightness = 1.0 if bank == main_bank else 0.8
+        brightness = 1.0 if account.id == consolidation_account_id else 0.8
         rgb = colorsys.hsv_to_rgb(hue, 1.0, brightness)
-        bank_colors[bank] = "#" + "".join(f"{round(channel * 255):02x}" for channel in rgb)
-        fd_rgb = colorsys.hsv_to_rgb(hue, 0.5, 0.5)
-        fd_colors[bank] = "#" + "".join(f"{round(channel * 255):02x}" for channel in fd_rgb)
+        account_colors[account.id] = "#" + "".join(f"{round(channel * 255):02x}" for channel in rgb)
+        if bank and bank not in first_bank_hues:
+            first_bank_hues[bank] = hue
+            fd_rgb = colorsys.hsv_to_rgb(hue, 0.5, 0.5)
+            fd_colors[bank] = "#" + "".join(f"{round(channel * 255):02x}" for channel in fd_rgb)
     display_names = {
         bank: bank_names.get(bank, bank.removeprefix("LK_").replace("_", " ").title())
         for bank in bank_order
@@ -132,7 +137,7 @@ def _build_account_balance_series(
             "accountId": account.id,
             "bankId": bank,
             "points": [],
-            "color": bank_colors.get(bank, "#56b4e9"),
+            "color": account_colors.get(account.id, "#56b4e9"),
             "lineStyle": "solid" if is_main_account else ("dashed" if same_main_bank else "dotted"),
         })
 
