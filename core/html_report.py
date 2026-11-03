@@ -225,7 +225,7 @@ def _build_account_balance_series(
                     if event.fee > 0:
                         cash[account_id] = cash.get(account_id, 0.0) - abs(float(event.fee))
                         stage_number += 1
-                            append_stage(day, stage_number, f"{channel} TF")
+                        append_stage(day, stage_number, f"{channel} TF")
                 elif label.startswith(("Transfer received", "Final sweep received")):
                     cash[account_id] = cash.get(account_id, 0.0) + amount
                     stage_number += 1
