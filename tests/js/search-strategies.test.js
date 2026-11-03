@@ -92,3 +92,9 @@ test("search strategies never place an eFD in an account without eFD capability"
   assert.ok(result.bookings.some(booking => booking.option.is_efd));
   assert.ok(result.bookings.filter(booking => booking.option.is_efd).every(booking => efdEligible.has(booking.account_id)));
 });
+
+test("GAML marks a search that reaches its configured state cap as unproven", () => {
+  const result = new GAMLStrategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }).simulate(scenario());
+  assert.equal(result.search_diagnostics.expanded_states, 1);
+  assert.equal(result.optimality_proven, false);
+});
