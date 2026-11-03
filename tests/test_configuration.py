@@ -81,7 +81,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_dictionary_accounts_resolve_today_and_bank_id(self) -> None:
         loaded = load_configuration(self.config_path)
         self.assertEqual(loaded["start"], date.today())
-        self.assertEqual(loaded["decision_log_output_file"], "decision_log.txt")
+        self.assertEqual(loaded["report_output_file"], "fd_cal_report.html")
         self.assertEqual(loaded["end"], add_period(date.today(), "1y"))
         self.assertEqual(len(loaded["accounts"]), 1)
         account = loaded["accounts"][0]
@@ -128,16 +128,16 @@ class ConfigurationTests(unittest.TestCase):
         self.assertTrue(all(booking.bank_id in {COMMERCIAL_ID, DFCC_ID} for booking in result.bookings))
         self.assertTrue(all(event.bank_id in {COMMERCIAL_ID, DFCC_ID} for day in result.timeline.values() for event in day if event.account_id))
 
-    def test_decision_log_output_path_is_configurable(self) -> None:
-        self.config["decision_log_output_file"] = "reports/selected_path.txt"
+    def test_html_report_output_path_is_configurable(self) -> None:
+        self.config["report_output_file"] = "reports/selected_report.html"
         self._write_config()
         loaded = load_configuration(self.config_path)
-        self.assertEqual(loaded["decision_log_output_file"], "reports/selected_path.txt")
+        self.assertEqual(loaded["report_output_file"], "reports/selected_report.html")
 
-    def test_empty_decision_log_output_path_is_rejected(self) -> None:
-        self.config["decision_log_output_file"] = "  "
+    def test_empty_html_report_output_path_is_rejected(self) -> None:
+        self.config["report_output_file"] = "  "
         self._write_config()
-        with self.assertRaisesRegex(ValueError, "decision_log_output_file"):
+        with self.assertRaisesRegex(ValueError, "report_output_file"):
             load_configuration(self.config_path)
 
     def test_unknown_consolidation_account_id_is_rejected(self) -> None:
