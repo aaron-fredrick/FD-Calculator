@@ -1,18 +1,22 @@
 # Migration status
 
-## Implemented and tested
+## Implemented
 
-- Calendar date arithmetic, interest calculations, account/product primitives and AIT payout generation.
-- Runtime-neutral configuration validation and recurring/scheduled cash schedule expansion.
-- Event-driven Greedy simulation port: multi-account balances, inflows, outflows, same-day payout ordering, transfer fees/channels, consolidation, split booking, maturity and periodic payout events, carry-forward, final cash sweep, and result accounting.
-- Greedy tests for booking lifecycle and account-specific eFD eligibility.
+- Runtime-neutral date, interest, account, FD product, event, booking and result primitives.
+- Configuration validation and recurring/scheduled inflow/outflow expansion.
+- Initial event-driven Greedy simulation with multiple accounts, transfers, account-level eFD eligibility, booking/maturity/payout events, AIT, fees, outflows and final sweep.
+- Node CSV parser and file adapters for the bank registry and bank-specific FD product catalogue.
+- Root data catalogue populated from archived bank and FD CSV datasets.
+- Initial Node CLI for Greedy: reads JSON configuration, loads catalogues, validates inputs, runs the shared Greedy engine, prints a console timeline/booking summary and writes a standalone HTML report.
+- Unit and CLI integration tests.
 
-## In progress / not yet complete
+## Not yet equivalent to the Python application
 
-- Python-vs-JavaScript golden fixture parity across representative real configurations.
-- GAML beam search and Absolute strategy JavaScript ports.
-- Decision-log generation and console timeline.
-- CSV bank/product loading adapters and configuration-file loading.
-- Standalone HTML report, interactive charts, CLI, browser configuration UI, and Pages deployment.
+- GAML and Absolute strategy ports.
+- Full Python-vs-JavaScript golden fixture parity and broad financial regression coverage.
+- Full legacy console formatter parity, XIRR and decision-log generation.
+- Full eight-section HTML report fidelity, interactive charts, account/FD principal chart series and complete execution-plan grouping.
+- Python CLI parity for strategy comparison, plotting, diagnostics and all CLI options.
+- Browser application, browser parity tests and GitHub Pages deployment.
 
-The CLI and web entrypoints remain placeholders. Do not use this migration branch for financial decisions until parity and application integration are complete.
+The JavaScript CLI currently supports --strategy greedy only. GAML and Absolute are explicitly rejected rather than silently substituted. Do not use it for financial decisions until parity testing is complete.
