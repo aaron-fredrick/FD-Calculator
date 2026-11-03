@@ -19,7 +19,7 @@
 - Full Python-vs-JavaScript golden fixture parity across the archived scenarios, payout types, AIT, transfer fees, multi-account cases and strict/deferred/best-effort outflows.
 - Performance benchmarking of Absolute on the largest archived scenarios and GAML default settings against the Python baseline.
 - Full legacy console formatter parity, XIRR and complete decision-log generation.
-- Full eight-section HTML report fidelity, interactive charts, account/FD principal chart series and complete execution-plan grouping.
+- Python report-template port is implemented in JavaScript, including the eight-section dark layout, embedded styling and chart interactions; detailed content parity and visual regression against Python-generated reports still require validation.
 - Browser application, browser strategy configuration UI, browser parity tests and GitHub Pages deployment.
 - Python CLI parity for strategy comparison, plotting and all ancillary CLI options.
 
