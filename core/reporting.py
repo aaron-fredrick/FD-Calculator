@@ -542,7 +542,7 @@ def print_simulation(
     _summary_line("Total Capital", f"{result.total_principal:,.2f} LKR", EVENT_COLORS[EventType.INFLOW])
     _summary_line("Gross Interest", f"{result.total_interest:,.2f} LKR", EVENT_COLORS[EventType.MATURITY])
     _summary_line("Transfer Fees", f"-{result.total_transfer_fees:,.2f} LKR", EVENT_COLORS[EventType.TRANSFER])
-    _summary_line("AIT (10% of gross interest)", f"-{result.ait_withheld:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
+    _summary_line(f"AIT ({result.ait_rate:.0%} of interest)" if result.ait_enabled else "AIT (disabled)", f"-{result.ait_withheld:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
     if result.total_outflows_due:
         _summary_line("Total Outflows", f"{result.total_outflows_due:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
         _summary_line("Outflows Paid", f"{result.total_outflows_paid:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
@@ -559,7 +559,7 @@ def print_simulation(
     annualised_text = f"{annualised:.3f}% p.a. (XIRR, pre-AIT)" if annualised is not None else "N/A"
     _summary_line("Annualised Return", annualised_text, EVENT_COLORS[EventType.MATURITY])
     _summary_line("Final Balance (after AIT)", f"{result.final_value_after_ait:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
-    print("  AIT is an aggregate summary estimate; it is not deducted from simulated cash flows or strategy decisions.")
+    print("  AIT withholding is applied to interest payouts before cash is reused." if result.ait_enabled else "  AIT is disabled; interest payouts are modelled gross.")
     if result.total_outflows_due:
         _summary_line("Cash Retained", f"{result.cash_retained:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
         _summary_line("Cash-Flow Net Worth", f"{result.cash_flow_net_worth:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
