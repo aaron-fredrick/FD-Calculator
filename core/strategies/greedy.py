@@ -67,6 +67,13 @@ def _pick_daily_greedy_plan(
                     best_opt = opt
                 elif opt.annual_rate == best_opt.annual_rate and opt.days < best_opt.days:
                     best_opt = opt
+                elif (
+                    opt.annual_rate == best_opt.annual_rate
+                    and opt.days == best_opt.days
+                    and opt.is_efd
+                    and not best_opt.is_efd
+                ):
+                    best_opt = opt
 
             intr = best_opt.total_interest_on(acc.balance, today, compound, actual_leap_year)
             split_bookings.append({
@@ -158,6 +165,13 @@ def _pick_daily_greedy_plan(
                 best_tgt_opt = opt
             elif opt.annual_rate == best_tgt_opt.annual_rate and opt.days < best_tgt_opt.days:
                 best_tgt_opt = opt
+            elif (
+                opt.annual_rate == best_tgt_opt.annual_rate
+                and opt.days == best_tgt_opt.days
+                and opt.is_efd
+                and not best_tgt_opt.is_efd
+            ):
+                best_tgt_opt = opt
 
         gross_intr = best_tgt_opt.total_interest_on(total_deployable, today, compound, actual_leap_year)
         net_intr = gross_intr - fees_eval
@@ -210,6 +224,10 @@ def _pick_daily_greedy_plan(
             -p["days"],
             p["net_interest"],
             -p["fees_today"],
+            sum(
+                1 for booking in p.get("bookings", [])
+                if booking["option"].is_efd
+            ) + int(bool(p.get("option") and p["option"].is_efd)),
         ),
         reverse=True,
     )
