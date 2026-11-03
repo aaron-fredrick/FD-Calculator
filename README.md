@@ -163,11 +163,20 @@ Periods use `d` (days), `m` (calendar months), or `y` (years). For example, `30d
 At least one account is required. Multiple account IDs may reference the same `bank_id`; balances and eFD capabilities remain independent. The bank ID is resolved to the internal FD-options index entry when products are loaded. All standard and eFD products for configured banks are loaded; product eligibility is applied per destination account. During consolidation, any account may supply funds, but an eFD booking can only be made in an eFD-enabled destination account.
 
 
-### Decision log
+### HTML simulation report
 
-The event timeline records facts; the booking ledger describes FD contracts. The Decision Log is a separate plain-text (`.txt`) output file, not terminal output. It is an execution-oriented record of the selected path: account balances before each action, transfer legs and routes, destination account, FD product and type, principal, rate, term, booking and maturity dates, payout schedule, expected interest, rationale, and the next liquidity checkpoint. It is intended as a manual reference when arranging bookings and transfers; it does not execute transactions.
+Every run produces a dark-themed HTML report (default: `fd_cal_report.html`) beside the selected config file. Set `report_output_file` to change its path.
 
-For GAML and Absolute, the file contains the final replayed path only. It does not list rejected branches, search-tree nodes or alternative leaves. Search alternatives remain available as aggregate outcome information in the simulation summary. The output path is configured with `decision_log_output_file`; relative paths are resolved beside the selected config file.
+The report is designed as a practical reference for understanding and manually executing the selected plan. It includes:
+
+- Scenario conditions: dates, strategy, interest method, AIT setting, day-count basis and transfer fees.
+- Account inventory: bank, account ID, opening balance, eFD capability and consolidation role.
+- Scheduled inflows and outflows, including dates, recurrence, target accounts and totals.
+- Dark-theme charts for account values, FD booking/maturity periods and dated cash movements.
+- Highlighted chronological action cards with transfer routes, fees, destination account, FD product, principal, rate, term, payout schedule, AIT and expected net proceeds.
+- A complete chronological event timeline with amounts and resulting balances.
+
+The highlighted action cards show only the final selected path, not rejected branches or search-tree alternatives. They are a manual execution checklist; the report does not execute transactions. Confirm current rates, fees, eligibility, minimums and product availability with the bank before acting.
 
 
 ### Inflows
@@ -271,8 +280,8 @@ Fees affect the simulated value, so use the fees that apply to your actual accou
 | `ait_enabled` | `true` withholds the configured 10% AIT from interest payouts and includes the reduced cash flows in strategy decisions; `false` disables AIT modelling. Defaults to `true` in config files. |
 | `show_timeline` | Show the event timeline in the terminal. |
 | `show_ledger` | Show the booking ledger in the terminal. |
-| `decision_log_output_file` | Plain-text execution log for the selected strategy path; defaults to `decision_log.txt` beside the config file. |
-| `show_plots` | Generate and display charts. |
+| `report_output_file` | Dark HTML simulation and execution report; defaults to `fd_cal_report.html` beside the config file. |
+| `show_plots` | Generate dark-theme charts and embed them in the HTML report. When enabled, terminal output is reduced to the report path and compact result. |
 | `plot_output_dir` | Folder for saved charts; defaults to `plots`. |
 
 Final consolidation transfers remaining account balances to the account referenced by `consolidation_account_id`. That value must match an account ID under `accounts`. Any applicable transfer fee is included in the simulation.
@@ -284,9 +293,9 @@ With `"show_plots": true`, charts are saved to `plot_output_dir`:
 - `<strategy>_account_values.png`: account value over time. GAML and Absolute include Greedy for comparison.
 - `<strategy>_decision_timeline.png`: FD booking and maturity periods. GAML and Absolute include Greedy for comparison.
 - `<strategy>_cash_flows.png`: dated positive and negative cash movements, including new money, FD payouts and maturities, outflows, FD investments, and transfers in/out. When Greedy comparison is available, it appears in a second panel.
-- `decision_log.txt` (or the configured filename): human-readable chronological execution instructions for the selected strategy path.
+- `fd_cal_report.html` (or the configured filename): complete scenario, account, cash-flow, visualisation and execution report. The PNG charts are saved in `plot_output_dir` and linked from the HTML report.
 
-A relative plot path is resolved from the directory containing the selected config file. For example, `"plot_output_dir": "plots"` saves to a `plots` folder beside `config.json`. An absolute path saves to that exact location. The output folder is created if needed.
+A relative plot path is resolved from the directory containing the selected config file. For example, `"plot_output_dir": "plots"` saves to a `plots` folder beside `config.json`. An absolute path saves to that exact location. The output folder is created if needed. The report is written to `report_output_file`; its relative path is resolved beside the selected config file. Charts are saved without opening separate interactive plot windows.
 
 The account-value chart is an estimate for comparison: interest is shown as accruing between booking and maturity. Use the simulator's final results and cash-flow records for the calculated outcome; the chart is not a bank statement.
 
