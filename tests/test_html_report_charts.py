@@ -105,8 +105,11 @@ class HtmlReportAccountChartTests(unittest.TestCase):
         )
         values = {point["x"]: point["y"] for point in series[0]["points"]}
 
-        self.assertEqual(values["2027-01-01"], 0.0)
+        # The day-one inflow is immediately booked into an FD. Portfolio value
+        # must remain intact rather than falling to zero with the liquid balance.
+        self.assertEqual(values["2027-01-01"], 100_000.0)
         self.assertGreater(values["2027-02-01"], values["2027-01-31"])
+        self.assertGreater(values["2027-01-31"], values["2027-01-01"])
         self.assertGreater(values["2027-03-01"], values["2027-02-28"])
         self.assertGreater(values["2027-04-01"], values["2027-03-31"])
         self.assertTrue(any(
