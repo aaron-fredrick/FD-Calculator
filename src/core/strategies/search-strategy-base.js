@@ -1,7 +1,7 @@
 import { Account, FDOption, TransferFeeConfig } from "../models.js";
 import { Event, EventType, normalizeInflowSchedule } from "../events.js";
 import { Booking, SimResult } from "../results.js";
-import { formatISODate, parseISODate, addPeriod, daysBetween } from "../dates.js";
+import { formatISODate, parseISODate, daysBetween } from "../dates.js";
 import { processOutflows, validateOutflowSchedule } from "../cashflows.js";
 import { GreedyStrategy } from "./greedy.js";
 import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
@@ -91,10 +91,15 @@ function allLocalCombinations(accountIds, optionsByAccount, balances, today, set
     let partials = [{ score: 0, choices: [] }];
     for (let index = 0; index < accountIds.length; index++) {
       const id = accountIds[index], expanded = [];
-      const choices = slots[index].slice(1).sort((a, b) =>
-        b.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) -
-        a.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear)
-      );
+      const accountOptions = slots[index].slice(1);
+      const standardTerms = new Set(accountOptions.filter(option => !option.is_efd).map(option => option.economic_terms_key));
+      const choices = accountOptions.sort((a, b) => {
+        const profit = b.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) -
+          a.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear);
+        if (Math.abs(profit) > 1e-9) return profit;
+        return Number(b.is_efd && standardTerms.has(b.economic_terms_key)) -
+          Number(a.is_efd && standardTerms.has(a.economic_terms_key));
+      });
       for (const partial of partials) {
         expanded.push({ score: partial.score, choices: [...partial.choices, [id, null]] });
         for (const option of choices) {
