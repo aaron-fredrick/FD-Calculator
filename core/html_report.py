@@ -36,6 +36,80 @@ def _amount(value: float) -> str:
 def _date(value: Any) -> str:
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
 
+_ACCOUNT_CHART_COLORS = (
+    "#56b4e9", "#e69f00", "#009e73", "#cc79a7",
+    "#f0e442", "#d55e00", "#8be9fd", "#bd93f9",
+    "#4dd0e1", "#f78c6b", "#a3be8c", "#c792ea",
+)
+
+
+def _build_account_balance_series(
+    result: SimResult,
+    opening_balances: dict[str, float],
+    start: date,
+    end: date,
+    consolidation_account_id: str | None,
+) -> list[dict[str, Any]]:
+    """Build daily liquid-account balances from valid post-event ledger checkpoints.
+
+    Positive OUTFLOW events are obligation placeholders, not posted cash movements;
+    their default balance_after sentinel (-1) must never enter the account history.
+    """
+    if end < start:
+        raise ValueError("end date must not be earlier than start date")
+
+    checkpoints: dict[str, dict[date, float]] = {
+        account_id: {} for account_id in result.accounts
+    }
+    for events in result.timeline.values():
+        for event in events:
+            if not start <= event.on_date <= end:
+                continue
+            account = result.accounts.get(event.account_id)
+            if account is None:
+                continue
+            balance_after = float(event.balance_after)
+            # Account balances are non-negative in this simulator. -1 is the
+            # Event dataclass sentinel used by unposted obligation placeholders.
+            if balance_after < 0:
+                continue
+            checkpoints.setdefault(account.id, {})[event.on_date] = balance_after
+
+    accounts = list(result.accounts.values())
+    if consolidation_account_id in result.accounts:
+        accounts.sort(key=lambda account: account.id != consolidation_account_id)
+
+    consolidation = result.accounts.get(consolidation_account_id or "")
+    consolidation_bank = consolidation.bank_identity.strip().upper() if consolidation else ""
+    day_count = (end - start).days
+    series: list[dict[str, Any]] = []
+
+    for color_index, account in enumerate(accounts):
+        balance = float(opening_balances.get(account.id, 0.0))
+        daily = checkpoints.get(account.id, {})
+        points = []
+        for offset in range(day_count + 1):
+            day = start + timedelta(days=offset)
+            if day in daily:
+                balance = daily[day]
+            points.append({"x": _date(day), "y": balance})
+
+        bank_identity = account.bank_identity.strip().upper()
+        same_bank_as_consolidation = bool(
+            consolidation_bank and bank_identity == consolidation_bank
+        )
+        is_consolidation = account.id == consolidation_account_id
+        series.append({
+            "name": account.label or account.id,
+            "points": points,
+            "color": _ACCOUNT_CHART_COLORS[color_index % len(_ACCOUNT_CHART_COLORS)],
+            "colorIndex": color_index,
+            "lineStyle": "solid" if is_consolidation else (
+                "dashed" if same_bank_as_consolidation else "dotted"
+            ),
+        })
+    return series
+
 
 def _table_rows(items: Sequence[dict], columns: Sequence[tuple[str, str]]) -> str:
     if not items:
@@ -500,15 +574,9 @@ def generate_html_report(
     # Build compact, source-derived chart datasets. No browser-side financial
     # calculations are used for headline results.
     flow_totals: dict[str, dict[str, float]] = {}
-    account_events: dict[str, dict[str, float]] = {account_id: {} for account_id in result.accounts}
     for day_key in result.sorted_dates():
         for event in result.timeline[day_key]:
             day = _date(event.on_date)
-            account = result.accounts.get(event.account_id)
-            if account:
-                # Use the final ledger balance for the account on each date.
-                # This includes transfers, fees, bookings, payouts and maturities.
-                account_events.setdefault(account.id, {})[_date(event.on_date)] = float(event.balance_after)
             category = None
             amount = float(event.amount)
             if event.event_type == EventType.INFLOW:
@@ -530,42 +598,13 @@ def generate_html_report(
                 bucket = flow_totals.setdefault(category, {})
                 bucket[day] = bucket.get(day, 0.0) + amount
 
-    # Reconstruct a continuous daily account-balance history from the ledger.
-    # Seed each series with its configured opening balance, then carry the latest
-    # ledger balance forward on days without an event.
-    bank_palette: dict[str, int] = {}
-    account_chart = []
-    day_count = (end - start).days
-    for account in result.accounts.values():
-        bank_id = account.bank_id or account.bank_key or account.id
-        if bank_id not in bank_palette:
-            bank_palette[bank_id] = len(bank_palette)
-        opening = float(opening_balances.get(account.id, 0.0))
-        daily_events = account_events.get(account.id, {})
-        balance = opening
-        points = []
-        for offset in range(day_count + 1):
-            day = start + timedelta(days=offset)
-            day_text = _date(day)
-            if day_text in daily_events:
-                balance = daily_events[day_text]
-            points.append({"x": day_text, "y": balance})
-        is_consolidation = account.id == config.get("consolidation_account_id")
-        consolidation_account = result.accounts.get(config.get("consolidation_account_id"))
-        account_bank_identity = account.bank_id or account.bank_key
-        consolidation_bank_identity = (
-            (consolidation_account.bank_id or consolidation_account.bank_key)
-            if consolidation_account else None
-        )
-        same_bank_as_consolidation = bool(
-            consolidation_bank_identity and account_bank_identity == consolidation_bank_identity
-        )
-        account_chart.append({
-            "name": account.label or account.id,
-            "points": points,
-            "colorIndex": bank_palette[bank_id],
-            "lineStyle": "solid" if is_consolidation else ("dashed" if same_bank_as_consolidation else "dotted"),
-        })
+    account_chart = _build_account_balance_series(
+        result,
+        opening_balances,
+        start,
+        end,
+        config.get("consolidation_account_id"),
+    )
     flow_chart = [{"name": name, "points": [{"x": d, "y": v} for d, v in sorted(points.items())]}
                   for name, points in flow_totals.items()]
     maturity_chart = [{
