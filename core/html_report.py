@@ -150,46 +150,85 @@ def generate_html_report(
             display_amount = float(event.amount)
             display_balance = float(event.balance_after)
 
-            if event.event_type == EventType.BOOKING:
-                display_amount = -abs(display_amount)
-            elif event.event_type == EventType.TRANSFER:
-                outgoing = event.label.startswith(("Transfer to ", "Final sweep to "))
-                incoming = event.label.startswith(("Transfer received", "Final sweep received"))
-                if outgoing:
-                    display_amount = -abs(event.amount - event.fee)
-                    display_balance += event.fee
-                elif incoming:
-                    display_amount = abs(event.amount)
-
             booking = booking_by_ref.get(event.booking_ref)
+            if event.event_type == EventType.BOOKING:
+                append_event_row(
+                    event.on_date, account_label, "BOOK", -abs(display_amount),
+                    event.label, display_balance, "booking",
+                )
+                continue
+
+            if event.event_type == EventType.TRANSFER:
+                channel = "INTRA-BANK" if event.transfer_channel == "intra_bank" else "INTER-BANK"
+                outgoing = event.label.startswith(("Transfer to ", "Final sweep to "))
+                if outgoing:
+                    append_event_row(
+                        event.on_date, account_label, f"{channel} TO",
+                        -(event.amount - event.fee), event.label,
+                        display_balance + event.fee, "transfer-to",
+                    )
+                    if event.fee > 0:
+                        append_event_row(
+                            event.on_date, account_label, f"{channel} TF", -event.fee,
+                            f"Transfer fee for {event.label}", event.balance_after, "outflow",
+                        )
+                else:
+                    append_event_row(
+                        event.on_date, account_label, f"{channel} TI", event.amount,
+                        event.label, display_balance, "transfer",
+                    )
+                continue
+
             if booking is not None and event.event_type in {EventType.CASH_FLOW, EventType.MATURITY}:
                 gross_amount = next(
                     (amount for flow_day, amount in booking.cash_flows if flow_day == event.on_date),
                     event.amount,
                 )
                 ait = max(0.0, float(gross_amount) - float(event.amount)) if result.ait_enabled else 0.0
-                display_amount = float(gross_amount)
-                display_balance += ait
-                append_event_row(
-                    event.on_date, account_label, event_type, display_amount,
-                    event.label, display_balance, event.event_type.value,
-                )
+                if event.event_type == EventType.CASH_FLOW:
+                    if booking.payout_type == "periodic_interest":
+                        period = (booking.option.payout_period_str or "").strip().lower()
+                        label = "YEAR INTEREST" if period.startswith("y") else "MONTH INTEREST" if period.startswith("m") else f"{period.upper()} INTEREST".strip()
+                    else:
+                        label = "INSTALLMENT"
+                    append_event_row(
+                        event.on_date, account_label, label, float(gross_amount),
+                        event.label, display_balance + ait, "cash_flow",
+                    )
+                elif booking.payout_type in {"cumulative", "periodic_interest"}:
+                    maturity_interest = float(event.amount) - booking.principal
+                    gross_interest = float(gross_amount) - booking.principal
+                    append_event_row(
+                        event.on_date, account_label, "MATURE PRINCIPAL",
+                        booking.principal, f"Principal returned {event.booking_ref}",
+                        display_balance - max(0.0, maturity_interest), "mature-principal",
+                    )
+                    if gross_interest > 0:
+                        append_event_row(
+                            event.on_date, account_label, "MATURE INTEREST",
+                            gross_interest, f"Interest paid at maturity {event.booking_ref}",
+                            display_balance + ait, "cash_flow",
+                        )
+                else:
+                    append_event_row(
+                        event.on_date, account_label, "MATURE CASH FLOW",
+                        float(gross_amount), event.label, display_balance + ait, "maturity",
+                    )
                 if ait > 0.005:
                     append_event_row(
-                        event.on_date, account_label, "AIT Withheld", -ait,
-                        "10% withholding deducted from interest", event.balance_after, "outflow",
+                        event.on_date, account_label, "AIT WITHHELD", -ait,
+                        "AIT deducted from interest payout", event.balance_after, "outflow",
                     )
                 continue
 
+            labels = {
+                EventType.INFLOW: "INFLOW", EventType.OUTFLOW: "OUTFLOW",
+                EventType.CARRY_FORWARD: "CARRY FORWARD", EventType.IDLE: "IDLE",
+            }
             append_event_row(
-                event.on_date, account_label, event_type, display_amount,
-                event.label, display_balance, event.event_type.value,
+                event.on_date, account_label, labels.get(event.event_type, event_type).upper(),
+                display_amount, event.label, display_balance, event.event_type.value,
             )
-            if event.event_type == EventType.TRANSFER and event.fee > 0 and event.label.startswith(("Transfer to ", "Final sweep to ")):
-                append_event_row(
-                    event.on_date, account_label, "Transfer Fee", -event.fee,
-                    f"Fee for {event.label}", event.balance_after, "outflow",
-                )
 
     chart_items = []
     chart_captions = {
@@ -233,7 +272,7 @@ p{{margin:8px 0}}.muted,small{{color:var(--muted)}}section{{margin-top:34px}}.pa
 .detail-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}}.detail-grid div{{background:var(--panel2);padding:11px;border-radius:9px}}.detail-grid small{{display:block;font-size:11px}}.detail-grid b{{display:block;margin-top:4px;font-size:13px}}
 ul.compact{{padding-left:20px;color:#c7d0dc}}ul.compact li{{margin:5px 0}}.chips{{display:flex;gap:8px;flex-wrap:wrap}}.chip{{background:var(--panel2);padding:5px 9px;border-radius:7px;color:#c7d0dc;font-size:12px}}.checkpoint{{border-top:1px solid var(--line);padding-top:12px;color:var(--muted);font-size:13px}}
 figure{{margin:0 0 18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}}figure img{{display:block;width:100%;height:auto;border-radius:8px}}figcaption{{padding:10px 4px 2px}}figcaption b,figcaption span{{display:block}}figcaption span{{font-size:12px;color:var(--muted);margin-top:3px}}
-.event-pill{{display:inline-block;padding:3px 8px;border-radius:20px;background:#253143;color:#b9d9ef;font-size:11px;white-space:nowrap}}.event-pill.outflow{{background:#3a2227;color:#ff9c9c}}.event-pill.transfer{{background:#243143;color:#8bd3fa}}.event-pill.booking{{background:#332742;color:#d4a8ff}}.event-pill.maturity,.event-pill.cash_flow{{background:#1e382e;color:#7fe0b0}}.event-pill.inflow{{background:#1e3442;color:#82d2fa}}
+.event-pill{{display:inline-block;padding:3px 8px;border-radius:20px;background:#253143;color:#b9d9ef;font-size:11px;white-space:nowrap}}.event-pill.inflow{{background:#1e3442;color:#82aaff}}.event-pill.outflow{{background:#3a2227;color:#ff7777}}.event-pill.transfer{{background:#243143;color:#56d8e8}}.event-pill.transfer-to{{background:#3b2b1b;color:#e9ad58}}.event-pill.carry_forward{{background:#3a321d;color:#e9d15b}}.event-pill.booking{{background:#332742;color:#d78bfa}}.event-pill.maturity{{background:#173b25;color:#32b65b}}.event-pill.cash_flow{{background:#183c2b;color:#55c99a}}.event-pill.idle{{background:#292d33;color:#9ba8b8}}.event-pill.mature-principal{{background:#332b42;color:#bd93f9}}
 footer{{border-top:1px solid var(--line);margin-top:40px;padding-top:18px;color:var(--muted);font-size:12px}}
 @media(max-width:600px){{main{{padding:22px 14px 48px}}.tag{{margin-left:0}}.metric strong{{font-size:19px}}}}
 @media print{{body{{background:#fff;color:#17202b}}.panel,.decision,.metric,figure,table{{background:#fff;color:#17202b;break-inside:avoid}}.muted,small,figcaption span{{color:#526070}}}}
