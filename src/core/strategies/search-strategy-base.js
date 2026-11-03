@@ -357,7 +357,7 @@ function expandState(rawState, context, settings, mode, counters) {
       waitFirst = waitFirst && daysBetween(parseISODate(state.date), parseISODate(nextInflow)) > 0;
     }
   }
-  if (waitFirst) {
+  if (waitFirst && (mode !== "gaml" || settings.maxDecisions == null || counters.expanded < settings.maxDecisions)) {
     const action = { type: "carry", carries: activeIds };
     pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
   }
@@ -409,7 +409,8 @@ function expandState(rawState, context, settings, mode, counters) {
     pushAction(nextEventDate(state.date, merged, context.inflows, context.outflows, context.end), nextBalances, merged, action, root);
   }
 
-  if (!waitFirst || mode !== "gaml") {
+  if ((!waitFirst || mode !== "gaml") &&
+      (mode !== "gaml" || settings.maxDecisions == null || counters.expanded < settings.maxDecisions)) {
     const action = { type: "carry", carries: activeIds };
     pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
   }
@@ -499,7 +500,7 @@ function runGaml(initial, context, settings, counters) {
   }
   return {
     bestNode, beamPruned, rootPeak, budgetStopped,
-    optimalityProven: !budgetStopped && beamPruned === 0 && counters.localPruned === 0
+    optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
 }
 
