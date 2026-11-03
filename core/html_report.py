@@ -126,19 +126,70 @@ def generate_html_report(
           </article>""")
 
     event_rows = []
+    booking_by_ref = {
+        f"FD-{index:04d}": booking
+        for index, booking in enumerate(result.bookings, 1)
+    }
+
+    def append_event_row(day, account_label, label, amount, description, balance, css_type):
+        amount_class = "positive" if amount > 0 else "negative" if amount < 0 else "muted"
+        event_rows.append(
+            f'<tr><td>{_date(day)}</td><td>{escape(account_label)}</td>'
+            f'<td><span class="event-pill {escape(css_type)}">{escape(label)}</span></td>'
+            f'<td class="num {amount_class}">{_money(amount)}</td>'
+            f'<td>{escape(description)}</td><td class="num">{_money(balance)}</td></tr>'
+        )
+
     for key in result.sorted_dates():
         for event in result.timeline[key]:
             if event.event_type == EventType.INFLOW and event.amount == 0 and event.label == "Opening balance trigger":
                 continue
             account = result.accounts.get(event.account_id)
+            account_label = account.label if account else (event.account_id or "—")
             event_type = event.event_type.value.replace("_", " ").title()
-            amount_class = "positive" if event.amount > 0 else "negative" if event.amount < 0 else "muted"
-            event_rows.append(
-                f'<tr><td>{_date(event.on_date)}</td><td>{escape(account.label if account else (event.account_id or "—"))}</td>'
-                f'<td><span class="event-pill {escape(event.event_type.value)}">{escape(event_type)}</span></td>'
-                f'<td class="num {amount_class}">{_money(event.amount)}</td>'
-                f'<td>{escape(event.label)}</td><td class="num">{_money(event.balance_after)}</td></tr>'
+            display_amount = float(event.amount)
+            display_balance = float(event.balance_after)
+
+            if event.event_type == EventType.BOOKING:
+                display_amount = -abs(display_amount)
+            elif event.event_type == EventType.TRANSFER:
+                outgoing = event.label.startswith(("Transfer to ", "Final sweep to "))
+                incoming = event.label.startswith(("Transfer received", "Final sweep received"))
+                if outgoing:
+                    display_amount = -abs(event.amount - event.fee)
+                    display_balance += event.fee
+                elif incoming:
+                    display_amount = abs(event.amount)
+
+            booking = booking_by_ref.get(event.booking_ref)
+            if booking is not None and event.event_type in {EventType.CASH_FLOW, EventType.MATURITY}:
+                gross_amount = next(
+                    (amount for flow_day, amount in booking.cash_flows if flow_day == event.on_date),
+                    event.amount,
+                )
+                ait = max(0.0, float(gross_amount) - float(event.amount)) if result.ait_enabled else 0.0
+                display_amount = float(gross_amount)
+                display_balance += ait
+                append_event_row(
+                    event.on_date, account_label, event_type, display_amount,
+                    event.label, display_balance, event.event_type.value,
+                )
+                if ait > 0.005:
+                    append_event_row(
+                        event.on_date, account_label, "AIT Withheld", -ait,
+                        "10% withholding deducted from interest", event.balance_after, "outflow",
+                    )
+                continue
+
+            append_event_row(
+                event.on_date, account_label, event_type, display_amount,
+                event.label, display_balance, event.event_type.value,
             )
+            if event.event_type == EventType.TRANSFER and event.fee > 0 and event.label.startswith(("Transfer to ", "Final sweep to ")):
+                append_event_row(
+                    event.on_date, account_label, "Transfer Fee", -event.fee,
+                    f"Fee for {event.label}", event.balance_after, "outflow",
+                )
 
     chart_items = []
     chart_captions = {
