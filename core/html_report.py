@@ -89,7 +89,11 @@ def generate_html_report(
             "label": account.label or account.id,
             "id": account.id,
             "bank": _bank_display_name(account.bank_id, account.bank_key),
-            "balance": _amount(account.balance),
+            # Account objects contain post-simulation balances. This table describes
+            # scenario setup, so display the configured starting cash instead.
+            "balance": _amount(float(
+                config.get("accounts", {}).get(account.id, {}).get("balance", account.balance)
+            )),
             "efd": "Enabled" if account.supports_efd else "Standard FD only",
             "role": "Consolidation account" if account.id == config.get("consolidation_account_id") else "Investment account",
         })
@@ -291,7 +295,7 @@ def generate_html_report(
          ("gross", "Gross interest (LKR)"), ("ait", "AIT (LKR)"), ("net", "Net interest (LKR)")],
         investment_rows,
     )
-    capital_flow_table = table("Capital movements",
+    capital_flow_table = table("Movement records",
         [("date", "Date"), ("movement", "Movement"), ("source", "From / account"),
          ("destination", "To / product"), ("amount", "Amount (LKR)"), ("fee", "Fee (LKR)")],
         capital_flow_rows,
@@ -531,7 +535,7 @@ def generate_html_report(
     }
     chart_json = json.dumps(chart_data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     ledger_html = f"""
-      <details class="collapsible-table"><summary>Full event ledger <span>{len(event_rows)} rows · expand</span></summary>
+      <details class="collapsible-table"><summary>Ledger entries <span>{len(event_rows)} rows · expand</span></summary>
       <div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount (LKR)</th><th>Description</th><th class="num">Balance after (LKR)</th></tr></thead><tbody>{''.join(event_rows) if event_rows else '<tr><td colspan="6" class="empty">No events</td></tr>'}</tbody></table></div></details>
     """
     template_dir = Path(__file__).resolve().parent / "report_templates"
@@ -546,7 +550,7 @@ def generate_html_report(
         "{{OVERVIEW_CONTENT}}": overview_html,
         "{{OUTCOME_CONTENT}}": outcome_html,
         "{{EXECUTION_CONTENT}}": ''.join(decision_cards) if decision_cards else '<div class="panel">No FD bookings or actionable transfers were selected.</div>',
-        "{{PORTFOLIO_CONTENT}}": f"<h3>Accounts</h3>{account_table}<h3>Selected fixed deposits</h3>{investment_table}",
+        "{{PORTFOLIO_CONTENT}}": f"{account_table}{investment_table}",
         "{{CASHFLOW_CONTENT}}": f'<div class="grid2"><div><h3>Planned inflows</h3>{inflow_table}</div><div><h3>Planned outflows</h3>{outflow_table}</div></div>',
         "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account value history</h3><canvas id="account-chart" aria-label="Account balance history"></canvas><p class="muted">Recorded account balances from the event timeline. FD principal is shown separately in the maturity schedule.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
         "{{PORTFOLIO_AUDIT_CONTENT}}": capital_flow_table,
