@@ -138,7 +138,7 @@ export class GreedyStrategy {
 
     const normalizedInflows = normalizeInflowSchedule(inflow_schedule, inflow_account_id);
     const outflows = outflow_schedule || {};
-    validateOutflowSchedule(outflows, startDate, endDate, new Set(Object.keys(accountMap)));
+    validateOutflowSchedule(outflows, formatISODate(startDate), formatISODate(endDate), new Set(Object.keys(accountMap)));
     const timeline = {};
     const bookings = [];
     const addEvent = event => { const key = event.date_key; (timeline[key] ||= []).push(event); };
