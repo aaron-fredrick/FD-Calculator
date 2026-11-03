@@ -72,7 +72,7 @@ class HtmlReportAccountChartTests(unittest.TestCase):
             [item["accountId"] for item in series],
             ["main", "same_y", "same_z", "other_p", "other_q", "other_r"],
         )
-        self.assertEqual(series[0]["color"], "#0000ff")
+        self.assertEqual(series[0]["color"], "#0055ff")
         self.assertEqual(len({item["color"] for item in series}), 6)
         self.assertEqual(series[0]["lineStyle"], "solid")
         self.assertEqual(series[1]["lineStyle"], "dashed")
