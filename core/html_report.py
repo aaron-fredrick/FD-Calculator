@@ -82,8 +82,18 @@ def _build_account_balance_series(
     # version of that exact hue.
     bank_colors: dict[str, str] = {}
     fd_colors: dict[str, str] = {}
-    for index, bank in enumerate(bank_order):
-        fraction = index / max(1, len(bank_order) - 1)
+    first_account_index = {
+        bank: next(
+            index for index, account in enumerate(accounts)
+            if identity(account.bank_identity) == bank
+        )
+        for bank in bank_order
+    }
+    for bank in bank_order:
+        # Reserve hue positions for every account, but reuse the first
+        # occurrence's hue for all accounts belonging to the same bank.
+        # This preserves spacing when multiple accounts share a bank.
+        fraction = first_account_index[bank] / max(1, len(accounts) - 1)
         hue = (220.0 - 185.0 * fraction) / 360.0
         brightness = 1.0 if bank == main_bank else 0.8
         rgb = colorsys.hsv_to_rgb(hue, 1.0, brightness)
