@@ -307,11 +307,11 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
     ):
         raise ValueError("Transfer fees must be finite and non-negative")
 
-    decision_log_output_file = str(
-        config.get("decision_log_output_file", "decision_log.txt")
+    report_output_file = str(
+        config.get("report_output_file", "fd_cal_report.html")
     ).strip()
-    if not decision_log_output_file:
-        raise ValueError("decision_log_output_file must be a non-empty path")
+    if not report_output_file:
+        raise ValueError("report_output_file must be a non-empty path")
 
     ait_enabled = config.get("ait_enabled", True)
     if not isinstance(ait_enabled, bool):
@@ -341,7 +341,7 @@ def load_configuration(config_path: str | Path) -> dict[str, Any]:
         "ait_rate": 0.10,
         "show_timeline": bool(config.get("show_timeline", True)),
         "show_ledger": bool(config.get("show_ledger", False)),
-        "decision_log_output_file": decision_log_output_file,
+        "report_output_file": report_output_file,
         "show_plots": bool(config.get("show_plots", True)),
         "plot_output_dir": str(config.get("plot_output_dir", "plots")),
     }
