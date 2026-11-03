@@ -84,7 +84,8 @@ def _write_decision_log(result, output_path: str | Path, start_date: date) -> Pa
                 f"  Gross interest   : {money(record['expected_return'])}",
                 f"  AIT withheld     : {money(record.get('expected_ait', 0.0))}",
                 f"  Net interest     : {money(record.get('expected_net_return', record['expected_return']))}",
-                f"  Net payout total : {money(record['expected_total'])}",
+                f"  Gross payout total: {money(record.get('expected_gross_total', record['expected_total']))}",
+                f"  Net payout total  : {money(record['expected_total'])}",
             ])
             if record.get("cash_flows"):
                 lines.append("  Expected payout schedule:")
