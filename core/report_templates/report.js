@@ -23,3 +23,92 @@ function drawAll(){document.querySelectorAll(".chart-toolbar").forEach(x=>x.remo
 let resizeTimer;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(drawAll,120)});drawAll();
 const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(a=>document.querySelector(a.getAttribute("href"))).filter(Boolean);if("IntersectionObserver"in window){const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(!visible)return;links.forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+visible.target.id))},{rootMargin:"-15% 0px -70% 0px",threshold:[0,.15,.4,.7]});sections.forEach(s=>observer.observe(s))}else if(links.length)links[0].classList.add("active");
 })();
+
+/* Rich hover focus layer: highlights the selected datum without changing chart layout. */
+(() => {
+  "use strict";
+  const node=document.getElementById("fd-report-data");
+  if(!node)return;
+  let data={};try{data=JSON.parse(node.textContent||"{}")}catch(e){return}
+  const fmt=v=>new Intl.NumberFormat("en-LK",{minimumFractionDigits:2,maximumFractionDigits:2}).format(v);
+  const dayDate=s=>new Date(s+"T00:00:00").getTime();
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function init(canvas){
+    if(canvas.dataset.hoverLayer==="ready")return;
+    canvas.dataset.hoverLayer="ready";
+    const panel=canvas.parentElement;
+    const layer=document.createElement("canvas");
+    layer.className="chart-focus-layer";
+    const card=document.createElement("div");
+    card.className="chart-hover-card";card.hidden=true;card.setAttribute("role","status");
+    panel.append(layer,card);
+    function size(){
+      const rect=canvas.getBoundingClientRect(),pr=panel.getBoundingClientRect(),ratio=Math.max(1,devicePixelRatio||1);
+      layer.style.left=(rect.left-pr.left+panel.scrollLeft)+"px";
+      layer.style.top=(rect.top-pr.top+panel.scrollTop)+"px";
+      layer.style.width=rect.width+"px";layer.style.height=rect.height+"px";
+      layer.width=Math.max(1,Math.floor(rect.width*ratio));layer.height=Math.max(1,Math.floor(rect.height*ratio));
+      const ctx=layer.getContext("2d");ctx.setTransform(ratio,0,0,ratio,0,0);
+    }
+    function draw(x,y,r=7){
+      const ctx=layer.getContext("2d"),w=layer.clientWidth,h=layer.clientHeight;
+      ctx.clearRect(0,0,w,h);ctx.save();ctx.strokeStyle="rgba(220,232,245,.45)";
+      ctx.setLineDash([3,4]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,8);ctx.lineTo(x,h-34);ctx.stroke();ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(x,y,r+5,0,Math.PI*2);ctx.fillStyle="rgba(220,232,245,.16)";ctx.fill();
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle="#f4f7fb";ctx.fill();
+      ctx.lineWidth=2;ctx.strokeStyle="#172334";ctx.stroke();ctx.restore();
+    }
+    function show(e,title,lines){
+      card.replaceChildren();const h=document.createElement("strong");h.textContent=title;card.appendChild(h);
+      lines.forEach(t=>{const line=document.createElement("span");line.textContent=t;card.appendChild(line)});
+      card.hidden=false;
+      const pr=panel.getBoundingClientRect(),x=e.clientX-pr.left+14,y=e.clientY-pr.top+14;
+      const maxX=Math.max(8,panel.clientWidth-card.offsetWidth-10),maxY=Math.max(8,panel.clientHeight-card.offsetHeight-10);
+      card.style.left=clamp(x,8,maxX)+"px";card.style.top=clamp(y,8,maxY)+"px";
+    }
+    function hide(){layer.getContext("2d").clearRect(0,0,layer.clientWidth,layer.clientHeight);card.hidden=true}
+    function move(e){
+      size();
+      const rect=canvas.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
+      const id=canvas.id;
+      if(id==="account-chart"){
+        const series=(data.accounts||[]),visible=[...panel.querySelectorAll(".chart-toolbar button")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.textContent);
+        const active=series.filter(s=>!visible.length||visible.includes(s.name)),pts=active.flatMap(s=>(s.points||[]).map(p=>({s,p})));
+        const labels=[...new Set(pts.map(v=>v.p.x))].sort(),g={l:62,r:18,t:18,b:42};
+        if(!labels.length)return hide();
+        const day=labels[clamp(Math.round((mx-g.l)/(rect.width-g.l-g.r)*(labels.length-1)),0,labels.length-1)];
+        const candidates=pts.filter(v=>v.p.x===day).map(v=>({ ...v,x:g.l+(rect.width-g.l-g.r)*labels.indexOf(day)/Math.max(1,labels.length-1),y:g.t+(rect.height-g.t-g.b)-(v.p.y-Math.min(0,...pts.map(z=>z.p.y)))/(Math.max(1,...pts.map(z=>z.p.y))-Math.min(0,...pts.map(z=>z.p.y)))*(rect.height-g.t-g.b)}));
+        const hit=candidates.sort((a,b)=>Math.hypot(a.x-mx,a.y-my)-Math.hypot(b.x-mx,b.y-my))[0];
+        if(!hit||Math.hypot(hit.x-mx,hit.y-my)>38)return hide();
+        draw(hit.x,hit.y,8);show(e,day,active.map(s=>{const p=(s.points||[]).find(v=>v.x===day);return p?s.name+": LKR "+fmt(p.y):null}).filter(Boolean));
+      }else if(id==="cashflow-chart"){
+        const series=(data.cashflows||[]),visible=[...panel.querySelectorAll(".chart-toolbar button")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.textContent);
+        const active=series.filter(s=>!visible.length||visible.includes(s.name)),dates=[...new Set(active.flatMap(s=>(s.points||[]).map(p=>p.x)))].sort();
+        if(!dates.length)return hide();
+        const g={l:58,r:14,t:16,b:50},slot=(rect.width-g.l-g.r)/dates.length,min=Math.min(0,...active.flatMap(s=>s.points.map(p=>p.y))),max=Math.max(1,...active.flatMap(s=>s.points.map(p=>p.y))),range=max-min||1;
+        let hit=null;
+        active.forEach((s,si)=>s.points.forEach(p=>{const di=dates.indexOf(p.x),bw=Math.max(2,Math.min(15,slot/Math.max(1,active.length)*.72)),x=g.l+di*slot+slot/2+(si-(active.length-1)/2)*bw,y=g.t+(rect.height-g.t-g.b)-(p.y-min)/range*(rect.height-g.t-g.b),zero=g.t+(rect.height-g.t-g.b)-(0-min)/range*(rect.height-g.t-g.b);if(mx>=x-bw&&mx<=x+bw&&my>=Math.min(y,zero)-4&&my<=Math.max(y,zero)+4)hit={s,p,x,y}}));
+        if(!hit)return hide();draw(hit.x,hit.y,7);show(e,hit.p.x,[hit.s.name+": "+(hit.p.y<0?"−":"+")+"LKR "+fmt(Math.abs(hit.p.y))]);
+      }else if(id==="maturity-chart"){
+        const items=data.maturities||[];if(!items.length)return hide();
+        const g={l:12,r:14,t:18,b:34},row=Math.max(24,(rect.height-g.t-g.b)/items.length),min=Math.min(...items.map(v=>dayDate(v.start))),max=Math.max(...items.map(v=>dayDate(v.end))),span=Math.max(1,max-min);
+        const i=Math.floor((my-g.t-5)/row);if(i<0||i>=items.length)return hide();
+        const v=items[i],x=g.l+(dayDate(v.start)-min)/span*(rect.width-g.l-g.r),width=Math.max(3,(dayDate(v.end)-dayDate(v.start))/span*(rect.width-g.l-g.r));
+        if(mx<x-5||mx>x+width+5)return hide();draw(clamp(mx,x,x+width),g.t+i*row+12,8);
+        show(e,v.name,[v.start+" → "+v.end,"Principal: LKR "+fmt(v.principal),"Expected interest: LKR "+fmt(v.interest),v.rate.toFixed(3)+"% p.a."]);
+      }else if(id==="returns-chart"){
+        const items=data.returns||[],total=items.reduce((n,v)=>n+Math.max(0,v.value),0);if(!total)return hide();
+        const g={l:12,r:12,t:18},barY=g.t+35,barH=32;let x=g.l,hit=null;
+        items.forEach((v,i)=>{const width=(rect.width-g.l-g.r)*Math.max(0,v.value)/total;if(my>=barY-6&&my<=barY+barH+6&&mx>=x&&mx<=x+width)hit={v,i,x:x+width/2,y:barY+barH/2};x+=width});
+        if(!hit)return hide();draw(hit.x,hit.y,8);show(e,hit.v.name,["LKR "+fmt(hit.v.value),(hit.v.value/total*100).toFixed(2)+"% of displayed components"]);
+      }
+    }
+    canvas.addEventListener("mousemove",move);
+    canvas.addEventListener("mouseleave",hide);
+    window.addEventListener("resize",size);size();
+  }
+  function scan(){document.querySelectorAll(".chart-panel canvas[id]").forEach(init)}
+  scan();
+  new MutationObserver(scan).observe(document.body,{childList:true,subtree:true});
+  window.addEventListener("resize",()=>requestAnimationFrame(scan));
+})();
