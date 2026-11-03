@@ -160,7 +160,7 @@ def print_event_timeline(result: SimResult) -> None:
                 channel = "INTRA-BANK" if event.transfer_channel == "intra_bank" else "INTER-BANK"
                 if "to " in event.label.lower():
                     rows.append((
-                        event, f"{channel} TO", -event.amount, orange,
+                        event, f"{channel} TO", -(event.amount - event.fee), orange,
                         event.label,
                     ))
                     if event.fee > 0:
