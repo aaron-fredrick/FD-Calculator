@@ -41,6 +41,7 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
     layer.className="chart-focus-layer";
     const card=document.createElement("div");
     card.className="chart-hover-card";card.hidden=true;card.setAttribute("role","status");
+    let clearLayerTimer=null,hideCardTimer=null;
     panel.append(layer,card);
     function size(){
       const rect=canvas.getBoundingClientRect(),pr=panel.getBoundingClientRect(),ratio=Math.max(1,devicePixelRatio||1);
@@ -52,7 +53,7 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
     }
     function draw(x,y,r=7){
       const ctx=layer.getContext("2d"),w=layer.clientWidth,h=layer.clientHeight;
-      ctx.clearRect(0,0,w,h);ctx.save();ctx.strokeStyle="rgba(220,232,245,.45)";
+      clearTimeout(clearLayerTimer);ctx.clearRect(0,0,w,h);ctx.save();ctx.strokeStyle="rgba(220,232,245,.45)";
       ctx.setLineDash([3,4]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,8);ctx.lineTo(x,h-34);ctx.stroke();ctx.setLineDash([]);
       ctx.beginPath();ctx.arc(x,y,r+5,0,Math.PI*2);ctx.fillStyle="rgba(220,232,245,.16)";ctx.fill();
       ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle="#f4f7fb";ctx.fill();
@@ -61,7 +62,7 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
     }
     function drawBar(x,y,width,height,color){
       const ctx=layer.getContext("2d"),w=layer.clientWidth,h=layer.clientHeight;
-      ctx.clearRect(0,0,w,h);ctx.fillStyle="rgba(4,8,14,.48)";ctx.fillRect(0,0,w,h);
+      clearTimeout(clearLayerTimer);ctx.clearRect(0,0,w,h);ctx.fillStyle="rgba(4,8,14,.48)";ctx.fillRect(0,0,w,h);
       ctx.save();ctx.shadowColor=color;ctx.shadowBlur=15;ctx.fillStyle=color;
       ctx.fillRect(x,y,width,height);ctx.shadowBlur=0;ctx.lineWidth=2;
       ctx.strokeStyle="rgba(255,255,255,.95)";ctx.strokeRect(x+.5,y+.5,Math.max(0,width-1),Math.max(0,height-1));
@@ -70,12 +71,18 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
     function show(e,title,lines){
       card.replaceChildren();const h=document.createElement("strong");h.textContent=title;card.appendChild(h);
       lines.forEach(t=>{const line=document.createElement("span");line.textContent=t;card.appendChild(line)});
-      card.hidden=false;
+      clearTimeout(hideCardTimer);card.hidden=false;card.style.opacity="0";card.style.transform="translateY(4px) scale(.985)";
+      requestAnimationFrame(()=>{card.style.opacity="1";card.style.transform="translateY(0) scale(1)"});
       const pr=panel.getBoundingClientRect(),x=e.clientX-pr.left+14,y=e.clientY-pr.top+14;
       const maxX=Math.max(8,panel.clientWidth-card.offsetWidth-10),maxY=Math.max(8,panel.clientHeight-card.offsetHeight-10);
       card.style.left=clamp(x,8,maxX)+"px";card.style.top=clamp(y,8,maxY)+"px";
     }
-    function hide(){layer.getContext("2d").clearRect(0,0,layer.clientWidth,layer.clientHeight);card.hidden=true}
+    function hide(){
+      layer.style.opacity="0";card.style.opacity="0";card.style.transform="translateY(4px) scale(.985)";
+      clearTimeout(clearLayerTimer);clearTimeout(hideCardTimer);
+      clearLayerTimer=setTimeout(()=>layer.getContext("2d").clearRect(0,0,layer.clientWidth,layer.clientHeight),170);
+      hideCardTimer=setTimeout(()=>{card.hidden=true},170);
+    }
     function move(e){
       size();
       const rect=canvas.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
