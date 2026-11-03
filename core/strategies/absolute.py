@@ -479,7 +479,10 @@ class AbsoluteStrategy(BaseStrategy):
                         consolidation_branches.append((gross_intr - actual_fees, tgt_id, opt, transfers, deployable, carries))
 
             # Prioritize high profit branches first
-            consolidation_branches.sort(key=lambda x: x[0], reverse=True)
+            consolidation_branches.sort(
+                key=lambda item: (item[0], item[2].is_efd),
+                reverse=True,
+            )
             for _, tgt_id, opt, transfers, deployable, carries in consolidation_branches:
                 b_bal = bal
                 for t in transfers:
@@ -542,7 +545,13 @@ class AbsoluteStrategy(BaseStrategy):
                             break
                         indices[i] = 0
 
-                local_branches.sort(key=lambda x: x[0], reverse=True)
+                local_branches.sort(
+                    key=lambda item: (
+                        item[0],
+                        sum(1 for booking in item[1] if booking["option"].is_efd),
+                    ),
+                    reverse=True,
+                )
                 for _, valid_bookings in local_branches:
                     booked_ids = {b_info["account_id"] for b_info in valid_bookings}
                     carries = [aid for aid in active_accs if aid not in booked_ids]
