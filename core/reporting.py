@@ -475,7 +475,7 @@ def print_simulation(
                     strategies that were also run, shown in the summary for comparison.
     """
     tot_ret = (result.total_interest / result.total_principal * 100) if result.total_principal > 0 else 0.0
-    net_ret = (result.net_interest / result.total_principal * 100) if result.total_principal > 0 else 0.0
+    net_ret = (result.net_interest_after_ait / result.total_principal * 100) if result.total_principal > 0 else 0.0
     n_bookings = len(result.bookings)
 
     if show_event_timeline:
@@ -491,7 +491,8 @@ def print_simulation(
     annualised = _xirr(result)
     _summary_line("Total Capital", f"{result.total_principal:,.2f} LKR", EVENT_COLORS[EventType.INFLOW])
     _summary_line("Gross Interest", f"{result.total_interest:,.2f} LKR", EVENT_COLORS[EventType.MATURITY])
-    _summary_line("Transfer Fees", f"{result.total_transfer_fees:,.2f} LKR", EVENT_COLORS[EventType.TRANSFER])
+    _summary_line("Transfer Fees", f"-{result.total_transfer_fees:,.2f} LKR", EVENT_COLORS[EventType.TRANSFER])
+    _summary_line("AIT (10% of gross interest)", f"-{result.ait_withheld:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
     if result.total_outflows_due:
         _summary_line("Total Outflows", f"{result.total_outflows_due:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
         _summary_line("Outflows Paid", f"{result.total_outflows_paid:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
@@ -503,11 +504,11 @@ def print_simulation(
                     f"    - {item.get('name', 'Outflow')} [{item.get('account_id', '')}]: "
                     f"{float(item.get('remaining', 0.0)):,.2f} LKR ({item.get('payment_policy', '')})"
                 )
-    _summary_line("Net Interest", f"{result.net_interest:,.2f} LKR", EVENT_COLORS[EventType.CASH_FLOW])
-    _summary_line("Net Yield", f"{net_ret:.3f}%", EVENT_COLORS[EventType.BOOKING])
-    annualised_text = f"{annualised:.3f}% p.a. (XIRR, money-weighted)" if annualised is not None else "N/A"
+    _summary_line("Net Interest (after AIT)", f"{result.net_interest_after_ait:,.2f} LKR", EVENT_COLORS[EventType.CASH_FLOW])
+    _summary_line("Net Yield (after AIT)", f"{net_ret:.3f}%", EVENT_COLORS[EventType.BOOKING])
+    annualised_text = f"{annualised:.3f}% p.a. (XIRR, pre-AIT)" if annualised is not None else "N/A"
     _summary_line("Annualised Return", annualised_text, EVENT_COLORS[EventType.MATURITY])
-    _summary_line("Final Balance", f"{result.final_value:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
+    _summary_line("Final Balance (after AIT)", f"{result.final_value_after_ait:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
     if result.total_outflows_due:
         _summary_line("Cash Retained", f"{result.cash_retained:,.2f} LKR", EVENT_COLORS[EventType.IDLE])
         _summary_line("Cash-Flow Net Worth", f"{result.cash_flow_net_worth:,.2f} LKR", EVENT_COLORS[EventType.OUTFLOW])
@@ -518,7 +519,7 @@ def print_simulation(
     # -- Comparison with other strategies (only other net interest shown) --
     if comparison:
         print()
-        print("  Other Strategy Net Interest:")
+        print("  Other Strategy Net Interest (before AIT; strategy objective):")
         for strat_name, other_net in sorted(comparison.items()):
             delta = other_net - result.net_interest
             delta_str = f"+{delta:,.2f}" if delta >= 0 else f"{delta:,.2f}"
