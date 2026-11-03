@@ -217,18 +217,20 @@ def _build_account_balance_series(
                 if label.startswith(("Transfer to ", "Final sweep to ")):
                     cash[account_id] = cash.get(account_id, 0.0) - abs(amount)
                     stage_number += 1
-                    append_stage(day, stage_number, label)
+                    channel = "INTRA-BANK" if event.transfer_channel == "intra_bank" else "INTER-BANK"
+                    destination = label.removeprefix("Transfer to ").removeprefix("Final sweep to ")
+                    append_stage(day, stage_number, f"{channel} TO · {destination}")
                     # The fee is a distinct ledger movement and therefore gets
                     # its own chart stage after the transfer principal.
                     if event.fee > 0:
                         cash[account_id] = cash.get(account_id, 0.0) - abs(float(event.fee))
                         stage_number += 1
-                        channel = "INTRA-BANK" if event.transfer_channel == "intra_bank" else "INTER-BANK"
-                        append_stage(day, stage_number, f"{channel} TF")
+                            append_stage(day, stage_number, f"{channel} TF")
                 elif label.startswith(("Transfer received", "Final sweep received")):
                     cash[account_id] = cash.get(account_id, 0.0) + amount
                     stage_number += 1
-                    append_stage(day, stage_number, label)
+                    channel = "INTRA-BANK" if event.transfer_channel == "intra_bank" else "INTER-BANK"
+                    append_stage(day, stage_number, f"{channel} TI")
 
     return {"accounts": account_series, "fd_principal": fd_series, "stages": stages}
 
