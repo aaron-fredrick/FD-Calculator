@@ -487,7 +487,6 @@ def build_decision_log(result: SimResult) -> list[dict]:
                 if event.account_id in result.accounts else event.account_id
             ),
             "bank": event.bank_id or event.bank_key,
-            "transfer_steps": [],
             "product": None,
             "fd_type": None,
             "rate": None,
