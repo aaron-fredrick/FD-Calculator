@@ -53,18 +53,13 @@ def _build_account_balance_series(
     compound: bool = False,
     actual_leap_year: bool = True,
 ) -> list[dict[str, Any]]:
-    """Build daily account portfolio values: liquid cash plus active FD value.
+    """Build daily liquid-cash balances for each bank account.
 
-    Cash is reconstructed from posted ledger movements rather than relying on
-    Event.balance_after. A booking converts cash into an FD asset, not a loss
-    of portfolio value. Active FDs include principal plus accrued gross interest,
-    less gross payouts already made. Cash-flow events contain the net amount
-    actually received, so AIT reduces portfolio value when withheld.
+    Fixed deposits are separate instruments/accounts and are intentionally
+    excluded from this chart. Only posted cash movements affect the series.
     """
     if end < start:
         raise ValueError("end date must not be earlier than start date")
-
-    from core.interest import calc_interest
 
     cash_movements: dict[str, dict[date, float]] = {
         account_id: {} for account_id in result.accounts
@@ -83,9 +78,11 @@ def _build_account_balance_series(
             if event.event_type == EventType.INFLOW:
                 add_cash(account_id, event.on_date, amount)
             elif event.event_type == EventType.OUTFLOW:
+                # Positive outflows are obligation markers, not posted cash movements.
                 if amount < 0:
                     add_cash(account_id, event.on_date, amount)
             elif event.event_type == EventType.BOOKING:
+                # Cash is moved out of the bank account into a separate FD.
                 add_cash(account_id, event.on_date, -abs(amount))
             elif event.event_type in {EventType.CASH_FLOW, EventType.MATURITY}:
                 add_cash(account_id, event.on_date, amount)
@@ -94,10 +91,6 @@ def _build_account_balance_series(
                     add_cash(account_id, event.on_date, -abs(amount))
                 elif event.label.startswith(("Transfer received", "Final sweep received")):
                     add_cash(account_id, event.on_date, amount)
-
-    bookings_by_account: dict[str, list] = {}
-    for booking in result.bookings:
-        bookings_by_account.setdefault(booking.account_id, []).append(booking)
 
     accounts = list(result.accounts.values())
     if consolidation_account_id in result.accounts:
@@ -111,75 +104,12 @@ def _build_account_balance_series(
     for color_index, account in enumerate(accounts):
         cash = float(opening_balances.get(account.id, 0.0))
         daily_movements = cash_movements.get(account.id, {})
-        account_bookings = bookings_by_account.get(account.id, [])
         points = []
 
         for offset in range(day_count + 1):
             day = start + timedelta(days=offset)
             cash += daily_movements.get(day, 0.0)
-            fd_value = 0.0
-
-            for booking in account_bookings:
-                if day < booking.start or day >= booking.end:
-                    continue
-                elapsed_days = (day - booking.start).days
-                interest_paid = 0.0
-                principal_returned = 0.0
-                flow_count = len(booking.cash_flows)
-                paid_flow_dates = []
-                for flow_index, (flow_date, flow_amount) in enumerate(booking.cash_flows):
-                    if flow_date > day:
-                        continue
-                    paid_flow_dates.append(flow_date)
-                    if booking.payout_type == "cumulative":
-                        interest_component = flow_amount - booking.principal
-                    elif booking.payout_type == "periodic_interest":
-                        principal_component = (
-                            booking.principal if flow_index == flow_count - 1 else 0.0
-                        )
-                        interest_component = flow_amount - principal_component
-                    else:
-                        interest_component = booking.total_interest / max(1, flow_count)
-                    interest_component = max(0.0, interest_component)
-                    interest_paid += interest_component
-                    principal_returned += flow_amount - interest_component
-
-                if booking.payout_type == "periodic_interest":
-                    # Periodic-interest FDs pay each accrual period without
-                    # capitalising prior interest into the principal.
-                    accrual_start = max(paid_flow_dates, default=booking.start)
-                    accrued_interest = calc_interest(
-                        booking.principal,
-                        booking.option.annual_rate,
-                        (day - accrual_start).days,
-                        accrual_start,
-                        compound,
-                        actual_leap_year,
-                    )
-                elif booking.payout_type == "cumulative":
-                    accrued_interest = calc_interest(
-                        booking.principal,
-                        booking.option.annual_rate,
-                        elapsed_days,
-                        booking.start,
-                        compound,
-                        actual_leap_year,
-                    )
-                else:
-                    # Installment interest is allocated evenly over the
-                    # contract's scheduled installments.
-                    tenor_days = max(1, (booking.end - booking.start).days)
-                    accrued_to_date = booking.total_interest * elapsed_days / tenor_days
-                    accrued_interest = max(0.0, accrued_to_date - interest_paid)
-
-                remaining_principal = max(0.0, booking.principal - principal_returned)
-                remaining_interest = max(0.0, accrued_interest)
-                accrued_ait = (
-                    remaining_interest * result.ait_rate if result.ait_enabled else 0.0
-                )
-                fd_value += remaining_principal + remaining_interest - accrued_ait
-
-            points.append({"x": _date(day), "y": round(cash + fd_value, 2)})
+            points.append({"x": _date(day), "y": round(cash, 2)})
 
         bank_identity = account.bank_identity.strip().upper()
         same_bank_as_consolidation = bool(
@@ -728,7 +658,7 @@ def generate_html_report(
         "{{EXECUTION_CONTENT}}": ''.join(decision_cards) if decision_cards else '<div class="panel">No FD bookings or actionable transfers were selected.</div>',
         "{{PORTFOLIO_CONTENT}}": f"{account_table}{investment_table}",
         "{{CASHFLOW_CONTENT}}": f'<div class="grid2"><div>{inflow_table}</div><div>{outflow_table}</div></div>',
-        "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account value history</h3><canvas id="account-chart" aria-label="Account balance history"></canvas><p class="muted">Total value by account: liquid cash plus active FD principal and accrued interest. Booking moves value from cash into an FD; payouts and maturities return it to cash, net of AIT.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
+        "{{ANALYTICS_CONTENT}}": '<div class="chart-grid"><article class="chart-panel"><h3>Account value history</h3><canvas id="account-chart" aria-label="Account balance history"></canvas><p class="muted">Liquid cash held in each bank account. FD principal and accrued interest are tracked separately and are excluded from this chart.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
         "{{PORTFOLIO_AUDIT_CONTENT}}": capital_flow_table,
         "{{LEDGER_CONTENT}}": ledger_html,
         "{{CHART_DATA}}": chart_json,
