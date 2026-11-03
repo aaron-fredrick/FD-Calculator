@@ -264,7 +264,8 @@ function createContext({ options, start, end, inflow_schedule, accounts, inflow_
     optionsByAccount.set(id, effectiveOptions.filter(option => optionBankMatch(option, account) && account.canUseOption(option)));
   }
   if ([...optionsByAccount.values()].some(list => list.length === 0)) throw new RangeError("Every account must have at least one compatible FD product.");
-  const maxRate = Math.max(0, ...effectiveOptions.filter(option => option.fitsBefore(startDate, endDate)).map(option => option.annual_rate)) / 100;
+  const fittingRates = effectiveOptions.filter(option => option.fitsBefore(startDate, endDate)).map(option => option.annual_rate);
+  const maxRate = fittingRates.length ? Math.max(0, ...fittingRates) / 100 : 0.11;
   const totalCapital = sum(accounts.map(account => account.balance)) + sum(Object.values(inflows).flatMap(day => Object.values(day)));
   return {
     accounts: accountMap, options: effectiveOptions, optionsByAccount, inflows, outflows,
@@ -342,7 +343,7 @@ function expandState(rawState, context, settings, mode, counters) {
         const account = context.accounts.get(id);
         for (const option of context.optionsByAccount.get(id) || []) {
           if (!option.canInvest(balances.get(id), parseISODate(state.date), context.endDate)) continue;
-          const maturity = formatISODate(addPeriod(parseISODate(state.date), option.period_str));
+          const maturity = formatISODate(new Date(parseISODate(state.date).getTime() + option.days * 86_400_000));
           const alignedDate = futureInflows.find(date => date >= maturity);
           if (alignedDate && daysBetween(parseISODate(maturity), parseISODate(alignedDate)) <= 7) aligned = true;
         }
@@ -691,7 +692,7 @@ function replay(path, context, strategy, diagnostics) {
 }
 
 export class SearchStrategyBase {
-  constructor({ compound = false, actual_leap_year = true, ait_enabled = true, ait_rate = 0.10, ...settings } = {}, mode) {
+  constructor({ compound = false, actual_leap_year = true, ait_enabled = false, ait_rate = 0.10, ...settings } = {}, mode) {
     this.name = mode === "absolute" ? "Absolute" : "GAML";
     this.mode = mode;
     this.compound = compound;
