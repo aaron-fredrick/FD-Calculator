@@ -227,7 +227,7 @@ def print_event_timeline(result: SimResult) -> None:
                         rows.append((event, "AIT WITHHELD", -ait_for_flow, EVENT_COLORS[EventType.OUTFLOW], "AIT deducted from maturity payout"))
                 continue
 
-            label = _EVENT_LABELS.get(event.event_type, "[?]")
+            label = _EVENT_LABELS.get(event.event_type, "UNKNOWN")
             rows.append((
                 event, label, event.amount,
                 EVENT_COLORS.get(event.event_type, ""), event.label,
