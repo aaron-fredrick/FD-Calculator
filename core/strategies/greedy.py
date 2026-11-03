@@ -67,6 +67,14 @@ def _pick_daily_greedy_plan(
                     best_opt = opt
                 elif opt.annual_rate == best_opt.annual_rate and opt.days < best_opt.days:
                     best_opt = opt
+                elif (
+                    opt.annual_rate == best_opt.annual_rate
+                    and opt.days == best_opt.days
+                    and opt.economic_terms_key == best_opt.economic_terms_key
+                    and opt.is_efd
+                    and not best_opt.is_efd
+                ):
+                    best_opt = opt
 
             intr = best_opt.total_interest_on(acc.balance, today, compound, actual_leap_year)
             split_bookings.append({
@@ -158,6 +166,14 @@ def _pick_daily_greedy_plan(
                 best_tgt_opt = opt
             elif opt.annual_rate == best_tgt_opt.annual_rate and opt.days < best_tgt_opt.days:
                 best_tgt_opt = opt
+            elif (
+                opt.annual_rate == best_tgt_opt.annual_rate
+                and opt.days == best_tgt_opt.days
+                and opt.economic_terms_key == best_tgt_opt.economic_terms_key
+                and opt.is_efd
+                and not best_tgt_opt.is_efd
+            ):
+                best_tgt_opt = opt
 
         gross_intr = best_tgt_opt.total_interest_on(total_deployable, today, compound, actual_leap_year)
         net_intr = gross_intr - fees_eval
@@ -204,12 +220,33 @@ def _pick_daily_greedy_plan(
     if not candidates:
         return {"type": "CARRY", "carries": active_accounts}
 
+    def equivalent_efd_count(plan: dict) -> int:
+        selected: list[tuple[Account, FDOption]] = [
+            (booking["account"], booking["option"])
+            for booking in plan.get("bookings", [])
+        ]
+        if plan.get("option") is not None and plan.get("target_account") is not None:
+            selected.append((plan["target_account"], plan["option"]))
+        return sum(
+            1
+            for account, option in selected
+            if option.is_efd
+            and any(
+                not standard.is_efd
+                and standard.economic_terms_key == option.economic_terms_key
+                and (not standard.bank_identity or standard.bank_identity == account.bank_identity)
+                and account.can_use_option(standard)
+                for standard in options
+            )
+        )
+
     candidates.sort(
         key=lambda p: (
             p["rate"],
             -p["days"],
             p["net_interest"],
             -p["fees_today"],
+            equivalent_efd_count(p),
         ),
         reverse=True,
     )

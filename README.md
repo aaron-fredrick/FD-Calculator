@@ -26,9 +26,9 @@ The command-line strategy overrides `strategy` in the config for that run only; 
 
 ## 2. Strategies
 
-- **Greedy:** Selects a strong available action at each event. Fast, but not globally optimal.
-- **GAML:** Uses a fixed-width beam search with account-aware terminal-value ranking, first-decision diversity preservation, upper-bound pruning, and a Greedy incumbent. Its default frontier width is 256 states and its local booking-combination width is 128. The optimistic global bound is used for pruning; a separate account/eFD-aware estimate ranks candidates so products unavailable to a given account do not distort ordering. Each layer reserves up to one-third of its slots for distinct first decisions; the remaining slots let strong paths deepen and compete by score. It has no fixed state-count limit by default; search work grows with event dates, retained states, accounts, and eligible options instead of multiplying the full branch factor across the horizon. Beam/local-combination pruning makes it approximate unless the run reports `optimality proven`.
-- **Absolute:** Explores feasible investment paths using branch-and-bound, memoisation, and dominated-option pruning. It seeks the best result found and has no fixed decision budget, so runtime can grow sharply with scenario complexity.
+- **Greedy:** Selects a strong available action at each event. Fast, but not globally optimal. When an eFD and standard FD have identical decision-relevant terms, it prefers the eFD.
+- **GAML:** Uses a fixed-width beam search with account-aware terminal-value ranking, first-decision diversity preservation, upper-bound pruning, and a Greedy incumbent. Exact ties between otherwise equivalent eFD and standard products are ordered in favour of eFD. Its default frontier width is 256 states and its local booking-combination width is 128. The optimistic global bound is used for pruning; a separate account/eFD-aware estimate ranks candidates so products unavailable to a given account do not distort ordering. Each layer reserves up to one-third of its slots for distinct first decisions; the remaining slots let strong paths deepen and compete by score. It has no fixed state-count limit by default; search work grows with event dates, retained states, accounts, and eligible options instead of multiplying the full branch factor across the horizon. Beam/local-combination pruning makes it approximate unless the run reports `optimality proven`.
+- **Absolute:** Explores feasible investment paths using branch-and-bound, memoisation, and dominated-option pruning. It seeks the best result found and has no fixed decision budget, so runtime can grow sharply with scenario complexity. Exact ties between otherwise equivalent eFD and standard products are ordered in favour of eFD.
 
 All strategies use the same investment dates, accounts, inflows, FD options, fees, and interest settings. GAML and Absolute also run Greedy as a baseline. GAML plans toward the configured end date; it does not forecast future rate changes.
 
@@ -222,7 +222,7 @@ FD options are stored under `data/fd_options/`:
 
 The runtime validates each configured `bank_id` against `data/banks/banks.csv`, resolves it through the FD-options index, and opens only the required bank files. The index's `bank_id` must match the bank catalogue; `bank_key` is an internal file-routing key, not a user configuration key.
 
-The CSV index is the default and supported runtime source. Standard and eFD rows are both loaded; account-level `supports_efd` determines which account may book each product. There is no global eFD filter.
+The CSV index is the default and supported runtime source. Standard and eFD rows are both loaded; account-level `supports_efd` determines which account may book each product. There is no global `efd_only` filter: an eFD-capable account can still use standard FDs, while a standard-only account cannot use eFDs. When eligible eFD and standard products have identical rates, terms, minimums, and payout mechanics, the decision strategies prefer the eFD.
 
 Each bank CSV uses these main fields:
 
@@ -288,6 +288,10 @@ With `"show_plots": true`, charts are saved to `plot_output_dir`:
 A relative plot path is resolved from the directory containing the selected config file. For example, `"plot_output_dir": "plots"` saves to a `plots` folder beside `config.json`. An absolute path saves to that exact location. The output folder is created if needed.
 
 The account-value chart is an estimate for comparison: interest is shown as accruing between booking and maturity. Use the simulator's final results and cash-flow records for the calculated outcome; the chart is not a bank statement.
+
+### AIT / withholding tax in the summary
+
+The summary applies an estimated 10% AIT deduction to total gross FD interest. It reports gross interest, transfer fees, AIT, net interest after AIT, and the estimated final balance after AIT. AIT is deliberately excluded from strategy scoring and booking decisions; strategies continue to optimise the pre-AIT result. This is a summary-level estimate and does not model bank-by-bank withholding timing or an individual's eligibility for an exemption.
 
 ## 5. Before using results
 

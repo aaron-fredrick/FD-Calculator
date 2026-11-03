@@ -648,7 +648,18 @@ class GAMLStrategy(BaseStrategy):
                         consolidation_branches.append((gross_intr - actual_fees, tgt_id, opt, transfers, deployable, carries))
 
             # Prioritize high profit branches first
-            consolidation_branches.sort(key=lambda x: x[0], reverse=True)
+            consolidation_branches.sort(
+                key=lambda item: (
+                    item[0],
+                    item[2].is_efd
+                    and item[2].economic_terms_key in {
+                        option.economic_terms_key
+                        for option in options_by_account[item[1]]
+                        if not option.is_efd
+                    },
+                ),
+                reverse=True,
+            )
             for _, tgt_id, opt, transfers, deployable, carries in consolidation_branches:
                 if self.max_decisions is not None and tally >= self.max_decisions:
                     break
@@ -734,10 +745,18 @@ class GAMLStrategy(BaseStrategy):
                         (0.0, [])
                     ]
                     for aid in acc_list:
+                        standard_term_keys = {
+                            opt.economic_terms_key
+                            for opt in local_opts_per_acc[aid]
+                            if not opt.is_efd
+                        }
                         account_options = sorted(
                             local_opts_per_acc[aid],
-                            key=lambda opt: opt.total_interest_on(
-                                bal_dict[aid], today, self.compound, self.actual_leap_year
+                            key=lambda opt: (
+                                opt.total_interest_on(
+                                    bal_dict[aid], today, self.compound, self.actual_leap_year
+                                ),
+                                opt.is_efd and opt.economic_terms_key in standard_term_keys,
                             ),
                             reverse=True,
                         )
@@ -753,7 +772,22 @@ class GAMLStrategy(BaseStrategy):
                                         bal_dict[aid], today, self.compound, self.actual_leap_year
                                     )
                                 expanded.append((profit, [*partial_choices, (aid, opt)]))
-                        expanded.sort(key=lambda item: item[0], reverse=True)
+                        expanded.sort(
+                            key=lambda item: (
+                                item[0],
+                                sum(
+                                    1 for account_id, option in item[1]
+                                    if option is not None
+                                    and option.is_efd
+                                    and option.economic_terms_key in {
+                                        candidate.economic_terms_key
+                                        for candidate in local_opts_per_acc[account_id]
+                                        if not candidate.is_efd
+                                    }
+                                ),
+                            ),
+                            reverse=True,
+                        )
                         if len(expanded) > self.max_local_branches:
                             local_combination_pruned_count += len(expanded) - self.max_local_branches
                         partials = expanded[: self.max_local_branches]
@@ -766,7 +800,21 @@ class GAMLStrategy(BaseStrategy):
                         if valid_bookings:
                             local_branches.append((est_profit, valid_bookings))
 
-                local_branches.sort(key=lambda x: x[0], reverse=True)
+                local_branches.sort(
+                    key=lambda item: (
+                        item[0],
+                        sum(
+                            1 for booking in item[1]
+                            if booking["option"].is_efd
+                            and booking["option"].economic_terms_key in {
+                                candidate.economic_terms_key
+                                for candidate in local_opts_per_acc[booking["account_id"]]
+                                if not candidate.is_efd
+                            }
+                        ),
+                    ),
+                    reverse=True,
+                )
                 for _, valid_bookings in local_branches:
                     if self.max_decisions is not None and tally >= self.max_decisions:
                         break
