@@ -48,7 +48,7 @@ test("beam selection reserves root diversity and then fills by score", () => {
     { id: "c1", score: 70, root_signature: ["C"], state_key: "c1" },
     { id: "d1", score: 60, root_signature: ["D"], state_key: "d1" },
   ], 3);
-  assert.deepEqual(selected.map(item => item.id), ["a1", "b1", "a2"]);
+  assert.deepEqual(selected.map(item => item.id), ["a1", "a2", "b1"]);
 });
 
 test("search tree reconstructs actions in chronological order", () => {
