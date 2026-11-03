@@ -1,5 +1,7 @@
 # JavaScript CLI
 
+For a plain-language explanation of how the strategies differ and when to use each, see [Strategy guide](STRATEGIES.md).
+
 ## Strategy support
 
 The CLI supports all three JavaScript strategies:
@@ -37,7 +39,7 @@ GAML accepts these settings in the configuration JSON:
 }
 ```
 
-Defaults mirror the archived Python implementation. `max_decisions: null` means no hard expanded-state cap. `max_local_branches: null` enumerates all local booking combinations rather than truncating the combination search.
+Defaults mirror the archived Python implementation. `beam_width` controls how many candidate states survive each search layer; `max_local_branches` controls how many local booking combinations are explored when expanding a state. `max_decisions: null` means no hard expanded-state cap. `max_local_branches: null` enumerates all local booking combinations rather than truncating the combination search. See the [strategy guide](STRATEGIES.md) for examples and trade-offs.
 
 CLI flags override the JSON values:
 
