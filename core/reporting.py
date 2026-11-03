@@ -400,6 +400,12 @@ def build_decision_log(result: SimResult) -> list[dict]:
             if item.event_type == EventType.TRANSFER
         ]
         milestone = next_milestone(event.on_date)
+        net_flows = option.generate_cash_flows_after_ait(
+            booking.principal, booking.start,
+            result.ait_rate if result.ait_enabled else 0.0,
+            compound=False,
+        )
+        expected_ait = round(booking.total_received - sum(amount for _, amount in net_flows), 2)
         reasons.append(f"Liquidity checkpoint: {milestone}")
         records.append({
             "date": event.on_date,
@@ -414,8 +420,11 @@ def build_decision_log(result: SimResult) -> list[dict]:
             "booking_start": booking.start,
             "maturity_date": booking.end,
             "payout_type": booking.payout_type,
-            "expected_total": booking.total_received,
-            "cash_flows": list(booking.cash_flows),
+            "expected_total": sum(amount for _, amount in net_flows),
+            "expected_gross_total": booking.total_received,
+            "expected_ait": expected_ait,
+            "expected_net_return": sum(amount for _, amount in net_flows) - booking.principal,
+            "cash_flows": net_flows,
             "transfer_steps": transfer_steps,
             "fd_type": "eFD" if option.is_efd else "Standard FD",
             "rate": option.annual_rate,
@@ -512,7 +521,9 @@ def print_decision_log(result: SimResult) -> None:
             )
             print(
                 f"       Account: {record['account_id']} | Principal: {record['principal']:,.2f} LKR | "
-                f"Expected interest: {record['expected_return']:,.2f} LKR"
+                f"Gross interest: {record['expected_return']:,.2f} LKR | "
+                f"AIT: {record.get('expected_ait', 0.0):,.2f} LKR | "
+                f"Net interest: {record.get('expected_net_return', record['expected_return']):,.2f} LKR"
             )
         for reason in record["reason"]:
             print(f"       Reason: {reason}")
