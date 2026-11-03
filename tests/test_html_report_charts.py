@@ -90,7 +90,7 @@ class HtmlReportAccountChartTests(unittest.TestCase):
             bank_key="commercial",
             bank_id="LK_COMMERCIAL_BANK_OF_CEYLON",
         )
-        result = GreedyStrategy().simulate(
+        result = GreedyStrategy(ait_enabled=True).simulate(
             options=[option],
             start=start,
             end=end,
@@ -112,6 +112,11 @@ class HtmlReportAccountChartTests(unittest.TestCase):
         self.assertGreater(values["2027-01-31"], values["2027-01-01"])
         self.assertGreater(values["2027-03-01"], values["2027-02-28"])
         self.assertGreater(values["2027-04-01"], values["2027-03-31"])
+        self.assertAlmostEqual(
+            values["2027-04-01"],
+            100_000.0 + result.total_interest - result.ait_withheld,
+            places=2,
+        )
         self.assertTrue(any(
             event.event_type == EventType.CASH_FLOW
             for events in result.timeline.values() for event in events
