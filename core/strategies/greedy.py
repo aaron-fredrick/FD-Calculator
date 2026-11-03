@@ -70,6 +70,7 @@ def _pick_daily_greedy_plan(
                 elif (
                     opt.annual_rate == best_opt.annual_rate
                     and opt.days == best_opt.days
+                    and opt.economic_terms_key == best_opt.economic_terms_key
                     and opt.is_efd
                     and not best_opt.is_efd
                 ):
@@ -168,6 +169,7 @@ def _pick_daily_greedy_plan(
             elif (
                 opt.annual_rate == best_tgt_opt.annual_rate
                 and opt.days == best_tgt_opt.days
+                and opt.economic_terms_key == best_tgt_opt.economic_terms_key
                 and opt.is_efd
                 and not best_tgt_opt.is_efd
             ):
