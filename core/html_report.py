@@ -83,6 +83,21 @@ def generate_html_report(
         for account in result.accounts.values() if account.label
     }
 
+    # Configuration stores accounts as a list[Account], not a dict keyed by ID.
+    # The simulator works on copies, so these retain the original opening balances.
+    configured_accounts = config.get("accounts", [])
+    if isinstance(configured_accounts, dict):
+        opening_balances = {
+            str(account_id): float(entry.get("balance", 0.0) if isinstance(entry, dict) else getattr(entry, "balance", 0.0))
+            for account_id, entry in configured_accounts.items()
+        }
+    else:
+        opening_balances = {
+            account.id: float(account.balance)
+            for account in configured_accounts
+            if hasattr(account, "id") and hasattr(account, "balance")
+        }
+
     account_rows = []
     for account in result.accounts.values():
         account_rows.append({
@@ -91,9 +106,7 @@ def generate_html_report(
             "bank": _bank_display_name(account.bank_id, account.bank_key),
             # Account objects contain post-simulation balances. This table describes
             # scenario setup, so display the configured starting cash instead.
-            "balance": _amount(float(
-                config.get("accounts", {}).get(account.id, {}).get("balance", account.balance)
-            )),
+            "balance": _amount(opening_balances.get(account.id, account.balance)),
             "efd": "Enabled" if account.supports_efd else "Standard FD only",
             "role": "Consolidation account" if account.id == config.get("consolidation_account_id") else "Investment account",
         })
