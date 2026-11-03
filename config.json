@@ -3,7 +3,7 @@
   "options_file": "data/fd_options/fd_options.csv",
   "investment": {
     "start_date": "today",
-    "end_date": "202706-30"
+    "end_date": "2027-06-30"
   },
   "accounts": {
     "comfp": {
