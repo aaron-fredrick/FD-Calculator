@@ -503,6 +503,7 @@ def generate_html_report(
     account_events: dict[str, dict[str, float]] = {account_id: {} for account_id in result.accounts}
     for day_key in result.sorted_dates():
         for event in result.timeline[day_key]:
+            day = _date(event.on_date)
             account = result.accounts.get(event.account_id)
             if account:
                 # Use the final ledger balance for the account on each date.
@@ -549,11 +550,15 @@ def generate_html_report(
             if day_text in daily_events:
                 balance = daily_events[day_text]
             points.append({"x": day_text, "y": balance})
-        if account.id not in daily_events and not opening and not points:
-            continue
         is_consolidation = account.id == config.get("consolidation_account_id")
-        same_bank_as_consolidation = (
-            account.bank_id == result.accounts.get(config.get("consolidation_account_id"), account).bank_id
+        consolidation_account = result.accounts.get(config.get("consolidation_account_id"))
+        account_bank_identity = account.bank_id or account.bank_key
+        consolidation_bank_identity = (
+            (consolidation_account.bank_id or consolidation_account.bank_key)
+            if consolidation_account else None
+        )
+        same_bank_as_consolidation = bool(
+            consolidation_bank_identity and account_bank_identity == consolidation_bank_identity
         )
         account_chart.append({
             "name": account.label or account.id,
