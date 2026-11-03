@@ -59,49 +59,46 @@ def _build_account_balance_series(
     if end < start:
         raise ValueError("end date must not be earlier than start date")
 
-    accounts = list(result.accounts.values())
-    if consolidation_account_id in result.accounts:
-        accounts.sort(key=lambda account: account.id != consolidation_account_id)
-
     def identity(value: str) -> str:
         return str(value or "").strip().upper()
 
+    bank_names = _load_bank_names()
+    accounts = list(result.accounts.values())
     consolidation = result.accounts.get(consolidation_account_id or "")
     main_bank = identity(consolidation.bank_identity) if consolidation else ""
-    bank_order: list[str] = []
-    for account in accounts:
-        bank = identity(account.bank_identity)
-        if bank and bank not in bank_order:
-            bank_order.append(bank)
+    bank_order = sorted(
+        {identity(account.bank_identity) for account in accounts if identity(account.bank_identity)},
+        key=lambda bank: bank_names.get(
+            bank, bank.removeprefix("LK_").replace("_", " ").title()
+        ).casefold(),
+    )
     if main_bank in bank_order:
         bank_order.remove(main_bank)
         bank_order.insert(0, main_bank)
 
-    # Bank hues run from blue through cyan/green to yellow-orange. Every
-    # account at one bank shares its bank hue; FD principal uses a muted
-    # version of that exact hue.
+    bank_position = {bank: index for index, bank in enumerate(bank_order)}
+    # Keep each bank's accounts together. The consolidation account anchors
+    # the primary bank first; remaining bank groups are alphabetized, with
+    # account labels alphabetized within each group.
+    accounts.sort(key=lambda account: (
+        account.id != consolidation_account_id,
+        bank_position.get(identity(account.bank_identity), len(bank_position)),
+        (account.label or "").casefold(),
+        account.id,
+    ))
+
+    # Each bank group receives one evenly spaced hue. All accounts at that
+    # bank reuse it, and FD principal uses a muted version of the same hue.
     bank_colors: dict[str, str] = {}
     fd_colors: dict[str, str] = {}
-    first_account_index = {
-        bank: next(
-            index for index, account in enumerate(accounts)
-            if identity(account.bank_identity) == bank
-        )
-        for bank in bank_order
-    }
-    for bank in bank_order:
-        # Reserve hue positions for every account, but reuse the first
-        # occurrence's hue for all accounts belonging to the same bank.
-        # This preserves spacing when multiple accounts share a bank.
-        fraction = first_account_index[bank] / max(1, len(accounts) - 1)
+    for index, bank in enumerate(bank_order):
+        fraction = index / max(1, len(bank_order) - 1)
         hue = (220.0 - 185.0 * fraction) / 360.0
         brightness = 1.0 if bank == main_bank else 0.8
         rgb = colorsys.hsv_to_rgb(hue, 1.0, brightness)
         bank_colors[bank] = "#" + "".join(f"{round(channel * 255):02x}" for channel in rgb)
         fd_rgb = colorsys.hsv_to_rgb(hue, 0.5, 0.5)
         fd_colors[bank] = "#" + "".join(f"{round(channel * 255):02x}" for channel in fd_rgb)
-
-    bank_names = _load_bank_names()
     display_names = {
         bank: bank_names.get(bank, bank.removeprefix("LK_").replace("_", " ").title())
         for bank in bank_order
