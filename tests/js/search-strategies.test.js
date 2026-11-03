@@ -71,3 +71,24 @@ test("GAML rejects invalid search settings", () => {
   assert.throws(() => new GAMLStrategy({ max_local_branches: 0 }), /max_local_branches/);
   assert.throws(() => new GAMLStrategy({ max_decisions: 0 }), /max_decisions/);
 });
+
+test("search strategies never place an eFD in an account without eFD capability", () => {
+  const accounts = [
+    new Account({ id: "a-main", bank_id: "BANK_A", bank_key: "bank_a", balance: 25000, supports_efd: false }),
+    new Account({ id: "a-efd", bank_id: "BANK_A", bank_key: "bank_a", balance: 25000, supports_efd: true }),
+    new Account({ id: "b-main", bank_id: "BANK_B", bank_key: "bank_b", balance: 25000, supports_efd: true })
+  ];
+  const options = [
+    new FDOption({ label: "A standard", bank_id: "BANK_A", bank_key: "bank_a", period_str: "30d", annual_rate: 8, min_amount: 25000 }),
+    new FDOption({ label: "A eFD", bank_id: "BANK_A", bank_key: "bank_a", period_str: "30d", annual_rate: 9, min_amount: 25000, is_efd: true }),
+    new FDOption({ label: "B standard", bank_id: "BANK_B", bank_key: "bank_b", period_str: "30d", annual_rate: 7, min_amount: 25000 })
+  ];
+  const result = new GAMLStrategy({ beam_width: 16, max_local_branches: 16, ait_enabled: true }).simulate({
+    options, start: "2026-01-01", end: "2026-02-01", inflow_schedule: {},
+    accounts, inflow_account_id: "a-main", fee_config: new TransferFeeConfig(),
+    consolidation_account_id: "a-main", outflow_schedule: {}
+  });
+  const efdEligible = new Set(accounts.filter(account => account.supports_efd).map(account => account.id));
+  assert.ok(result.bookings.some(booking => booking.option.is_efd));
+  assert.ok(result.bookings.filter(booking => booking.option.is_efd).every(booking => efdEligible.has(booking.account_id)));
+});
