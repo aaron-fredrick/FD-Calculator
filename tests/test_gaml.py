@@ -95,7 +95,7 @@ class GAMLStrategyTests(unittest.TestCase):
         self.assertTrue(result.bookings)
         self.assertTrue(result.bookings[0].option.is_efd)
 
-    def test_ait_is_reported_separately_from_pre_tax_strategy_objective(self):
+    def test_ait_is_included_in_strategy_objective_when_enabled(self):
         option = FDOption(
             "Commercial Standard",
             "1m",
@@ -116,14 +116,47 @@ class GAMLStrategyTests(unittest.TestCase):
             total_principal=10000.0,
             end_date=date(2026, 2, 1),
             total_transfer_fees=100.0,
+            ait_enabled=True,
+            ait_rate=0.10,
         )
 
         self.assertAlmostEqual(result.total_interest, 1000.0)
-        self.assertAlmostEqual(result.net_interest, 900.0)
         self.assertAlmostEqual(result.ait_withheld, 100.0)
+        self.assertAlmostEqual(result.net_interest, 800.0)
         self.assertAlmostEqual(result.net_interest_after_ait, 800.0)
-        self.assertAlmostEqual(result.final_value, 10900.0)
+        self.assertAlmostEqual(result.final_value, 10800.0)
         self.assertAlmostEqual(result.final_value_after_ait, 10800.0)
+
+    def test_ait_is_withheld_from_interest_before_periodic_cash_is_reinvested(self):
+        option = FDOption(
+            "Monthly payout FD",
+            "2m",
+            12.0,
+            10000.0,
+            payout_type="periodic_interest",
+            payout_period_str="1m",
+            bank_key="commercial",
+        )
+        gross = option.generate_cash_flows(
+            10000.0, self.start, compound=False, actual_leap_year=False
+        )
+        net = option.generate_cash_flows_after_ait(
+            10000.0, self.start, ait_rate=0.10,
+            compound=False, actual_leap_year=False,
+        )
+        self.assertEqual(len(gross), len(net))
+        self.assertAlmostEqual(
+            sum(amount for _, amount in gross) - sum(amount for _, amount in net),
+            sum(round((amount - (10000.0 if i == len(gross) - 1 else 0.0)) * 0.10, 2)
+                for i, (_, amount) in enumerate(gross)),
+        )
+        self.assertAlmostEqual(net[-1][1] - 10000.0, (gross[-1][1] - 10000.0) * 0.90, places=2)
+
+    def test_ait_disabled_preserves_gross_cash_flows(self):
+        option = FDOption("Cumulative FD", "1m", 10.0, 10000.0)
+        gross = option.generate_cash_flows(10000.0, self.start)
+        net = option.generate_cash_flows_after_ait(10000.0, self.start, ait_rate=0.0)
+        self.assertEqual(gross, net)
 
     def test_dominance_pruning_preserves_distinct_payout_schedules(self):
         cumulative = FDOption(
