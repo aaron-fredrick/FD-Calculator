@@ -27,7 +27,7 @@ test("Greedy CLI executes from JSON config and writes a standalone report",async
   const run=spawnSync(process.execPath,[join(root,"cli/fd-cal.js"),"--config",configPath],{cwd:root,encoding:"utf8",timeout:30000});
   assert.equal(run.status,0,run.stderr||run.stdout);
   assert.match(run.stdout,/MULTI-BANK FIXED DEPOSIT INVESTMENT CALCULATOR/);
-  assert.match(run.stdout,/Net interest:/);
+  assert.match(run.stdout,/Net Interest \(after AIT\):/);\n  assert.match(run.stdout,/GRAND SUMMARY/);\n  assert.match(run.stdout,/BOOKING LEDGER -- ALL FD CONTRACTS/);
   assert.match(run.stdout,/Report saved:/);
   const html=await readFile(reportPath,"utf8");
   assert.match(html,/Full event ledger/);assert.match(html,/Portfolio outcome/);
