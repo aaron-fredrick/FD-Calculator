@@ -27,7 +27,9 @@ class HtmlReportAccountChartTests(unittest.TestCase):
         chart = _build_account_balance_series(result, {"commercial": 10_030.0, "dfcc": 0.0},
                                               self.start, date(2027, 2, 1), "commercial")
         self.assertEqual([p["stage"] for p in chart["stages"]], ["S1", "S2", "S3", "S4", "S5"])
+        self.assertEqual([p["event"] for p in chart["stages"]][1], "INTER-BANK TO · DFCC Savings")
         self.assertEqual([p["event"] for p in chart["stages"]][2], "INTER-BANK TF")
+        self.assertEqual([p["event"] for p in chart["stages"]][3], "INTER-BANK TI")
         commercial_points = chart["accounts"][0]["points"]
         dfcc_points = chart["accounts"][1]["points"]
         self.assertEqual([p["y"] for p in commercial_points], [21_030.0, 25.0, 0.0, 0.0, 0.0])
