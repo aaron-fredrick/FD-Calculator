@@ -10,16 +10,26 @@ function setupCanvas(canvas){const rect=canvas.getBoundingClientRect(),ratio=Mat
 function frame(ctx,w,h,pad={l:62,r:18,t:18,b:42}){ctx.clearRect(0,0,w,h);ctx.font="10px system-ui";ctx.fillStyle="#9ba8b8";ctx.strokeStyle="#293445";ctx.lineWidth=1;return{...pad,pw:w-pad.l-pad.r,ph:h-pad.t-pad.b}}
 function axes(ctx,g,min,max,labels){for(let i=0;i<=4;i++){const y=g.t+g.ph*i/4;ctx.beginPath();ctx.moveTo(g.l,y);ctx.lineTo(g.l+g.pw,y);ctx.stroke();ctx.fillText(money(max-(max-min)*i/4),4,y+3)}labels.forEach((label,i)=>{const x=g.l+g.pw*(labels.length<2?0:i/(labels.length-1));ctx.fillText(label,x-24,g.t+g.ph+20)})}
 function clearChartExtras(canvas){canvas.parentElement.querySelectorAll(".chart-toolbar,.chart-tooltip").forEach(node=>node.remove())}
-function lineChart(canvas,series){clearChartExtras(canvas);const activeSeries=series.filter(s=>!s._fdHidden);const {ctx,w,h}=setupCanvas(canvas),g=frame(ctx,w,h);const points=activeSeries.flatMap(s=>s.points||[]);if(!points.length){ctx.fillStyle="#9ba8b8";ctx.fillText("No account balance events available",g.l,g.t+30);return}
-const labels=[...new Set(points.map(p=>p.x))].sort(),values=points.map(p=>p.y),min=Math.min(0,...values),max=Math.max(1,...values);axes(ctx,g,min,max,labels.filter((_,i)=>i===0||i===labels.length-1||i===Math.floor(labels.length/2)));
-activeSeries.forEach((s,index)=>{const list=s.points||[];if(!list.length)return;ctx.strokeStyle=s.color||palette[(s.colorIndex??index)%palette.length];ctx.lineWidth=s.lineStyle==="solid"?2.8:2;ctx.setLineDash(s.lineStyle==="dashed"?[8,5]:s.lineStyle==="dotted"?[2,5]:[]);ctx.beginPath();list.forEach((p,i)=>{const x=g.l+g.pw*(labels.indexOf(p.x)/Math.max(labels.length-1,1)),y=g.t+g.ph-(p.y-min)/(max-min)*g.ph;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()});
-const legend=document.createElement("div");legend.className="chart-toolbar";series.forEach((s,i)=>{const b=document.createElement("button");b.type="button";b.textContent=s.name;b.style.borderBottomColor=s.color||palette[i%palette.length];b.style.borderBottomWidth="3px";b.setAttribute("aria-pressed",s._fdHidden?"false":"true");b.onclick=()=>{if(!s._fdHidden&&series.filter(x=>!x._fdHidden).length===1)return;s._fdHidden=!s._fdHidden;lineChart(canvas,series)};legend.appendChild(b)});canvas.parentElement.insertBefore(legend,canvas.nextSibling);
-canvas.onmousemove=event=>{const r=canvas.getBoundingClientRect(),x=(event.clientX-r.left)/r.width,idx=Math.min(labels.length-1,Math.max(0,Math.round(x*(labels.length-1))));const day=labels[idx];const details=activeSeries.map(s=>{const p=(s.points||[]).find(v=>v.x===day);return p?s.name+": "+money(p.y):null}).filter(Boolean);let tip=canvas.parentElement.querySelector(".chart-tooltip");if(!tip){tip=document.createElement("div");tip.className="chart-tooltip";canvas.after(tip)}tip.textContent=day+" · "+details.join(" · ")};
+function lineChart(canvas,series){
+clearChartExtras(canvas);
+const activeSeries=series.filter(s=>!s._fdHidden);
+const {ctx,w,h}=setupCanvas(canvas),g=frame(ctx,w,h);
+const points=activeSeries.flatMap(s=>s.points||[]);
+if(!points.length){ctx.fillStyle="#9ba8b8";ctx.fillText("No account or FD principal stages available",g.l,g.t+30);return}
+const stages=[...new Map(points.map(p=>[p.x,p])).values()].sort((a,b)=>a.x-b.x);
+const values=points.map(p=>p.y),min=Math.min(0,...values),max=Math.max(1,...values);
+const tickIndexes=[...new Set([0,Math.floor((stages.length-1)/2),stages.length-1])];
+tickIndexes.forEach(i=>{const p=stages[i],x=g.l+g.pw*(i/Math.max(1,stages.length-1));ctx.fillStyle="#9ba8b8";ctx.fillText(p.date+" "+p.stage,x-29,g.t+g.ph+20)});
+for(let i=0;i<=4;i++){const y=g.t+g.ph*i/4;ctx.beginPath();ctx.moveTo(g.l,y);ctx.lineTo(g.l+g.pw,y);ctx.stroke();ctx.fillStyle="#9ba8b8";ctx.fillText(money(max-(max-min)*i/4),4,y+3)}
+activeSeries.forEach((s,index)=>{const list=s.points||[];if(!list.length)return;ctx.strokeStyle=s.color||palette[index%palette.length];ctx.lineWidth=s.seriesType==="fd_principal"?2.8:(s.lineStyle==="solid"?2.8:2);ctx.setLineDash(s.lineStyle==="dashed"?[8,5]:s.lineStyle==="dotted"?[2,5]:[]);ctx.beginPath();list.forEach((p,i)=>{const x=g.l+g.pw*((p.x-1)/Math.max(stages.length-1,1)),y=g.t+g.ph-(p.y-min)/(max-min||1)*g.ph;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()});
+const legend=document.createElement("div");legend.className="chart-toolbar";
+series.forEach((s,i)=>{const b=document.createElement("button");b.type="button";b.textContent=s.name;b.style.borderBottomColor=s.color||palette[i%palette.length];b.style.borderBottomWidth="3px";b.setAttribute("aria-pressed",s._fdHidden?"false":"true");b.onclick=()=>{if(!s._fdHidden&&series.filter(x=>!x._fdHidden).length===1)return;s._fdHidden=!s._fdHidden;lineChart(canvas,series)};legend.appendChild(b)});
+canvas.parentElement.insertBefore(legend,canvas.nextSibling);
 }
 function barChart(canvas,series){clearChartExtras(canvas);const activeSeries=series.filter(s=>!s._fdHidden);const {ctx,w,h}=setupCanvas(canvas),g=frame(ctx,w,h,{l:58,r:14,t:16,b:50});const dates=[...new Set(activeSeries.flatMap(s=>(s.points||[]).map(p=>p.x)))].sort();const values=activeSeries.flatMap(s=>s.points||[]).map(p=>p.y);if(!values.length){ctx.fillStyle="#9ba8b8";ctx.fillText("No cash movements available",g.l,g.t+30);return}const min=Math.min(0,...values),max=Math.max(1,...values);axes(ctx,g,min,max,dates.filter((_,i)=>i===0||i===dates.length-1||i===Math.floor(dates.length/2)));const group=Math.max(1,activeSeries.length),slot=g.pw/Math.max(1,dates.length),bw=Math.max(2,Math.min(15,slot/group*.72));activeSeries.forEach((s,si)=>{s.points.forEach(p=>{const di=dates.indexOf(p.x),x=g.l+di*slot+slot/2+(si-(group-1)/2)*bw,y0=g.t+g.ph-(0-min)/(max-min)*g.ph,y=g.t+g.ph-(p.y-min)/(max-min)*g.ph;ctx.fillStyle=palette[si%palette.length];ctx.fillRect(x-bw/2,Math.min(y,y0),bw,Math.max(1,Math.abs(y0-y)))} )});const legend=document.createElement("div");legend.className="chart-toolbar";series.forEach((s,i)=>{const b=document.createElement("button");b.type="button";b.textContent=s.name;b.setAttribute("aria-pressed",s._fdHidden?"false":"true");b.onclick=()=>{if(!s._fdHidden&&series.filter(x=>!x._fdHidden).length===1)return;s._fdHidden=!s._fdHidden;barChart(canvas,series)};legend.appendChild(b)});canvas.parentElement.insertBefore(legend,canvas.nextSibling);canvas.onmousemove=e=>{const r=canvas.getBoundingClientRect(),idx=Math.min(dates.length-1,Math.max(0,Math.floor((e.clientX-r.left)/r.width*dates.length)));const day=dates[idx];let tip=canvas.parentElement.querySelector(".chart-tooltip");if(!tip){tip=document.createElement("div");tip.className="chart-tooltip";canvas.after(tip)}tip.textContent=day+" · "+activeSeries.map(s=>{const p=s.points.find(v=>v.x===day);return p?s.name+": "+money(p.y):null}).filter(Boolean).join(" · ")};}
 function timeline(canvas,items){clearChartExtras(canvas);const {ctx,w,h}=setupCanvas(canvas),g=frame(ctx,w,h,{l:12,r:14,t:18,b:34});if(!items.length){ctx.fillStyle="#9ba8b8";ctx.fillText("No fixed deposits booked",g.l,g.t+25);return}const min=Math.min(...items.map(x=>parseDay(x.start).getTime())),max=Math.max(...items.map(x=>parseDay(x.end).getTime())),span=Math.max(1,max-min);const row=Math.max(24,g.ph/items.length);items.forEach((item,i)=>{const y=g.t+i*row+5,x=g.l+(parseDay(item.start).getTime()-min)/span*g.pw,width=Math.max(3,(parseDay(item.end).getTime()-parseDay(item.start).getTime())/span*g.pw);ctx.fillStyle=palette[i%palette.length];ctx.globalAlpha=.82;ctx.fillRect(x,y,width,Math.min(15,row-7));ctx.globalAlpha=1;ctx.fillStyle="#cbd5e1";ctx.fillText(item.name.slice(0,34)+" · "+money(item.principal),g.l,y+27)});ctx.fillStyle="#9ba8b8";ctx.fillText(items[0].start,g.l,g.t+g.ph+20);ctx.fillText(items[items.length-1].end,Math.max(g.l,g.l+g.pw-76),g.t+g.ph+20);canvas.onmousemove=e=>{const r=canvas.getBoundingClientRect(),i=Math.min(items.length-1,Math.max(0,Math.floor((e.clientY-r.top-g.t)/row))),v=items[i];let tip=canvas.parentElement.querySelector(".chart-tooltip");if(!tip){tip=document.createElement("div");tip.className="chart-tooltip";canvas.after(tip)}tip.textContent=v.name+" · "+v.start+" → "+v.end+" · Principal "+money(v.principal)+" · Interest "+money(v.interest)+" · "+v.rate.toFixed(3)+"% p.a."};}
 function returnsChart(canvas,items){const {ctx,w,h}=setupCanvas(canvas),g=frame(ctx,w,h,{l:12,r:12,t:18,b:22});const total=items.reduce((n,x)=>n+Math.max(0,x.value),0);if(!total){ctx.fillStyle="#9ba8b8";ctx.fillText("No return data available",g.l,g.t+25);return}let x=g.l;items.forEach((item,i)=>{const width=g.pw*Math.max(0,item.value)/total;ctx.fillStyle=palette[i%palette.length];ctx.fillRect(x,g.t+35,width,32);x+=width});items.forEach((item,i)=>{ctx.fillStyle=palette[i%palette.length];ctx.fillRect(g.l,g.t+92+i*31,9,9);ctx.fillStyle="#cbd5e1";ctx.fillText(item.name+" · "+money(item.value),g.l+16,g.t+101+i*31)})}
-function drawAll(){document.querySelectorAll(".chart-toolbar").forEach(x=>x.remove());document.querySelectorAll(".chart-tooltip").forEach(x=>x.remove());const a=document.getElementById("account-chart"),c=document.getElementById("cashflow-chart"),m=document.getElementById("maturity-chart"),r=document.getElementById("returns-chart");if(a)lineChart(a,data.accounts||[]);if(c)barChart(c,data.cashflows||[]);if(m)timeline(m,data.maturities||[]);if(r)returnsChart(r,data.returns||[])}
+function drawAll(){document.querySelectorAll(".chart-toolbar").forEach(x=>x.remove());document.querySelectorAll(".chart-tooltip").forEach(x=>x.remove());const a=document.getElementById("account-chart"),c=document.getElementById("cashflow-chart"),m=document.getElementById("maturity-chart"),r=document.getElementById("returns-chart");if(a)lineChart(a,[...(data.accounts||[]),...(data.fd_principal||[])]);if(c)barChart(c,data.cashflows||[]);if(m)timeline(m,data.maturities||[]);if(r)returnsChart(r,data.returns||[])}
 let resizeTimer;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(drawAll,120)});drawAll();
 const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(a=>document.querySelector(a.getAttribute("href"))).filter(Boolean);if("IntersectionObserver"in window){const observer=new IntersectionObserver(entries=>{const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];if(!visible)return;links.forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+visible.target.id))},{rootMargin:"-15% 0px -70% 0px",threshold:[0,.15,.4,.7]});sections.forEach(s=>observer.observe(s))}else if(links.length)links[0].classList.add("active");
 })();
@@ -89,38 +99,34 @@ const links=[...document.querySelectorAll(".section-nav a")],sections=links.map(
       const rect=canvas.getBoundingClientRect(),mx=e.clientX-rect.left,my=e.clientY-rect.top;
       const id=canvas.id;
       if(id==="account-chart"){
-        const series=(data.accounts||[]),visible=[...panel.querySelectorAll(".chart-toolbar button")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.textContent);
-        const active=series.filter(s=>!visible.length||visible.includes(s.name)),pts=active.flatMap(s=>(s.points||[]).map(p=>({s,p})));
-        const labels=[...new Set(pts.map(v=>v.p.x))].sort(),g={l:62,r:18,t:18,b:42};
-        if(!labels.length)return hide();
-        // Snap horizontally to the nearest plotted day; the pointer need not
-        // be close to any particular account line.
-        const plotWidth=Math.max(1,rect.width-g.l-g.r);
-        const dayIndex=clamp(Math.round((mx-g.l)/plotWidth*(labels.length-1)),0,labels.length-1);
-        const day=labels[dayIndex],plotHeight=rect.height-g.t-g.b;
-        const values=pts.map(v=>v.p.y),min=Math.min(0,...values),max=Math.max(1,...values),range=max-min||1;
-        const crossX=g.l+plotWidth*dayIndex/Math.max(1,labels.length-1);
-        const intersections=active.map((s,i)=>{
-          const p=(s.points||[]).find(v=>v.x===day);
+        const series=[...(data.accounts||[]),...(data.fd_principal||[])];
+        const visible=[...panel.querySelectorAll(".chart-toolbar button")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.textContent);
+        const active=series.filter(s=>visible.includes(s.name)),points=active.flatMap(s=>(s.points||[]).map(p=>({s,p})));
+        const stages=[...new Map(points.map(v=>[v.p.x,v.p])).values()].sort((a,b)=>a.x-b.x);
+        if(!stages.length)return hide();
+        const g={l:62,r:18,t:18,b:42},plotWidth=Math.max(1,rect.width-g.l-g.r);
+        const stageIndex=clamp(Math.round((mx-g.l)/plotWidth*(stages.length-1)),0,stages.length-1);
+        const selected=stages[stageIndex],plotHeight=rect.height-g.t-g.b;
+        const values=points.map(v=>v.p.y),min=Math.min(0,...values),max=Math.max(1,...values),range=max-min||1;
+        const crossX=g.l+plotWidth*stageIndex/Math.max(1,stages.length-1);
+        const intersections=active.map(s=>{
+          const p=(s.points||[]).find(v=>v.x===selected.x);
           if(!p)return null;
-          return {name:s.name,value:p.y,x:crossX,y:g.t+plotHeight-(p.y-min)/range*plotHeight,color:s.color||palette[(s.colorIndex??i)%palette.length]};
+          return {name:s.name,value:p.y,x:crossX,y:g.t+plotHeight-(p.y-min)/range*plotHeight,color:s.color||palette[0]};
         }).filter(Boolean);
         if(!intersections.length)return hide();
-        // A neutral grey vertical crosshair plus a coloured marker at every
-        // account's intersection makes coincident and nearby series readable.
         const ctx=layer.getContext("2d"),w=layer.clientWidth,h=layer.clientHeight;
         clearTimeout(clearLayerTimer);ctx.clearRect(0,0,w,h);ctx.save();
         ctx.strokeStyle="rgba(155,168,184,.78)";ctx.lineWidth=1.25;ctx.setLineDash([3,4]);
         ctx.beginPath();ctx.moveTo(crossX,8);ctx.lineTo(crossX,h-34);ctx.stroke();ctx.setLineDash([]);
         intersections.forEach(point=>{
-          ctx.beginPath();ctx.arc(point.x,point.y,7,0,Math.PI*2);
-          ctx.fillStyle=point.color;ctx.fill();
+          ctx.beginPath();ctx.arc(point.x,point.y,7,0,Math.PI*2);ctx.fillStyle=point.color;ctx.fill();
           ctx.lineWidth=2;ctx.strokeStyle="rgba(235,241,248,.95)";ctx.stroke();
-          ctx.beginPath();ctx.arc(point.x,point.y,2,0,Math.PI*2);
-          ctx.fillStyle="#172334";ctx.fill();
+          ctx.beginPath();ctx.arc(point.x,point.y,2,0,Math.PI*2);ctx.fillStyle="#172334";ctx.fill();
         });
         ctx.restore();layer.style.opacity="0";requestAnimationFrame(()=>layer.style.opacity="1");
-        show(e,day,intersections.map(point=>point.name+": LKR "+fmt(point.value)));
+        const details=[selected.event,...intersections.map(point=>point.name+": LKR "+fmt(point.value))];
+        show(e,selected.date+" · "+selected.stage,details);
       }else if(id==="cashflow-chart"){
         const series=(data.cashflows||[]),visible=[...panel.querySelectorAll(".chart-toolbar button")].filter(b=>b.getAttribute("aria-pressed")==="true").map(b=>b.textContent);
         const active=series.filter(s=>!visible.length||visible.includes(s.name)),dates=[...new Set(active.flatMap(s=>(s.points||[]).map(p=>p.x)))].sort();
