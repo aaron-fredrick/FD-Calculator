@@ -1,7 +1,7 @@
 from datetime import date
 import unittest
 
-from core.models import Account, FDOption, TransferFeeConfig
+from core.models import Account, Booking, FDOption, SimResult, TransferFeeConfig
 from core.strategies.gaml import GAMLStrategy, _prune_dominated_options
 from core.strategies.greedy import GreedyStrategy
 
@@ -94,6 +94,36 @@ class GAMLStrategyTests(unittest.TestCase):
         )
         self.assertTrue(result.bookings)
         self.assertTrue(result.bookings[0].option.is_efd)
+
+    def test_ait_is_reported_separately_from_pre_tax_strategy_objective(self):
+        option = FDOption(
+            "Commercial Standard",
+            "1m",
+            10.0,
+            10000.0,
+            bank_key="commercial",
+        )
+        booking = Booking(
+            option=option,
+            principal=10000.0,
+            start=self.start,
+            cash_flows=[(date(2026, 2, 1), 11000.0)],
+        )
+        result = SimResult(
+            strategy_name="Test",
+            timeline={},
+            bookings=[booking],
+            total_principal=10000.0,
+            end_date=date(2026, 2, 1),
+            total_transfer_fees=100.0,
+        )
+
+        self.assertAlmostEqual(result.total_interest, 1000.0)
+        self.assertAlmostEqual(result.net_interest, 900.0)
+        self.assertAlmostEqual(result.ait_withheld, 100.0)
+        self.assertAlmostEqual(result.net_interest_after_ait, 800.0)
+        self.assertAlmostEqual(result.final_value, 10900.0)
+        self.assertAlmostEqual(result.final_value_after_ait, 10800.0)
 
     def test_dominance_pruning_preserves_distinct_payout_schedules(self):
         cumulative = FDOption(
