@@ -31,6 +31,7 @@ def _pick_daily_greedy_plan(
     consolidation_account_id: str,
     compound: bool,
     actual_leap_year: bool,
+    ait_rate: float = 0.0,
 ) -> dict:
     """
     Global daily decision engine.
@@ -103,7 +104,7 @@ def _pick_daily_greedy_plan(
             "fees_today": 0.0,
             "fees_eval": 0.0,
             "gross_interest": split_gross_interest,
-            "net_interest": split_gross_interest,
+            "net_interest": split_gross_interest * (1.0 - ait_rate),
         }
 
     # ── 2. Evaluate Consolidation Plans for each target account ──────
@@ -176,7 +177,7 @@ def _pick_daily_greedy_plan(
                 best_tgt_opt = opt
 
         gross_intr = best_tgt_opt.total_interest_on(total_deployable, today, compound, actual_leap_year)
-        net_intr = gross_intr - fees_eval
+        net_intr = gross_intr * (1.0 - ait_rate) - fees_eval
 
         if net_intr <= 0.0:
             continue
@@ -260,9 +261,12 @@ class GreedyStrategy(BaseStrategy):
 
     name: str = "Greedy"
 
-    def __init__(self, compound: bool = False, actual_leap_year: bool = True):
+    def __init__(self, compound: bool = False, actual_leap_year: bool = True, ait_enabled: bool = True, ait_rate: float = 0.10):
         self.compound = compound
         self.actual_leap_year = actual_leap_year
+        self.ait_enabled = ait_enabled
+        self.ait_rate = ait_rate
+        self.effective_ait_rate = ait_rate if ait_enabled else 0.0
 
     def simulate(
         self,
@@ -465,6 +469,7 @@ class GreedyStrategy(BaseStrategy):
                 consolidation_account_id=consolidation_account_id,
                 compound=self.compound,
                 actual_leap_year=self.actual_leap_year,
+                ait_rate=self.effective_ait_rate,
             )
 
             if plan["type"] == "CONSOLIDATE":
@@ -522,17 +527,21 @@ class GreedyStrategy(BaseStrategy):
                 booking_counter += 1
                 ref = f"FD-{booking_counter:04d}"
 
-                flows = chosen_opt.generate_cash_flows(
+                gross_flows = chosen_opt.generate_cash_flows(
                     principal=principal,
                     start=today,
                     compound=self.compound,
                     actual_leap_year=self.actual_leap_year,
                 )
+                flows = chosen_opt.generate_cash_flows_after_ait(
+                    principal=principal, start=today, ait_rate=self.effective_ait_rate,
+                    compound=self.compound, actual_leap_year=self.actual_leap_year,
+                )
                 booking = Booking(
                     option=chosen_opt,
                     principal=principal,
                     start=today,
-                    cash_flows=flows,
+                    cash_flows=gross_flows,
                     account_id=tgt_acc.id,
                     bank_key=tgt_acc.bank_key,
                     bank_id=tgt_acc.bank_id,
@@ -608,17 +617,21 @@ class GreedyStrategy(BaseStrategy):
                     booking_counter += 1
                     ref = f"FD-{booking_counter:04d}"
 
-                    flows = chosen_opt.generate_cash_flows(
+                    gross_flows = chosen_opt.generate_cash_flows(
                         principal=principal,
                         start=today,
                         compound=self.compound,
                         actual_leap_year=self.actual_leap_year,
                     )
+                    flows = chosen_opt.generate_cash_flows_after_ait(
+                        principal=principal, start=today, ait_rate=self.effective_ait_rate,
+                        compound=self.compound, actual_leap_year=self.actual_leap_year,
+                    )
                     booking = Booking(
                         option=chosen_opt,
                         principal=principal,
                         start=today,
-                        cash_flows=flows,
+                        cash_flows=gross_flows,
                         account_id=acc.id,
                         bank_key=acc.bank_key,
                         bank_id=acc.bank_id,
