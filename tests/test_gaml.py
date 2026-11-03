@@ -2,7 +2,7 @@ from datetime import date
 import unittest
 
 from core.models import Account, FDOption, TransferFeeConfig
-from core.strategies.gaml import GAMLStrategy
+from core.strategies.gaml import GAMLStrategy, _prune_dominated_options
 from core.strategies.greedy import GreedyStrategy
 
 
@@ -57,6 +57,53 @@ class GAMLStrategyTests(unittest.TestCase):
         self.assertEqual(result.strategy_name, "GAML")
         self.assertGreaterEqual(result.final_value + 0.01, greedy.final_value)
         self.assertIsNotNone(result.total_decisions_evaluated)
+
+    def test_dominance_pruning_preserves_distinct_payout_schedules(self):
+        cumulative = FDOption(
+            "Higher-rate cumulative",
+            "6m",
+            12.0,
+            10000.0,
+            payout_type="cumulative",
+            bank_key="commercial",
+        )
+        periodic = FDOption(
+            "Lower-rate monthly payout",
+            "6m",
+            10.0,
+            10000.0,
+            payout_type="periodic_interest",
+            payout_period_str="1m",
+            bank_key="commercial",
+        )
+
+        retained = _prune_dominated_options([cumulative, periodic], compound=False)
+
+        self.assertIn(cumulative, retained)
+        self.assertIn(periodic, retained)
+
+    def test_dominance_pruning_still_removes_same_shape_dominated_options(self):
+        shorter = FDOption(
+            "Shorter cumulative",
+            "3m",
+            10.0,
+            10000.0,
+            payout_type="cumulative",
+            bank_key="commercial",
+        )
+        dominated = FDOption(
+            "Longer cumulative",
+            "6m",
+            9.0,
+            15000.0,
+            payout_type="cumulative",
+            bank_key="commercial",
+        )
+
+        retained = _prune_dominated_options([shorter, dominated], compound=False)
+
+        self.assertIn(shorter, retained)
+        self.assertNotIn(dominated, retained)
 
     def test_invalid_beam_width_is_rejected(self):
         with self.assertRaises(ValueError):

@@ -27,7 +27,7 @@ The command-line strategy overrides `strategy` in the config for that run only; 
 ## 2. Strategies
 
 - **Greedy:** Selects a strong available action at each event. Fast, but not globally optimal.
-- **GAML:** Uses a fixed-width, best-first beam search with maturity-aware branch ordering, upper-bound pruning, and a Greedy incumbent. Its default frontier width is 256 states and its local booking-combination width is 128. It has no fixed state-count limit by default; search work grows with event dates, retained states, accounts, and eligible options instead of multiplying the full branch factor across the horizon. Beam/local-combination pruning makes it approximate unless the run reports `optimality proven`.
+- **GAML:** Uses a fixed-width beam search with account-aware terminal-value ranking, first-decision diversity preservation, upper-bound pruning, and a Greedy incumbent. Its default frontier width is 256 states and its local booking-combination width is 128. The optimistic global bound is used for pruning; a separate account/eFD-aware estimate ranks candidates so products unavailable to a given account do not distort ordering. Each layer reserves up to one-third of its slots for distinct first decisions; the remaining slots let strong paths deepen and compete by score. It has no fixed state-count limit by default; search work grows with event dates, retained states, accounts, and eligible options instead of multiplying the full branch factor across the horizon. Beam/local-combination pruning makes it approximate unless the run reports `optimality proven`.
 - **Absolute:** Explores feasible investment paths using branch-and-bound, memoisation, and dominated-option pruning. It seeks the best result found and has no fixed decision budget, so runtime can grow sharply with scenario complexity.
 
 All strategies use the same investment dates, accounts, inflows, FD options, fees, and interest settings. GAML and Absolute also run Greedy as a baseline. GAML plans toward the configured end date; it does not forecast future rate changes.
@@ -49,10 +49,10 @@ Each event-depth layer expands at most $W$ states and retains at most $W$ childr
 The resulting bounded-search work is approximately:
 
 \[
-O\left(KW\left(A^2 + AO\log(AO) + ALO\log(LO) + BF + (W+B)\log(W+B)\right)\right)
+O\left(KW\left(A^2 + AO\log(AO) + ALO\log(LO) + BF + (W+B)\log(W+B)\right) + AKO\log O\right)
 \]
 
-The search frontier is $O(W)$, with up to $O(W+B)$ temporary child candidates. Memoised states and parent-path nodes can grow to $O(KW)$, each carrying account balances and pending cash-flow data. A configured `max_decisions` can impose an additional hard expansion cap, but is unset by default.
+The search frontier is $O(W)$, with up to $O(W+B)$ temporary candidates in both the global-score and first-decision representative pools. Ranking temporarily aggregates cash into up to $O(F)$ account/date buckets, and account-specific minimum-deposit rate curves are cached in $O(AK)$ space. First-decision diversity adds a bounded selection pass but does not increase the asymptotic frontier width. Memoised states and parent-path nodes can grow to $O(KW)$, each carrying account balances and pending cash-flow data. A configured `max_decisions` can impose an additional hard expansion cap, but is unset by default.
 
 This is a bounded-width heuristic, not an exact polynomial-time solution to the underlying combinatorial optimisation problem. Increasing the number of options increases per-state work, and extending the horizon increases the number of event layers, but GAML does not retain the full exponentially growing decision tree. If beam or local-combination pruning occurs, GAML reports that optimality was not proven and returns its best complete solution found (never below its valid Greedy incumbent).
 

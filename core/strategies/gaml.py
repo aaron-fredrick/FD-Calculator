@@ -111,7 +111,7 @@ def _prune_dominated_options(options: list[FDOption], compound: bool) -> list[FD
       - A.annual_rate >= B.annual_rate
       - A.min_amount <= B.min_amount
       - At least one inequality is strict (shorter days, higher rate, or lower min_amount)
-      - For payout: cumulative is >= periodic of same/lower rate.
+      - Payout type and payout interval must match exactly; cash-flow timing is material.
     """
     res: list[FDOption] = []
     by_bank: dict[tuple[str, bool], list[FDOption]] = {}
@@ -124,16 +124,27 @@ def _prune_dominated_options(options: list[FDOption], compound: bool) -> list[FD
             for other in bopts:
                 if other is cand:
                     continue
-                if (other.days <= cand.days and
-                    other.annual_rate >= cand.annual_rate and
-                    other.min_amount <= cand.min_amount):
-                    if other.annual_rate > cand.annual_rate or other.days < cand.days or other.min_amount < cand.min_amount:
-                        if cand.payout_type == "cumulative" and other.payout_type == "cumulative":
-                            dom = True
-                            break
-                        elif cand.payout_type == "periodic_interest" and other.annual_rate >= cand.annual_rate:
-                            dom = True
-                            break
+                # Only compare products with identical payout mechanics.
+                # Earlier/interim payouts change liquidity and can be required to
+                # satisfy scheduled outflows; a cumulative product cannot safely
+                # dominate a periodic or installment product (or vice versa).
+                same_cashflow_shape = (
+                    other.payout_type == cand.payout_type
+                    and other.payout_period_str == cand.payout_period_str
+                )
+                if (
+                    same_cashflow_shape
+                    and other.days <= cand.days
+                    and other.annual_rate >= cand.annual_rate
+                    and other.min_amount <= cand.min_amount
+                ):
+                    if (
+                        other.annual_rate > cand.annual_rate
+                        or other.days < cand.days
+                        or other.min_amount < cand.min_amount
+                    ):
+                        dom = True
+                        break
             if not dom:
                 res.append(cand)
     return res
@@ -175,6 +186,9 @@ class SearchTreeNode:
     parent: Optional[SearchTreeNode]
     action: Optional[DailyAction]
     today: date
+    # First decision on this path; used to reserve beam capacity across
+    # materially different investment plans.
+    root_signature: Optional[tuple] = None
 
     def get_path(self) -> list[tuple[date, DailyAction]]:
         path: list[tuple[date, DailyAction]] = []
@@ -276,6 +290,14 @@ class GAMLStrategy(BaseStrategy):
         consol_bank   = accounts_meta[consol_acc_id].bank_identity
 
         effective_options = _prune_dominated_options(options, self.compound)
+        options_by_account: dict[str, tuple[FDOption, ...]] = {
+            aid: tuple(
+                opt for opt in effective_options
+                if (not opt.bank_identity or opt.bank_identity == account.bank_identity)
+                and account.can_use_option(opt)
+            )
+            for aid, account in accounts_meta.items()
+        }
 
         # 1. Obtain Greedy lower bound
         greedy = GreedyStrategy(compound=self.compound, actual_leap_year=self.actual_leap_year)
@@ -372,6 +394,39 @@ class GAMLStrategy(BaseStrategy):
         local_combination_pruned_count: int = 0
         memo_visited: dict[tuple, float] = {}
         alternative_leaf_net_interests: list[float] = []
+        account_rate_cache: dict[
+            tuple[str, date], tuple[tuple[float, ...], tuple[float, ...]]
+        ] = {}
+        root_strategy_peak = 0
+
+        def _best_account_rate(account_id: str, on_date: date, amount: float) -> float:
+            # Cache a min-deposit threshold curve per account/date. This keeps
+            # ranking account-aware without repeatedly scanning every product
+            # for every cash-flow bucket.
+            key = (account_id, on_date)
+            curve = account_rate_cache.get(key)
+            if curve is None:
+                eligible = sorted(
+                    (
+                        opt.min_amount,
+                        opt.annual_rate,
+                    )
+                    for opt in options_by_account[account_id]
+                    if opt.fits_before(on_date, end)
+                )
+                thresholds: list[float] = []
+                prefix_rates: list[float] = []
+                best_rate = 0.0
+                for minimum, rate in eligible:
+                    best_rate = max(best_rate, rate)
+                    thresholds.append(minimum)
+                    prefix_rates.append(best_rate)
+                curve = (tuple(thresholds), tuple(prefix_rates))
+                account_rate_cache[key] = curve
+
+            thresholds, prefix_rates = curve
+            index = bisect.bisect_right(thresholds, amount) - 1
+            return prefix_rates[index] if index >= 0 else 0.0
 
         state_cap_label = f"{self.max_decisions:,}" if self.max_decisions is not None else "unlimited"
         print(
@@ -544,6 +599,11 @@ class GAMLStrategy(BaseStrategy):
                     parent=parent_node,
                     action=CarryAction(carries=list(active_accs)),
                     today=today,
+                    root_signature=(
+                        parent_node.root_signature
+                        if parent_node.root_signature is not None
+                        else ("carry",)
+                    ),
                 )
                 children.append((next_date_default, bal, active_pf, active_obligations, paid_total, wait_node))
 
@@ -608,7 +668,16 @@ class GAMLStrategy(BaseStrategy):
                     principal=deployable,
                     carries=carries,
                 )
-                child_node = SearchTreeNode(parent=parent_node, action=act, today=today)
+                child_node = SearchTreeNode(
+                    parent=parent_node,
+                    action=act,
+                    today=today,
+                    root_signature=(
+                        parent_node.root_signature
+                        if parent_node.root_signature is not None
+                        else ("consolidate", tgt_id, opt.label, opt.payout_type, opt.payout_period_str)
+                    ),
+                )
                 children.append((b_next, b_bal, b_flows, active_obligations, paid_total, child_node))
 
             # ── Branch 2: Local bookings ─────────────────────────────────
@@ -718,7 +787,27 @@ class GAMLStrategy(BaseStrategy):
                     b_next = _next_event_date(today, b_flows)
 
                     act = LocalBookingsAction(bookings=valid_bookings, carries=carries)
-                    child_node = SearchTreeNode(parent=parent_node, action=act, today=today)
+                    child_node = SearchTreeNode(
+                        parent=parent_node,
+                        action=act,
+                        today=today,
+                        root_signature=(
+                            parent_node.root_signature
+                            if parent_node.root_signature is not None
+                            else (
+                                "local",
+                                tuple(sorted(
+                                    (
+                                        item["account_id"],
+                                        item["option"].label,
+                                        item["option"].payout_type,
+                                        item["option"].payout_period_str,
+                                    )
+                                    for item in valid_bookings
+                                )),
+                            )
+                        ),
+                    )
                     children.append((b_next, b_bal, b_flows, active_obligations, paid_total, child_node))
 
             # ── Branch 3: Carry forward (hold all cash) ──────────────────
@@ -726,7 +815,16 @@ class GAMLStrategy(BaseStrategy):
             # explored first; do not duplicate the same state transition.
             if not prioritise_wait and (self.max_decisions is None or tally < self.max_decisions):
                 carry_act = CarryAction(carries=list(active_accs))
-                child_node = SearchTreeNode(parent=parent_node, action=carry_act, today=today)
+                child_node = SearchTreeNode(
+                    parent=parent_node,
+                    action=carry_act,
+                    today=today,
+                    root_signature=(
+                        parent_node.root_signature
+                        if parent_node.root_signature is not None
+                        else ("carry",)
+                    ),
+                )
                 children.append((next_date_default, bal, active_pf, active_obligations, paid_total, child_node))
 
             return children
@@ -753,14 +851,60 @@ class GAMLStrategy(BaseStrategy):
             bound = calc_upper_bound(
                 state_date, state_bal, state_flows, state_obligations, state_paid
             )
-            # The bound helper intentionally excludes inflows occurring today;
-            # include them for ordering. This is a ranking heuristic, not pruning.
-            today_inflows = sum(fixed_inflows.get(state_date, {}).values())
-            remaining_years = max(0, (end - state_date).days) / 365.0
-            return bound + today_inflows * math.exp(max(0.0, max_rate) * remaining_years)
+
+            # Keep the optimistic global bound for safe pruning, but do not use
+            # it alone to rank the beam. Its "best rate everywhere" assumption
+            # makes many economically different portfolios look equivalent.
+            # This estimate respects each account's bank/eFD eligibility and
+            # remaining term. It is a ranking heuristic only, never a prune.
+            estimate = state_paid - sum(item[2] for item in state_obligations)
+            cash_buckets: dict[tuple[str, date], float] = {}
+
+            def add_cash_bucket(account_id: str, amount: float, cash_date: date) -> None:
+                if amount > 0.0 and cash_date <= end:
+                    key = (account_id, cash_date)
+                    cash_buckets[key] = cash_buckets.get(key, 0.0) + amount
+
+            for account_id, amount in state_bal:
+                add_cash_bucket(account_id, amount, state_date)
+
+            for account_id, amount in fixed_inflows.get(state_date, {}).items():
+                add_cash_bucket(account_id, amount, state_date)
+
+            for flow_date, entries in state_flows:
+                for account_id, amount in entries:
+                    add_cash_bucket(account_id, amount, flow_date)
+
+            for inflow_date, account_amounts in fixed_inflows.items():
+                if state_date < inflow_date <= end:
+                    for account_id, amount in account_amounts.items():
+                        add_cash_bucket(account_id, amount, inflow_date)
+
+            # Aggregate cash arriving in the same account on the same date
+            # before applying minimum-deposit thresholds.
+            for (account_id, cash_date), amount in cash_buckets.items():
+                rate = max(
+                    0.0, _best_account_rate(account_id, cash_date, amount)
+                ) / 100.0
+                years_left = max(0, (end - cash_date).days) / 365.0
+                estimate += amount * math.exp(rate * years_left)
+
+            # A small fraction of the admissible bound preserves some optimism
+            # for cross-account consolidation and future reinvestment that this
+            # inexpensive account-local estimate cannot fully model.
+            return estimate + 0.05 * max(0.0, bound - estimate)
+
+        def _candidate_order(item: tuple[float, int, tuple]) -> tuple[float, int]:
+            return (-item[0], item[1])
 
         while beam:
             next_beam: list[tuple[float, int, tuple]] = []
+            # Keep one representative of each distinct first decision in
+            # addition to the globally strongest candidates. This stops one
+            # early booking family from monopolising every beam slot.
+            root_best: dict[tuple, tuple[float, int, tuple]] = {}
+            generated_count = 0
+
             for state in beam:
                 if self.max_decisions is not None and tally >= self.max_decisions:
                     budget_stopped = True
@@ -777,21 +921,60 @@ class GAMLStrategy(BaseStrategy):
                     )
 
                 for child_state in expand(state):
+                    generated_count += 1
                     sequence += 1
-                    next_beam.append((frontier_priority(child_state), sequence, child_state))
+                    candidate = (frontier_priority(child_state), sequence, child_state)
 
-                # Trim incrementally so transient memory is O(W + per-state branches),
-                # not the size of the entire layer's unpruned child set.
+                    signature = child_state[5].root_signature or ("unclassified",)
+                    previous = root_best.get(signature)
+                    if previous is None or _candidate_order(candidate) < _candidate_order(previous):
+                        root_best[signature] = candidate
+
+                    next_beam.append(candidate)
+
+                # Both pools are bounded after each parent expansion. Temporary
+                # storage is O(W + B), not the full layer's child count.
                 if len(next_beam) > beam_width:
-                    next_beam.sort(key=lambda item: (-item[0], item[1]))
-                    beam_pruned_count += len(next_beam) - beam_width
+                    next_beam.sort(key=_candidate_order)
                     del next_beam[beam_width:]
+                if len(root_best) > beam_width:
+                    best_roots = sorted(root_best.items(), key=lambda item: _candidate_order(item[1]))
+                    root_best = dict(best_roots[:beam_width])
 
             if budget_stopped:
                 break
 
-            next_beam.sort(key=lambda item: (-item[0], item[1]))
-            beam = [item[2] for item in next_beam]
+            # Reserve one slot per represented root decision, then fill unused
+            # slots with the globally highest-ranked remaining states.
+            selected: list[tuple[float, int, tuple]] = []
+            seen_states: set[tuple] = set()
+            # Reserve one third of the beam for root diversity; keep the
+            # remaining two thirds available for deeper refinement of strong
+            # paths. Reserving every slot would prevent descendants of a root
+            # strategy from competing with one another.
+            diversity_slots = max(1, beam_width // 3)
+            root_representatives = sorted(
+                root_best.values(), key=_candidate_order
+            )[:diversity_slots]
+            root_strategy_peak = max(root_strategy_peak, len(root_representatives))
+
+            for candidate in root_representatives:
+                state_key = candidate[2][:5]
+                if state_key not in seen_states:
+                    selected.append(candidate)
+                    seen_states.add(state_key)
+
+            next_beam.sort(key=_candidate_order)
+            for candidate in next_beam:
+                if len(selected) >= beam_width:
+                    break
+                state_key = candidate[2][:5]
+                if state_key not in seen_states:
+                    selected.append(candidate)
+                    seen_states.add(state_key)
+
+            beam_pruned_count += max(0, generated_count - len(selected))
+            beam = [item[2] for item in selected]
 
         search_exhausted = not beam and not budget_stopped
         elapsed = time.time() - t0
@@ -823,7 +1006,14 @@ class GAMLStrategy(BaseStrategy):
             if search_exhausted and beam_pruned_count == 0 and local_combination_pruned_count == 0 and not budget_note
             else "best solution found; optimality not proven"
         )
-        print(f"  [{self.name} Search Complete] {tally:,} states ({leaf_count:,} leaves, {pruned_count:,} bound-pruned, {beam_pruned_count:,} beam-pruned, {local_combination_pruned_count:,} local-combination-pruned{budget_note}) in {elapsed:.2f}s | {search_status}")
+        print(
+            f"  [{self.name} Search Complete] {tally:,} states "
+            f"({leaf_count:,} leaves, {pruned_count:,} bound-pruned, "
+            f"{beam_pruned_count:,} beam-pruned, "
+            f"{local_combination_pruned_count:,} local-combination-pruned, "
+            f"root-strategy diversity peak {root_strategy_peak:,}{budget_note}) "
+            f"in {elapsed:.2f}s | {search_status}"
+        )
 
         # Greedy is a valid, fully simulated incumbent. If the budget expires
         # before a better complete leaf is found, return that incumbent rather
