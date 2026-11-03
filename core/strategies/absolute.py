@@ -209,9 +209,12 @@ class AbsoluteStrategy(BaseStrategy):
 
     name: str = "Absolute"
 
-    def __init__(self, compound: bool = False, actual_leap_year: bool = True):
+    def __init__(self, compound: bool = False, actual_leap_year: bool = True, ait_enabled: bool = True, ait_rate: float = 0.10):
         self.compound = compound
         self.actual_leap_year = actual_leap_year
+        self.ait_enabled = ait_enabled
+        self.ait_rate = ait_rate
+        self.effective_ait_rate = ait_rate if ait_enabled else 0.0
 
     def simulate(
         self,
@@ -255,7 +258,7 @@ class AbsoluteStrategy(BaseStrategy):
         effective_options = _prune_dominated_options(options, self.compound)
 
         # 1. Obtain Greedy lower bound
-        greedy = GreedyStrategy(compound=self.compound, actual_leap_year=self.actual_leap_year)
+        greedy = GreedyStrategy(compound=self.compound, actual_leap_year=self.actual_leap_year, ait_enabled=self.ait_enabled, ait_rate=self.ait_rate)
         greedy_res = greedy.simulate(
             options=options,
             start=start,
@@ -289,9 +292,10 @@ class AbsoluteStrategy(BaseStrategy):
             cached = _flow_cache.get(key)
             if cached is not None:
                 return cached
-            result = opt.generate_cash_flows(
+            result = opt.generate_cash_flows_after_ait(
                 principal=principal,
                 start=booking_start,
+                ait_rate=self.effective_ait_rate,
                 compound=self.compound,
                 actual_leap_year=self.actual_leap_year,
             )
@@ -476,7 +480,7 @@ class AbsoluteStrategy(BaseStrategy):
                         gross_intr = opt.total_interest_on(deployable, today, self.compound, self.actual_leap_year)
                         if gross_intr <= actual_fees:
                             continue
-                        consolidation_branches.append((gross_intr - actual_fees, tgt_id, opt, transfers, deployable, carries))
+                        consolidation_branches.append((gross_intr * (1.0 - self.effective_ait_rate) - actual_fees, tgt_id, opt, transfers, deployable, carries))
 
             # Prioritize high profit branches first
             consolidation_branches.sort(
@@ -546,7 +550,7 @@ class AbsoluteStrategy(BaseStrategy):
                     ]
                     if valid_bookings:
                         est_profit = sum(
-                            b_info["option"].total_interest_on(b_info["principal"], today, self.compound, self.actual_leap_year)
+                            b_info["option"].total_interest_on(b_info["principal"], today, self.compound, self.actual_leap_year) * (1.0 - self.effective_ait_rate)
                             for b_info in valid_bookings
                         )
                         local_branches.append((est_profit, valid_bookings))
@@ -846,17 +850,21 @@ class AbsoluteStrategy(BaseStrategy):
                     ref = f"FD-{booking_counter:04d}"
 
                     chosen_opt = act.option
-                    flows = chosen_opt.generate_cash_flows(
+                    gross_flows = chosen_opt.generate_cash_flows(
                         principal=principal,
                         start=today,
                         compound=self.compound,
                         actual_leap_year=self.actual_leap_year,
                     )
+                    flows = chosen_opt.generate_cash_flows_after_ait(
+                        principal=principal, start=today, ait_rate=self.effective_ait_rate,
+                        compound=self.compound, actual_leap_year=self.actual_leap_year,
+                    )
                     booking = Booking(
                         option=chosen_opt,
                         principal=principal,
                         start=today,
-                        cash_flows=flows,
+                        cash_flows=gross_flows,
                         account_id=tgt_acc.id,
                         bank_key=tgt_acc.bank_key,
                         bank_id=tgt_acc.bank_id,
@@ -924,17 +932,21 @@ class AbsoluteStrategy(BaseStrategy):
                         booking_counter += 1
                         ref = f"FD-{booking_counter:04d}"
 
-                        flows = chosen_opt.generate_cash_flows(
+                        gross_flows = chosen_opt.generate_cash_flows(
                             principal=principal,
                             start=today,
                             compound=self.compound,
                             actual_leap_year=self.actual_leap_year,
                         )
+                        flows = chosen_opt.generate_cash_flows_after_ait(
+                            principal=principal, start=today, ait_rate=self.effective_ait_rate,
+                            compound=self.compound, actual_leap_year=self.actual_leap_year,
+                        )
                         booking = Booking(
                             option=chosen_opt,
                             principal=principal,
                             start=today,
-                            cash_flows=flows,
+                            cash_flows=gross_flows,
                             account_id=acc.id,
                             bank_key=acc.bank_key,
                             bank_id=acc.bank_id,
