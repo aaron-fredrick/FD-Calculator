@@ -37,6 +37,7 @@ test("Absolute runs exhaustive portfolio search and returns a replayed SimResult
   assert.equal(result.strategy_name, "Absolute");
   assert.equal(result.valid, true);
   assert.ok(result.bookings.length > 0);
+  assert.ok(result.bookings.some(booking => booking.start.toISOString().slice(0, 10) === "2026-02-01"));
   assert.ok(result.search_diagnostics.expanded_states > 0);
   assert.equal(result.optimality_proven, true);
   assert.ok(result.bookings.every(booking => !booking.option.is_efd));
@@ -50,6 +51,7 @@ test("GAML runs bounded search and honours its three Python-compatible settings"
   assert.equal(result.strategy_name, "GAML");
   assert.equal(result.valid, true);
   assert.ok(result.bookings.length > 0);
+  assert.ok(result.bookings.some(booking => booking.start.toISOString().slice(0, 10) === "2026-02-01"));
   assert.ok(result.search_diagnostics.expanded_states <= 100);
   assert.equal(result.search_settings.beamWidth, 8);
   assert.equal(result.search_settings.maxLocalBranches, 4);
