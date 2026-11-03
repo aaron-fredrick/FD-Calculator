@@ -2,6 +2,10 @@
 
 A JavaScript-first fixed-deposit optimization tool. The legacy Python implementation is preserved under [archive/](archive/).
 
+## Strategies
+
+See [the strategy guide](docs/STRATEGIES.md) for an explanation of Greedy, GAML and Absolute, how their search methods differ, and how to configure GAML.
+
 ## Migration status
 
 The repository is being migrated to one shared, environment-neutral JavaScript calculation engine consumed by:
