@@ -648,7 +648,10 @@ class GAMLStrategy(BaseStrategy):
                         consolidation_branches.append((gross_intr - actual_fees, tgt_id, opt, transfers, deployable, carries))
 
             # Prioritize high profit branches first
-            consolidation_branches.sort(key=lambda x: x[0], reverse=True)
+            consolidation_branches.sort(
+                key=lambda item: (item[0], item[2].is_efd),
+                reverse=True,
+            )
             for _, tgt_id, opt, transfers, deployable, carries in consolidation_branches:
                 if self.max_decisions is not None and tally >= self.max_decisions:
                     break
@@ -736,8 +739,11 @@ class GAMLStrategy(BaseStrategy):
                     for aid in acc_list:
                         account_options = sorted(
                             local_opts_per_acc[aid],
-                            key=lambda opt: opt.total_interest_on(
-                                bal_dict[aid], today, self.compound, self.actual_leap_year
+                            key=lambda opt: (
+                                opt.total_interest_on(
+                                    bal_dict[aid], today, self.compound, self.actual_leap_year
+                                ),
+                                opt.is_efd,
                             ),
                             reverse=True,
                         )
@@ -753,7 +759,13 @@ class GAMLStrategy(BaseStrategy):
                                         bal_dict[aid], today, self.compound, self.actual_leap_year
                                     )
                                 expanded.append((profit, [*partial_choices, (aid, opt)]))
-                        expanded.sort(key=lambda item: item[0], reverse=True)
+                        expanded.sort(
+                            key=lambda item: (
+                                item[0],
+                                sum(1 for _, option in item[1] if option is not None and option.is_efd),
+                            ),
+                            reverse=True,
+                        )
                         if len(expanded) > self.max_local_branches:
                             local_combination_pruned_count += len(expanded) - self.max_local_branches
                         partials = expanded[: self.max_local_branches]
@@ -766,7 +778,13 @@ class GAMLStrategy(BaseStrategy):
                         if valid_bookings:
                             local_branches.append((est_profit, valid_bookings))
 
-                local_branches.sort(key=lambda x: x[0], reverse=True)
+                local_branches.sort(
+                    key=lambda item: (
+                        item[0],
+                        sum(1 for booking in item[1] if booking["option"].is_efd),
+                    ),
+                    reverse=True,
+                )
                 for _, valid_bookings in local_branches:
                     if self.max_decisions is not None and tally >= self.max_decisions:
                         break
