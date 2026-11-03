@@ -237,7 +237,7 @@ class GAMLStrategy(BaseStrategy):
         max_decisions: Optional[int] = None,
         max_local_branches: int = 128,
         beam_width: int = 256,
-        ait_enabled: bool = True,
+        ait_enabled: bool = False,
         ait_rate: float = 0.10,
     ):
         if max_decisions is not None and max_decisions < 1:
