@@ -793,6 +793,8 @@ class GreedyStrategy(BaseStrategy):
             total_outflows_paid=total_outflows_paid,
             outstanding_outflows=pending_obligations,
             valid=not strict_payment_failed,
+            ait_enabled=self.ait_enabled,
+            ait_rate=self.ait_rate,
         )
         from core.reporting import build_decision_log
         build_decision_log(result)
