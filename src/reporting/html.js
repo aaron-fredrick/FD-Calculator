@@ -66,14 +66,14 @@ function buildAccountChart(result,config,start,end,openingBalances) {
   accounts.sort((a,b)=>(a.id===consolidation?-1:b.id===consolidation?1:0)||
     (bankOrder.get(identity(a.bank_id||a.bank_key))??999)-(bankOrder.get(identity(b.bank_id||b.bank_key))??999)||
     String(a.label||"").localeCompare(String(b.label||"")));
-  const hsl=(h,s,l)=>{h=((h%360)+360)%360/360;const f=n=>{const k=(n+h*12)%12;return l-s*Math.min(l,1-l)*Math.max(-1,Math.min(k-3,Math.min(9-k,1)));};return "#"+[f(0),f(8),f(4)].map(v=>Math.round(v*255).toString(16).padStart(2,"0")).join("");};
+  const hsv=(h,s,v)=>{h=((h%1)+1)%1*6;const i=Math.floor(h),f=h-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s),rgb=[[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][i%6];return "#"+rgb.map(x=>Math.round(x*255).toString(16).padStart(2,"0")).join("");};
   const accountSeries=[],fdSeries=[],firstHue=new Map(),fdColor=new Map();
   accounts.forEach((a,i)=>{
     const bank=identity(a.bank_id||a.bank_key),hue=220-185*i/Math.max(1,accounts.length-1);
     const brightness=a.id===consolidation?0.5:0.4;
     accountSeries.push({name:a.label||a.id,seriesType:"account",accountId:a.id,bankId:bank,points:[],
-      color:hsl(hue,100,brightness),lineStyle:a.id===consolidation?"solid":bank===mainBank?"dashed":"dotted"});
-    if(bank&&!firstHue.has(bank)){firstHue.set(bank,hue);fdColor.set(bank,hsl(hue,0.5,0.25));}
+      color:hsv(hue,1,brightness),lineStyle:a.id===consolidation?"solid":bank===mainBank?"dashed":"dotted"});
+    if(bank&&!firstHue.has(bank)){firstHue.set(bank,hue);fdColor.set(bank,hsv(hue,0.5,0.5));}
   });
   const bookedBanks=[...new Set((result.bookings||[]).map(b=>identity(b.bank_id||b.option?.bank_identity||b.bank_key)).filter(Boolean))]
     .sort((a,b)=>(bankOrder.get(a)??999)-(bankOrder.get(b)??999));
@@ -207,7 +207,7 @@ function buildExecution(result,accountDisplay) {
     const balances=dayBookings[0]?.decision_context?.balances_before||carries[0]?.decision_context?.balances_before||{};
     const chips=Object.entries(balances).map(([id,v])=>'<span class="chip">'+esc(result.accounts?.[id]?.label||id)+': '+money(v)+'</span>').join("");
     const checkpoint=dayEvents.find(e=>e.event_type==="maturity"||e.event_type==="cash_flow"||e.event_type==="inflow"||e.event_type==="outflow");
-    cards.push('<article class="decision"><div class="decision-head"><span class="step">DECISION '+String(cards.length+1).padStart(2,"0")+'</span><span class="date">'+date+'</span><h3>'+esc(title)+'</h3></div><h4>Action required</h4>'+(!dayBookings.length&&carries.length?'<p class="muted">Strategy classification: Carry cash forward.</p>':"")+(actionParts.join("")||carryHtml||'<p class="muted">No external bank action is required at this point.</p>')+(reasons.length?'<h4>Why this decision</h4><ul class="compact">'+reasons.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>":"")+expected+(chips?'<h4>Balances before decision</h4><div class="chips">'+chips+'</div>':"")+'<p class="checkpoint"><b>Next checkpoint:</b> '+esc(checkpoint?iso(checkpoint.on_date)+" · "+checkpoint.label:"Investment horizon ends "+iso(result.end_date))+'</p></article>');
+    cards.push('<details class="decision"><summary class="decision-head"><span class="step">DECISION '+String(cards.length+1).padStart(2,"0")+'</span><span class="date">'+date+'</span><h3>'+esc(title)+'</h3><span class="decision-toggle" aria-hidden="true"></span></summary><div class="decision-body"><h4>Action required</h4>'+(!dayBookings.length&&carries.length?'<p class="muted">Strategy classification: Carry cash forward.</p>':"")+(actionParts.join("")||carryHtml||'<p class="muted">No external bank action is required at this point.</p>')+(reasons.length?'<h4>Why this decision</h4><ul class="compact">'+reasons.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>":"")+expected+(chips?'<h4>Balances before decision</h4><div class="chips">'+chips+'</div>':"")+'<p class="checkpoint"><b>Next checkpoint:</b> '+esc(checkpoint?iso(checkpoint.on_date)+" · "+checkpoint.label:"Investment horizon ends "+iso(result.end_date))+'</p></div></details>');
   }
   return {html:cards.join("")||'<div class="panel">No FD bookings or actionable transfers were selected.</div>',investmentRows};
 }
@@ -273,7 +273,7 @@ export function generateHtmlReport(result,config) {
   const cashflows=[...flowTotals].map(([name,values])=>({name,points:[...values].sort((a,b)=>a[0].localeCompare(b[0])).map(([x,y])=>({x,y}))}));
   const maturities=(result.bookings||[]).map(b=>({name:b.option.label+" · "+b.account_id,start:iso(b.start),end:iso(b.end),principal:b.principal,interest:b.total_interest,rate:b.option.annual_rate}));
   const accountChart=buildAccountChart(result,config,start,end,openingBalances);
-  const chartData={...accountChart,cashflows,maturities,returns:[{name:"Net interest",value:net},{name:"AIT withheld",value:ait},{name:"Transfer fees",value:fees}]};
+  const chartData={...accountChart,cashflows,maturities,grossInterest:gross,returns:[{name:"Net interest",value:net,color:"#55c99a"},{name:"Transfer fees",value:fees,color:"#ef7777"},{name:"AIT withheld",value:ait,color:"#e9ad58"}]};
   const chartJson=JSON.stringify(chartData).replace(/<\//g,"<\\/");
   const ledger='<details class="collapsible-table"><summary>Ledger entries <span>'+ledgerRows.length+' rows · expand</span></summary><div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount (LKR)</th><th>Description</th><th class="num">Balance after (LKR)</th></tr></thead><tbody>'+(ledgerRows.join("")||'<tr><td colspan="6" class="empty">No events</td></tr>')+'</tbody></table></div></details>';
   const replacements={
@@ -284,7 +284,7 @@ export function generateHtmlReport(result,config) {
     "{{EXECUTION_CONTENT}}":execution.html,
     "{{PORTFOLIO_CONTENT}}":accountTable+investmentTable,
     "{{CASHFLOW_CONTENT}}":'<div class="grid2"><div>'+inflowTable+'</div><div>'+outflowTable+'</div></div>',
-    "{{ANALYTICS_CONTENT}}":'<div class="chart-grid"><article class="chart-panel"><h3>Account cash and bank FD principal</h3><canvas id="account-chart" aria-label="Intra-day account cash and bank fixed deposit principal by event stage"></canvas><p class="muted">Each plotted stage is the state immediately after a ledger event. Account lines show liquid cash; bank FD lines aggregate outstanding principal only. Interest is excluded from FD principal.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Net interest, AIT withheld and transfer fees.</p></article></div>',
+    "{{ANALYTICS_CONTENT}}":'<div class="chart-grid"><article class="chart-panel"><h3>Account cash and bank FD principal</h3><canvas id="account-chart" aria-label="Intra-day account cash and bank fixed deposit principal by event stage"></canvas><p class="muted">Each plotted stage is the state immediately after a ledger event. Account lines show liquid cash; bank FD lines aggregate outstanding principal only. Interest is excluded from FD principal.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Gross interest is split into net interest retained, transfer fees and AIT withheld.</p></article></div>',
     "{{PORTFOLIO_AUDIT_CONTENT}}":capitalTable,
     "{{LEDGER_CONTENT}}":ledger,
     "{{CHART_DATA}}":chartJson
