@@ -54,3 +54,18 @@ test("GAML CLI accepts configured and command-line search settings",async()=>{
   assert.match(html,/Portfolio outcome/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+
+test("GSS CLI runs with configured and command-line recursion thresholds",async()=>{
+ const dir=await mkdtemp(join(tmpdir(),"fdcal-gss-")),configPath=join(dir,"scenario.json"),reportPath=join(dir,"gss-report.html");
+ const config={strategy:"gss",gss_settings:{small_period_days:30},options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-04-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"GSS Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath,show_timeline:false,show_ledger:false};
+ try{
+  await writeFile(configPath,JSON.stringify(config,null,2));
+  const run=spawnSync(process.execPath,[join(root,"src/cli/fd-cal.js"),"--config",configPath,"--small-period-days","15"],{cwd:root,encoding:"utf8",timeout:30000});
+  assert.equal(run.status,0,run.stderr||run.stdout);
+  assert.match(run.stdout,/GSS DIAGNOSTICS/);
+  assert.match(run.stdout,/Small-period threshold\s+: 15 days/);
+  const html=await readFile(reportPath,"utf8");
+  assert.match(html,/Portfolio outcome/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});

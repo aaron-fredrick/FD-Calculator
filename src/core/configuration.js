@@ -164,7 +164,7 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   const aitEnabled = raw.ait_enabled ?? true;
   if (typeof aitEnabled !== "boolean") throw new TypeError("ait_enabled must be boolean.");
   const strategy = String(raw.strategy ?? "absolute").trim().toLowerCase();
-  if (!["absolute", "greedy", "gaml"].includes(strategy)) throw new RangeError(`Unsupported strategy ${strategy}.`);
+  if (!["absolute", "greedy", "gaml", "gss"].includes(strategy)) throw new RangeError(`Unsupported strategy ${strategy}.`);
   const gamlRaw = raw.gaml_settings ?? raw.gaml ?? raw.strategy_settings?.gaml ?? {};
   if (!gamlRaw || typeof gamlRaw !== "object" || Array.isArray(gamlRaw)) throw new TypeError("gaml_settings must be an object.");
   const positiveInteger = (value, field, fallback, allowNull = false) => {
@@ -184,11 +184,15 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     tenor_tiebreaker: greedyRaw.tenor_tiebreaker ?? "shortest",
     plan_tenor_tiebreaker: greedyRaw.plan_tenor_tiebreaker ?? "shortest"
   };
+  const gssRaw = raw.gss_settings ?? raw.gss ?? raw.strategy_settings?.gss ?? {};
+  const gssSettings = {
+    small_period_days: positiveInteger(gssRaw.small_period_days, "gss_settings.small_period_days", 30)
+  };
   return {
     start, end, accounts, accountIds, bankIds, options, consolidation_account_id: consolidationAccountId,
     inflow_schedule: inflows.schedule, inflow_summaries: inflows.summaries,
     outflow_schedule: outflows.schedule, outflow_summaries: outflows.summaries,
-    fee_config: feeConfig, strategy, gaml_settings: gamlSettings, greedy_settings: greedySettings, compound,
+    fee_config: feeConfig, strategy, gaml_settings: gamlSettings, greedy_settings: greedySettings, gss_settings: gssSettings, compound,
     actual_leap_year: actualLeapYear, ait_enabled: aitEnabled, ait_rate: 0.10,
     report_output_file: String(raw.report_output_file ?? "fd_cal_report.html").trim()
   };

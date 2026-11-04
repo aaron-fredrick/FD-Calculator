@@ -54,3 +54,19 @@ test("accepts and validates independent Greedy tenor settings",()=>{
   const d=valid();d.strategy_settings={greedy:{plan_tenor_tiebreaker:"longest"}};
   assert.equal(validateConfigurationShape(d).strategy_settings.greedy.plan_tenor_tiebreaker,"longest");
 });
+
+
+test("configuration schema accepts GSS and validates its recursion threshold", () => {
+  assert.doesNotThrow(() => validateConfigurationShape({
+    strategy: "gss",
+    investment: { start_date: "2026-01-01", end_date: "2026-12-31" },
+    accounts: { main: { bank_id: "BANK_A" } },
+    gss_settings: { small_period_days: 30 }
+  }));
+  assert.throws(() => validateConfigurationShape({
+    strategy: "gss",
+    investment: { start_date: "2026-01-01", end_date: "2026-12-31" },
+    accounts: { main: { bank_id: "BANK_A" } },
+    gss_settings: { small_period_days: 0 }
+  }), /small_period_days/);
+});

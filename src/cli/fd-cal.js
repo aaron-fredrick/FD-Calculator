@@ -6,12 +6,13 @@ import { validateConfiguration } from "../core/configuration.js";
 import { GreedyStrategy } from "../strategies/greedy.js";
 import { AbsoluteStrategy } from "../strategies/absolute.js";
 import { GAMLStrategy } from "../strategies/gaml.js";
+import { GSSStrategy } from "../strategies/gss.js";
 import { SimulationEngine } from "../core/simulation.js";
 import { formatSimulation } from "../reporting/console.js";
 import { generateHtmlReport } from "../reporting/html.js";
 
 function parseArgs(argv) {
-  const out = { config: "config.json", strategy: null, beam_width: undefined, max_local_branches: undefined, max_decisions: undefined, help: false };
+  const out = { config: "config.json", strategy: null, beam_width: undefined, max_local_branches: undefined, max_decisions: undefined, small_period_days: undefined, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") out.help = true;
@@ -20,6 +21,7 @@ function parseArgs(argv) {
     else if (arg === "--beam-width") out.beam_width = Number(argv[++i]);
     else if (arg === "--max-local-branches") out.max_local_branches = argv[++i] === "none" ? null : Number(argv[i]);
     else if (arg === "--max-decisions" || arg === "--state-cap") out.max_decisions = argv[++i] === "none" ? null : Number(argv[i]);
+    else if (arg === "--small-period-days") out.small_period_days = Number(argv[++i]);
     else throw new Error("Unknown argument: " + arg);
   }
   return out;
@@ -34,15 +36,16 @@ async function main() {
   const cli = parseArgs(process.argv.slice(2));
   if (cli.help) {
     console.log([
-      "Usage: npm run cli -- [--config config.json] [--strategy greedy|gaml|absolute]",
-      "GAML settings: --beam-width N --max-local-branches N|none --max-decisions N|none"
+      "Usage: npm run cli -- [--config config.json] [--strategy greedy|gaml|absolute|gss]",
+      "GAML settings: --beam-width N --max-local-branches N|none --max-decisions N|none",
+      "GSS setting: --small-period-days N (default: 30)"
     ].join("\n"));
     return;
   }
 
   const loaded = await loadConfigurationFromFile(cli.config);
   const selected = String(cli.strategy || loaded.raw.strategy || "absolute").trim().toLowerCase();
-  if (!["greedy", "gaml", "absolute"].includes(selected)) throw new Error("Unsupported strategy " + selected + "; use greedy, gaml or absolute.");
+  if (!["greedy", "gaml", "absolute", "gss"].includes(selected)) throw new Error("Unsupported strategy " + selected + "; use greedy, gaml, absolute or gss.");
 
   const config = validateConfiguration(loaded.raw, {
     bankRegistry: loaded.bankRegistry, bankKeyById: loaded.bankKeyById,
@@ -72,6 +75,14 @@ async function main() {
       compound: config.compound, actual_leap_year: config.actual_leap_year,
       ait_enabled: config.ait_enabled, ait_rate: config.ait_rate
     });
+  } else if (selected === "gss") {
+    strategy = new GSSStrategy({
+      compound: config.compound, actual_leap_year: config.actual_leap_year,
+      ait_enabled: config.ait_enabled, ait_rate: config.ait_rate,
+      ...config.gss_settings,
+      ...(cli.small_period_days === undefined ? {} : { small_period_days: cli.small_period_days })
+    });
+    config.gss_settings = { small_period_days: strategy.small_period_days };
   } else {
     const settings = { ...config.gaml_settings };
     for (const key of ["beam_width", "max_local_branches", "max_decisions"]) {
@@ -110,6 +121,18 @@ async function main() {
         ", local width " + (strategy.max_local_branches ?? "unlimited") +
         ", state cap " + (strategy.max_decisions ?? "unlimited"));
     } else console.log("Optimality                   : proven (exhaustive branch-and-bound)");
+  }
+
+  if (result.gss_diagnostics) {
+    const d = result.gss_diagnostics;
+    console.log("\nGSS DIAGNOSTICS");
+    console.log("Candidates considered          : " + d.candidates_considered.toLocaleString("en-US"));
+    console.log("SPLIT plans evaluated          : " + d.split_plans_evaluated.toLocaleString("en-US"));
+    console.log("CONSOLIDATE plans evaluated   : " + d.consolidate_plans_evaluated.toLocaleString("en-US"));
+    console.log("Future goals                  : " + d.future_goals.toLocaleString("en-US"));
+    console.log("Recursive waits               : " + d.recursive_waits.toLocaleString("en-US"));
+    console.log("Maximum recursion depth       : " + d.maximum_recursion_depth.toLocaleString("en-US"));
+    console.log("Small-period threshold        : " + d.small_period_days + " days");
   }
 
   const output = resolve(dirname(loaded.resolvedConfig), config.report_output_file);

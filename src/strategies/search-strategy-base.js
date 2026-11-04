@@ -188,10 +188,11 @@ function advanceState(state, context) {
 }
 
 function calculateFinalSweepFees(accounts, consolidationId, feeConfig) {
-  const target = accounts[consolidationId];
+  const entries = accounts instanceof Map ? [...accounts.values()] : Object.values(accounts);
+  const target = accounts instanceof Map ? accounts.get(consolidationId) : accounts[consolidationId];
   if (!target) return 0;
   let fees = 0;
-  for (const account of Object.values(accounts)) {
+  for (const account of entries) {
     if (account.id === target.id || account.balance <= EPS) continue;
     const fee = feeConfig.getFee(account.bank_identity, target.bank_identity);
     if (account.balance > fee) fees += fee;

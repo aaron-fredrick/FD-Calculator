@@ -1,105 +1,74 @@
 # Strategy guide
 
-FD Cal currently provides three implemented strategies. The planned Goal-Seeking Strategy (GSS) is documented separately below as a design specification. Strategies differ in how they make investment decisions, how much of the decision space they explore, and whether they can prove that a result is optimal.
+FD Cal provides four implemented strategies. They share the same account, FD, cash-flow, transfer-fee, AIT and simulation-finalization models, but make investment decisions differently.
 
 ## At a glance
 
-| Strategy | How it decides | Typical use | Can prove global optimality? |
+| Strategy | How it decides | Typical use | Optimality |
 |---|---|---|---|
-| **Greedy** | Makes the best-looking decision available at each step, using the current situation. | Fast baseline and quick comparisons. | No |
-| **GAML** | Explores several promising plans in parallel, but limits how many alternatives it keeps. | Broader exploration without the cost of a fully exhaustive search. | Only if the search completes without search limits truncating it |
-| **Absolute** | Systematically explores the decision space using branch-and-bound and pruning. | Finding and proving the best result when the search can finish. | Yes, when the exhaustive search completes |
-
-All strategies use the same underlying FD, account, cash-flow, transfer-fee and AIT modelling rules. They can choose different bookings and transfers because their search methods differ.
+| **Greedy** | Makes the best-looking decision available at each step. | Fast baseline and quick comparisons. | No proof |
+| **GAML** | Explores several promising plans in parallel with a bounded beam. | Broader exploration with controllable search cost. | Only when search completes without truncation |
+| **Absolute** | Exhaustively explores the decision space using branch-and-bound. | Optimality proof for tractable scenarios. | Yes, when search completes |
+| **GSS** | Selects manager-ordered FD goals, compares SPLIT and CONSOLIDATE, and recursively plans waiting periods. | Goal-oriented plans with liquidity-aware interim investments. | No proof |
 
 ## Greedy
 
-Greedy is the fast baseline. At each decision date, it evaluates the currently available account balances and eligible FD options, then chooses the best immediate plan according to its selection rules.
+Greedy evaluates currently available balances and eligible FD options, then selects an immediate SPLIT or CONSOLIDATE plan. It is a fast baseline, not a guarantee of a globally best portfolio.
 
-It can consider booking separately from multiple accounts or consolidating balances into another account before booking. Account-level eFD eligibility and transfer fees are taken into account.
+Its two independent tenor settings both default to shortest:
 
-Greedy does not retain a large set of alternative future plans. A decision that looks best now may prevent a more profitable combination later, so its result is a useful baseline rather than a guarantee of the best possible portfolio.
-
-### Greedy tenor tie-breakers
-
-Greedy exposes two independent settings, both defaulting to `shortest` to preserve the original behaviour:
-
-- `tenor_tiebreaker`: used when selecting an FD option for an account or consolidation target. The highest annual rate remains the primary criterion; equal-rate options are resolved by shortest or longest tenor. The existing equivalent-terms eFD preference remains a subsequent tie-breaker.
-- `plan_tenor_tiebreaker`: used when ranking admitted SPLIT and CONSOLIDATE plans. Plan rate remains primary, followed by the configured tenor direction, then net interest, actual transfer fees and the existing equivalent eFD preference.
-
-Example JavaScript configuration:
-
-~~~js
-const strategy = new GreedyStrategy({
-  tenor_tiebreaker: "longest",
-  plan_tenor_tiebreaker: "longest"
-});
-~~~
-
-The settings can be configured independently. For example, option selection can prefer the shortest FD while plan ranking prefers the longest plan tenor. A longer tenor is only a tie-break preference when the preceding rate criterion is equal; it does not imply higher total interest.
-
-**Use it when:** you want a quick result, a baseline for comparison, or a starting solution for the search-based strategies.
+- tenor_tiebreaker: after annual rate, choose the shortest or longest option tenor.
+- plan_tenor_tiebreaker: after plan rate, choose the shortest or longest plan tenor.
 
 ## GAML
 
-GAML is a heuristic search strategy. Instead of committing to one plan immediately, it expands multiple candidate plans in layers. It scores the resulting states and keeps a limited number of promising candidates for the next layer.
+GAML is a heuristic beam-search strategy. It expands multiple candidate plans and retains a limited number of promising states.
 
-Two settings control the main search breadth:
+- beam_width: maximum candidate states retained per layer (default 256).
+- max_local_branches: local booking combinations per expanded state (default 128; null means unlimited).
+- max_decisions: optional expanded-state cap (default null).
 
-- **Beam width** (beam_width): the maximum number of candidate states retained at each layer. A wider beam keeps more alternative plans alive for later decisions.
-- **Max local branches** (max_local_branches): the maximum number of local booking combinations explored while expanding a state. A higher limit lets GAML consider more ways to split or combine available balances.
-
-These settings limit different parts of the search. Beam width limits how many overall plans continue; max_local_branches limits how many combinations are considered when expanding each plan.
-
-A larger value for either setting can improve exploration, but generally increases runtime and memory use. Increasing them does not guarantee a better result in every scenario.
-
-### GAML settings
-
-Example configuration:
-
-~~~json
-{
-  "strategy": "gaml",
-  "gaml_settings": {
-    "beam_width": 256,
-    "max_local_branches": 128,
-    "max_decisions": null
-  }
-}
-~~~
-
-| Setting | Meaning |
-|---|---|
-| beam_width | Candidate states retained per search layer. Default: 256. |
-| max_local_branches | Local booking combinations explored per expanded state. Default: 128. Set to null to enumerate all local combinations. |
-| max_decisions | Optional maximum number of expanded states. Default: null, meaning no hard state-expansion budget. |
-
-For example, raising beam_width from 256 to 512 retains more competing plans at each layer. Raising max_local_branches from 128 to 256 explores more booking combinations from each plan.
-
-If any of these limits truncates the search, GAML returns the best solution it found; it does not establish that no better solution exists. Its diagnostics report search and pruning counts and whether optimality was proven.
-
-**Use it when:** Greedy's result may be missing useful future combinations and you want a broader search with controllable resource limits.
+A truncated search returns its best found solution but does not prove optimality.
 
 ## Absolute
 
-Absolute uses exhaustive branch-and-bound search. It starts with a feasible Greedy result as an incumbent, then systematically explores alternative decisions. Branch-and-bound uses an optimistic upper bound to stop exploring paths that cannot beat the best known result; equivalent states can also be pruned.
+Absolute uses exhaustive branch-and-bound search, with Greedy as a feasible lower-bound incumbent. If the search completes, it can prove global optimality under the configured model. It can be expensive for large decision spaces. It is CLI-only.
 
-Unlike GAML, Absolute is not designed to discard promising candidates simply to maintain a fixed-width search frontier. It can therefore be substantially more expensive, particularly when many accounts, FD products, dates or possible combinations are involved.
+## Goal-Seeking Strategy (GSS)
 
-If the search finishes, Absolute can prove that its result is globally optimal under the configured model and constraints. If it is interrupted or otherwise does not complete, the best result found so far is not a proof.
+GSS is independent of Greedy, GAML and Absolute. It obtains the complete account-compatible, horizon-compatible FD candidate list from FDOptionManager and consumes that manager-provided order; GSS does not duplicate rate/tenor ranking.
 
-Absolute is currently available through the CLI for internal verification and testing; it is not exposed in the web app.
+For each candidate account and FD option, GSS evaluates:
 
-**Use it when:** you need an optimality proof and the scenario is small enough for exhaustive search to complete.
+- **SPLIT:** book the goal option in its account and use manager-ordered viable options in other accounts.
+- **CONSOLIDATE:** transfer available balances into the candidate account, deduct actual source-to-target fees, and book the candidate option.
 
-## Goal-Seeking Strategy (GSS) — design specification\n\nGSS is an independent, recursive planning strategy. It discovers candidate FD goals through FDOptionManager, evaluates both SPLIT and CONSOLIDATE plans, and recursively plans waiting periods with GSS itself. FDOptionManager owns FD-option eligibility and ordering; GSS consumes its candidate list rather than implementing a separate rate/tenor ranking policy. GSS does not invoke Greedy.\n\nThe complete planning flow, constraints, recursion behaviour, and simulation-finalization boundary are documented in [Goal-Seeking Strategy](strategies/GSS.md).\n\n## Choosing a strategy
+If neither plan is viable now, GSS projects scheduled inflows, existing FD cash flows/maturities and outflows to find a future affordability date. It recursively plans the waiting period with GSS itself. Interim bookings are restricted to FDs that mature by the parent goal date, preserving the parent goal's liquidity. The parent candidate is then re-evaluated against actual balances and events. If it fails, GSS continues through the remaining candidates. Candidate exhaustion leaves funds liquid; there is no Greedy fallback.
 
-- Start with **Greedy** to get a quick baseline.
-- Use **GAML** to explore more alternatives. Increase beam width when you want more complete plans to survive between layers; increase max local branches when you want more combinations considered within each plan.
-- Use **Absolute** when you need a proof of optimality and can afford potentially much longer runtimes.
+### GSS settings
 
-Compare strategies using the same configuration and modelling assumptions. A higher reported net interest is a better result for that scenario, but only a completed exhaustive search can certify global optimality.
+```json
+{
+  "strategy": "gss",
+  "gss_settings": {
+    "small_period_days": 30
+  }
+}
+```
 
-## Important validation note
+small_period_days is a positive integer (default 30). Waiting periods at or below this threshold are processed without deeper future-goal subdivision, but immediately achievable goals are still evaluated. A recursion-depth guard also bounds nested planning.
 
-The JavaScript strategy ports have automated tests, but their financial outputs still require regression comparison against the archived Python implementation across representative scenarios. Strategy descriptions and search diagnostics do not replace that validation.
+See [GSS implementation details](strategies/GSS.md).
+
+## Simulation lifecycle
+
+All strategies return an unfinished simulation result. The shared SimulationEngine processes the selected strategy's complete overall horizon, performs exactly one final consolidation sweep, records remaining idle balances, and returns the finalized result. Recursive strategy windows never finalize or sweep independently.
+
+## Choosing a strategy
+
+- Use **Greedy** for a quick baseline.
+- Use **GAML** for broader but bounded search.
+- Use **Absolute** when a proof is important and the scenario is tractable.
+- Use **GSS** when the plan should pursue future FD goals while using interim funds without compromising parent-goal liquidity.
+
+Compare strategies under identical inputs. Passing tests do not replace regression comparison against archived Python scenarios.

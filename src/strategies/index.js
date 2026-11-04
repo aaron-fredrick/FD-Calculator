@@ -1,6 +1,7 @@
 export { GreedyStrategy } from "./greedy.js";
 export { AbsoluteStrategy } from "./absolute.js";
 export { GAMLStrategy } from "./gaml.js";
+export { GSSStrategy } from "./gss.js";
 export { runExhaustiveSearch, runBeamSearch } from "./search-engine.js";
 export {
   SEARCH_EPSILON,
