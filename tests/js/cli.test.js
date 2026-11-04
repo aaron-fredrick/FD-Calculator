@@ -24,7 +24,7 @@ test("Greedy CLI executes from JSON config and writes a standalone report",async
  const config={strategy:"greedy",options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-04-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"CLI Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath,show_timeline:true,show_ledger:true};
  try{
   await writeFile(configPath,JSON.stringify(config,null,2));
-  const run=spawnSync(process.execPath,[join(root,"cli/fd-cal.js"),"--config",configPath],{cwd:root,encoding:"utf8",timeout:30000});
+  const run=spawnSync(process.execPath,[join(root,"src/cli/fd-cal.js"),"--config",configPath],{cwd:root,encoding:"utf8",timeout:30000});
   assert.equal(run.status,0,run.stderr||run.stdout);
   assert.match(run.stdout,/MULTI-BANK FIXED DEPOSIT INVESTMENT CALCULATOR/);
   assert.match(run.stdout,/Start date:\s+2026-01-01/);
@@ -46,7 +46,7 @@ test("GAML CLI accepts configured and command-line search settings",async()=>{
  const config={strategy:"gaml",gaml_settings:{beam_width:8,max_local_branches:4,max_decisions:20},options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-02-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"GAML Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath,show_timeline:false,show_ledger:false};
  try{
   await writeFile(configPath,JSON.stringify(config,null,2));
-  const run=spawnSync(process.execPath,[join(root,"cli/fd-cal.js"),"--config",configPath,"--beam-width","4","--max-local-branches","2"],{cwd:root,encoding:"utf8",timeout:30000});
+  const run=spawnSync(process.execPath,[join(root,"src/cli/fd-cal.js"),"--config",configPath,"--beam-width","4","--max-local-branches","2"],{cwd:root,encoding:"utf8",timeout:30000});
   assert.equal(run.status,0,run.stderr||run.stdout);
   assert.match(run.stdout,/SEARCH DIAGNOSTICS/);
   assert.match(run.stdout,/GAML settings\s+: beam 4, local width 2, state cap 20/);

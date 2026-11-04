@@ -12,6 +12,19 @@ For security vulnerabilities, read the [security policy](SECURITY.md) and use [G
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, tests, financial-engine invariants, secure coding requirements, and pull request expectations. Dependabot, CodeQL, and dependency review are configured under `.github/`.
 
+## Source layout
+
+All application code lives under `src/`:
+
+- `src/core/` — shared financial domain, configuration, dates, events and results.
+- `src/strategies/` — Greedy, GAML, Absolute and shared search algorithms.
+- `src/io/` — CSV parsing and Node-side data loading.
+- `src/reporting/` — shared console and standalone HTML reporting.
+- `src/cli/` — Node.js command-line entry point.
+- `src/web/` — browser application source.
+
+The root-level `data/`, `schema/`, `tests/` and `docs/` directories remain separate from application code. The legacy implementation under `archive/` is preserved unchanged.
+
 ## Strategies
 
 See [the strategy guide](docs/STRATEGIES.md) for an explanation of Greedy, GAML and Absolute, how their search methods differ, and how to configure GAML.

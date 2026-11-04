@@ -34,7 +34,7 @@ If a command or option differs in the current CLI, consult its help output and t
 
 Changes to financial calculations require particular care:
 
-- Keep the shared calculation engine in `src/core/` runtime-neutral. The CLI and browser must reuse it rather than implement separate calculation logic.
+- Keep `src/core/` and `src/strategies/` runtime-neutral. The CLI in `src/cli/` and browser app in `src/web/` must reuse them rather than implement separate calculation logic.
 - Add or update regression tests for changed financial behaviour, including boundary dates, rounding, maturity, payouts, fees, AIT, and account eligibility where relevant.
 - Preserve existing event-ledger ordering and accounting invariants.
 - Do not silently change financial assumptions. Document the change and its effect.

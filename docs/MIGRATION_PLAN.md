@@ -6,14 +6,16 @@ One shared JavaScript engine must run unchanged in Node.js and modern browsers. 
 
 ## Target layout
 
-- `src/core/`: domain models, validation, configuration, interest, cash-flow accounting, simulation, optimization primitives.
-- `src/strategies/`: shared strategy implementations: Greedy, GAML, Absolute.
-- `src/reporting/`: canonical report model, decision log, console formatter, standalone HTML report generator.
-- `src/io/`: environment-specific adapters; Node filesystem and browser file/download adapters remain outside the engine.
-- `cli/`: Node CLI. Supports Greedy, GAML, and Absolute.
-- `web/`: GitHub Pages application. Exposes Greedy and GAML only. Never expose Absolute in web controls, query parameters, or browser strategy registry.
+`src/` contains all application code:
+- `src/core/`: financial domain models, validation, dates, interest, cash-flow accounting, events and results.
+- `src/strategies/`: shared Greedy, GAML and Absolute strategies plus search algorithms.
+- `src/reporting/`: console formatter and standalone HTML report generator.
+- `src/io/`: CSV parsing and Node-side data loading.
+- `src/cli/`: Node CLI. Supports Greedy, GAML and Absolute.
+- `src/web/`: GitHub Pages browser application. Exposes Greedy and GAML only. Never expose Absolute in web controls, query parameters or browser strategy registry.
 - `data/`: portable bank and FD product datasets shared by both runtimes.
-- `tests/`: engine unit tests, legacy parity fixtures, CLI tests, browser-facing contract tests.
+- `schema/`: configuration JSON Schema.
+- `tests/`: engine unit tests, CLI tests and browser-facing contract tests.
 - `archive/`: immutable snapshot of the complete tracked Python project at migration baseline.
 
 ## Non-negotiable parity requirements
@@ -44,4 +46,4 @@ One shared JavaScript engine must run unchanged in Node.js and modern browsers. 
 
 ## Branch and release safety
 
-Work on `migration/javascript-platform`. Do not overwrite `main` or delete feature branches during the port. The current migration branch starts from the latest `feature/cash-flows` commit so the archived baseline includes the latest account-chart and report changes.
+Perform structural refactors on a dedicated branch and merge through a reviewed pull request. Do not rewrite `main` history or modify `archive/`; keep the shared engine runtime-neutral and verify both CLI and Pages packaging after path changes.

@@ -8,7 +8,7 @@
 - **Absolute strategy port:** exhaustive branch-and-bound search, Greedy incumbent, admissible optimistic bound, transposition pruning, local booking combinations, consolidation and carry-forward decisions, and replay into the canonical event ledger.
 - **GAML strategy port:** layered beam search, root-strategy diversity, bounded local booking combinations, optional state cap, inflow-aware waiting priority, payout-aware dominance pruning, diagnostics and canonical replay.
 - GAML configuration through `gaml_settings` (`beam_width`, `max_local_branches`, `max_decisions`), with CLI overrides.
-- Shared strategy entry points in `src/core/strategies/`; each strategy has its own module and uses the same Node/browser-compatible financial search and replay core.
+- Shared strategy entry points in `src/strategies/`; each strategy has its own module and uses the same Node/browser-compatible financial search and replay core.
 - Node CSV parser and file adapters for the bank registry and bank-specific FD product catalogue.
 - Root data catalogue populated from archived bank and FD CSV datasets.
 - Node CLI supports Greedy, Absolute and GAML, prints search diagnostics for optimizer strategies, and writes a standalone HTML report.

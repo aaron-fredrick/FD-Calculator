@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
-import { AbsoluteStrategy } from "../../src/core/strategies/absolute.js";
-import { GAMLStrategy } from "../../src/core/strategies/gaml.js";
-import { GreedyStrategy } from "../../src/core/strategies/greedy.js";
+import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
+import { GAMLStrategy } from "../../src/strategies/gaml.js";
+import { GreedyStrategy } from "../../src/strategies/greedy.js";
 
 function scenario() {
   const account = new Account({

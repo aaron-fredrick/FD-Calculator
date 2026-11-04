@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
-import { GreedyStrategy } from "../../src/core/strategies/greedy.js";
+import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { EventType } from "../../src/core/events.js";
 
 test("greedy books an eligible local FD and records maturity cash", () => {
