@@ -64,9 +64,9 @@ test("rate and tenor indexes expose ordered buckets without replacing canonical 
   const bank = new BankFDOptionManager("BANK_A", [long, otherRate, short]);
   assert.deepEqual(bank.getRates(), [10, 9]);
   assert.deepEqual(bank.getRates("ascending"), [9, 10]);
-  assert.deepEqual(bank.getTenorsForRate(10), [180, 365]);
-  assert.deepEqual(bank.getTenorsForRate(10, "descending"), [365, 180]);
-  assert.deepEqual(bank.getOptionsByRateAndTenor(10, 180), [short]);
+  assert.deepEqual(bank.getTenorsForRate(10), [short.days, 365]);
+  assert.deepEqual(bank.getTenorsForRate(10, "descending"), [365, short.days]);
+  assert.deepEqual(bank.getOptionsByRateAndTenor(10, short.days), [short]);
   assert.deepEqual(bank.getOptionsByRate(10), [short, long]);
   assert.equal(bank.options.length, 3);
 });
