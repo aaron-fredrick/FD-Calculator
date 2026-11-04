@@ -169,6 +169,8 @@ test("GSS propagates a forecast contraction through three nested goal owners", (
     }
   });
 
+  console.log("GSS_MULTI_LEVEL_DEBUG", JSON.stringify(result.decision_log));
+
   const contractions = result.decision_log.filter(entry =>
     entry.action === "FORECAST_CONTRACTED" &&
     ["Outer goal", "Middle goal", "Inner goal"].includes(entry.goal_option));
