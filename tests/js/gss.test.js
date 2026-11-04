@@ -40,6 +40,8 @@ test("GSS recursively waits for scheduled inflows before booking a future goal",
   assert.ok(result.bookings.length > 0);
   assert.equal(result.bookings[0].start.toISOString().slice(0, 10), "2026-02-01");
   assert.ok(result.gss_diagnostics.recursive_waits > 0);
+  assert.ok(result.gss_diagnostics.early_goal_rechecks > 0,
+    "recursive waits should re-evaluate their parent goal at processed event dates");
 });
 
 test("GSS compares consolidation when no individual account can meet an FD minimum", () => {
