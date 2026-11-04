@@ -1,6 +1,6 @@
 import {parseCSV} from "../io/csv.js";
 import {FDOption} from "../core/models.js";
-import {validateConfiguration,resolveDate} from "../core/configuration.js";
+import {validateConfiguration,resolveDate} from "../core/configuration.js?v=gss-settings-2";
 import {validateConfigurationShape} from "../core/config-schema.js?v=gss-settings-2";
 import {GreedyStrategy} from "../strategies/greedy.js";
 import {GAMLStrategy} from "../strategies/gaml.js";
