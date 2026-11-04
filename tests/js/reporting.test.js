@@ -130,6 +130,10 @@ test("cash movement chart exposes cursor-anchored wheel zoom and reset controls"
   assert.ok(html.includes('isZero?"#a8bacd"'));
   assert.ok(!html.includes("const range=v.yMax-v.yMin,anchor="));
   assert.ok(html.includes("Reset view"));
+  assert.ok(html.includes("chart-zoom-controls"));
+  assert.ok(html.includes("pointermove"));
+  assert.ok(html.includes("font-size:15px"));
+  assert.ok(html.includes("min-height:44px"));
   assert.ok(html.includes('classList.add("has-chart-reset")'));
   assert.ok(html.includes("canvas.parentElement.appendChild(reset)"));
   assert.ok(html.includes('reset.className="chart-reset"'));
