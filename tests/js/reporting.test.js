@@ -132,6 +132,7 @@ test("cash movement chart exposes cursor-anchored wheel zoom and reset controls"
   assert.ok(html.includes("Reset view"));
   assert.ok(html.includes('classList.add("has-chart-reset")'));
   assert.ok(html.includes("canvas.parentElement.appendChild(reset)"));
+  assert.ok(html.includes('reset.className="chart-reset"'));
   assert.ok(html.includes(".chart-panel .chart-reset{position:absolute;top:12px;right:14px"));
   assert.ok(html.includes("Shift + wheel scales vertically; Alt + wheel scales horizontally around the cursor"));
 });
