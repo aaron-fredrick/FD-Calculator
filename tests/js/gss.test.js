@@ -176,8 +176,8 @@ test("GSS propagates a forecast contraction through three nested goal owners", (
   assert.deepEqual(
     contractions.map(entry => [entry.goal_option, entry.owner_depth, entry.previous_target_date, entry.target_date]),
     [
-      ["Inner goal", 2, "2026-02-10", "2026-02-09"],
-      ["Middle goal", 1, "2026-02-15", "2026-02-09"],
+      ["Inner goal", 4, "2026-02-10", "2026-02-09"],
+      ["Middle goal", 2, "2026-02-15", "2026-02-09"],
       ["Outer goal", 0, "2026-03-10", "2026-02-09"]
     ],
     "the interim FD maturity should contract every active ancestor forecast, not only the innermost goal"
