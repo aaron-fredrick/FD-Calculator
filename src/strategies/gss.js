@@ -517,6 +517,9 @@ export class GSSStrategy {
         if (reassessParentGoals(date, parentGoals)) return date;
         if (date < boundary) {
           cursor = considerAtDate(date, boundary, depth + 1, allowNested, parentGoals);
+          // Interim bookings add future cash-flow and maturity events. Reforecast
+          // ancestors immediately after the decision, not only after events.
+          if (reassessParentGoals(cursor, parentGoals)) return cursor;
           // Execution and contraction signals travel to their owning frames.
           if (earlyGoal) return cursor;
           if (forecastInterrupt && forecastInterrupt.targetDate <= boundary &&
