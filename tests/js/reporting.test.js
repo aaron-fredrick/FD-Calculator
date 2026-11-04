@@ -119,10 +119,10 @@ test("cash movement chart exposes cursor-anchored wheel zoom and reset controls"
     outflow_summaries: [], bank_registry: { BANK_A: { name: "Bank A" } }
   };
   const html = generateHtmlReport(result, config);
-  assert.match(html, /e\\.shiftKey/);
-  assert.match(html, /e\\.altKey/);
-  assert.match(html, /passive:false/);
-  assert.match(html, /anchor-ratio/);
-  assert.match(html, /Reset view/);
-  assert.match(html, /Shift \\+ wheel scales vertically; Alt \\+ wheel scales horizontally around the cursor/);
+  assert.ok(html.includes("e.shiftKey"));
+  assert.ok(html.includes("e.altKey"));
+  assert.ok(html.includes("passive:false"));
+  assert.ok(html.includes("const anchor=v.xStart"));
+  assert.ok(html.includes("Reset view"));
+  assert.ok(html.includes("Shift + wheel scales vertically; Alt + wheel scales horizontally around the cursor"));
 });
