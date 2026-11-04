@@ -28,26 +28,6 @@ export function compareFDOptions(a, b) {
     String(a.economic_terms_key ?? "").localeCompare(String(b.economic_terms_key ?? ""));
 }
 
-/**
- * Compare eligible options using the configured tenor preference.
- * Rate remains the primary criterion; payout and label ordering remain stable.
- */
-export function compareFDOptionsByPolicy(a, b, tenorTieBreaker = "shortest") {
-  if (!["shortest", "longest"].includes(tenorTieBreaker)) {
-    throw new RangeError('tenorTieBreaker must be "shortest" or "longest".');
-  }
-  const tenorOrder = tenorTieBreaker === "shortest"
-    ? Number(a.days) - Number(b.days)
-    : Number(b.days) - Number(a.days);
-  return Number(b.annual_rate) - Number(a.annual_rate) ||
-    tenorOrder ||
-    (PAYOUT_ORDER.get(a.payout_type) ?? 99) - (PAYOUT_ORDER.get(b.payout_type) ?? 99) ||
-    (a.payout_type === "periodic_interest" && b.payout_type === "periodic_interest"
-      ? Number(a.payout_period_days) - Number(b.payout_period_days) : 0) ||
-    String(a.label ?? "").localeCompare(String(b.label ?? "")) ||
-    String(a.economic_terms_key ?? "").localeCompare(String(b.economic_terms_key ?? ""));
-}
-
 export function fdOptionKey(option) {
   return JSON.stringify([
     normaliseBankIdentity(option.bank_identity),
