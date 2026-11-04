@@ -15,6 +15,16 @@ function syncStrategySettings(strategy=$("strategy-choice").value){
  $("greedy-settings").hidden=!greedy;
  $("gss-settings").hidden=!gss;
  $("gaml-settings").hidden=greedy||gss;
+ const presentation={
+  gaml:{icon:"◈",description:"Bounded multi-plan search · no optimality proof"},
+  gss:{icon:"◎",description:"Recursive goal planning · liquidity-aware"},
+  greedy:{icon:"⚡",description:"Fast local decisions · baseline, not globally optimal"},
+  absolute:{icon:"∞",description:"Exhaustive search · proves optimality if completed"}
+ }[strategy]||{icon:"◈",description:"Select an optimisation strategy"};
+ const indicator=$("strategy-indicator");
+ indicator.dataset.strategy=strategy;
+ indicator.querySelector(".strategy-symbol").textContent=presentation.icon;
+ $("strategy-description").textContent=presentation.description;
 }
 const today=()=>{let d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")};
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
