@@ -5,6 +5,7 @@ on:
     paths:
       - "src/web/**"
       - "src/core/**"
+      - "src/fd-options/**"
       - "src/strategies/**"
       - "src/io/csv.js"
       - "src/reporting/**"
@@ -27,9 +28,10 @@ jobs:
       - uses: actions/configure-pages@v6
       - name: Assemble static site
         run: |
-          mkdir -p site/src/io site/web
+          mkdir -p site/src/io site/src/fd-options site/web
           cp -R src/web site/src/web
           cp -R src/core site/src/core
+          cp -R src/fd-options site/src/fd-options
           cp -R src/strategies site/src/strategies
           cp src/io/csv.js site/src/io/csv.js
           cp -R src/reporting site/src/reporting
