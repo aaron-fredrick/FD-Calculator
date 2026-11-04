@@ -63,7 +63,8 @@ async function main() {
   if (selected === "greedy") {
     strategy = new GreedyStrategy({
       compound: config.compound, actual_leap_year: config.actual_leap_year,
-      ait_enabled: config.ait_enabled, ait_rate: config.ait_rate
+      ait_enabled: config.ait_enabled, ait_rate: config.ait_rate,
+      ...config.greedy_settings
     });
   } else if (selected === "absolute") {
     strategy = new AbsoluteStrategy({
