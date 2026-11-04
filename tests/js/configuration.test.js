@@ -72,3 +72,24 @@ test("configuration exposes validated Python-compatible GAML settings", () => {
     bankKeyById: { BANK_A: "bank_a" }, options
   }), /beam_width/);
 });
+
+test("runtime rejects inverted investment dates, unknown accounts and invalid financial flags", () => {
+  const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
+  const context = { bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options, today: "2026-01-01" };
+  const base = { investment: { start_date: start, end_date: end }, accounts: { main: { bank_id: "BANK_A", balance: 1000 } } };
+  assert.throws(() => validateConfiguration({ ...base, investment: { start_date: end, end_date: start } }, context), /end date is before/);
+  assert.throws(() => validateConfiguration({ ...base, inflows: [{ account_id: "missing", amount: 10, interval: "1m" }] }, context), /unknown account/);
+  assert.throws(() => validateConfiguration({ ...base, compound: "false" }, context), /compound: must be boolean/);
+  assert.throws(() => validateConfiguration({ ...base, actual_leap_year: 1 }, context), /actual_leap_year: must be boolean/);
+});
+
+test("runtime rejects duplicate custom transfer fee routes", () => {
+  const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
+  const base = { investment: { start_date: start, end_date: end }, accounts: { main: { bank_id: "BANK_A", balance: 1000 } }, transfer_fees: { custom_fees: [
+    { from_bank_id: "BANK_A", to_bank_id: "BANK_A", amount: 0 },
+    { from_bank_id: "BANK_A", to_bank_id: "BANK_A", amount: 5 }
+  ] } };
+  assert.throws(() => validateConfiguration(base, {
+    bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options
+  }), /Duplicate custom transfer fee/);
+});
