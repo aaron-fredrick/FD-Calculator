@@ -93,3 +93,15 @@ footer{font-size:12px;line-height:1.55}
  .strategy-row{grid-template-columns:.7fr 1.3fr 1.3fr}
  .strategy-row>label:nth-child(2) .field-label,.strategy-row>label:nth-child(3) .field-label{white-space:nowrap}
 }
+
+
+/* Give the optimisation controls clearer grouping and more breathing room. */
+#strategy .strategy-row{column-gap:18px;row-gap:18px;margin-top:18px}
+#strategy #greedy-settings,#strategy #gss-settings,#strategy #gaml-settings{column-gap:18px;row-gap:18px;margin-top:20px}
+#strategy .toggles{margin-top:26px}
+#strategy .toggles label{padding:16px 0}
+#strategy>.hint{margin-top:20px}
+@media(max-width:620px){
+ #strategy .strategy-row,#strategy #greedy-settings,#strategy #gss-settings,#strategy #gaml-settings{row-gap:16px;margin-top:18px}
+ #strategy .toggles{margin-top:22px}
+}
