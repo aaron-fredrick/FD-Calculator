@@ -45,8 +45,6 @@ Reforecasting uses the same planning rules as ordinary decisions, including AIT-
 
 Planned outflows are also protected: split bookings retain the liquidity needed in each account until the selected FD matures, while consolidation leaves source-account reserves for their remaining scheduled obligations. If a parent candidate is no longer viable when its projected date is reached, it continues considering candidates from the updated date/state. If all candidates are exhausted, remaining funds stay liquid and carry forward. There is no strategy fallback.
 
-Planned outflows are also protected: split bookings retain the liquidity needed in each account until the selected FD matures, while consolidation leaves source-account reserves for their remaining scheduled obligations. If the parent candidate is no longer viable when its projected date is reached, it continues considering candidates from the updated date/state. If all candidates are exhausted, remaining funds stay liquid and carry forward. There is no strategy fallback.
-
 ## Recursion threshold
 
 The setting gss_settings.small_period_days defaults to 30 and must be a positive integer. Waiting periods at or below the threshold are advanced without further future-goal subdivision, while immediately viable goals are still evaluated. A hard recursion-depth guard prevents unbounded nested calls.
