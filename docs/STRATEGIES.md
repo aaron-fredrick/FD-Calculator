@@ -20,7 +20,23 @@ It can consider booking separately from multiple accounts or consolidating balan
 
 Greedy does not retain a large set of alternative future plans. A decision that looks best now may prevent a more profitable combination later, so its result is a useful baseline rather than a guarantee of the best possible portfolio.
 
-For the implementation flow, plan admission rules, ranking criteria, fee treatment and limitations, see the [detailed Greedy strategy guide](strategies/GREEDY.md).
+### Greedy tenor tie-breakers
+
+Greedy exposes two independent settings, both defaulting to `shortest` to preserve the original behaviour:
+
+- `tenor_tiebreaker`: used when selecting an FD option for an account or consolidation target. The highest annual rate remains the primary criterion; equal-rate options are resolved by shortest or longest tenor. The existing equivalent-terms eFD preference remains a subsequent tie-breaker.
+- `plan_tenor_tiebreaker`: used when ranking admitted SPLIT and CONSOLIDATE plans. Plan rate remains primary, followed by the configured tenor direction, then net interest, actual transfer fees and the existing equivalent eFD preference.
+
+Example JavaScript configuration:
+
+~~~js
+const strategy = new GreedyStrategy({
+  tenor_tiebreaker: "longest",
+  plan_tenor_tiebreaker: "longest"
+});
+~~~
+
+The settings can be configured independently. For example, option selection can prefer the shortest FD while plan ranking prefers the longest plan tenor. A longer tenor is only a tie-break preference when the preceding rate criterion is equal; it does not imply higher total interest.
 
 **Use it when:** you want a quick result, a baseline for comparison, or a starting solution for the search-based strategies.
 

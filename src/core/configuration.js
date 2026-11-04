@@ -179,11 +179,16 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     max_local_branches: positiveInteger(gamlRaw.max_local_branches, "gaml_settings.max_local_branches", 128, true),
     max_decisions: positiveInteger(gamlRaw.max_decisions ?? gamlRaw.state_cap, "gaml_settings.max_decisions", null, true)
   };
+  const greedyRaw = raw.greedy_settings ?? raw.greedy ?? raw.strategy_settings?.greedy ?? {};
+  const greedySettings = {
+    tenor_tiebreaker: greedyRaw.tenor_tiebreaker ?? "shortest",
+    plan_tenor_tiebreaker: greedyRaw.plan_tenor_tiebreaker ?? "shortest"
+  };
   return {
     start, end, accounts, accountIds, bankIds, options, consolidation_account_id: consolidationAccountId,
     inflow_schedule: inflows.schedule, inflow_summaries: inflows.summaries,
     outflow_schedule: outflows.schedule, outflow_summaries: outflows.summaries,
-    fee_config: feeConfig, strategy, gaml_settings: gamlSettings, compound,
+    fee_config: feeConfig, strategy, gaml_settings: gamlSettings, greedy_settings: greedySettings, compound,
     actual_leap_year: actualLeapYear, ait_enabled: aitEnabled, ait_rate: 0.10,
     report_output_file: String(raw.report_output_file ?? "fd_cal_report.html").trim()
   };

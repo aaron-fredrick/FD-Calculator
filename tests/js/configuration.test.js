@@ -93,3 +93,11 @@ test("runtime rejects duplicate custom transfer fee routes", () => {
     bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options
   }), /Duplicate custom transfer fee/);
 });
+
+test("configuration exposes default and configured Greedy tenor policies",()=>{
+  const options=[new FDOption({label:"standard",period_str:"1m",annual_rate:8,bank_id:"BANK_A"})];
+  const base={investment:{start_date:start,end_date:end},accounts:{main:{bank_id:"BANK_A",balance:50000}},strategy:"greedy"};
+  const context={bankRegistry:{BANK_A:{name:"Bank A"}},bankKeyById:{BANK_A:"bank_a"},options};
+  assert.deepEqual(validateConfiguration(base,context).greedy_settings,{tenor_tiebreaker:"shortest",plan_tenor_tiebreaker:"shortest"});
+  assert.deepEqual(validateConfiguration({...base,greedy_settings:{tenor_tiebreaker:"longest",plan_tenor_tiebreaker:"shortest"}},context).greedy_settings,{tenor_tiebreaker:"longest",plan_tenor_tiebreaker:"shortest"});
+});
