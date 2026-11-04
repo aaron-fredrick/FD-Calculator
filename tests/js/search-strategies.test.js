@@ -4,6 +4,9 @@ import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
 import { GAMLStrategy } from "../../src/strategies/gaml.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
+import { SimulationEngine } from "../../src/core/simulation.js";
+
+const run = (strategy, input) => new SimulationEngine().run(strategy, input);
 
 function scenario() {
   const account = new Account({
@@ -33,7 +36,7 @@ function scenario() {
 }
 
 test("Absolute runs exhaustive portfolio search and returns a replayed SimResult", () => {
-  const result = new AbsoluteStrategy({ ait_enabled: true }).simulate(scenario());
+  const result = run(new AbsoluteStrategy({ ait_enabled: true }), scenario());
   assert.equal(result.strategy_name, "Absolute");
   assert.equal(result.valid, true);
   assert.ok(result.bookings.length > 0);
@@ -47,7 +50,7 @@ test("GAML runs bounded search and honours its three Python-compatible settings"
   const strategy = new GAMLStrategy({
     ait_enabled: true, beam_width: 8, max_local_branches: 4, max_decisions: 100
   });
-  const result = strategy.simulate(scenario());
+  const result = run(strategy, scenario());
   assert.equal(result.strategy_name, "GAML");
   assert.equal(result.valid, true);
   assert.ok(result.bookings.length > 0);
@@ -61,8 +64,8 @@ test("GAML runs bounded search and honours its three Python-compatible settings"
 
 test("GAML never returns a worse objective than Greedy for the same small scenario", () => {
   const input = scenario();
-  const greedy = new GreedyStrategy({ ait_enabled: true }).simulate(input);
-  const gaml = new GAMLStrategy({ ait_enabled: true, beam_width: 8, max_local_branches: 8 }).simulate(input);
+  const greedy = run(new GreedyStrategy({ ait_enabled: true }), input);
+  const gaml = run(new GAMLStrategy({ ait_enabled: true, beam_width: 8, max_local_branches: 8 }), input);
   assert.ok(gaml.final_value >= greedy.final_value - 0.01);
 });
 
@@ -83,7 +86,7 @@ test("search strategies never place an eFD in an account without eFD capability"
     new FDOption({ label: "A eFD", bank_id: "BANK_A", bank_key: "bank_a", period_str: "30d", annual_rate: 9, min_amount: 25000, is_efd: true }),
     new FDOption({ label: "B standard", bank_id: "BANK_B", bank_key: "bank_b", period_str: "30d", annual_rate: 7, min_amount: 25000 })
   ];
-  const result = new GAMLStrategy({ beam_width: 16, max_local_branches: 16, ait_enabled: true }).simulate({
+  const result = run(new GAMLStrategy({ beam_width: 16, max_local_branches: 16, ait_enabled: true }), {
     options, start: "2026-01-01", end: "2026-02-01", inflow_schedule: {},
     accounts, inflow_account_id: "a-main", fee_config: new TransferFeeConfig(),
     consolidation_account_id: "a-main", outflow_schedule: {}
@@ -94,7 +97,7 @@ test("search strategies never place an eFD in an account without eFD capability"
 });
 
 test("GAML marks a search that reaches its configured state cap as unproven", () => {
-  const result = new GAMLStrategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }).simulate(scenario());
+  const result = run(new GAMLStrategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }), scenario());
   assert.equal(result.search_diagnostics.expanded_states, 1);
   assert.equal(result.optimality_proven, false);
 });

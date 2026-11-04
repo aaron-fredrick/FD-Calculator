@@ -314,33 +314,6 @@ export class GreedyStrategy {
       }
     }
 
-    if (accountMap[consolidation_account_id]) {
-      const target = accountMap[consolidation_account_id];
-      for (const account of Object.values(accountMap)) {
-        if (account.id === target.id || account.balance <= EPS) continue;
-        const fee = fee_config.getFee(account.bank_identity, target.bank_identity);
-        if (account.balance <= fee) continue;
-        const amount = account.balance, net = amount - fee;
-        totalFees += fee; account.balance = 0;
-        const channel = account.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase() ? "intra_bank" : "domestic_ceft";
-        addEvent(new Event({ event_type: EventType.TRANSFER, on_date: endDate, amount,
-          label: "Final sweep to " + target.label + " (Amt: " + net.toFixed(2) + ", Fee: " + fee.toFixed(2) + ")",
-          account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id,
-          transfer_channel: channel, fee, balance_after: 0, total_balance_after: sumBalances(accountMap) }));
-        target.balance += net;
-        addEvent(new Event({ event_type: EventType.TRANSFER, on_date: endDate, amount: net,
-          label: "Final sweep received from " + account.label, account_id: target.id,
-          bank_key: target.bank_key, bank_id: target.bank_id, transfer_channel: channel,
-          balance_after: target.balance, total_balance_after: sumBalances(accountMap) }));
-      }
-    }
-    for (const account of Object.values(accountMap)) if (account.balance > 0.01) addEvent(new Event({
-      event_type: EventType.IDLE, on_date: endDate, amount: account.balance,
-      label: "Final cash balance in " + account.label, account_id: account.id,
-      bank_key: account.bank_key, bank_id: account.bank_id, balance_after: account.balance,
-      total_balance_after: sumBalances(accountMap)
-    }));
-
     const totalInflow = Object.values(normalizedInflows).reduce((sum, amounts) =>
       sum + Object.values(amounts).reduce((inner, amount) => inner + amount, 0), 0);
     const result = new SimResult({ strategy_name: this.name, timeline, bookings,

@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { GreedyStrategy, selectBestOption, compareGreedyPlans } from "../../src/strategies/greedy.js";
 import { EventType } from "../../src/core/events.js";
+import { SimulationEngine } from "../../src/core/simulation.js";
+
+const run = (strategy, input) => new SimulationEngine().run(strategy, input);
 
 const option = (label, period_str) => new FDOption({
   label, period_str, annual_rate: 10, min_amount: 25000,
@@ -12,7 +15,7 @@ const option = (label, period_str) => new FDOption({
 test("greedy books an eligible local FD and records maturity cash", () => {
   const account = new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 30000 });
   const fd = new FDOption({ label: "1 month", period_str: "1m", annual_rate: 12, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" });
-  const result = new GreedyStrategy({ ait_enabled: true }).simulate({
+  const result = run(new GreedyStrategy({ ait_enabled: true }), {
     options: [fd], start: "2026-01-01", end: "2026-03-01",
     accounts: [account], inflow_account_id: "main", consolidation_account_id: "main",
     inflow_schedule: {}, fee_config: new TransferFeeConfig()
@@ -33,7 +36,7 @@ test("greedy respects account-level eFD eligibility when consolidating", () => {
     new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" }),
     new FDOption({ label: "eFD", period_str: "1m", annual_rate: 12, min_amount: 25000, bank_id: "BANK_A", bank_key: "a", is_efd: true })
   ];
-  const result = new GreedyStrategy().simulate({
+  const result = run(new GreedyStrategy(), {
     options, start: "2026-01-01", end: "2026-02-01", accounts,
     inflow_account_id: "plain", consolidation_account_id: "plain",
     fee_config: new TransferFeeConfig(), inflow_schedule: {}
@@ -59,8 +62,8 @@ test("Greedy strategy migrates option and plan tenor policies independently", ()
     accounts: [account], inflow_account_id: "main", consolidation_account_id: "main",
     inflow_schedule: {}, fee_config: new TransferFeeConfig()
   };
-  const shortest = new GreedyStrategy().simulate(args);
-  const longest = new GreedyStrategy({ tenor_tiebreaker: "longest" }).simulate(args);
+  const shortest = run(new GreedyStrategy(), args);
+  const longest = run(new GreedyStrategy({ tenor_tiebreaker: "longest" }), args);
   assert.equal(shortest.bookings[0].option.days, short.days);
   assert.equal(longest.bookings[0].option.days, long.days);
   assert.throws(() => new GreedyStrategy({ plan_tenor_tiebreaker: "middle" }), RangeError);

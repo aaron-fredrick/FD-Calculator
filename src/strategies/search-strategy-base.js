@@ -3,7 +3,6 @@ import { Event, EventType, normalizeInflowSchedule } from "../core/events.js";
 import { Booking, SimResult } from "../core/results.js";
 import { formatISODate, parseISODate, daysBetween } from "../core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../core/cashflows.js";
-import { GreedyStrategy } from "./greedy.js";
 import { FDOptionManager } from "../fd-options/index.js";
 import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
 
@@ -663,31 +662,6 @@ function replay(path, context, strategy, diagnostics) {
     } else if (action.type === "carry") recordCarry(action.carries, before);
   }
 
-  const target = accounts.get(context.consolidationId);
-  for (const account of accounts.values()) {
-    if (account.id === target.id || account.balance <= EPS) continue;
-    const fee = context.feeConfig.getFee(account.bank_identity, target.bank_identity);
-    if (account.balance <= fee) continue;
-    const amount = account.balance, net = amount - fee;
-    totalFees += fee; account.balance = 0;
-    const channel = account.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase() ? "intra_bank" : "domestic_ceft";
-    addEvent(new Event({ event_type: EventType.TRANSFER, on_date: context.end, amount,
-      label: "Final sweep to " + target.label + " (Amt: " + net.toFixed(2) + ", Fee: " + fee.toFixed(2) + ")",
-      account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id,
-      transfer_channel: channel, fee, balance_after: 0, total_balance_after: totalBalance() }));
-    target.balance += net;
-    addEvent(new Event({ event_type: EventType.TRANSFER, on_date: context.end, amount: net,
-      label: "Final sweep received from " + account.label, account_id: target.id,
-      bank_key: target.bank_key, bank_id: target.bank_id, transfer_channel: channel,
-      balance_after: target.balance, total_balance_after: totalBalance() }));
-  }
-  for (const account of accounts.values()) if (account.balance > 0.01) addEvent(new Event({
-    event_type: EventType.IDLE, on_date: context.end, amount: account.balance,
-    label: "Final cash balance in " + account.label, account_id: account.id,
-    bank_key: account.bank_key, bank_id: account.bank_id,
-    balance_after: account.balance, total_balance_after: totalBalance()
-  }));
-
   const totalInflow = sum(Object.values(context.inflows).flatMap(day => Object.values(day)));
   const result = new SimResult({
     strategy_name: strategy.name, timeline, bookings,
@@ -722,15 +696,9 @@ export class SearchStrategyBase {
 
   simulate(input) {
     const context = createContext(input, this);
-    const greedy = new GreedyStrategy({
-      compound: this.compound, actual_leap_year: this.actual_leap_year,
-      ait_enabled: this.ait_enabled, ait_rate: this.ait_rate
-    }).simulate(input);
-    const liabilities = sum(greedy.outstanding_outflows.map(item => Number(item.remaining || 0)));
-    const greedyObjective = greedy.valid ? greedy.final_value - liabilities : -Infinity;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
-      bestValue: greedyObjective, alternatives: [], memo: new Map()
+      bestValue: -Infinity, alternatives: [], memo: new Map()
     };
     const initial = {
       date: context.start,
@@ -755,12 +723,7 @@ export class SearchStrategyBase {
       settings
     };
     if (!search.bestNode) {
-      if (!greedy.valid) throw new Error(this.name + " found no feasible path satisfying strict outflows.");
-      greedy.strategy_name = this.name;
-      greedy.search_diagnostics = diagnostics;
-      greedy.optimality_proven = diagnostics.optimality_proven;
-      greedy.search_settings = settings;
-      return greedy;
+      throw new Error(this.name + " found no feasible path satisfying strict outflows.");
     }
     return replay(path, context, this, diagnostics);
   }
