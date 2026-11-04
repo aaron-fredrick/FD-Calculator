@@ -122,7 +122,9 @@ export class SimulationEngine {
       event_type: EventType.SIMULATION_START,
       on_date: input.start,
       amount: 0,
-      label: "Simulation starts"
+      label: "Simulation starts",
+      balance_after: 0,
+      total_balance_after: 0
     });
     const timeline = result.timeline ?? {};
     if (timeline instanceof Map) {
