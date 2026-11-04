@@ -81,3 +81,8 @@ footer{font-size:12px;line-height:1.55}
 }
 @media(hover:none),(pointer:coarse){.help-tip{cursor:pointer}.remove-icon:hover{transform:none}.card input,.card select,button,a{touch-action:manipulation}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Reserve equal label height so wrapped transfer-fee labels keep inputs aligned. */
+.strategy-row .field-label{min-height:2.8em;align-items:flex-start}
+.strategy-row .field-label .help-tip{margin-top:.15em}
+@media(max-width:620px){.strategy-row .field-label{min-height:0}}
