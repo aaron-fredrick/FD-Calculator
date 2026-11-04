@@ -35,7 +35,7 @@ jobs:
           <!doctype html>
           <html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./web/"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FD Cal</title></head><body><p>Opening <a href="./web/">FD Cal</a>…</p></body></html>
           EOF
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
   deploy:
