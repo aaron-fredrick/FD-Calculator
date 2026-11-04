@@ -4,6 +4,7 @@ import { Booking, SimResult } from "../core/results.js";
 import { formatISODate, parseISODate, daysBetween } from "../core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../core/cashflows.js";
 import { GreedyStrategy } from "./greedy.js";
+import { FDOptionManager } from "../fd-options/index.js";
 import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
 
 const EPS = SEARCH_EPSILON;
@@ -13,7 +14,7 @@ const mapOf = entries => new Map(entries);
 const asObject = map => Object.fromEntries(map);
 const balanceTotal = balances => sum(balances.map(([, value]) => value));
 const dateSort = (a, b) => a.localeCompare(b);
-const optionBankMatch = (option, account) => !option.bank_identity || option.bank_identity === account.bank_identity;
+
 
 function nextEventDate(today, flows, inflows, outflows, end) {
   const candidates = [end];
@@ -58,10 +59,11 @@ function compareBranch(a, b) {
   return b.score - a.score || b.efd - a.efd;
 }
 
-function allLocalCombinations(accountIds, optionsByAccount, balances, today, settings) {
-  const slots = accountIds.map(id => [null, ...(optionsByAccount.get(id) || []).filter(option =>
-    option.canInvest(balances.get(id), today, settings.endDate)
-  )]);
+function allLocalCombinations(accountIds, context, balances, today, settings) {
+  const optionsByAccount = context.optionsByAccount;
+  const slots = accountIds.map(id => [null, ...context.fdOptionManager.getEligibleOptions({
+    account: context.accounts.get(id), amount: balances.get(id), investmentDate: today, simulationEndDate: settings.endDate
+  })]);
   if (!slots.length || slots.every(slot => slot.length === 1)) return { branches: [], pruned: 0 };
   const efdFor = choices => choices.reduce((count, [id, option]) => {
     if (!option?.is_efd) return count;
@@ -123,7 +125,8 @@ function allLocalCombinations(accountIds, optionsByAccount, balances, today, set
   return { branches, pruned };
 }
 
-function buildConsolidationBranches(balances, accounts, optionsByAccount, feeConfig, today, settings) {
+function buildConsolidationBranches(balances, accounts, context, feeConfig, today, settings) {
+  const optionsByAccount = context.optionsByAccount;
   const branches = [];
   const active = balances.filter(([, amount]) => amount > EPS);
   for (const [targetId, target] of accounts) {
@@ -140,8 +143,7 @@ function buildConsolidationBranches(balances, accounts, optionsByAccount, feeCon
     }
     if (!transfers.length) continue;
     const fees = sum(transfers.map(item => item.fee));
-    for (const option of optionsByAccount.get(targetId) || []) {
-      if (!option.canInvest(deployable, today, settings.endDate)) continue;
+    for (const option of context.fdOptionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: settings.endDate })) {
       const score = option.totalInterestOn(deployable, today, settings.compound, settings.actualLeapYear) *
         (1 - settings.aitRate) - fees;
       if (score <= 0) continue;
@@ -236,9 +238,9 @@ function makePriority(state, context) {
   }
   for (const [key, amount] of buckets) {
     const [accountId, date] = key.split("|");
-    const options = context.optionsByAccount.get(accountId) || [];
-    const rate = options.filter(option => option.fitsBefore(parseISODate(date), context.endDate) && option.min_amount <= amount)
-      .reduce((best, option) => Math.max(best, option.annual_rate / 100), 0);
+    const account = context.accounts.get(accountId);
+    const options = context.fdOptionManager.getEligibleOptions({ account, amount, investmentDate: date, simulationEndDate: context.endDate });
+    const rate = options.reduce((best, option) => Math.max(best, option.annual_rate / 100), 0);
     estimate += amount * Math.exp(rate * Math.max(0, daysBetween(parseISODate(date), context.endDate)) / 365);
   }
   return estimate + 0.05 * Math.max(0, upper - estimate);
@@ -264,16 +266,17 @@ function createContext({ options, start, end, inflow_schedule, accounts, inflow_
   const outflows = outflow_schedule || {};
   validateOutflowSchedule(outflows, formatISODate(startDate), formatISODate(endDate), new Set(accountMap.keys()));
   const effectiveOptions = pruneDominatedOptions(options);
+  const fdOptionManager = new FDOptionManager(effectiveOptions);
   const optionsByAccount = new Map();
   for (const [id, account] of accountMap) {
-    optionsByAccount.set(id, effectiveOptions.filter(option => optionBankMatch(option, account) && account.canUseOption(option)));
+    optionsByAccount.set(id, fdOptionManager.getAccountOptions(account));
   }
   if ([...optionsByAccount.values()].some(list => list.length === 0)) throw new RangeError("Every account must have at least one compatible FD product.");
   const fittingRates = effectiveOptions.filter(option => option.fitsBefore(startDate, endDate)).map(option => option.annual_rate);
   const maxRate = fittingRates.length ? Math.max(0, ...fittingRates) / 100 : 0.11;
   const totalCapital = sum(accounts.map(account => account.balance)) + sum(Object.values(inflows).flatMap(day => Object.values(day)));
   return {
-    accounts: accountMap, options: effectiveOptions, optionsByAccount, inflows, outflows,
+    accounts: accountMap, options: effectiveOptions, optionsByAccount, fdOptionManager, inflows, outflows,
     startDate, endDate, start: formatISODate(startDate), end: formatISODate(endDate),
     inflowAccountId: inflow_account_id, consolidationId: consolidation_account_id, feeConfig: fee_config,
     compound: strategy.compound, actualLeapYear: strategy.actual_leap_year, aitRate: strategy.effective_ait_rate,
@@ -337,8 +340,8 @@ function expandState(rawState, context, settings, mode, counters) {
               if (amount > fee) deployable += amount - fee;
             }
           }
-          for (const option of context.optionsByAccount.get(targetId) || []) {
-            if (option.canInvest(deployable, parseISODate(state.date), context.endDate)) best = Math.max(best, option.annual_rate);
+          for (const option of context.fdOptionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: state.date, simulationEndDate: context.endDate })) {
+            best = Math.max(best, option.annual_rate);
           }
         }
         return best;
@@ -346,8 +349,7 @@ function expandState(rawState, context, settings, mode, counters) {
       let aligned = false;
       for (const id of activeIds) {
         const account = context.accounts.get(id);
-        for (const option of context.optionsByAccount.get(id) || []) {
-          if (!option.canInvest(balances.get(id), parseISODate(state.date), context.endDate)) continue;
+        for (const option of context.fdOptionManager.getEligibleOptions({ account, amount: balances.get(id), investmentDate: state.date, simulationEndDate: context.endDate })) {
           const maturity = formatISODate(new Date(parseISODate(state.date).getTime() + option.days * 86_400_000));
           const alignedDate = futureInflows.find(date => date >= maturity);
           if (alignedDate && daysBetween(parseISODate(maturity), parseISODate(alignedDate)) <= 7) aligned = true;
@@ -362,7 +364,7 @@ function expandState(rawState, context, settings, mode, counters) {
     pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
   }
 
-  const consolidation = buildConsolidationBranches(state.balances, context.accounts, context.optionsByAccount, context.feeConfig, parseISODate(state.date), {
+  const consolidation = buildConsolidationBranches(state.balances, context.accounts, context, context.feeConfig, parseISODate(state.date), {
     ...settings, endDate: context.endDate, compound: context.compound, actualLeapYear: context.actualLeapYear, aitRate: context.aitRate
   });
   for (const branch of consolidation) {
@@ -381,7 +383,7 @@ function expandState(rawState, context, settings, mode, counters) {
     pushAction(nextEventDate(state.date, merged, context.inflows, context.outflows, context.end), nextBalances, merged, action, root);
   }
 
-  const local = allLocalCombinations(activeIds, context.optionsByAccount, balances, parseISODate(state.date), {
+  const local = allLocalCombinations(activeIds, context, balances, parseISODate(state.date), {
     endDate: context.endDate, compound: context.compound, actualLeapYear: context.actualLeapYear,
     aitRate: context.aitRate, maxLocalBranches: mode === "gaml" ? settings.maxLocalBranches : null
   });
