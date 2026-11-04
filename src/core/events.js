@@ -8,7 +8,8 @@ export const EventType = Object.freeze({
   CASH_FLOW: "cash_flow",
   MATURITY: "maturity",
   CARRY_FORWARD: "carry_forward",
-  IDLE: "idle"
+  IDLE: "idle",
+  SIMULATION_START: "simulation_start"
 });
 
 export class Event {
