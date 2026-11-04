@@ -23,9 +23,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Assemble static site
+        run: |
+          mkdir -p site
+          cp -R web site/web
+          cp -R src site/src
+          cp -R data site/data
+          cat > site/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./web/"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FD Cal</title></head><body><p>Opening <a href="./web/">FD Cal</a>…</p></body></html>
+          EOF
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: site
   deploy:
     environment:
       name: github-pages
