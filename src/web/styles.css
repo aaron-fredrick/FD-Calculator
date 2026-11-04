@@ -42,3 +42,38 @@
 /* Public GitHub support-ticket entry point. */
 .support-link{display:inline-flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap}
 @media(max-width:620px){.support-link{font-size:9px;padding:7px 8px}}
+
+/* Readability and responsive touch refinements. */
+:root{font-size:16px}
+body{font-size:15px;line-height:1.6}
+.intro p,.card>p{font-size:14px;line-height:1.55}
+.eyebrow,.step{font-size:12px}
+.rail>a{font-size:13px;min-height:44px;display:flex;align-items:center}
+.card{padding:24px}
+.card h2{font-size:22px}
+.card h3,.item-head b{font-size:15px}
+.card small,.card label small{font-size:12px;line-height:1.45}
+.card label{font-size:14px;gap:7px}
+.card input,.card select{font-size:16px;min-height:44px;padding:9px 11px}
+.quiet,.secondary,.primary{font-size:14px;min-height:44px;padding:9px 14px}
+.remove-icon{width:44px;height:44px;flex-basis:44px}
+.hint,.rail-note,.error,.simulation-status{font-size:13px;line-height:1.5}
+.metric small{font-size:12px}.metric strong{font-size:20px}
+footer{font-size:12px;line-height:1.55}
+.help-tip{width:20px;height:20px;flex-basis:20px;font-size:12px}
+.help-tip::after{font-size:12px;width:min(290px,80vw);padding:10px 12px}
+:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+@media(max-width:850px){.layout{gap:14px}.rail{position:sticky;top:68px;z-index:4;padding:5px 0;background:#0b0e13ed;scroll-snap-type:x proximity}.rail>a{min-height:44px;padding:10px 13px}}
+@media(max-width:620px){
+ body{font-size:15px}.topbar{min-height:64px;height:auto;gap:8px}.top-actions button{font-size:12px;min-height:40px;padding:8px 10px}
+ main{padding:22px 12px 42px}.intro h1{font-size:clamp(28px,8vw,36px)}.intro p,.card>p{font-size:14px}
+ .card{padding:17px 14px;border-radius:12px}.card h2{font-size:20px}
+ .card input,.card select{font-size:16px;min-height:46px}
+ .grid.two,.grid.three,.strategy-row,.account-fields,.schedule-fields{grid-template-columns:minmax(0,1fr)}
+ .schedule-fields .wide{grid-column:auto}.efd,.primary-radio{min-height:44px}
+ .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric strong{font-size:18px;overflow-wrap:anywhere}
+ .form-footer{gap:10px}.form-footer button{min-height:46px}
+ .remove-icon{width:44px;height:44px}.rail{top:64px;gap:3px}
+}
+@media(hover:none),(pointer:coarse){.help-tip{cursor:pointer}.remove-icon:hover{transform:none}.card input,.card select,button,a{touch-action:manipulation}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
