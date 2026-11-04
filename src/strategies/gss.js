@@ -580,6 +580,8 @@ export class GSSStrategy {
       split_plans_evaluated: splitPlansEvaluated,
       consolidate_plans_evaluated: consolidatePlansEvaluated,
       future_goals: futureGoals, recursive_waits: recursiveCalls,
+      early_goal_rechecks: earlyGoalRechecks,
+      early_goal_executions: earlyGoalExecutions,
       maximum_recursion_depth: maximumDepth,
       small_period_days: this.small_period_days
     };
