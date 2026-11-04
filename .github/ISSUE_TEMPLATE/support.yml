@@ -1,6 +1,7 @@
 name: Support request
 description: Get help using FD Cal or understanding an error. Creates a public support ticket.
 title: "[Support]: "
+labels: ["support", "_triage"]
 body:
   - type: markdown
     attributes:
