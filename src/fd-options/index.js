@@ -1,8 +1,9 @@
 /**
  * Bank-aware FD product catalogue.
  *
- * Catalogues are grouped and sorted once. Eligibility remains account-specific
- * because eFD support can differ between accounts at the same bank.
+ * Canonical options are retained in a stable, sorted array. Secondary indexes
+ * group products by rate and tenor for efficient ordered retrieval. Eligibility
+ * remains account-specific because eFD support can differ between accounts.
  */
 import { parseISODate } from "../core/dates.js";
 
@@ -12,10 +13,34 @@ const PAYOUT_ORDER = new Map([
   ["cumulative", 2],
 ]);
 const normaliseBankIdentity = value => String(value ?? "").trim().toUpperCase();
+const freezeBuckets = buckets => {
+  for (const [key, values] of buckets) buckets.set(key, Object.freeze(values));
+  return buckets;
+};
 
 export function compareFDOptions(a, b) {
   return Number(b.annual_rate) - Number(a.annual_rate) ||
     Number(a.days) - Number(b.days) ||
+    (PAYOUT_ORDER.get(a.payout_type) ?? 99) - (PAYOUT_ORDER.get(b.payout_type) ?? 99) ||
+    (a.payout_type === "periodic_interest" && b.payout_type === "periodic_interest"
+      ? Number(a.payout_period_days) - Number(b.payout_period_days) : 0) ||
+    String(a.label ?? "").localeCompare(String(b.label ?? "")) ||
+    String(a.economic_terms_key ?? "").localeCompare(String(b.economic_terms_key ?? ""));
+}
+
+/**
+ * Compare eligible options using the configured tenor preference.
+ * Rate remains the primary criterion; payout and label ordering remain stable.
+ */
+export function compareFDOptionsByPolicy(a, b, tenorTieBreaker = "shortest") {
+  if (!["shortest", "longest"].includes(tenorTieBreaker)) {
+    throw new RangeError('tenorTieBreaker must be "shortest" or "longest".');
+  }
+  const tenorOrder = tenorTieBreaker === "shortest"
+    ? Number(a.days) - Number(b.days)
+    : Number(b.days) - Number(a.days);
+  return Number(b.annual_rate) - Number(a.annual_rate) ||
+    tenorOrder ||
     (PAYOUT_ORDER.get(a.payout_type) ?? 99) - (PAYOUT_ORDER.get(b.payout_type) ?? 99) ||
     (a.payout_type === "periodic_interest" && b.payout_type === "periodic_interest"
       ? Number(a.payout_period_days) - Number(b.payout_period_days) : 0) ||
@@ -37,19 +62,53 @@ export class BankFDOptionManager {
   constructor(bankIdentity, options = []) {
     this.bank_identity = normaliseBankIdentity(bankIdentity);
     this.options = Object.freeze([...options].sort(compareFDOptions));
+
     const lookup = new Map();
+    const byRate = new Map();
+    const byRateAndTenor = new Map();
+    const byTenor = new Map();
     for (const option of this.options) {
       const key = fdOptionKey(option);
       if (!lookup.has(key)) lookup.set(key, []);
       lookup.get(key).push(option);
+
+      const rate = Number(option.annual_rate);
+      const tenor = Number(option.days);
+      if (!byRate.has(rate)) byRate.set(rate, []);
+      byRate.get(rate).push(option);
+      if (!byRateAndTenor.has(rate)) byRateAndTenor.set(rate, new Map());
+      const tenorBuckets = byRateAndTenor.get(rate);
+      if (!tenorBuckets.has(tenor)) tenorBuckets.set(tenor, []);
+      tenorBuckets.get(tenor).push(option);
+      if (!byTenor.has(tenor)) byTenor.set(tenor, []);
+      byTenor.get(tenor).push(option);
     }
-    for (const [key, values] of lookup) lookup.set(key, Object.freeze(values));
-    this.lookup = lookup;
+
+    this.lookup = freezeBuckets(lookup);
+    this.indexes = Object.freeze({
+      byRate: freezeBuckets(byRate),
+      byRateAndTenor: new Map([...byRateAndTenor].map(([rate, buckets]) =>
+        [rate, freezeBuckets(buckets)])),
+      byTenor: freezeBuckets(byTenor),
+    });
     Object.freeze(this);
   }
 
   getOption(key) { return this.lookup.get(String(key))?.[0] ?? null; }
   getOptionsByKey(key) { return this.lookup.get(String(key)) ?? Object.freeze([]); }
+  getOptionsByRate(rate) { return this.indexes.byRate.get(Number(rate)) ?? Object.freeze([]); }
+  getOptionsByRateAndTenor(rate, days) {
+    return this.indexes.byRateAndTenor.get(Number(rate))?.get(Number(days)) ?? Object.freeze([]);
+  }
+  getRates(order = "descending") {
+    return [...this.indexes.byRate.keys()].sort((a, b) =>
+      order === "ascending" ? a - b : b - a);
+  }
+  getTenorsForRate(rate, order = "ascending") {
+    const tenors = this.indexes.byRateAndTenor.get(Number(rate));
+    return tenors ? [...tenors.keys()].sort((a, b) =>
+      order === "descending" ? b - a : a - b) : [];
+  }
 
   getAccountOptions(account) {
     if (!account || normaliseBankIdentity(account.bank_identity) !== this.bank_identity) return [];

@@ -57,6 +57,20 @@ test("comparator applies rate, tenor, payout and payout-interval ordering", () =
   assert.deepEqual(products.map(item => item.label), ["Higher rate", "Short tenor", "Periodic 1m", "Periodic 3m", "Cumulative"]);
 });
 
+test("rate and tenor indexes expose ordered buckets without replacing canonical options", () => {
+  const short = option({ label: "6 months", period_str: "6m" });
+  const long = option({ label: "12 months", period_str: "1y" });
+  const otherRate = option({ label: "Other rate", annual_rate: 9 });
+  const bank = new BankFDOptionManager("BANK_A", [long, otherRate, short]);
+  assert.deepEqual(bank.getRates(), [10, 9]);
+  assert.deepEqual(bank.getRates("ascending"), [9, 10]);
+  assert.deepEqual(bank.getTenorsForRate(10), [180, 365]);
+  assert.deepEqual(bank.getTenorsForRate(10, "descending"), [365, 180]);
+  assert.deepEqual(bank.getOptionsByRateAndTenor(10, 180), [short]);
+  assert.deepEqual(bank.getOptionsByRate(10), [short, long]);
+  assert.equal(bank.options.length, 3);
+});
+
 test("invalid manager input and amounts are rejected", () => {
   const manager = new FDOptionManager([option()]);
   const account = new Account({ id: "one", bank_id: "BANK_A" });

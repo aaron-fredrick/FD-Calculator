@@ -9,28 +9,49 @@ const EPS = 0.001;
 const round2 = value => Math.round((value + Number.EPSILON) * 100) / 100;
 const sumBalances = accounts => Object.values(accounts).reduce((sum, account) => sum + account.balance, 0);
 const dateKey = date => Number(formatISODate(date).replaceAll("-", ""));
-const keyDate = key => String(key).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3");
+const keyDate = key => String(key).replace(/^(\\d{4})(\\d{2})(\\d{2})$/, "$1-$2-$3");
 
-function selectBestOption(candidates) {
-  if (!candidates.length) return null;
-  let best = candidates[0];
-  for (const option of candidates.slice(1)) {
-    if (option.annual_rate > best.annual_rate ||
-      (option.annual_rate === best.annual_rate && option.days < best.days) ||
-      (option.annual_rate === best.annual_rate && option.days === best.days &&
-       option.economic_terms_key === best.economic_terms_key && option.is_efd && !best.is_efd)) best = option;
+const validateTenorTieBreaker = (value, name) => {
+  if (!["shortest", "longest"].includes(value)) {
+    throw new RangeError(name + ' must be "shortest" or "longest".');
   }
-  return best;
+  return value;
+};
+
+export function selectBestOption(candidates, tenorTieBreaker = "shortest") {
+  validateTenorTieBreaker(tenorTieBreaker, "tenor_tiebreaker");
+  if (!candidates.length) return null;
+  return [...candidates].sort((a, b) => {
+    const tenorOrder = tenorTieBreaker === "shortest"
+      ? Number(a.days) - Number(b.days)
+      : Number(b.days) - Number(a.days);
+    return Number(b.annual_rate) - Number(a.annual_rate) ||
+      tenorOrder ||
+      // Prefer eFD only when economic terms are otherwise equivalent.
+      (a.economic_terms_key === b.economic_terms_key
+        ? Number(Boolean(b.is_efd)) - Number(Boolean(a.is_efd)) : 0);
+  })[0] ?? null;
 }
 
-function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate) {
+export function compareGreedyPlans(a, b, tenorTieBreaker = "shortest") {
+  validateTenorTieBreaker(tenorTieBreaker, "plan_tenor_tiebreaker");
+  const tenorOrder = tenorTieBreaker === "shortest"
+    ? Number(a.days) - Number(b.days)
+    : Number(b.days) - Number(a.days);
+  return Number(b.rate) - Number(a.rate) ||
+    tenorOrder ||
+    Number(b.net_interest) - Number(a.net_interest) ||
+    Number(a.fees_today) - Number(b.fees_today);
+}
+
+function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker) {
   const active = Object.values(accounts).filter(account => account.balance > EPS);
   if (!active.length) return { type: "CARRY", carries: [] };
   const splitBookings = [], splitCarries = [];
   let splitGross = 0;
   for (const account of active) {
     const eligible = optionManager.getEligibleOptions({ account, amount: account.balance, investmentDate: today, simulationEndDate: end });
-    const option = selectBestOption(eligible);
+    const option = selectBestOption(eligible, tenorTieBreaker);
     if (!option) { splitCarries.push(account); continue; }
     const interest = option.totalInterestOn(account.balance, today, compound, actualLeapYear);
     splitBookings.push({ account, option, principal: account.balance, interest, rate: option.annual_rate, days: option.days });
@@ -64,7 +85,7 @@ function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeCo
     }
     if (!transfers.length) continue;
     const eligible = optionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: end });
-    const option = selectBestOption(eligible);
+    const option = selectBestOption(eligible, tenorTieBreaker);
     if (!option) continue;
     const gross = option.totalInterestOn(deployable, today, compound, actualLeapYear);
     const net = gross * (1 - aitRate) - feesEval;
@@ -93,21 +114,25 @@ function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeCo
       !standard.is_efd && standard.economic_terms_key === option.economic_terms_key)).length;
   };
   candidates.sort((a, b) =>
-    b.rate - a.rate || a.days - b.days ||
-    b.net_interest - a.net_interest || a.fees_today - b.fees_today ||
+    compareGreedyPlans(a, b, planTenorTieBreaker) ||
     equivalentEfdCount(b) - equivalentEfdCount(a));
   return candidates[0];
 }
 
 export class GreedyStrategy {
   static name = "Greedy";
-  constructor({ compound = false, actual_leap_year = true, ait_enabled = false, ait_rate = 0.10 } = {}) {
+  constructor({
+    compound = false, actual_leap_year = true, ait_enabled = false, ait_rate = 0.10,
+    tenor_tiebreaker = "shortest", plan_tenor_tiebreaker = "shortest"
+  } = {}) {
     this.name = "Greedy";
     this.compound = compound;
     this.actual_leap_year = actual_leap_year;
     this.ait_enabled = ait_enabled;
     this.ait_rate = ait_rate;
     this.effective_ait_rate = ait_enabled ? ait_rate : 0;
+    this.tenor_tiebreaker = validateTenorTieBreaker(tenor_tiebreaker, "tenor_tiebreaker");
+    this.plan_tenor_tiebreaker = validateTenorTieBreaker(plan_tenor_tiebreaker, "plan_tenor_tiebreaker");
   }
 
   simulate({
@@ -219,7 +244,8 @@ export class GreedyStrategy {
       if (strictFailed) break;
 
       const plan = pickDailyGreedyPlan(accountMap, options, optionManager, today, endDate, fee_config,
-        consolidation_account_id, this.compound, this.actual_leap_year, this.effective_ait_rate);
+        consolidation_account_id, this.compound, this.actual_leap_year, this.effective_ait_rate,
+        this.tenor_tiebreaker, this.plan_tenor_tiebreaker);
       const makeBooking = (account, option, principal, action, balancesBefore) => {
         account.balance = 0;
         bookingNumber++;
