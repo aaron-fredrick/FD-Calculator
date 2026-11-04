@@ -89,8 +89,8 @@
       "allOf": [
         { "$ref": "#/$defs/baseCashEvent" },
         { "oneOf": [
-          { "properties": { "type": { "const": "scheduled" }, "dates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/date" } } }, "required": ["dates"], "not": { "required": ["interval"] } },
-          { "properties": { "type": { "enum": ["recurring"] }, "interval": { "type": "string", "pattern": "^[1-9][0-9]*[dmy]$" }, "start_date": { "$ref": "#/$defs/date" }, "end_date": { "$ref": "#/$defs/date" } }, "required": ["interval"], "not": { "required": ["dates"] } }
+          { "properties": { "type": { "const": "scheduled" }, "dates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/date" } } }, "required": ["type", "dates"], "not": { "required": ["interval"] } },
+          { "properties": { "type": { "enum": ["recurring"] }, "interval": { "type": "string", "pattern": "^[1-9][0-9]*[dmy]$" }, "start_date": { "$ref": "#/$defs/date" }, "end_date": { "$ref": "#/$defs/date" } }, "required": ["interval"], "not": { "required": ["type", "dates"] } }
         ] }
       ],
       "unevaluatedProperties": false
@@ -99,8 +99,8 @@
       "allOf": [
         { "$ref": "#/$defs/baseCashEvent" },
         { "oneOf": [
-          { "properties": { "type": { "const": "scheduled" }, "dates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/date" } } }, "required": ["dates"], "not": { "required": ["interval"] } },
-          { "properties": { "type": { "enum": ["recurring"] }, "interval": { "type": "string", "pattern": "^[1-9][0-9]*[dmy]$" }, "start_date": { "$ref": "#/$defs/date" }, "end_date": { "$ref": "#/$defs/date" } }, "required": ["interval"], "not": { "required": ["dates"] } }
+          { "properties": { "type": { "const": "scheduled" }, "dates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/date" } } }, "required": ["type", "dates"], "not": { "required": ["interval"] } },
+          { "properties": { "type": { "enum": ["recurring"] }, "interval": { "type": "string", "pattern": "^[1-9][0-9]*[dmy]$" }, "start_date": { "$ref": "#/$defs/date" }, "end_date": { "$ref": "#/$defs/date" } }, "required": ["interval"], "not": { "required": ["type", "dates"] } }
         ] }
       ],
       "properties": { "payment_policy": { "type": "string", "enum": ["strict", "defer", "best_effort"] } },
