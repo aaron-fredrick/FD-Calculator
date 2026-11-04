@@ -6,6 +6,7 @@ import { validateConfiguration } from "../core/configuration.js";
 import { GreedyStrategy } from "../strategies/greedy.js";
 import { AbsoluteStrategy } from "../strategies/absolute.js";
 import { GAMLStrategy } from "../strategies/gaml.js";
+import { SimulationEngine } from "../core/simulation.js";
 import { formatSimulation } from "../reporting/console.js";
 import { generateHtmlReport } from "../reporting/html.js";
 
@@ -88,7 +89,7 @@ async function main() {
     };
   }
 
-  const result = strategy.simulate(input);
+  const result = new SimulationEngine().run(strategy, input);
   if (!result.valid) throw new Error("The selected strategy cannot satisfy one or more strict outflows.");
   console.log(formatSimulation(result, config, loaded.resolvedConfig, loaded.optionsPath, {
     showEventTimeline: config.show_timeline, showBookingLedger: config.show_ledger
