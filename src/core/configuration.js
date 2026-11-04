@@ -110,6 +110,7 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   for (const [idRaw, entry] of Object.entries(raw.accounts)) {
     const id = idRaw.trim();
     if (!id) throw new TypeError("Account IDs must not be empty.");
+    if (accountIds.has(id)) throw new TypeError(`Duplicate account ID after trimming: ${id}.`);
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new TypeError(`accounts[${id}] must be an object.`);
     const bankId = String(entry.bank_id ?? "").trim();
     if (!bankId) throw new TypeError(`accounts[${id}].bank_id must not be empty.`);
@@ -139,7 +140,9 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   const customFees = {};
   for (const [index, item] of (fees.custom_fees ?? []).entries()) {
     if (!bankRegistry[item.from_bank_id] || !bankRegistry[item.to_bank_id]) throw new RangeError(`Custom transfer fee ${index} references an unknown bank.`);
-    customFees[JSON.stringify([item.from_bank_id.toUpperCase(), item.to_bank_id.toUpperCase()])] = finiteNonNegative(item.amount, `custom_fees[${index}].amount`);
+    const feeKey = JSON.stringify([item.from_bank_id.toUpperCase(), item.to_bank_id.toUpperCase()]);
+    if (Object.prototype.hasOwnProperty.call(customFees, feeKey)) throw new RangeError(`Duplicate custom transfer fee for ${item.from_bank_id} to ${item.to_bank_id}.`);
+    customFees[feeKey] = finiteNonNegative(item.amount, `custom_fees[${index}].amount`);
   }
   const bankFees = {};
   for (const bankId of bankIds) {
