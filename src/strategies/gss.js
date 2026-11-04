@@ -78,6 +78,7 @@ export class GSSStrategy {
     let pending = [], inflowNumber = 0, bookingNumber = 0;
     let totalFees = 0, totalOutflowsPaid = 0, strictFailed = false;
     let earlyGoal = null, earlyGoalRechecks = 0, earlyGoalExecutions = 0;
+    let forecastInterrupt = null, forecastRechecks = 0, forecastContractions = 0;
     let recursiveCalls = 0, candidatesConsidered = 0, splitPlansEvaluated = 0;
     let consolidatePlansEvaluated = 0, futureGoals = 0, maximumDepth = 0;
 
@@ -302,7 +303,7 @@ export class GSSStrategy {
         });
       }
       if (parentGoals.length) {
-        const protectedTargets = parentGoals.map(goal => goal.account.id);
+        const protectedTargets = parentGoals.map(goal => (goal.candidate || goal).account.id);
         for (let index = plans.length - 1; index >= 0; index--) {
           const plan = plans[index];
           if (plan.type === "CONSOLIDATE" &&
@@ -450,20 +451,47 @@ export class GSSStrategy {
       });
     };
 
-    const reassessParentGoals = (date, parentGoals, goalHorizon) => {
-      // The recursive target is a projected checkpoint, not a commitment to
-      // wait until that date. Re-test ancestor goals against every newly
-      // realized event state, including cash flows created by interim plans.
+    const reassessParentGoals = (date, parentGoals) => {
+      // Every recursive frame owns a forecast. Descendant decisions can add
+      // cash-flow/maturity events, so recompute each ancestor against the
+      // updated timeline and actual account state.
       for (let index = parentGoals.length - 1; index >= 0; index--) {
-        const candidate = parentGoals[index];
+        const frame = parentGoals[index];
+        const candidate = frame.candidate || frame;
+        const ancestors = parentGoals.slice(0, index);
         earlyGoalRechecks++;
-        const plans = buildPlans(
-          candidate, date, balanceSnapshot(), goalHorizon, pending,
-          parentGoals.slice(0, index)
-        );
+        const plans = buildPlans(candidate, date, balanceSnapshot(), frame.goalHorizon || endDate,
+          pending, ancestors);
         if (plans.length) {
-          earlyGoal = { candidate, date };
+          earlyGoal = { candidate, date, frame };
+          frame.status = "viable";
           return true;
+        }
+
+        forecastRechecks++;
+        const revisedDate = findFutureDate(
+          candidate, date, frame.goalHorizon || endDate, ancestors
+        );
+        if (!revisedDate) {
+          frame.status = "infeasible";
+          continue;
+        }
+        frame.status = "waiting";
+        if (revisedDate < frame.projectedTargetDate && revisedDate > date) {
+          const previousDate = frame.projectedTargetDate;
+          frame.projectedTargetDate = revisedDate;
+          forecastContractions++;
+          decisionLog.push({
+            date: formatISODate(date), action: "FORECAST_CONTRACTED",
+            goal_account_id: candidate.account.id, goal_option: candidate.option.label,
+            previous_target_date: formatISODate(previousDate),
+            target_date: formatISODate(revisedDate),
+            days_reduced: daysBetween(revisedDate, previousDate),
+            owner_depth: frame.ownerDepth
+          });
+          if (!forecastInterrupt || revisedDate < forecastInterrupt.targetDate) {
+            forecastInterrupt = { frame, targetDate: revisedDate };
+          }
         }
       }
       return false;
@@ -472,23 +500,29 @@ export class GSSStrategy {
     const advanceWindow = (fromDate, throughDate, depth, allowNested, parentGoals = [], goalHorizon = throughDate) => {
       let cursor = fromDate;
       while (!strictFailed) {
-        const next = eventDates(cursor, throughDate)[0];
+        // A contracted ancestor boundary can pre-empt this frame's original
+        // boundary. Only interrupt windows that actually extend to that date.
+        const interruptApplies = forecastInterrupt &&
+          forecastInterrupt.targetDate > cursor && forecastInterrupt.targetDate <= throughDate;
+        const boundary = interruptApplies ? forecastInterrupt.targetDate : throughDate;
+        const next = eventDates(cursor, boundary)[0];
         if (next === undefined) {
-          processDate(throughDate);
-          if (reassessParentGoals(throughDate, parentGoals, goalHorizon)) return throughDate;
-          return throughDate;
+          processDate(boundary);
+          if (reassessParentGoals(boundary, parentGoals)) return boundary;
+          return boundary;
         }
         const date = parseISODate(keyDate(next));
         if (!processDate(date)) return date;
         cursor = date;
-        if (reassessParentGoals(date, parentGoals, goalHorizon)) return date;
-        if (date < throughDate) {
-          cursor = considerAtDate(date, throughDate, depth + 1, allowNested, parentGoals);
-          // An ancestor goal may have become viable deeper in the recursion.
-          // Propagate that signal unchanged until its owning frame can execute it.
+        if (reassessParentGoals(date, parentGoals)) return date;
+        if (date < boundary) {
+          cursor = considerAtDate(date, boundary, depth + 1, allowNested, parentGoals);
+          // Execution and contraction signals travel to their owning frames.
           if (earlyGoal) return cursor;
+          if (forecastInterrupt && forecastInterrupt.targetDate <= boundary &&
+              forecastInterrupt.targetDate <= cursor) return cursor;
         }
-        if (cursor >= throughDate) return throughDate;
+        if (cursor >= boundary) return boundary;
       }
       return cursor;
     };
@@ -520,24 +554,49 @@ export class GSSStrategy {
             target_date: formatISODate(targetDate), wait_days: waitDays,
             recursive_wait: recurseFurther
           });
+          const goalFrame = {
+            candidate, ownerDepth: depth, currentDate: today,
+            projectedTargetDate: targetDate, goalHorizon: horizon,
+            parentGoals, status: "waiting"
+          };
           today = advanceWindow(
             today, targetDate, depth + 1, recurseFurther,
-            [...parentGoals, candidate], horizon
+            [...parentGoals, goalFrame], horizon
           );
 
-          // An ancestor may have become viable during a nested recursive
-          // window. Let the owning frame handle it rather than booking this
-          // frame's candidate or continuing to advance time.
+          // An ancestor may become viable or receive a contracted forecast
+          // while this frame is nested. Only its owning frame may execute it.
           if (earlyGoal) {
             if (earlyGoal.candidate !== candidate) return today;
             const earlyPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
             if (earlyPlans.length) {
               executePlan(earlyPlans[0], today, initialDate, candidate);
               if (today < targetDate) earlyGoalExecutions++;
+              goalFrame.status = "completed";
               earlyGoal = null;
               return today;
             }
             earlyGoal = null;
+          }
+
+          if (forecastInterrupt?.frame === goalFrame) {
+            today = forecastInterrupt.targetDate;
+            processDate(today);
+            const contractedPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
+            if (contractedPlans.length) {
+              executePlan(contractedPlans[0], today, initialDate, candidate);
+              goalFrame.status = "completed";
+              forecastInterrupt = null;
+              return today;
+            }
+            // A projected date is never an execution guarantee. If actual
+            // state does not validate the plan, discard the signal and resume
+            // normal candidate evaluation from the current state.
+            forecastInterrupt = null;
+          } else if (forecastInterrupt &&
+              forecastInterrupt.targetDate <= today &&
+              forecastInterrupt.frame !== goalFrame) {
+            return today;
           }
 
           // Rebuild the candidate plan from actual balances after the child GSS
@@ -582,6 +641,8 @@ export class GSSStrategy {
       future_goals: futureGoals, recursive_waits: recursiveCalls,
       early_goal_rechecks: earlyGoalRechecks,
       early_goal_executions: earlyGoalExecutions,
+      forecast_rechecks: forecastRechecks,
+      forecast_contractions: forecastContractions,
       maximum_recursion_depth: maximumDepth,
       small_period_days: this.small_period_days
     };
