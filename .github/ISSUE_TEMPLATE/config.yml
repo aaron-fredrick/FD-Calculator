@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: FD Cal documentation
+    url: https://github.com/aaron-fredrick/FD-Calculator/tree/main/docs
+    about: Check the project documentation before opening a request.
+  - name: Existing issues and support tickets
+    url: https://github.com/aaron-fredrick/FD-Calculator/issues
+    about: Search existing reports and public support tickets first.
