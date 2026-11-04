@@ -2,9 +2,11 @@
 
 A JavaScript-first fixed-deposit optimization tool. The legacy Python implementation is preserved under [archive/](archive/).
 
-## Issues and support
+## Issues, support and security
 
 See [the issue and label workflow guide](docs/ISSUES.md) for users and contributors. It explains which issue form to use, automatic labels, the maintainer review lifecycle, and how public support tickets work.
+
+For security vulnerabilities, read the [security policy](SECURITY.md) and use [GitHub private vulnerability reporting](https://github.com/aaron-fredrick/FD-Calculator/security/advisories/new). Do not disclose vulnerabilities in public issues or support tickets.
 
 ## Strategies
 
