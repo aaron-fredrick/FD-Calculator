@@ -262,17 +262,49 @@ export function generateHtmlReport(result,config) {
     '<div class="outcome-metric"><small>Net return on contributed capital</small><strong>'+yieldPct.toFixed(3)+'%</strong><p>Net interest divided by total contributed capital.</p></div>'+
     '<div class="outcome-metric"><small>Annualised money-weighted return</small><strong>'+(xirrValue===null?"N/A":xirrValue.toFixed(3)+"% p.a.")+'</strong><p>XIRR accounts for the timing of deposits and withdrawals.</p></div></div>'+warning;
   const flowTotals=new Map();
+  const flowStyles={
+    "Inflow (Deposits)":"#56b4e9",
+    "Transfer Out (TF)":"#ef7777",
+    "Transfer In (TI)":"#56d8e8",
+    "FD Maturity (Principal)":"#f08ab5",
+    "FD Booking":"#bd93f9",
+    "FD Interest":"#55c99a",
+    "AIT":"#d55e00",
+    "Outflows":"#ef7777",
+    "Transfer Fees":"#c84b31"
+  };
+  const bookingByRef=new Map((result.bookings||[]).map((b,i)=>["FD-"+String(i+1).padStart(4,"0"),b]));
+  const grossByRefDate=new Map();
+  for(const [ref,b] of bookingByRef)for(const f of b.cash_flows||[])grossByRefDate.set(ref+"|"+iso(f.date),Number(f.amount||0));
+  const addFlow=(category,date,value)=>{
+    if(!category||Math.abs(value)<.005)return;
+    if(!flowTotals.has(category))flowTotals.set(category,new Map());
+    const values=flowTotals.get(category),d=iso(date);
+    values.set(d,(values.get(d)||0)+value);
+  };
   for(const events of Object.values(result.timeline||{}))for(const e of events){
-    let category=null,value=Number(e.amount||0);
-    if(e.event_type==="inflow")category="Deposits";
-    else if(e.event_type==="outflow"&&value<0)category="Outflows";
-    else if(e.event_type==="booking"){category="FD investments";value=-Math.abs(value);}
-    else if(e.event_type==="cash_flow")category="Interest payouts";
-    else if(e.event_type==="maturity")category="FD maturities";
-    else if(e.event_type==="transfer"){if(e.label.startsWith("Transfer to ")||e.label.startsWith("Final sweep to ")){category="Transfers out";value=-Math.abs(value);}else category="Transfers in";}
-    if(category&&Math.abs(value)>=.005){if(!flowTotals.has(category))flowTotals.set(category,new Map());const m=flowTotals.get(category),d=iso(e.on_date);m.set(d,(m.get(d)||0)+value);}
+    const date=iso(e.on_date),value=Number(e.amount||0),booking=bookingByRef.get(e.booking_ref);
+    if(e.event_type==="inflow")addFlow("Inflow (Deposits)",date,value);
+    else if(e.event_type==="outflow"&&value<0)addFlow("Outflows",date,value);
+    else if(e.event_type==="booking")addFlow("FD Booking",date,-Math.abs(value));
+    else if(e.event_type==="transfer"){
+      const outgoing=e.label.startsWith("Transfer to ")||e.label.startsWith("Final sweep to ");
+      if(outgoing){
+        addFlow("Transfer Out (TF)",date,-Math.max(0,Math.abs(value)-Number(e.fee||0)));
+        if(Number(e.fee||0)>0)addFlow("Transfer Fees",date,-Number(e.fee));
+      }else addFlow("Transfer In (TI)",date,value);
+    }else if(booking&&(e.event_type==="cash_flow"||e.event_type==="maturity")){
+      const gross=grossByRefDate.get(e.booking_ref+"|"+date)??value;
+      const ait=result.ait_enabled?Math.max(0,gross-value):0;
+      if(e.event_type==="maturity"){
+        addFlow("FD Maturity (Principal)",date,booking.principal);
+        addFlow("FD Interest",date,Math.max(0,gross-Number(booking.principal||0)));
+      }else addFlow("FD Interest",date,gross);
+      if(ait>.005)addFlow("AIT",date,-ait);
+    }else if(e.event_type==="cash_flow")addFlow("FD Interest",date,value);
+    else if(e.event_type==="maturity")addFlow("FD Maturity (Principal)",date,value);
   }
-  const cashflows=[...flowTotals].map(([name,values])=>({name,points:[...values].sort((a,b)=>a[0].localeCompare(b[0])).map(([x,y])=>({x,y}))}));
+  const cashflows=[...flowTotals].map(([name,values])=>({name,color:flowStyles[name]||"#9ba8b8",points:[...values].sort((a,b)=>a[0].localeCompare(b[0])).map(([x,y])=>({x,y}))}));
   const maturities=(result.bookings||[]).map(b=>({name:b.option.label+" · "+b.account_id,start:iso(b.start),end:iso(b.end),principal:b.principal,interest:b.total_interest,rate:b.option.annual_rate}));
   const accountChart=buildAccountChart(result,config,start,end,openingBalances);
   const chartData={...accountChart,cashflows,maturities,grossInterest:gross,returns:[{name:"Net interest",value:net,color:"#55c99a"},{name:"Transfer fees",value:fees,color:"#ef7777"},{name:"AIT withheld",value:ait,color:"#e9ad58"}]};
