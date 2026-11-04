@@ -148,3 +148,45 @@ test("GSS handles strict outflows through the normal simulation lifecycle", () =
   assert.equal(result.valid, true);
   assert.equal(result.total_outflows_paid, 5000);
 });
+
+test("GSS propagates a forecast contraction through three nested goal owners", () => {
+  const result = run({
+    options: [
+      fd("Outer goal", 20, 1000270, "120d"),
+      fd("Middle goal", 18, 1000260, "20d"),
+      fd("Inner goal", 16, 1000250, "1d"),
+      fd("Interim FD", 10, 1000001, "1d")
+    ],
+    start: "2026-01-01", end: "2026-09-01",
+    accounts: [account("main", "BANK_A", 1000000)],
+    inflow_schedule: {
+      "2026-01-02": { main: 1 },
+      "2026-02-07": { main: 1 },
+      "2026-02-08": { main: 1 },
+      "2026-02-10": { main: 247 },
+      "2026-02-15": { main: 10 },
+      "2026-03-10": { main: 10 }
+    }
+  });
+
+  const contractions = result.decision_log.filter(entry =>
+    entry.action === "FORECAST_CONTRACTED" &&
+    ["Outer goal", "Middle goal", "Inner goal"].includes(entry.goal_option));
+
+  assert.deepEqual(
+    contractions.map(entry => [entry.goal_option, entry.owner_depth, entry.previous_target_date, entry.target_date]),
+    [
+      ["Inner goal", 4, "2026-02-10", "2026-02-09"],
+      ["Middle goal", 2, "2026-02-15", "2026-02-09"],
+      ["Outer goal", 0, "2026-03-10", "2026-02-09"]
+    ],
+    "the interim FD maturity should contract every active ancestor forecast, not only the innermost goal"
+  );
+
+  const interim = result.bookings.find(booking => booking.option.label === "Interim FD");
+  assert.ok(interim, "the deepest waiting frame should book the interim FD");
+  assert.equal(interim.start.toISOString().slice(0, 10), "2026-02-08");
+  assert.equal(interim.end.toISOString().slice(0, 10), "2026-02-09");
+  assert.ok(result.gss_diagnostics.forecast_contractions >= 3);
+});
+
