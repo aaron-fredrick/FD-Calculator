@@ -153,7 +153,7 @@ function buildLedger(result) {
         append(e,"MATURE PRINCIPAL",b.principal,"Principal returned "+e.booking_ref,Number(e.balance_after)-Math.max(0,netInterest),"mature-principal",group);
         if(grossInterest>0)append(e,"MATURE INTEREST",grossInterest,"Interest paid at maturity "+e.booking_ref,Number(e.balance_after)+ait,"cash_flow",group);
       }else append(e,"MATURE CASH FLOW",gross,e.label,Number(e.balance_after)+ait,"maturity","FD MATURITY · CASH FLOW · AIT");
-      if(ait>.005)append(e,"AIT WITHHELD",-ait,"AIT deducted from interest payout",e.balance_after,"outflow","FD MATURITY · PRINCIPAL · INTEREST · AIT");
+      if(ait>.005)append(e,"AIT WITHHELD",-ait,"AIT deducted from interest payout",e.balance_after,"ait","FD MATURITY · PRINCIPAL · INTEREST · AIT");
       continue;
     }
     const labels={inflow:"INFLOW",outflow:"OUTFLOW",carry_forward:"CARRY FORWARD",idle:"IDLE"};
@@ -263,11 +263,11 @@ export function generateHtmlReport(result,config) {
     '<div class="outcome-metric"><small>Annualised money-weighted return</small><strong>'+(xirrValue===null?"N/A":xirrValue.toFixed(3)+"% p.a.")+'</strong><p>XIRR accounts for the timing of deposits and withdrawals.</p></div></div>'+warning;
   const flowTotals=new Map();
   const flowStyles={
-    "Inflow (Deposits)":"#56b4e9",
+    "Inflow (Deposits)":"#82aaff",
     "Transfer Out (TF)":"#ef7777",
     "Transfer In (TI)":"#56d8e8",
     "FD Maturity (Principal)":"#f08ab5",
-    "FD Booking":"#bd93f9",
+    "FD Booking":"#d78bfa",
     "FD Interest":"#55c99a",
     "AIT":"#d55e00",
     "Outflows":"#ef7777",
