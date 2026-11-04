@@ -114,6 +114,28 @@ export class SimulationEngine {
       throw new TypeError("SimulationEngine requires a strategy with a simulate(input) method.");
     }
     const result = strategy.simulate(input);
+
+    // The simulation engine owns lifecycle boundaries. Keep the start marker
+    // out of strategy decision-making so every strategy reports the same
+    // simulation start, including runs with no opening cash or start-day flows.
+    const startEvent = new Event({
+      event_type: EventType.SIMULATION_START,
+      on_date: input.start,
+      amount: 0,
+      label: "Simulation starts",
+      balance_after: 0,
+      total_balance_after: 0
+    });
+    const timeline = result.timeline ?? {};
+    if (timeline instanceof Map) {
+      const events = timeline.get(startEvent.date_key) ?? [];
+      events.unshift(startEvent);
+      timeline.set(startEvent.date_key, events);
+    } else {
+      (timeline[startEvent.date_key] ??= []).unshift(startEvent);
+    }
+    result.timeline = timeline;
+
     const defaultAccountId = input?.consolidation_account_id ??
       input?.inflow_account_id ??
       input?.accounts?.[0]?.id ??

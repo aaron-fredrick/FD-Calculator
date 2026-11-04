@@ -34,6 +34,7 @@ for (const [name, makeStrategy] of [
     const input = scenario();
     const raw = makeStrategy().simulate(input);
     const rawEvents = Object.values(raw.timeline).flat();
+    assert.equal(rawEvents.some(event => event.event_type === EventType.SIMULATION_START), false);
     assert.equal(raw.total_transfer_fees, 0);
     assert.equal(rawEvents.filter(event => event.label.startsWith("Final sweep")).length, 0);
     assert.equal(rawEvents.filter(event => event.event_type === EventType.IDLE).length, 0);
@@ -41,6 +42,10 @@ for (const [name, makeStrategy] of [
     const result = new SimulationEngine().run(makeStrategy(), input);
     const events = Object.values(result.timeline).flat();
     assert.equal(result.finalized, true);
+    const startEvents = events.filter(event => event.event_type === EventType.SIMULATION_START);
+    assert.equal(startEvents.length, 1);
+    assert.equal(startEvents[0].on_date.toISOString().slice(0, 10), input.start);
+    assert.equal(result.timeline[20260101][0], startEvents[0]);
     assert.equal(result.total_transfer_fees, 30);
     assert.equal(events.filter(event => event.label.startsWith("Final sweep to")).length, 1);
     assert.equal(events.filter(event => event.label.startsWith("Final sweep received")).length, 1);
