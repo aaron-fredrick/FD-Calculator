@@ -44,6 +44,32 @@ test("GSS recursively waits for scheduled inflows before booking a future goal",
     "recursive waits should re-evaluate their parent goal at processed event dates");
 });
 
+test("GSS contracts a parent forecast when an interim FD maturity advances affordability", () => {
+  const result = run({
+    options: [
+      fd("Parent goal", 20, 25000, "30d"),
+      fd("Interim FD", 10, 24950, "10d")
+    ],
+    start: "2026-01-01", end: "2026-03-01",
+    accounts: [account("main", "BANK_A", 24949)],
+    inflow_schedule: {
+      "2026-01-02": { main: 1 },
+      "2026-01-20": { main: 100 }
+    }
+  });
+
+  const parent = result.bookings.find(booking => booking.option.label === "Parent goal");
+  const interim = result.bookings.find(booking => booking.option.label === "Interim FD");
+  assert.ok(interim, "the waiting window should invest in the interim FD");
+  assert.ok(parent, "the parent goal should become affordable");
+  assert.equal(interim.start.toISOString().slice(0, 10), "2026-01-02");
+  assert.equal(interim.end.toISOString().slice(0, 10), "2026-01-12");
+  assert.equal(parent.start.toISOString().slice(0, 10), "2026-01-12",
+    "the parent should execute on the contracted maturity date, not the original inflow date");
+  assert.ok(result.gss_diagnostics.forecast_rechecks > 0);
+  assert.ok(result.gss_diagnostics.forecast_contractions > 0);
+});
+
 test("GSS compares consolidation when no individual account can meet an FD minimum", () => {
   const result = run({
     options: [
