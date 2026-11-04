@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { loadConfigurationFromFile } from "../src/io/data-loader.js";
-import { validateConfiguration } from "../src/core/configuration.js";
-import { GreedyStrategy } from "../src/core/strategies/greedy.js";
-import { AbsoluteStrategy } from "../src/core/strategies/absolute.js";
-import { GAMLStrategy } from "../src/core/strategies/gaml.js";
-import { formatSimulation } from "../src/reporting/console.js";
-import { generateHtmlReport } from "../src/reporting/html.js";
+import { loadConfigurationFromFile } from "../io/data-loader.js";
+import { validateConfiguration } from "../core/configuration.js";
+import { GreedyStrategy } from "../strategies/greedy.js";
+import { AbsoluteStrategy } from "../strategies/absolute.js";
+import { GAMLStrategy } from "../strategies/gaml.js";
+import { formatSimulation } from "../reporting/console.js";
+import { generateHtmlReport } from "../reporting/html.js";
 
 function parseArgs(argv) {
   const out = { config: "config.json", strategy: null, beam_width: undefined, max_local_branches: undefined, max_decisions: undefined, help: false };

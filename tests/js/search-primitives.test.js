@@ -8,7 +8,7 @@ import {
   pruneDominatedOptions,
   selectDiverseBeam,
   SearchTreeNode,
-} from "../../src/core/strategies/search-primitives.js";
+} from "../../src/strategies/search-primitives.js";
 
 test("search balance states are sorted and round to cents", () => {
   assert.deepEqual(makeBalanceState({ z: 10.126, a: 20 }), [["a", 20], ["z", 10.13]]);

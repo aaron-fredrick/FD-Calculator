@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { runExhaustiveSearch, runBeamSearch } from "../../src/core/strategies/search-engine.js";
+import { runExhaustiveSearch, runBeamSearch } from "../../src/strategies/search-engine.js";
 
 function treeFixture() {
   return {
