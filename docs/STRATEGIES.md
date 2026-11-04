@@ -20,6 +20,8 @@ It can consider booking separately from multiple accounts or consolidating balan
 
 Greedy does not retain a large set of alternative future plans. A decision that looks best now may prevent a more profitable combination later, so its result is a useful baseline rather than a guarantee of the best possible portfolio.
 
+For the implementation flow, plan admission rules, ranking criteria, fee treatment and limitations, see the [detailed Greedy strategy guide](strategies/GREEDY.md).
+
 **Use it when:** you want a quick result, a baseline for comparison, or a starting solution for the search-based strategies.
 
 ## GAML
@@ -31,7 +33,7 @@ Two settings control the main search breadth:
 - **Beam width** (beam_width): the maximum number of candidate states retained at each layer. A wider beam keeps more alternative plans alive for later decisions.
 - **Max local branches** (max_local_branches): the maximum number of local booking combinations explored while expanding a state. A higher limit lets GAML consider more ways to split or combine available balances.
 
-These settings limit different parts of the search. Beam width limits how many overall plans continue; max local branches limits how many combinations are considered when expanding each plan.
+These settings limit different parts of the search. Beam width limits how many overall plans continue; max_local_branches limits how many combinations are considered when expanding each plan.
 
 A larger value for either setting can improve exploration, but generally increases runtime and memory use. Increasing them does not guarantee a better result in every scenario.
 
