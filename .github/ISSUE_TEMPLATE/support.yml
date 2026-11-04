@@ -1,0 +1,80 @@
+name: Support request
+description: Get help using FD Cal or understanding an error. Creates a public support ticket.
+title: "[Support]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Public support ticket
+
+        Submitting this form creates a **public GitHub issue**. Anyone can read it.
+        Never include bank account numbers, credentials, personal identifiers, private documents, or unredacted financial records.
+        If you share a configuration or log, remove sensitive values and keep only the minimum needed to reproduce the problem.
+  - type: dropdown
+    id: topic
+    attributes:
+      label: What do you need help with?
+      options:
+        - Getting started / setup
+        - Adding or configuring bank accounts
+        - FD products, rates, or eFD eligibility
+        - Strategies and optimisation results
+        - Cash-flow plans
+        - Importing or exporting configuration
+        - CLI usage
+        - HTML report or charts
+        - Error or unexpected behaviour
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Describe what you need help with
+      description: Include the goal you are trying to achieve and where you are stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: List the steps you have already taken and any troubleshooting performed.
+    validations:
+      required: false
+  - type: textarea
+    id: error
+    attributes:
+      label: Error message or unexpected result
+      description: Paste the exact error text or describe the result. Redact sensitive data.
+      render: text
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: FD Cal version or commit
+      placeholder: e.g. main @ abc1234
+    validations:
+      required: false
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Web app — Chrome
+        - Web app — Firefox
+        - Web app — Edge
+        - Web app — Safari
+        - CLI — Windows
+        - CLI — Linux
+        - CLI — macOS
+        - Other / not sure
+    validations:
+      required: false
+  - type: textarea
+    id: sanitized_example
+    attributes:
+      label: Sanitized example (optional)
+      description: Provide a minimal example with fictional or anonymized values. Do not upload your real financial configuration.
+    validations:
+      required: false
