@@ -45,3 +45,12 @@ test("rejects invalid types, unknown fields and invalid conditional groups",()=>
   const d=valid();d.gaml_settings.beam_width=null;
   assert.throws(()=>validateConfigurationShape(d),/beam_width/);
 });
+
+test("accepts and validates independent Greedy tenor settings",()=>{
+  const a=valid();a.strategy="greedy";a.greedy_settings={tenor_tiebreaker:"longest",plan_tenor_tiebreaker:"shortest"};
+  assert.equal(validateConfigurationShape(a).greedy_settings.tenor_tiebreaker,"longest");
+  const b=valid();b.greedy_settings={tenor_tiebreaker:"middle"};
+  assert.throws(()=>validateConfigurationShape(b),/must be shortest or longest/);
+  const d=valid();d.strategy_settings={greedy:{plan_tenor_tiebreaker:"longest"}};
+  assert.equal(validateConfigurationShape(d).strategy_settings.greedy.plan_tenor_tiebreaker,"longest");
+});
