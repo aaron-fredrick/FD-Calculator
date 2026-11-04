@@ -4,7 +4,7 @@
 /* Keep GAML-only controls hidden when their strategy is not selected. */
 .grid[hidden]{display:none!important}
 /* Strategy panels use explicit hidden handling because their grid display overrides the browser's UA [hidden] rule. */
-#greedy-settings[hidden],#gaml-settings[hidden]{display:none!important}
+#greedy-settings[hidden],#gss-settings[hidden],#gaml-settings[hidden]{display:none!important}
 .strategy-row>label{align-self:start}
 .strategy-row>.field-label{min-height:1.5em}
 .strategy-row{grid-template-columns:1.35fr 1fr 1fr;align-items:start;margin-top:0}
@@ -105,3 +105,16 @@ footer{font-size:12px;line-height:1.55}
  #strategy .strategy-row,#strategy #greedy-settings,#strategy #gss-settings,#strategy #gaml-settings{row-gap:16px;margin-top:18px}
  #strategy .toggles{margin-top:22px}
 }
+
+/* Strategy identity: compact icon and capability cue below the native selector. */
+.strategy-indicator{display:flex;align-items:center;gap:8px;min-height:32px;padding:5px 9px;border:1px solid #344256;border-radius:8px;background:#101923;color:#c7d4e3;font-size:11px;font-weight:600;line-height:1.35}
+.strategy-symbol{display:inline-grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border-radius:6px;background:#223448;font-size:16px;font-weight:800;line-height:1}
+.strategy-indicator[data-strategy="gaml"]{border-color:#315a73;color:#b9dcf0}
+.strategy-indicator[data-strategy="gaml"] .strategy-symbol{background:#1d3b50;color:var(--blue)}
+.strategy-indicator[data-strategy="gss"]{border-color:#594778;color:#d8c8f3}
+.strategy-indicator[data-strategy="gss"] .strategy-symbol{background:#342748;color:var(--purple)}
+.strategy-indicator[data-strategy="greedy"]{border-color:#66502f;color:#f0d2a5}
+.strategy-indicator[data-strategy="greedy"] .strategy-symbol{background:#3b2d1c;color:var(--amber)}
+.strategy-indicator[data-strategy="absolute"]{border-color:#35634f;color:#bcebd5}
+.strategy-indicator[data-strategy="absolute"] .strategy-symbol{background:#1e3b30;color:var(--green)}
+@media(max-width:620px){.strategy-indicator{font-size:12px;min-height:36px}}
