@@ -25,7 +25,7 @@ If a candidate cannot be booked immediately, GSS projects future inflows, known 
 
 GSS recursively advances the waiting period. The child planning window processes actual events and evaluates immediately achievable goals. It can invest interim balances, but only in products that mature no later than the parent target date. This prevents interim bookings from locking away liquidity needed by the parent goal.
 
-At the target date, GSS rebuilds the candidate plans from actual account balances and processed events. Planned outflows are also protected: split bookings retain the liquidity needed in each account until the selected FD's first cash flow, while consolidation leaves source-account reserves for their remaining scheduled obligations. If the parent candidate is no longer viable, it continues considering candidates from the updated date/state. If all candidates are exhausted, remaining funds stay liquid and carry forward. There is no strategy fallback.
+At the target date, GSS rebuilds the candidate plans from actual account balances and processed events. Planned outflows are also protected: split bookings retain the liquidity needed in each account until the selected FD matures, while consolidation leaves source-account reserves for their remaining scheduled obligations. If the parent candidate is no longer viable, it continues considering candidates from the updated date/state. If all candidates are exhausted, remaining funds stay liquid and carry forward. There is no strategy fallback.
 
 ## Recursion threshold
 

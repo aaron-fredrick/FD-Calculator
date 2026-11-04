@@ -218,19 +218,13 @@ export class GSSStrategy {
       return Math.max(0, -minimum);
     };
 
-    const firstCashFlowDate = (option, date) => {
-      const flows = option.generateCashFlowsAfterAIT(1, date, this.effective_ait_rate,
-        this.compound, this.actual_leap_year);
-      return flows.length ? flows[0].date : option.maturityDate(date);
-    };
-
-    const buildPlans = (candidate, date, balances, horizon, pendingState = pending) => {
+    const buildPlans = (candidate, date, balances, horizon, pendingState = pending, parentGoals = []) => {
       const plans = [];
       const targetAccount = candidate.account;
       const candidateBalance = balances.get(targetAccount.id) ?? 0;
       const candidateOption = candidate.option;
-      const targetFirstFlow = firstCashFlowDate(candidateOption, date);
-      const targetReserve = reservedLiquidity(targetAccount.id, date, targetFirstFlow, balances, pendingState);
+      const targetMaturity = candidateOption.maturityDate(date);
+      const targetReserve = reservedLiquidity(targetAccount.id, date, targetMaturity, balances, pendingState);
       const targetInvestable = Math.max(0, candidateBalance - targetReserve);
 
       // SPLIT: the goal product must be booked in its own account. Other
@@ -249,8 +243,8 @@ export class GSSStrategy {
               account, investmentDate: date, simulationEndDate: horizon
             });
             for (const product of products) {
-              const firstFlow = firstCashFlowDate(product, date);
-              const reserve = reservedLiquidity(account.id, date, firstFlow, balances, pendingState);
+              const maturity = product.maturityDate(date);
+              const reserve = reservedLiquidity(account.id, date, maturity, balances, pendingState);
               const investable = Math.max(0, balance - reserve);
               if (product.canInvest(investable, date, horizon)) {
                 option = product;
@@ -306,12 +300,22 @@ export class GSSStrategy {
           target_account: targetAccount, transfers, carries, fees, net_interest: interest
         });
       }
+      if (parentGoals.length) {
+        const protectedTargets = parentGoals.map(goal => goal.account.id);
+        for (let index = plans.length - 1; index >= 0; index--) {
+          const plan = plans[index];
+          if (plan.type === "CONSOLIDATE" &&
+              protectedTargets.some(accountId => accountId !== plan.target_account.id)) {
+            plans.splice(index, 1);
+          }
+        }
+      }
       plans.sort((a, b) => b.net_interest - a.net_interest ||
         a.fees - b.fees || (a.type === "SPLIT" ? -1 : 1));
       return plans;
     };
 
-    const findFutureDate = (candidate, fromDate, horizon) => {
+    const findFutureDate = (candidate, fromDate, horizon, parentGoals = []) => {
       const balances = balanceSnapshot();
       let projectedPending = pending.map(item => ({ ...item }));
       for (const key of eventDates(fromDate, horizon)) {
@@ -346,7 +350,7 @@ export class GSSStrategy {
           if (unpaid > EPS) stillPending.push({ ...obligation, remaining: unpaid });
         }
         projectedPending = stillPending;
-        if (buildPlans(candidate, date, balances, horizon, projectedPending).length) return date;
+        if (buildPlans(candidate, date, balances, horizon, projectedPending, parentGoals).length) return date;
       }
       return null;
     };
@@ -445,7 +449,7 @@ export class GSSStrategy {
       });
     };
 
-    const advanceWindow = (fromDate, throughDate, depth, allowNested) => {
+    const advanceWindow = (fromDate, throughDate, depth, allowNested, parentGoals = []) => {
       let cursor = fromDate;
       while (!strictFailed) {
         const next = eventDates(cursor, throughDate)[0];
@@ -457,14 +461,14 @@ export class GSSStrategy {
         if (!processDate(date)) return date;
         cursor = date;
         if (date < throughDate) {
-          cursor = considerAtDate(date, throughDate, depth + 1, allowNested);
+          cursor = considerAtDate(date, throughDate, depth + 1, allowNested, parentGoals);
         }
         if (cursor >= throughDate) return throughDate;
       }
       return cursor;
     };
 
-    const considerAtDate = (initialDate, horizon, depth, allowFuture) => {
+    const considerAtDate = (initialDate, horizon, depth, allowFuture, parentGoals = []) => {
       let today = initialDate;
       maximumDepth = Math.max(maximumDepth, depth);
       while (!strictFailed) {
@@ -472,13 +476,13 @@ export class GSSStrategy {
         let advanced = false;
         for (const candidate of candidates) {
           candidatesConsidered++;
-          const plans = buildPlans(candidate, today, balanceSnapshot(), horizon);
+          const plans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
           if (plans.length) {
             executePlan(plans[0], today, initialDate, candidate);
             return today;
           }
           if (!allowFuture) continue;
-          const targetDate = findFutureDate(candidate, today, horizon);
+          const targetDate = findFutureDate(candidate, today, horizon, parentGoals);
           if (!targetDate || targetDate <= today) continue;
 
           futureGoals++;
@@ -491,11 +495,11 @@ export class GSSStrategy {
             target_date: formatISODate(targetDate), wait_days: waitDays,
             recursive_wait: recurseFurther
           });
-          today = advanceWindow(today, targetDate, depth + 1, recurseFurther);
+          today = advanceWindow(today, targetDate, depth + 1, recurseFurther, [...parentGoals, candidate]);
 
           // Rebuild the candidate plan from actual balances after the child GSS
           // window has processed its cash flows, outflows and interim bookings.
-          const actualPlans = buildPlans(candidate, today, balanceSnapshot(), horizon);
+          const actualPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
           if (actualPlans.length) {
             executePlan(actualPlans[0], today, initialDate, candidate);
             return today;
