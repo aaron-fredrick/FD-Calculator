@@ -8,6 +8,8 @@ See [the strategy guide](docs/STRATEGIES.md) for an explanation of Greedy, GAML 
 
 ## Migration status
 
+Copy `config.json.example` to `config.json` and edit it for your scenario. The root `config.json` is intentionally ignored because it contains local financial data; the example remains tracked.
+
 The repository is being migrated to one shared, environment-neutral JavaScript calculation engine consumed by:
 
 - **Node.js CLI:** development, regression testing, diagnostics, and all strategies including Absolute.
