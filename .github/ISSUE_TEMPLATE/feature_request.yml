@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest a capability or improvement for FD Cal.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Explain the problem you are trying to solve, not only the proposed implementation.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What limitation or user need does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe how you would expect the feature to work.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any workaround or alternative you have considered.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Relevant area
+      options:
+        - Web configurator
+        - CLI
+        - Calculation engine / strategy
+        - Reporting and charts
+        - Bank or FD product data
+        - Configuration and integrations
+        - Accessibility / usability
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Mock-ups, examples, constraints, or references that help explain the request.
+    validations:
+      required: false
