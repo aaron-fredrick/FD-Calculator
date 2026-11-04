@@ -1,5 +1,6 @@
 import { Account, FDOption, TransferFeeConfig } from "./models.js";
 import { addPeriod, formatISODate, parseISODate, parsePeriod } from "./dates.js";
+import { validateConfigurationShape } from "./config-schema.js";
 
 function finiteNonNegative(value, field) {
   const number = Number(value);
@@ -95,7 +96,7 @@ export function buildCashSchedule(rawEvents = [], kind, { start, end, accountIds
  * FD index mapping and already-loaded products; file access stays in Node/browser adapters.
  */
 export function validateConfiguration(raw, { bankRegistry, bankKeyById, options, today = null } = {}) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new TypeError("Configuration root must be an object.");
+  validateConfigurationShape(raw);
   const investment = raw.investment;
   if (!investment || typeof investment !== "object") throw new TypeError("Configuration requires an investment object.");
   const start = resolveDate(investment.start_date, { today });
@@ -133,6 +134,7 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   const inflows = buildCashSchedule(raw.inflows ?? [], "inflow", { start, end, accountIds, today });
   const outflows = buildCashSchedule(raw.outflows ?? [], "outflow", { start, end, accountIds, today });
   const fees = raw.transfer_fees ?? {};
+  if (!Array.isArray(fees.custom_fees ?? [])) throw new TypeError("transfer_fees.custom_fees must be an array.");
   if (typeof fees !== "object" || Array.isArray(fees)) throw new TypeError("transfer_fees must be an object.");
   const customFees = {};
   for (const [index, item] of (fees.custom_fees ?? []).entries()) {
@@ -152,6 +154,10 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     same_bank_fee: finiteNonNegative(fees.same_bank_fee ?? 0, "same_bank_fee"),
     custom_fees: customFees, bank_fees: bankFees
   });
+  const compound = raw.compound ?? false;
+  if (typeof compound !== "boolean") throw new TypeError("compound must be boolean.");
+  const actualLeapYear = raw.actual_leap_year ?? true;
+  if (typeof actualLeapYear !== "boolean") throw new TypeError("actual_leap_year must be boolean.");
   const aitEnabled = raw.ait_enabled ?? true;
   if (typeof aitEnabled !== "boolean") throw new TypeError("ait_enabled must be boolean.");
   const strategy = String(raw.strategy ?? "absolute").trim().toLowerCase();
@@ -174,8 +180,8 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     start, end, accounts, accountIds, bankIds, options, consolidation_account_id: consolidationAccountId,
     inflow_schedule: inflows.schedule, inflow_summaries: inflows.summaries,
     outflow_schedule: outflows.schedule, outflow_summaries: outflows.summaries,
-    fee_config: feeConfig, strategy, gaml_settings: gamlSettings, compound: Boolean(raw.compound),
-    actual_leap_year: raw.actual_leap_year ?? true, ait_enabled: aitEnabled, ait_rate: 0.10,
+    fee_config: feeConfig, strategy, gaml_settings: gamlSettings, compound,
+    actual_leap_year: actualLeapYear, ait_enabled: aitEnabled, ait_rate: 0.10,
     report_output_file: String(raw.report_output_file ?? "fd_cal_report.html").trim()
   };
 }
