@@ -31,3 +31,10 @@
 .account.is-removing,.schedule.is-removing{pointer-events:none;transform-origin:top right;animation:entry-remove .28s cubic-bezier(.2,.7,.25,1) forwards}
 @keyframes entry-remove{0%{opacity:1;transform:translate(0,0) scale(1);filter:blur(0)}55%{opacity:.35;transform:translate(10px,-4px) scale(.96);filter:blur(.4px)}100%{opacity:0;transform:translate(17px,-7px) scale(.9);filter:blur(1.2px)}}
 @media(prefers-reduced-motion:reduce){.remove-icon,.remove-icon .trash-lid{transition:none}.account.is-removing,.schedule.is-removing{animation-duration:1ms}}
+
+/* Simulation progress feedback; keep visible even when all rate data is cached. */
+.simulation-status{display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:11px 13px;border:1px solid #344a60;border-radius:9px;background:#142131;color:#c7d8e8;font-size:11px}
+.simulation-status:not([hidden])::before,.primary.is-loading::before{content:"";display:inline-block;width:13px;height:13px;flex:0 0 13px;border:2px solid #7898b3;border-right-color:transparent;border-radius:50%;animation:simulation-spin .7s linear infinite}
+.primary.is-loading{display:inline-flex;align-items:center;justify-content:center;gap:8px;opacity:.9;cursor:progress}
+@keyframes simulation-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.simulation-status:not([hidden])::before,.primary.is-loading::before{animation-duration:1.8s}}
