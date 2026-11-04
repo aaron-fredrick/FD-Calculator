@@ -269,6 +269,7 @@ export function generateHtmlReport(result,config) {
     "FD Maturity (Principal)":"#f08ab5",
     "FD Booking":"#d78bfa",
     "FD Interest":"#55c99a",
+    "FD Installment":"#55c99a",
     "AIT":"#d55e00",
     "Outflows":"#ef7777",
     "Transfer Fees":"#c84b31"
@@ -296,7 +297,8 @@ export function generateHtmlReport(result,config) {
     }else if(booking&&(e.event_type==="cash_flow"||e.event_type==="maturity")){
       const gross=grossByRefDate.get(e.booking_ref+"|"+date)??value;
       const ait=result.ait_enabled?Math.max(0,gross-value):0;
-      if(e.event_type==="maturity"){
+      if(booking.payout_type==="installment")addFlow("FD Installment",date,gross);
+      else if(e.event_type==="maturity"){
         addFlow("FD Maturity (Principal)",date,booking.principal);
         addFlow("FD Interest",date,Math.max(0,gross-Number(booking.principal||0)));
       }else addFlow("FD Interest",date,gross);
