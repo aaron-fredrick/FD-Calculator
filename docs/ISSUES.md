@@ -55,30 +55,35 @@ The underscore is a naming convention that makes workflow labels easy to disting
 
 New issues start with one category label and `_triage`. Maintainers then review the report and update its workflow label as appropriate.
 
-```text
-Issue submitted
-  category + _triage
-        |
-        v
-Maintainer review
-  remove _triage
-        |
-        +--> Needs verification / accepted for consideration
-        |      add _confirmed
-        |             |
-        |             v
-        |      Work begins: replace/add _in-progress
-        |             |
-        |             +--> Waiting on dependency: _blocked
-        |             |
-        |             v
-        |      Work completed: _completed, then close when appropriate
-        |
-        +--> Duplicate: _duplicate, link the canonical issue, close as duplicate
-        |
-        +--> Not actionable / invalid: _invalid, explain why, close when appropriate
-        |
-        +--> Not planned: _wontfix, explain the decision, close when appropriate
+```mermaid
+flowchart TD
+    A["Issue submitted<br/>category + _triage"] --> B["Maintainer review<br/>remove _triage"]
+    B --> C{"Review outcome"}
+    C -->|Verified / accepted| D["_confirmed"]
+    D --> E["_in-progress"]
+    E --> F{"Dependency?"}
+    F -->|Yes| G["_blocked"]
+    G --> E
+    F -->|No| H["_completed"]
+    H --> I["Close issue when resolved"]
+    C -->|Duplicate| J["_duplicate<br/>Link canonical issue and close"]
+    C -->|Invalid / not actionable| K["_invalid<br/>Explain and close when appropriate"]
+    C -->|Not planned| L["_wontfix<br/>Explain decision and close"]
+
+    classDef start fill:#192635,stroke:#56b4e9,color:#e8edf5,stroke-width:1.5px
+    classDef review fill:#2b261b,stroke:#e9ad58,color:#f4e8d2,stroke-width:1.5px
+    classDef active fill:#172b27,stroke:#55c99a,color:#e8edf5,stroke-width:1.5px
+    classDef blocked fill:#30251b,stroke:#e9ad58,color:#f4e8d2,stroke-width:1.5px
+    classDef done fill:#172b27,stroke:#55c99a,color:#e8edf5,stroke-width:1.5px
+    classDef exception fill:#302027,stroke:#ef7777,color:#f5e5e8,stroke-width:1.5px
+    class A start
+    class B review
+    class C review
+    class D,E active
+    class F review
+    class G blocked
+    class H,I done
+    class J,K,L exception
 ```
 
 This is a guide, not a rigid state machine. Not every issue needs every status. For example, a documentation typo may move directly from triage to completed. Maintainers should remove obsolete workflow labels when the status changes, so an issue does not misleadingly show several conflicting states. The category label should normally remain.
