@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { validateConfigurationShape } from "../../src/core/config-schema.js";
 
 const valid = () => ({
@@ -69,4 +70,26 @@ test("configuration schema accepts GSS and validates its recursion threshold", (
     accounts: { main: { bank_id: "BANK_A" } },
     gss_settings: { small_period_days: 0 }
   }), /small_period_days/);
+});
+
+test("accepts GSS settings through supported configuration aliases", () => {
+  const base = {
+    strategy: "gss",
+    investment: { start_date: "2026-01-01", end_date: "2026-12-31" },
+    accounts: { main: { bank_id: "BANK_A" } }
+  };
+  assert.equal(validateConfigurationShape({ ...base, gss: { small_period_days: 14 } }).gss.small_period_days, 14);
+  assert.equal(validateConfigurationShape({ ...base, strategy_settings: { gss: { small_period_days: 21 } } }).strategy_settings.gss.small_period_days, 21);
+  assert.throws(() => validateConfigurationShape({ ...base, strategy_settings: { gss: { unknown: true } } }), /unknown setting/);
+});
+
+test("published JSON schema declares GSS and all strategy settings", () => {
+  const schema = JSON.parse(readFileSync(new URL("../../schema/config.schema.json", import.meta.url), "utf8"));
+  assert.deepEqual(schema.properties.strategy.enum, ["absolute", "greedy", "gaml", "gss"]);
+  for (const key of ["gss_settings", "gss", "greedy_settings", "greedy"]) {
+    assert.ok(schema.properties[key], `missing schema property: ${key}`);
+  }
+  assert.ok(schema.properties.strategy_settings.properties.gss);
+  assert.equal(schema.$defs.gssSettings.properties.small_period_days.minimum, 1);
+  assert.equal(schema.$defs.gssSettings.properties.small_period_days.default, 30);
 });

@@ -4,107 +4,490 @@
   "title": "FD Cal scenario configuration",
   "description": "Structural contract for CLI and browser scenario imports. Runtime validation additionally checks catalogue references, date ordering, FD eligibility and financial invariants.",
   "type": "object",
-  "required": ["investment", "accounts"],
+  "required": [
+    "investment",
+    "accounts"
+  ],
   "additionalProperties": false,
   "properties": {
-    "strategy": { "type": "string", "enum": ["absolute", "greedy", "gaml"], "default": "absolute" },
-    "options_file": { "type": "string", "minLength": 1 },
-    "investment": { "$ref": "#/$defs/investment" },
-    "accounts": { "type": "object", "minProperties": 1, "propertyNames": { "pattern": "\\S" }, "additionalProperties": { "$ref": "#/$defs/account" } },
-    "consolidation_account_id": { "type": "string", "minLength": 1 },
-    "inflows": { "type": "array", "items": { "$ref": "#/$defs/inflow" } },
-    "outflows": { "type": "array", "items": { "$ref": "#/$defs/outflow" } },
-    "transfer_fees": { "$ref": "#/$defs/transferFees" },
-    "compound": { "type": "boolean", "default": false },
-    "ait_enabled": { "type": "boolean", "default": true },
-    "actual_leap_year": { "type": "boolean", "default": true },
-    "gaml_settings": { "$ref": "#/$defs/gamlSettings" },
-    "gaml": { "$ref": "#/$defs/gamlSettings", "deprecated": true },
-    "strategy_settings": { "type": "object", "properties": { "gaml": { "$ref": "#/$defs/gamlSettings" } }, "additionalProperties": false },
-    "show_timeline": { "type": "boolean" },
-    "show_ledger": { "type": "boolean" },
-    "show_plots": { "type": "boolean" },
-    "plot_output_dir": { "type": "string", "minLength": 1 },
-    "report_output_file": { "type": "string", "minLength": 1 }
+    "strategy": {
+      "type": "string",
+      "enum": [
+        "absolute",
+        "greedy",
+        "gaml",
+        "gss"
+      ],
+      "default": "absolute"
+    },
+    "options_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "investment": {
+      "$ref": "#/$defs/investment"
+    },
+    "accounts": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/account"
+      }
+    },
+    "consolidation_account_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inflows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/inflow"
+      }
+    },
+    "outflows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/outflow"
+      }
+    },
+    "transfer_fees": {
+      "$ref": "#/$defs/transferFees"
+    },
+    "compound": {
+      "type": "boolean",
+      "default": false
+    },
+    "ait_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "actual_leap_year": {
+      "type": "boolean",
+      "default": true
+    },
+    "gaml_settings": {
+      "$ref": "#/$defs/gamlSettings"
+    },
+    "gaml": {
+      "$ref": "#/$defs/gamlSettings",
+      "deprecated": true
+    },
+    "strategy_settings": {
+      "type": "object",
+      "properties": {
+        "gaml": {
+          "$ref": "#/$defs/gamlSettings"
+        },
+        "greedy": {
+          "$ref": "#/$defs/greedySettings"
+        },
+        "gss": {
+          "$ref": "#/$defs/gssSettings"
+        }
+      },
+      "additionalProperties": false
+    },
+    "show_timeline": {
+      "type": "boolean"
+    },
+    "show_ledger": {
+      "type": "boolean"
+    },
+    "show_plots": {
+      "type": "boolean"
+    },
+    "plot_output_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "report_output_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "greedy_settings": {
+      "$ref": "#/$defs/greedySettings"
+    },
+    "greedy": {
+      "$ref": "#/$defs/greedySettings",
+      "deprecated": true
+    },
+    "gss_settings": {
+      "$ref": "#/$defs/gssSettings"
+    },
+    "gss": {
+      "$ref": "#/$defs/gssSettings",
+      "deprecated": true
+    }
   },
   "allOf": [
-    { "if": { "properties": { "strategy": { "const": "gaml" } }, "required": ["strategy"] }, "then": { "properties": { "gaml_settings": { "$ref": "#/$defs/gamlSettings" }, "gaml": { "$ref": "#/$defs/gamlSettings" } } } }
+    {
+      "if": {
+        "properties": {
+          "strategy": {
+            "const": "gaml"
+          }
+        },
+        "required": [
+          "strategy"
+        ]
+      },
+      "then": {
+        "properties": {
+          "gaml_settings": {
+            "$ref": "#/$defs/gamlSettings"
+          },
+          "gaml": {
+            "$ref": "#/$defs/gamlSettings"
+          }
+        }
+      }
+    }
   ],
   "$defs": {
     "date": {
       "description": "YYYY-MM-DD, today, start/investment_start, end/investment_end, or investment_start+<positive period> (e.g. investment_start+3m).",
       "oneOf": [
-        { "type": "string", "format": "date" },
-        { "type": "string", "enum": ["today", "start", "investment_start", "end", "investment_end"] },
-        { "type": "string", "pattern": "^investment_start\\+[1-9][0-9]*[dmy]$" }
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "type": "string",
+          "enum": [
+            "today",
+            "start",
+            "investment_start",
+            "end",
+            "investment_end"
+          ]
+        },
+        {
+          "type": "string",
+          "pattern": "^investment_start\\+[1-9][0-9]*[dmy]$"
+        }
       ]
     },
     "investment": {
-      "type": "object", "required": ["start_date", "end_date"], "additionalProperties": false,
-      "properties": { "start_date": { "$ref": "#/$defs/date" }, "end_date": { "$ref": "#/$defs/date" } }
+      "type": "object",
+      "required": [
+        "start_date",
+        "end_date"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "start_date": {
+          "$ref": "#/$defs/date"
+        },
+        "end_date": {
+          "$ref": "#/$defs/date"
+        }
+      }
     },
     "account": {
-      "type": "object", "required": ["bank_id"], "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "bank_id"
+      ],
+      "additionalProperties": false,
       "properties": {
-        "bank_id": { "type": "string", "minLength": 1 },
-        "label": { "type": "string" },
-        "balance": { "type": "number", "minimum": 0 },
-        "supports_efd": { "type": "boolean", "default": true, "description": "Legacy files may omit this; omission retains the historical default true." }
+        "bank_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "balance": {
+          "type": "number",
+          "minimum": 0
+        },
+        "supports_efd": {
+          "type": "boolean",
+          "default": true,
+          "description": "Legacy files may omit this; omission retains the historical default true."
+        }
       }
     },
     "gamlSettings": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "beam_width": { "type": "integer", "minimum": 1, "default": 256 },
-        "max_local_branches": { "type": ["integer", "null"], "minimum": 1, "default": 128 },
-        "max_decisions": { "type": ["integer", "null"], "minimum": 1, "default": null },
-        "state_cap": { "type": ["integer", "null"], "minimum": 1, "deprecated": true }
+        "beam_width": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 256
+        },
+        "max_local_branches": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "default": 128
+        },
+        "max_decisions": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "default": null
+        },
+        "state_cap": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "deprecated": true
+        }
       }
     },
     "transferFees": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "properties": {
-        "default_inter_bank_fee": { "type": ["number", "null"], "minimum": 0, "default": 30 },
-        "same_bank_fee": { "type": ["number", "null"], "minimum": 0, "default": 0 },
-        "custom_fees": { "type": "array", "items": { "$ref": "#/$defs/customFee" } }
+        "default_inter_bank_fee": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "default": 30
+        },
+        "same_bank_fee": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "default": 0
+        },
+        "custom_fees": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/customFee"
+          }
+        }
       }
     },
     "customFee": {
-      "type": "object", "required": ["from_bank_id", "to_bank_id", "amount"], "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "from_bank_id",
+        "to_bank_id",
+        "amount"
+      ],
+      "additionalProperties": false,
       "properties": {
-        "from_bank_id": { "type": "string", "minLength": 1 },
-        "to_bank_id": { "type": "string", "minLength": 1 },
-        "amount": { "type": "number", "minimum": 0 }
+        "from_bank_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "to_bank_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0
+        }
       }
     },
     "baseCashEvent": {
-      "type": "object", "required": ["amount", "account_id"],
+      "type": "object",
+      "required": [
+        "amount",
+        "account_id"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "amount": { "type": "number", "exclusiveMinimum": 0 },
-        "account_id": { "type": "string", "minLength": 1 }
+        "name": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "account_id": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "inflow": {
       "allOf": [
-        { "$ref": "#/$defs/baseCashEvent" },
-        { "oneOf": [
-          { "properties": { "type": { "const": "scheduled" }, "dates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/date" } } }, "required": ["type", "dates"], "not": { "required": ["interval"] } },
-          { "properties": { "type": { "enum": ["recurring"] }, "interval": { "type": "string", "pattern": "^[1-9][0-9]*[dmy]$" }, "start_date": { "$ref": "#/$defs/date" }, "end_date": { "$ref": "#/$defs/date" } }, "required": ["interval"], "not": { "required": ["type", "dates"] } }
-        ] }
+        {
+          "$ref": "#/$defs/baseCashEvent"
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "type": {
+                  "const": "scheduled"
+                },
+                "dates": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/date"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "dates"
+              ],
+              "not": {
+                "required": [
+                  "interval"
+                ]
+              }
+            },
+            {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "recurring"
+                  ]
+                },
+                "interval": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*[dmy]$"
+                },
+                "start_date": {
+                  "$ref": "#/$defs/date"
+                },
+                "end_date": {
+                  "$ref": "#/$defs/date"
+                }
+              },
+              "required": [
+                "interval"
+              ],
+              "not": {
+                "required": [
+                  "type",
+                  "dates"
+                ]
+              }
+            }
+          ]
+        }
       ],
       "unevaluatedProperties": false
     },
     "outflow": {
       "allOf": [
-        { "$ref": "#/$defs/baseCashEvent" },
-        { "oneOf": [
-          { "properties": { "type": { "const": "scheduled" }, "dates": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/date" } } }, "required": ["type", "dates"], "not": { "required": ["interval"] } },
-          { "properties": { "type": { "enum": ["recurring"] }, "interval": { "type": "string", "pattern": "^[1-9][0-9]*[dmy]$" }, "start_date": { "$ref": "#/$defs/date" }, "end_date": { "$ref": "#/$defs/date" } }, "required": ["interval"], "not": { "required": ["type", "dates"] } }
-        ] }
+        {
+          "$ref": "#/$defs/baseCashEvent"
+        },
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "type": {
+                  "const": "scheduled"
+                },
+                "dates": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/date"
+                  }
+                }
+              },
+              "required": [
+                "type",
+                "dates"
+              ],
+              "not": {
+                "required": [
+                  "interval"
+                ]
+              }
+            },
+            {
+              "properties": {
+                "type": {
+                  "enum": [
+                    "recurring"
+                  ]
+                },
+                "interval": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*[dmy]$"
+                },
+                "start_date": {
+                  "$ref": "#/$defs/date"
+                },
+                "end_date": {
+                  "$ref": "#/$defs/date"
+                }
+              },
+              "required": [
+                "interval"
+              ],
+              "not": {
+                "required": [
+                  "type",
+                  "dates"
+                ]
+              }
+            }
+          ]
+        }
       ],
-      "properties": { "payment_policy": { "type": "string", "enum": ["strict", "defer", "best_effort"] } },
+      "properties": {
+        "payment_policy": {
+          "type": "string",
+          "enum": [
+            "strict",
+            "defer",
+            "best_effort"
+          ]
+        }
+      },
       "unevaluatedProperties": false
+    },
+    "greedySettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenor_tiebreaker": {
+          "type": "string",
+          "enum": [
+            "shortest",
+            "longest"
+          ],
+          "default": "shortest"
+        },
+        "plan_tenor_tiebreaker": {
+          "type": "string",
+          "enum": [
+            "shortest",
+            "longest"
+          ],
+          "default": "shortest"
+        }
+      }
+    },
+    "gssSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "small_period_days": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 30,
+          "description": "Waiting periods at or below this threshold are processed without deeper recursive subdivision."
+        }
+      }
     }
   }
 }

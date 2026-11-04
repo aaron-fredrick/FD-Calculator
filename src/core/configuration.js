@@ -1,6 +1,6 @@
 import { Account, FDOption, TransferFeeConfig } from "./models.js";
 import { addPeriod, formatISODate, parseISODate, parsePeriod } from "./dates.js";
-import { validateConfigurationShape } from "./config-schema.js";
+import { validateConfigurationShape } from "./config-schema.js?v=gss-settings-2";
 
 function finiteNonNegative(value, field) {
   const number = Number(value);
