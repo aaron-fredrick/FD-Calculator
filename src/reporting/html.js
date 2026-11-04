@@ -156,8 +156,8 @@ function buildLedger(result) {
       if(ait>.005)append(e,"AIT WITHHELD",-ait,"AIT deducted from interest payout",e.balance_after,"ait","FD MATURITY · PRINCIPAL · INTEREST · AIT");
       continue;
     }
-    const labels={inflow:"INFLOW",outflow:"OUTFLOW",carry_forward:"CARRY FORWARD",idle:"IDLE"};
-    const groups={inflow:"AVAILABLE CAPITAL · INFLOWS",outflow:"CASH REQUIREMENTS · OUTFLOWS",carry_forward:"RETAINED CASH · NO TRANSACTION",idle:"IDLE / UNALLOCATED CASH"};
+    const labels={inflow:"INFLOW",outflow:"OUTFLOW",carry_forward:"CARRY FORWARD",idle:"IDLE",simulation_start:"SIMULATION START"};
+    const groups={inflow:"AVAILABLE CAPITAL · INFLOWS",outflow:"CASH REQUIREMENTS · OUTFLOWS",carry_forward:"RETAINED CASH · NO TRANSACTION",idle:"IDLE / UNALLOCATED CASH",simulation_start:"SIMULATION BOUNDARY"};
     append(e,labels[e.event_type]||e.event_type.toUpperCase(),e.amount,e.label,e.balance_after,e.event_type,groups[e.event_type]||"OTHER LEDGER EVENTS");
   }
   return rows;
