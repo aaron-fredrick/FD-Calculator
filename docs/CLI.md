@@ -4,11 +4,12 @@ For a plain-language explanation of how the strategies differ and when to use ea
 
 ## Strategy support
 
-The CLI supports all three JavaScript strategies:
+The CLI supports all four JavaScript strategies:
 
 - **Greedy** — fast baseline heuristic.
 - **Absolute** — exhaustive branch-and-bound search. It uses Greedy as a feasible lower-bound incumbent and proves optimality when the search completes.
 - **GAML** — bounded layered beam search. It uses the same financial state transitions and replay path as Absolute, but limits frontier width and local booking combinations.
+- **GSS** — independent recursive goal planner with manager-ordered candidates, SPLIT/CONSOLIDATE evaluation and liquidity-aware waiting periods.
 
 ## Run
 
@@ -20,6 +21,7 @@ npm test
 npm run cli -- --config .\config.json --strategy greedy
 npm run cli -- --config .\config.json --strategy absolute
 npm run cli -- --config .\config.json --strategy gaml
+npm run cli -- --config .\config.json --strategy gss
 ```
 
 If `strategy` is present in the JSON configuration, `--strategy` is optional.
@@ -56,6 +58,16 @@ npm run cli -- --strategy gaml --max-local-branches none --max-decisions none
 The JSON key `gaml_settings` is canonical. For compatibility, `gaml` and `strategy_settings.gaml` are also accepted.
 
 GAML reports expanded states, terminal leaves, bound/memo pruning, beam pruning, local-combination pruning, root-strategy diversity and whether optimality was proven. If beam width, local combinations or a state budget truncate the search, the result is an incumbent solution, not a proof of global optimality.
+
+## GSS settings
+
+GSS accepts a positive integer recursion threshold:
+
+~~~json
+{ "strategy": "gss", "gss_settings": { "small_period_days": 30 } }
+~~~
+
+The default is 30 days. Override it with `--small-period-days N`. Short waiting periods are processed without deeper future-goal subdivision, but immediately achievable goals remain eligible.
 
 ## Data and report output
 

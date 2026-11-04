@@ -77,3 +77,16 @@ test("invalid manager input and amounts are rejected", () => {
   assert.throws(() => new FDOptionManager({}), TypeError);
   assert.throws(() => manager.getEligibleOptions({ account, amount: NaN, investmentDate: "2026-01-01", simulationEndDate: "2026-12-31" }), RangeError);
 });
+
+
+test("candidate retrieval preserves manager order while filtering account and horizon eligibility", () => {
+  const short = option({ label: "short", period_str: "30d", annual_rate: 10 });
+  const long = option({ label: "long", period_str: "1y", annual_rate: 12 });
+  const efd = option({ label: "eFD", period_str: "30d", annual_rate: 11, is_efd: true });
+  const manager = new FDOptionManager([short, long, efd]);
+  const account = new Account({ id: "plain", bank_id: "BANK_A", supports_efd: false });
+  assert.deepEqual(
+    manager.getCandidateOptions({ account, investmentDate: "2026-01-01", simulationEndDate: "2026-06-01" }),
+    [efd, short].filter(item => !item.is_efd).sort(compareFDOptions)
+  );
+});

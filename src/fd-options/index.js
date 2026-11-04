@@ -95,6 +95,13 @@ export class BankFDOptionManager {
     return this.options.filter(option => account.canUseOption(option));
   }
 
+  getCandidateOptions({ account, investmentDate, simulationEndDate }) {
+    if (!account) throw new TypeError("An account is required to resolve FD candidates.");
+    const start = parseISODate(investmentDate);
+    const end = parseISODate(simulationEndDate);
+    return this.getAccountOptions(account).filter(option => option.fitsBefore(start, end));
+  }
+
   getEligibleOptions({ account, amount, investmentDate, simulationEndDate }) {
     if (!account) throw new TypeError("An account is required to resolve FD options.");
     if (!Number.isFinite(amount) || amount < 0) throw new RangeError("Investment amount must be finite and non-negative.");
@@ -127,6 +134,7 @@ export class FDOptionManager {
     return this.banks.get(bank) ?? new BankFDOptionManager(bank, this.globalOptions);
   }
   getAccountOptions(account) { return this.getBankManager(account?.bank_identity).getAccountOptions(account); }
+  getCandidateOptions(args) { return this.getBankManager(args?.account?.bank_identity).getCandidateOptions(args); }
   getEligibleOptions(args) { return this.getBankManager(args?.account?.bank_identity).getEligibleOptions(args); }
   getOption(bankIdentity, key) { return this.getBankManager(bankIdentity).getOption(key); }
 }
