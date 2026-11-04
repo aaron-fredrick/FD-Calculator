@@ -19,3 +19,15 @@
 .help-tip:hover::after,.help-tip:focus-visible::after{opacity:1;visibility:visible}
 @media(max-width:850px){.strategy-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.strategy-row{grid-template-columns:1fr}}
+
+/* Compact, accessible trash controls with a hinged lid hover interaction. */
+.remove-icon{display:inline-grid;place-items:center;flex:0 0 32px;width:32px;height:32px;padding:5px;border:1px solid #593740;border-radius:8px;background:#21171c;color:#e58b91;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+.remove-icon svg{display:block;width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
+.remove-icon .trash-lid{transform-box:view-box;transform-origin:5px 7px;transition:transform .18s cubic-bezier(.2,.75,.25,1)}
+.remove-icon:hover,.remove-icon:focus-visible{background:#48252b;border-color:#a6535d;color:#ffc0c3;transform:translateY(-1px);outline:none}
+.remove-icon:hover .trash-lid,.remove-icon:focus-visible .trash-lid{transform:rotate(-32deg) translate(-.5px,-1px)}
+.remove-icon:active{transform:scale(.94)}
+.remove-icon:disabled{cursor:default;opacity:.65}
+.account.is-removing,.schedule.is-removing{pointer-events:none;transform-origin:top right;animation:entry-remove .28s cubic-bezier(.2,.7,.25,1) forwards}
+@keyframes entry-remove{0%{opacity:1;transform:translate(0,0) scale(1);filter:blur(0)}55%{opacity:.35;transform:translate(10px,-4px) scale(.96);filter:blur(.4px)}100%{opacity:0;transform:translate(17px,-7px) scale(.9);filter:blur(1.2px)}}
+@media(prefers-reduced-motion:reduce){.remove-icon,.remove-icon .trash-lid{transition:none}.account.is-removing,.schedule.is-removing{animation-duration:1ms}}
