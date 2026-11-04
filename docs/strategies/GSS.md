@@ -25,7 +25,25 @@ If a candidate cannot be booked immediately, GSS projects future inflows, known 
 
 GSS recursively advances the waiting period. The child planning window processes actual events and evaluates immediately achievable goals. It can invest interim balances, but only in products that mature no later than the parent target date. This prevents interim bookings from locking away liquidity needed by the parent goal.
 
-The projected target date is not a fixed appointment. While the recursive window advances, GSS re-evaluates its ancestor goal candidates after every processed event date. If a newly realized cash flow, maturity or other event makes an ancestor plan viable earlier, the recursive wait stops and control propagates back to the frame that owns that goal. That frame rebuilds the plan from actual balances and executes it immediately; nested frames do not execute another candidate or continue advancing time.
+The projected target date is a forecast, not a fixed appointment. Every active recursive goal frame owns its candidate, projected target date, horizon and execution responsibility.
+
+While a recursive window advances, GSS re-evaluates ancestor goals after each processed event date **and after each interim investment decision**. This second checkpoint matters because booking an interim FD adds future cash-flow and maturity events to the timeline. Descendants can therefore change when an ancestor is expected to become viable, even if the ancestor is not yet affordable at the current date.
+
+For each ancestor, from the innermost parent outwards, GSS:
+
+1. Rebuilds SPLIT and CONSOLIDATE plans against actual balances and pending obligations.
+2. If a plan is viable now, signals early execution to the owning frame.
+3. Otherwise, reruns the future-date projection against the updated timeline.
+4. Contracts the frame's forecast when the newly projected viable date is earlier than its previous forecast.
+5. Records infeasibility separately when no future viable date remains within that frame's horizon.
+
+A contraction is propagated through recursive returns. If a revised ancestor boundary falls inside a descendant's current waiting window, that boundary pre-empts the descendant's original target. The simulation advances only to the revised date, then unwinds to the owning frame. The owner rebuilds its plan from actual state and executes only if it is still viable. A projected date is never treated as an execution guarantee.
+
+Forecasts are monotonic during a wait: they may move earlier, but are not extended later. A later or absent forecast does not silently extend an existing wait; the frame resumes normal candidate evaluation if its projected opportunity is no longer viable. Multiple ancestor changes are handled in innermost-to-outermost order, and a child never executes an ancestor's goal.
+
+Reforecasting uses the same planning rules as ordinary decisions, including AIT-adjusted cash flows, FD maturity and payout dates, scheduled inflows/outflows, pending obligations, SPLIT/CONSOLIDATE affordability, transfer fees, account liquidity reserves, parent-goal restrictions and the overall simulation horizon. Interim bookings remain constrained by the active parent target, so contraction cannot retroactively assume locked principal is liquid.
+
+Planned outflows are also protected: split bookings retain the liquidity needed in each account until the selected FD matures, while consolidation leaves source-account reserves for their remaining scheduled obligations. If a parent candidate is no longer viable when its projected date is reached, it continues considering candidates from the updated date/state. If all candidates are exhausted, remaining funds stay liquid and carry forward. There is no strategy fallback.
 
 Planned outflows are also protected: split bookings retain the liquidity needed in each account until the selected FD matures, while consolidation leaves source-account reserves for their remaining scheduled obligations. If the parent candidate is no longer viable when its projected date is reached, it continues considering candidates from the updated date/state. If all candidates are exhausted, remaining funds stay liquid and carry forward. There is no strategy fallback.
 
@@ -39,4 +57,4 @@ GSS returns an unfinished SimResult. The shared SimulationEngine performs the on
 
 ## Diagnostics
 
-The result exposes gss_diagnostics with candidate count, SPLIT/CONSOLIDATE plan evaluations, future goals, recursive waits, maximum recursion depth, early parent-goal rechecks/executions and the configured threshold. The decision log records waits, selected plans and candidate exhaustion.
+The result exposes gss_diagnostics with candidate count, SPLIT/CONSOLIDATE plan evaluations, future goals, recursive waits, early parent-goal rechecks/executions, forecast rechecks/contractions, maximum recursion depth and the configured threshold. The decision log records each contraction with its previous and revised target dates, reduction in days and owning recursion depth. The decision log records waits, selected plans and candidate exhaustion.
