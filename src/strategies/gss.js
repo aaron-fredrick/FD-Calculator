@@ -465,6 +465,7 @@ export class GSSStrategy {
         if (plans.length) {
           earlyGoal = { candidate, date, frame };
           frame.status = "viable";
+          if (forecastInterrupt?.frame === frame) forecastInterrupt = null;
           return true;
         }
 
@@ -474,6 +475,7 @@ export class GSSStrategy {
         );
         if (!revisedDate) {
           frame.status = "infeasible";
+          if (forecastInterrupt?.frame === frame) forecastInterrupt = null;
           continue;
         }
         frame.status = "waiting";
@@ -497,7 +499,7 @@ export class GSSStrategy {
       return false;
     };
 
-    const advanceWindow = (fromDate, throughDate, depth, allowNested, parentGoals = [], goalHorizon = throughDate) => {
+    const advanceWindow = (fromDate, throughDate, depth, allowNested, parentGoals = []) => {
       let cursor = fromDate;
       while (!strictFailed) {
         // A contracted ancestor boundary can pre-empt this frame's original
@@ -564,7 +566,7 @@ export class GSSStrategy {
           };
           today = advanceWindow(
             today, targetDate, depth + 1, recurseFurther,
-            [...parentGoals, goalFrame], horizon
+            [...parentGoals, goalFrame]
           );
 
           // An ancestor may become viable or receive a contracted forecast
@@ -576,6 +578,7 @@ export class GSSStrategy {
               executePlan(earlyPlans[0], today, initialDate, candidate);
               if (today < targetDate) earlyGoalExecutions++;
               goalFrame.status = "completed";
+              if (forecastInterrupt?.frame === goalFrame) forecastInterrupt = null;
               earlyGoal = null;
               return today;
             }
