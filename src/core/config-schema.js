@@ -1,7 +1,7 @@
 import { parseISODate, parsePeriod } from "./dates.js";
 const obj=x=>x!==null&&typeof x==="object"&&!Array.isArray(x);
 const bad=(p,m)=>{throw new TypeError(p+": "+m)};
-const date=(v,p)=>{if(typeof v!=="string"||!v.trim())bad(p,"expected ISO date or supported keyword");const s=v.trim().toLowerCase();if(["today","start","investment_start","end","investment_end"].includes(s))return;if(/^investment_start\\+[1-9][0-9]*[dmy]$/.test(s)){parsePeriod(s.slice(17));return}try{parseISODate(s)}catch{bad(p,"use YYYY-MM-DD, today, start, investment_start, end, investment_end, or investment_start+<period>")}};
+const date=(v,p)=>{if(typeof v!=="string"||!v.trim())bad(p,"expected ISO date or supported keyword");const s=v.trim().toLowerCase();if(["today","start","investment_start","end","investment_end"].includes(s))return;if(/^investment_start\+[1-9][0-9]*[dmy]$/.test(s)){parsePeriod(s.slice(17));return}try{parseISODate(s)}catch{bad(p,"use YYYY-MM-DD, today, start, investment_start, end, investment_end, or investment_start+<period>")}};
 export function validateConfigurationShape(x){
  if(!obj(x))bad("$","must be an object");
  const root=["strategy","options_file","investment","accounts","consolidation_account_id","inflows","outflows","transfer_fees","compound","ait_enabled","actual_leap_year","gaml_settings","gaml","strategy_settings","show_timeline","show_ledger","show_plots","plot_output_dir","report_output_file"];
