@@ -38,3 +38,7 @@
 .primary.is-loading{display:inline-flex;align-items:center;justify-content:center;gap:8px;opacity:.9;cursor:progress}
 @keyframes simulation-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.simulation-status:not([hidden])::before,.primary.is-loading::before{animation-duration:1.8s}}
+
+/* Public GitHub support-ticket entry point. */
+.support-link{display:inline-flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap}
+@media(max-width:620px){.support-link{font-size:9px;padding:7px 8px}}
