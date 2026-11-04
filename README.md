@@ -8,6 +8,10 @@ See [the issue and label workflow guide](docs/ISSUES.md) for users and contribut
 
 For security vulnerabilities, read the [security policy](SECURITY.md) and use [GitHub private vulnerability reporting](https://github.com/aaron-fredrick/FD-Calculator/security/advisories/new). Do not disclose vulnerabilities in public issues or support tickets.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, tests, financial-engine invariants, secure coding requirements, and pull request expectations. Dependabot, CodeQL, and dependency review are configured under `.github/`.
+
 ## Strategies
 
 See [the strategy guide](docs/STRATEGIES.md) for an explanation of Greedy, GAML and Absolute, how their search methods differ, and how to configure GAML.
