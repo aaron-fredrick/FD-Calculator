@@ -126,7 +126,7 @@ test("cash movement chart exposes cursor-anchored wheel zoom and reset controls"
   assert.ok(html.includes("const minRadius=nonZeroMagnitudes.length?Math.min(...nonZeroMagnitudes):maxAbs"));
   assert.ok(html.includes("const nextRadius=clamp(v.yMax*factor,minRadius,maxAbs)"));
   assert.ok(html.includes("state.yMin=-nextRadius;state.yMax=nextRadius"));
-  assert.ok(html.includes("const yRadius=state.yMax==null?maxAbs:state.yMax"));
+  assert.ok(html.includes("const yRadius=state.yMax==null?maxAbs:clamp(state.yMax,minRadius,maxAbs)"));
   assert.ok(html.includes("isZero?\\"#a8bacd\\""));
   assert.ok(!html.includes("const range=v.yMax-v.yMin,anchor="));
   assert.ok(html.includes("Reset view"));
