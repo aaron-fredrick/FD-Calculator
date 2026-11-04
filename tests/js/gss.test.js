@@ -91,6 +91,19 @@ test("GSS returns liquid balances when no candidate can become viable", () => {
   assert.ok(result.accounts.main.balance > 0);
 });
 
+test("GSS start date is recorded by the simulation boundary even without opening events", () => {
+  const result = run({
+    options: [fd("Future minimum", 12, 100000)],
+    start: "2026-01-01", end: "2026-02-01",
+    accounts: [account("main", "BANK_A", 0)]
+  });
+  const startEvents = Object.values(result.timeline).flat().filter(event =>
+    event.event_type === EventType.SIMULATION_START);
+  assert.equal(startEvents.length, 1);
+  assert.equal(startEvents[0].on_date.toISOString().slice(0, 10), "2026-01-01");
+  assert.equal(startEvents[0].label, "Simulation starts");
+});
+
 test("GSS validates the small-period recursion threshold", () => {
   assert.throws(() => new GSSStrategy({ small_period_days: 0 }), RangeError);
 });
