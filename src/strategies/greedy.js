@@ -9,7 +9,7 @@ const EPS = 0.001;
 const round2 = value => Math.round((value + Number.EPSILON) * 100) / 100;
 const sumBalances = accounts => Object.values(accounts).reduce((sum, account) => sum + account.balance, 0);
 const dateKey = date => Number(formatISODate(date).replaceAll("-", ""));
-const keyDate = key => String(key).replace(/^(\\d{4})(\\d{2})(\\d{2})$/, "$1-$2-$3");
+const keyDate = key => String(key).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3");
 
 const validateTenorTieBreaker = (value, name) => {
   if (!["shortest", "longest"].includes(value)) {
