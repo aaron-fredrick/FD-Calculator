@@ -77,3 +77,12 @@ footer{font-size:12px;line-height:1.55}
 }
 @media(hover:none),(pointer:coarse){.help-tip{cursor:pointer}.remove-icon:hover{transform:none}.card input,.card select,button,a{touch-action:manipulation}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Mobile action hierarchy: one clear, full-width action per row. */
+@media(max-width:620px){
+ .form-footer{align-items:stretch;gap:12px}
+ .form-footer>div{padding-inline:8px}
+ .form-footer button{display:flex;width:calc(100% - 16px);margin-inline:8px;min-height:48px;justify-content:center}
+ .actions{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
+ .actions button{display:flex;width:calc(100% - 16px);margin-inline:8px;min-height:48px;justify-content:center}
+}
