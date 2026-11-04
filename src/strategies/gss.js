@@ -77,6 +77,7 @@ export class GSSStrategy {
     const processed = new Set();
     let pending = [], inflowNumber = 0, bookingNumber = 0;
     let totalFees = 0, totalOutflowsPaid = 0, strictFailed = false;
+    let earlyGoal = null, earlyGoalRechecks = 0, earlyGoalExecutions = 0;
     let recursiveCalls = 0, candidatesConsidered = 0, splitPlansEvaluated = 0;
     let consolidatePlansEvaluated = 0, futureGoals = 0, maximumDepth = 0;
 
@@ -449,19 +450,43 @@ export class GSSStrategy {
       });
     };
 
-    const advanceWindow = (fromDate, throughDate, depth, allowNested, parentGoals = []) => {
+    const reassessParentGoals = (date, parentGoals, goalHorizon) => {
+      // The recursive target is a projected checkpoint, not a commitment to
+      // wait until that date. Re-test ancestor goals against every newly
+      // realized event state, including cash flows created by interim plans.
+      for (let index = parentGoals.length - 1; index >= 0; index--) {
+        const candidate = parentGoals[index];
+        earlyGoalRechecks++;
+        const plans = buildPlans(
+          candidate, date, balanceSnapshot(), goalHorizon, pending,
+          parentGoals.slice(0, index)
+        );
+        if (plans.length) {
+          earlyGoal = { candidate, date };
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const advanceWindow = (fromDate, throughDate, depth, allowNested, parentGoals = [], goalHorizon = throughDate) => {
       let cursor = fromDate;
       while (!strictFailed) {
         const next = eventDates(cursor, throughDate)[0];
         if (next === undefined) {
           processDate(throughDate);
+          if (reassessParentGoals(throughDate, parentGoals, goalHorizon)) return throughDate;
           return throughDate;
         }
         const date = parseISODate(keyDate(next));
         if (!processDate(date)) return date;
         cursor = date;
+        if (reassessParentGoals(date, parentGoals, goalHorizon)) return date;
         if (date < throughDate) {
           cursor = considerAtDate(date, throughDate, depth + 1, allowNested, parentGoals);
+          // An ancestor goal may have become viable deeper in the recursion.
+          // Propagate that signal unchanged until its owning frame can execute it.
+          if (earlyGoal) return cursor;
         }
         if (cursor >= throughDate) return throughDate;
       }
@@ -495,7 +520,25 @@ export class GSSStrategy {
             target_date: formatISODate(targetDate), wait_days: waitDays,
             recursive_wait: recurseFurther
           });
-          today = advanceWindow(today, targetDate, depth + 1, recurseFurther, [...parentGoals, candidate]);
+          today = advanceWindow(
+            today, targetDate, depth + 1, recurseFurther,
+            [...parentGoals, candidate], horizon
+          );
+
+          // An ancestor may have become viable during a nested recursive
+          // window. Let the owning frame handle it rather than booking this
+          // frame's candidate or continuing to advance time.
+          if (earlyGoal) {
+            if (earlyGoal.candidate !== candidate) return today;
+            const earlyPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
+            if (earlyPlans.length) {
+              executePlan(earlyPlans[0], today, initialDate, candidate);
+              earlyGoalExecutions++;
+              earlyGoal = null;
+              return today;
+            }
+            earlyGoal = null;
+          }
 
           // Rebuild the candidate plan from actual balances after the child GSS
           // window has processed its cash flows, outflows and interim bookings.
@@ -518,7 +561,7 @@ export class GSSStrategy {
 
     processDate(startDate);
     let cursor = considerAtDate(startDate, endDate, 0, true);
-    cursor = advanceWindow(cursor, endDate, 0, true);
+    cursor = advanceWindow(cursor, endDate, 0, true, [], endDate);
     if (!processed.has(dateKey(endDate))) processDate(endDate);
 
     const totalInflow = Object.entries(normalizedInflows)
