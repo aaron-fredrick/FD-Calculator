@@ -86,3 +86,10 @@ footer{font-size:12px;line-height:1.55}
 .strategy-row .field-label{min-height:2.8em;align-items:flex-start}
 .strategy-row .field-label .help-tip{margin-top:.15em}
 @media(max-width:620px){.strategy-row .field-label{min-height:0}}
+
+
+/* Give the strategy selector less width so both transfer-fee labels fit on one line. */
+@media(min-width:851px){
+ .strategy-row{grid-template-columns:.7fr 1.3fr 1.3fr}
+ .strategy-row>label:nth-child(2) .field-label,.strategy-row>label:nth-child(3) .field-label{white-space:nowrap}
+}
