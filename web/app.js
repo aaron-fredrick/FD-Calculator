@@ -1,6 +1,7 @@
 import {parseCSV} from "../src/io/csv.js";
 import {FDOption} from "../src/core/models.js";
-import {validateConfiguration} from "../src/core/configuration.js";
+import {validateConfiguration,resolveDate} from "../src/core/configuration.js";
+import {validateConfigurationShape} from "../src/core/config-schema.js";
 import {GreedyStrategy} from "../src/core/strategies/greedy.js";
 import {GAMLStrategy} from "../src/core/strategies/gaml.js";
 import {generateHtmlReport} from "../src/reporting/html.js";
@@ -71,6 +72,6 @@ function wire(){
  for(let kind of ["inflow","outflow"]){let list=$(kind+"s-list");list.onchange=e=>{if(e.target.matches("[data-type]")){let card=e.target.closest(".schedule");card.querySelectorAll("[data-recurring]").forEach(n=>n.hidden=e.target.value!=="recurring");card.querySelector("[data-scheduled]").hidden=e.target.value!=="scheduled"}};list.onclick=e=>{let button=e.target.closest("button[data-remove]");if(!button)return;let key=button.dataset.remove,card=button.closest(".schedule");if(!card||card.classList.contains("is-removing"))return;syncSchedules();animateRemoval(button,card,()=>{S[kind+"s"]=S[kind+"s"].filter(x=>x.id!==key);renderOne(kind);saveDraft()})}}
  $("strategy-choice").onchange=()=>{$("gaml-settings").hidden=$("strategy-choice").value!=="gaml"};
  $("scenario-form").onsubmit=async e=>{e.preventDefault();clearFieldErrors();err("");$("run").disabled=true;$("run").textContent="Loading rates and simulating…";try{let x=raw();S.raw=x;if(!x.investment.start_date||!x.investment.end_date)throw Error("Select both investment dates.");if(!S.accounts.length)throw Error("Add at least one account.");if(S.accounts.some(a=>!a.label))throw Error("Every account needs a label.");let options=await getOptions(S.accounts.map(a=>a.bank_id));let c=validateConfiguration(x,{bankRegistry:S.banks,bankKeyById:S.keys,options,today:today()});c.bank_registry=S.banks;c.options_path="data/fd_options/fd_options.csv";let r=simulate(c),html=generateHtmlReport(r,c);results(r,c,html)}catch(ex){showError(ex.message||String(ex))}finally{$("run").disabled=false;$("run").textContent="▶ Run simulation"}};
- $("export-config").onclick=()=>{try{exportRaw()}catch(e){err(e.message)}};$("import-config").onclick=()=>$("config-file").click();$("config-file").onchange=async e=>{let f=e.target.files?.[0];if(!f)return;try{let x=JSON.parse(await f.text());applyConfig(x);saveDraft()}catch(ex){showError(ex.message||String(ex),"Import failed: "+(ex.message||String(ex)))}e.target.value=""};
+ $("export-config").onclick=()=>{try{exportRaw()}catch(e){err(e.message)}};$("import-config").onclick=()=>$("config-file").click();$("config-file").onchange=async e=>{let f=e.target.files?.[0];if(!f)return;try{let x=validateConfigurationShape(JSON.parse(await f.text()));if((x.strategy??"absolute")==="absolute")throw Error("Absolute Search is CLI-only. Select Greedy or GAML in the CLI configuration before importing into the browser.");const ids=Object.values(x.accounts).map(a=>a.bank_id);const options=await getOptions(ids);validateConfiguration(x,{bankRegistry:S.banks,bankKeyById:S.keys,options,today:today()});applyConfig(x);saveDraft()}catch(ex){showError(ex.message||String(ex),"Import failed: "+(ex.message||String(ex)))}e.target.value=""};
 }
 init();
