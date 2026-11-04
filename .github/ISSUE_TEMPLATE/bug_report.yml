@@ -1,6 +1,7 @@
 name: Bug report
 description: Report incorrect behaviour, a calculation issue, or a broken part of FD Cal.
 title: "[Bug]: "
+labels: ["bug", "_triage"]
 body:
   - type: markdown
     attributes:
