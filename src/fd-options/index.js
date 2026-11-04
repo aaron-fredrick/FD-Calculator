@@ -27,6 +27,7 @@ export function fdOptionKey(option) {
   return JSON.stringify([
     normaliseBankIdentity(option.bank_identity),
     String(option.label ?? ""),
+    String(option.period_str ?? ""),
     option.economic_terms_key,
     Boolean(option.is_efd),
   ]);
