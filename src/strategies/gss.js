@@ -533,7 +533,7 @@ export class GSSStrategy {
             const earlyPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
             if (earlyPlans.length) {
               executePlan(earlyPlans[0], today, initialDate, candidate);
-              earlyGoalExecutions++;
+              if (today < targetDate) earlyGoalExecutions++;
               earlyGoal = null;
               return today;
             }
