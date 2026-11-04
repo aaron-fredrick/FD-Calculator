@@ -1,8 +1,8 @@
 const W=132;
 const RESET="\x1b[0m",BOLD="\x1b[1m",DIM="\x1b[2m";
 const C={date:"\x1b[36m",desc:"\x1b[90m",sep:"\x1b[90m",inflow:"\x1b[94m",outflow:"\x1b[91m",transfer:"\x1b[96m",carry:"\x1b[93m",booking:"\x1b[95m",maturity:"\x1b[32m",cash:"\x1b[92m",idle:"\x1b[90m",orange:"\x1b[38;5;208m",purple:"\x1b[38;5;183m"};
-const labels={inflow:"INFLOW",outflow:"OUTFLOW",transfer:"TRANSFER",booking:"BOOK",cash_flow:"CASH FLOW",maturity:"MATURITY",carry_forward:"CARRY FORWARD",idle:"IDLE"};
-const colors={inflow:C.inflow,outflow:C.outflow,transfer:C.transfer,booking:C.booking,cash_flow:C.cash,maturity:C.maturity,carry_forward:C.carry,idle:C.idle};
+const labels={inflow:"INFLOW",outflow:"OUTFLOW",transfer:"TRANSFER",booking:"BOOK",cash_flow:"CASH FLOW",maturity:"MATURITY",carry_forward:"CARRY FORWARD",idle:"IDLE",simulation_start:"SIMULATION START"};
+const colors={inflow:C.inflow,outflow:C.outflow,transfer:C.transfer,booking:C.booking,cash_flow:C.cash,maturity:C.maturity,carry_forward:C.carry,idle:C.idle,simulation_start:C.desc};
 const money=n=>Number(n??0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const date=d=>{if(d instanceof Date)return d.toISOString().slice(0,10);const s=String(d??"");return /^\d{8}$/.test(s)?s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6):s.slice(0,10)};
 const pad=(v,n)=>String(v??"").slice(0,n).padEnd(n);
