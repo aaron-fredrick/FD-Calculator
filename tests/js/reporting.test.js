@@ -98,3 +98,31 @@ test("cash movement chart uses stable event-specific colors and separates FD pri
   assert.equal(flows.find(flow => flow.name === "FD Interest").points[0].y, 100);
   assert.equal(flows.find(flow => flow.name === "AIT").points[0].y, -10);
 });
+
+
+test("cash movement chart exposes cursor-anchored wheel zoom and reset controls", () => {
+  const account = { id: "main", bank_id: "BANK_A", label: "Main", balance: 1000, supports_efd: false };
+  const result = {
+    strategy_name: "Test", start_date: "2026-11-04", end_date: "2026-11-05",
+    timeline: {
+      20261104: [{ event_type: "inflow", on_date: "2026-11-04", amount: 1000, account_id: "main", balance_after: 1000, label: "Deposit" }],
+      20261105: [{ event_type: "outflow", on_date: "2026-11-05", amount: -100, account_id: "main", balance_after: 900, label: "Withdrawal" }]
+    },
+    accounts: { main: account }, bookings: [], total_interest: 0, ait_withheld: 0,
+    total_transfer_fees: 0, net_interest: 0, final_value: 900, total_principal: 1000,
+    total_outflows_paid: 100, outstanding_outflows: [], ait_enabled: false, ait_rate: 0
+  };
+  const config = {
+    start: "2026-11-04", end: "2026-11-05", compound: false, actual_leap_year: true,
+    accounts: [account], consolidation_account_id: "main", ait_enabled: false, ait_rate: 0,
+    fee_config: { default_inter_bank_fee: 0, same_bank_fee: 0 }, inflow_summaries: [],
+    outflow_summaries: [], bank_registry: { BANK_A: { name: "Bank A" } }
+  };
+  const html = generateHtmlReport(result, config);
+  assert.match(html, /e\\.shiftKey/);
+  assert.match(html, /e\\.altKey/);
+  assert.match(html, /passive:false/);
+  assert.match(html, /anchor-ratio/);
+  assert.match(html, /Reset view/);
+  assert.match(html, /Shift \\+ wheel scales vertically; Alt \\+ wheel scales horizontally around the cursor/);
+});
