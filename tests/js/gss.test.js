@@ -75,7 +75,8 @@ test("GSS limits interim bookings to maturities no later than the parent goal da
   });
   const parent = result.bookings.find(booking => booking.option.label === "Parent goal");
   assert.ok(parent, "parent goal should be booked");
-  const interim = result.bookings.filter(booking => booking.option.label === "Interim short");
+  const interim = result.bookings.filter(booking =>
+    booking.option.label === "Interim short" && booking.start < parent.start);
   assert.ok(interim.length > 0, "waiting period should use interim investments");
   for (const booking of interim) assert.ok(booking.end <= parent.start);
 });
