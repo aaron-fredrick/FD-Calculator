@@ -457,6 +457,7 @@ export class GSSStrategy {
       // updated timeline and actual account state.
       for (let index = parentGoals.length - 1; index >= 0; index--) {
         const frame = parentGoals[index];
+        frame.currentDate = date;
         const candidate = frame.candidate || frame;
         const ancestors = parentGoals.slice(0, index);
         earlyGoalRechecks++;
@@ -626,7 +627,7 @@ export class GSSStrategy {
 
     processDate(startDate);
     let cursor = considerAtDate(startDate, endDate, 0, true);
-    cursor = advanceWindow(cursor, endDate, 0, true, [], endDate);
+    cursor = advanceWindow(cursor, endDate, 0, true, []);
     if (!processed.has(dateKey(endDate))) processDate(endDate);
 
     const totalInflow = Object.entries(normalizedInflows)
