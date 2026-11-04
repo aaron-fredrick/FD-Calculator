@@ -1,6 +1,7 @@
 name: Feature request
 description: Suggest a capability or improvement for FD Cal.
 title: "[Feature]: "
+labels: ["enhancement", "_triage"]
 body:
   - type: markdown
     attributes:
