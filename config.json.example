@@ -1,0 +1,32 @@
+{
+  "strategy": "gaml",
+  "options_file": "data/fd_options/fd_options.csv",
+  "investment": {
+    "start_date": "today",
+    "end_date": "2027-12-31"
+  },
+  "accounts": {
+    "example_account": {
+      "bank_id": "LK_COMMERCIAL_BANK_OF_CEYLON",
+      "label": "Example savings account",
+      "balance": 0,
+      "supports_efd": false
+    }
+  },
+  "consolidation_account_id": "example_account",
+  "inflows": [],
+  "outflows": [],
+  "transfer_fees": {
+    "default_inter_bank_fee": 30,
+    "same_bank_fee": 0,
+    "custom_fees": []
+  },
+  "compound": false,
+  "ait_enabled": true,
+  "actual_leap_year": true,
+  "show_timeline": true,
+  "show_ledger": false,
+  "show_plots": true,
+  "plot_output_dir": "plots",
+  "report_output_file": "fd_cal_report.html"
+}
