@@ -3,6 +3,10 @@
 
 /* Keep GAML-only controls hidden when their strategy is not selected. */
 .grid[hidden]{display:none!important}
+/* Strategy panels use explicit hidden handling because their grid display overrides the browser's UA [hidden] rule. */
+#greedy-settings[hidden],#gaml-settings[hidden]{display:none!important}
+.strategy-row>label{align-self:start}
+.strategy-row>.field-label{min-height:1.5em}
 .strategy-row{grid-template-columns:1.35fr 1fr 1fr;align-items:start;margin-top:0}
 @media(max-width:620px){.strategy-row{grid-template-columns:1fr}}
 
