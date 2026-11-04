@@ -1,6 +1,6 @@
 # Strategy guide
 
-FD Cal provides three strategies. They differ in how much of the decision space they explore, how long they take, and whether they can prove that a result is optimal.
+FD Cal currently provides three implemented strategies. The planned Goal-Seeking Strategy (GSS) is documented separately below as a design specification. Strategies differ in how they make investment decisions, how much of the decision space they explore, and whether they can prove that a result is optimal.
 
 ## At a glance
 
@@ -92,7 +92,7 @@ Absolute is currently available through the CLI for internal verification and te
 
 **Use it when:** you need an optimality proof and the scenario is small enough for exhaustive search to complete.
 
-## Choosing a strategy
+## Goal-Seeking Strategy (GSS) — design specification\n\nGSS is an independent, recursive planning strategy. It discovers candidate FD goals through FDOptionManager, evaluates both SPLIT and CONSOLIDATE plans, and recursively plans waiting periods with GSS itself. FDOptionManager owns FD-option eligibility and ordering; GSS consumes its candidate list rather than implementing a separate rate/tenor ranking policy. GSS does not invoke Greedy.\n\nThe complete planning flow, constraints, recursion behaviour, and simulation-finalization boundary are documented in [Goal-Seeking Strategy](strategies/GSS.md).\n\n## Choosing a strategy
 
 - Start with **Greedy** to get a quick baseline.
 - Use **GAML** to explore more alternatives. Increase beam width when you want more complete plans to survive between layers; increase max local branches when you want more combinations considered within each plan.
