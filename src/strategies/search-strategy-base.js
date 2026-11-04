@@ -3,6 +3,7 @@ import { Event, EventType, normalizeInflowSchedule } from "../core/events.js";
 import { Booking, SimResult } from "../core/results.js";
 import { formatISODate, parseISODate, daysBetween } from "../core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../core/cashflows.js";
+import { GreedyStrategy } from "./greedy.js";
 import { FDOptionManager } from "../fd-options/index.js";
 import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
 
@@ -184,6 +185,18 @@ function advanceState(state, context) {
     obligations: processed.pending,
     paid: round2(state.paid + processed.paid),
   };
+}
+
+function calculateFinalSweepFees(accounts, consolidationId, feeConfig) {
+  const target = accounts[consolidationId];
+  if (!target) return 0;
+  let fees = 0;
+  for (const account of Object.values(accounts)) {
+    if (account.id === target.id || account.balance <= EPS) continue;
+    const fee = feeConfig.getFee(account.bank_identity, target.bank_identity);
+    if (account.balance > fee) fees += fee;
+  }
+  return fees;
 }
 
 function terminalValue(state, context) {
@@ -696,9 +709,19 @@ export class SearchStrategyBase {
 
   simulate(input) {
     const context = createContext(input, this);
+    // Greedy remains a lower-bound candidate for bounded search. It returns an
+    // unfinished result; account for the shared final sweep fee when scoring it.
+    const greedy = new GreedyStrategy({
+      compound: this.compound, actual_leap_year: this.actual_leap_year,
+      ait_enabled: this.ait_enabled, ait_rate: this.ait_rate
+    }).simulate(input);
+    const liabilities = sum(greedy.outstanding_outflows.map(item => Number(item.remaining || 0)));
+    const greedyObjective = greedy.valid
+      ? greedy.final_value - calculateFinalSweepFees(greedy.accounts, context.consolidationId, context.feeConfig) - liabilities
+      : -Infinity;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
-      bestValue: -Infinity, alternatives: [], memo: new Map()
+      bestValue: greedyObjective, alternatives: [], memo: new Map()
     };
     const initial = {
       date: context.start,
@@ -723,7 +746,12 @@ export class SearchStrategyBase {
       settings
     };
     if (!search.bestNode) {
-      throw new Error(this.name + " found no feasible path satisfying strict outflows.");
+      if (!greedy.valid) throw new Error(this.name + " found no feasible path satisfying strict outflows.");
+      greedy.strategy_name = this.name;
+      greedy.search_diagnostics = diagnostics;
+      greedy.optimality_proven = diagnostics.optimality_proven;
+      greedy.search_settings = settings;
+      return greedy;
     }
     return replay(path, context, this, diagnostics);
   }
