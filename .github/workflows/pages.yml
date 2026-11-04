@@ -28,7 +28,7 @@ jobs:
       - uses: actions/configure-pages@v6
       - name: Assemble static site
         run: |
-          mkdir -p site/src/io site/src/fd-options site/web
+          mkdir -p site/src/io site/web
           cp -R src/web site/src/web
           cp -R src/core site/src/core
           cp -R src/fd-options site/src/fd-options
