@@ -3,6 +3,7 @@ import { Event, EventType, normalizeInflowSchedule } from "../core/events.js";
 import { Booking, SimResult } from "../core/results.js";
 import { formatISODate, parseISODate } from "../core/dates.js";
 import { validateOutflowSchedule } from "../core/cashflows.js";
+import { FDOptionManager } from "../fd-options/index.js";
 
 const EPS = 0.001;
 const round2 = value => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -22,15 +23,13 @@ function selectBestOption(candidates) {
   return best;
 }
 
-function pickDailyGreedyPlan(accounts, options, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate) {
+function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate) {
   const active = Object.values(accounts).filter(account => account.balance > EPS);
   if (!active.length) return { type: "CARRY", carries: [] };
   const splitBookings = [], splitCarries = [];
   let splitGross = 0;
   for (const account of active) {
-    const eligible = options.filter(option =>
-      (!option.bank_identity || option.bank_identity === account.bank_identity) &&
-      account.canUseOption(option) && option.canInvest(account.balance, today, end));
+    const eligible = optionManager.getEligibleOptions({ account, amount: account.balance, investmentDate: today, simulationEndDate: end });
     const option = selectBestOption(eligible);
     if (!option) { splitCarries.push(account); continue; }
     const interest = option.totalInterestOn(account.balance, today, compound, actualLeapYear);
@@ -64,9 +63,7 @@ function pickDailyGreedyPlan(accounts, options, today, end, feeConfig, consolida
       transfers.push({ src: source, tgt: target, amount: source.balance, fee, net });
     }
     if (!transfers.length) continue;
-    const eligible = options.filter(option =>
-      (!option.bank_identity || option.bank_identity === target.bank_identity) &&
-      target.canUseOption(option) && option.canInvest(deployable, today, end));
+    const eligible = optionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: end });
     const option = selectBestOption(eligible);
     if (!option) continue;
     const gross = option.totalInterestOn(deployable, today, compound, actualLeapYear);
@@ -92,10 +89,8 @@ function pickDailyGreedyPlan(accounts, options, today, end, feeConfig, consolida
   const equivalentEfdCount = plan => {
     const selected = (plan.bookings || []).map(item => [item.account, item.option]);
     if (plan.option && plan.target_account) selected.push([plan.target_account, plan.option]);
-    return selected.filter(([account, option]) => option.is_efd && options.some(standard =>
-      !standard.is_efd && standard.economic_terms_key === option.economic_terms_key &&
-      (!standard.bank_identity || standard.bank_identity === account.bank_identity) &&
-      account.canUseOption(standard))).length;
+    return selected.filter(([account, option]) => option.is_efd && optionManager.getAccountOptions(account).some(standard =>
+      !standard.is_efd && standard.economic_terms_key === option.economic_terms_key)).length;
   };
   candidates.sort((a, b) =>
     b.rate - a.rate || a.days - b.days ||
@@ -129,6 +124,7 @@ export class GreedyStrategy {
     consolidation_account_id ||= inflow_account_id;
     fee_config ||= new TransferFeeConfig();
     const originalCapital = accounts.reduce((sum, account) => sum + account.balance, 0);
+    const optionManager = new FDOptionManager(options);
     const accountMap = Object.fromEntries(accounts.map(account => [account.id, new Account({
       id: account.id, bank_key: account.bank_key, bank_id: account.bank_id,
       label: account.label, balance: account.balance, supports_efd: account.supports_efd
@@ -222,7 +218,7 @@ export class GreedyStrategy {
       pending = stillPending;
       if (strictFailed) break;
 
-      const plan = pickDailyGreedyPlan(accountMap, options, today, endDate, fee_config,
+      const plan = pickDailyGreedyPlan(accountMap, options, optionManager, today, endDate, fee_config,
         consolidation_account_id, this.compound, this.actual_leap_year, this.effective_ait_rate);
       const makeBooking = (account, option, principal, action, balancesBefore) => {
         account.balance = 0;
