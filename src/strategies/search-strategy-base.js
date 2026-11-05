@@ -453,6 +453,10 @@ function makeGoalPriority(state, context) {
   if (!goal || !provenance) return -Infinity;
   const target = Number(goal.target);
   const credited = provenance.creditedNetInterest;
+  if (credited + EPS >= target) {
+    const days = daysBetween(parseISODate(context.start), parseISODate(state.date));
+    return 1e15 - days * 1e9 + credited;
+  }
   const pending = (state.goalFlows ?? []).map(([date, accountId, components]) => ({
     date, accountId,
     interest: Number(components?.principal_components?.uncredited_interest || 0) +
@@ -467,10 +471,6 @@ function makeGoalPriority(state, context) {
       const days = daysBetween(parseISODate(context.start), parseISODate(flow.date));
       return 1e14 - days * 1e9 + running;
     }
-  }
-  if (credited + EPS >= target) {
-    const days = daysBetween(parseISODate(context.start), parseISODate(state.date));
-    return 1e15 - days * 1e9 + credited;
   }
 
   const liquidUncredited = sum([...provenance.accounts.values()].map(item => item.uncredited_interest));
