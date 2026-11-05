@@ -212,7 +212,7 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 |---|---|---|
 | Plan | Complete | Documented and linked in VitePress Architecture navigation. PR #45. |
 | 0 — Baseline | Complete with a fixture gap carried into Phase 1 | Existing CI suite passes; call paths and regression coverage mapped. Add explicit canonical cross-strategy event-ledger snapshots before the first strategy migration. |
-| 1 — Foundation | In progress | Added revision-bound immutable planning/signal contracts and authoritative account-state primitive. Shared chronological executor and adapter are not implemented yet. |
+| 1 — Foundation | In progress | Added revision-bound contracts, normalized engine input context, and engine-boundary normalization. Shared chronological executor, decision execution, and compatibility adapter remain outstanding. |
 | 2 — Greedy | Not started | Preserve decision semantics. |
 | 3 — Search | Not started | Preserve hypothetical search and actual replay parity. |
 | 4 — GSS | Not started | Preserve recursive forecast semantics. |
@@ -311,3 +311,18 @@ The current test suite and docs build are green, and the execution paths are suf
 - Constraint: the contract must reject malformed dates without accepting a non-date string.
 - Correction: reduce the regex escaping to the JavaScript regex digit token (`\d`).
 - Regression coverage: malformed date inputs are covered by `strategy-contracts.test.js`; CI rerun is pending.
+
+**Phase 1 progress — normalized context**
+
+- Added `src/core/simulation-context.js` to normalize simulation dates, account copies/IDs, FDOption-compatible options, inflows, outflows, fee configuration, and original capital at the engine boundary.
+- `SimulationEngine.run()` now constructs this context and passes normalized dates, cloned accounts, normalized inflows, validated outflows, and resolved account IDs to the existing strategy adapter. Strategy execution remains legacy at this point; this change centralizes input normalization without changing strategy algorithms.
+- Added context tests for schedule normalization, invalid date ranges, unknown inflow/outflow destinations, default-account behavior, and default fee configuration.
+
+**Issue note — initial context test fixture errors**
+
+- Symptom: the first CI run failed two new context tests; existing strategy tests and all contract/ledger tests passed.
+- Reproduction: the invalid-period test changed the start date to the same day as the end date, while its old March inflow then failed the inflow-range validation first. The default-account test removed accounts but retained an outflow referencing the removed `main` account.
+- Root cause: test fixture setup did not create the intended invalid period and did not isolate default-account behavior from an unrelated invalid outflow reference.
+- Constraint: tests must assert the intended contract condition and not suppress production validation.
+- Correction: set start after end for the invalid-period case and clear the outflow schedule in the default-account case.
+- Regression coverage: corrected tests are in `tests/js/simulation-context.test.js`; CI rerun is pending.
