@@ -127,12 +127,14 @@ export function validateStrategySignal(signal, {
   end_date = requireISODate(end_date, "Simulation end date");
   if (current_date > end_date) throw new RangeError("Current simulation date cannot be after the simulation end.");
   if (!signal || typeof signal !== "object") throw new TypeError("Strategy must return a structured signal.");
+  if (!Object.isFrozen(signal)) throw new TypeError("Strategy signals must be immutable; use the signal factory helpers.");
   if (signal.revision !== revision) throw new Error("Stale strategy signal: simulation state has changed.");
   if (signal.signal_type === StrategySignalType.DECISION) {
     if (!Object.values(StrategyDecisionType).includes(signal.action)) throw new RangeError("Invalid strategy decision action.");
     if (signal.date !== current_date) throw new Error("Strategy decision date does not match the current simulation date.");
-    if (!signal.plan || typeof signal.plan !== "object" || Array.isArray(signal.plan)) {
-      throw new TypeError("Strategy decision plan must be an object.");
+    if (!signal.plan || typeof signal.plan !== "object" || Array.isArray(signal.plan) ||
+        !Object.isFrozen(signal.plan)) {
+      throw new TypeError("Strategy decision plan must be an immutable object.");
     }
     return signal;
   }
