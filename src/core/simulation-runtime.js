@@ -2,7 +2,7 @@ import { Event, EventType } from "./events.js";
 import { Account } from "./models.js";
 import { Booking, SimResult } from "./results.js";
 import { formatISODate, parseISODate } from "./dates.js";
-import { SimulationState, validateStrategySignal, StrategySignalType } from "./strategy-contracts.js";
+import { SimulationState, validateStrategySignal, StrategySignalType, StrategyDecisionType } from "./strategy-contracts.js";
 
 const EPS = 0.001;
 const round2 = value => Math.round((value + Number.EPSILON) * 100) / 100;
