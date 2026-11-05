@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
-import { AbsolutePlusStrategy } from "../../src/strategies/gaml.js";
+import { AbsolutePlusStrategy } from "../../src/strategies/absolute-plus.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { SimulationEngine } from "../../src/core/simulation.js";
 
