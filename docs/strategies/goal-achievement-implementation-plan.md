@@ -295,7 +295,7 @@ outflow accounting is verified.
 
 ### Remaining work
 
-- Verify CodeQL and the existing fixed-horizon GAML search sensitivity step; latest functional tests, documentation build, and corrected goal sensitivity study have passed. The fixed-horizon strategy sensitivity step has also passed.
+- Verify CodeQL only; latest functional tests, documentation build, corrected goal sensitivity study, and both fixed-horizon strategy/GAML sensitivity steps have passed.
 - Corrected Greedy, GSS, and Absolute+ benchmark results, charts, and the machine-readable artifact are published; invalid candidate replay counts/reasons are included.
 - Greedy/GSS shared-lifecycle tests and Absolute+ lexicographic ranking/tie-breaker tests have been added.
 - Browser configuration mode controls and CLI input migration are implemented; browser module syntax-check and configuration regression tests have passed.
