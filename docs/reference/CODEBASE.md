@@ -6,8 +6,8 @@ This page describes the main runtime boundaries and responsibilities of the shar
 
 | Path | Responsibility |
 |---|---|
-| `src/core/` | Shared financial domain, configuration, dates, events, simulation and result models. |
-| `src/strategies/` | Investment decision strategies and shared search algorithms. |
+| `src/core/` | Financial domain, normalized simulation context, authoritative runtime/state, event processing, lifecycle and result models. |
+| `src/strategies/` | Strategy sessions, investment decision logic, hypothetical planning and shared search algorithms. |
 | `src/fd-options/` | FD option discovery, eligibility and manager-owned candidate ordering. |
 | `src/io/` | CSV parsing and Node-side data loading. |
 | `src/reporting/` | Shared console formatting and standalone HTML report generation. |
@@ -15,7 +15,7 @@ This page describes the main runtime boundaries and responsibilities of the shar
 | `src/web/` | Browser application and interactive scenario configuration. |
 | `data/` | Bank and FD product datasets shared by both runtimes. |
 | `schema/` | Configuration schema and validation contract. |
-| `tests/` | Engine, CLI and browser-facing regression tests. |
+| `tests/` | Engine, strategy, CLI and browser-facing regression tests. |
 | `docs/` | User, strategy, architecture and contributor documentation. |
 | `archive/` | Preserved legacy Python project snapshot. |
 
@@ -27,16 +27,28 @@ The web application exposes Greedy, GAML and GSS. Absolute remains CLI-only for 
 
 ## Simulation lifecycle
 
-The simulation engine owns the shared timeline, event processing and final event finalisation. Strategies make investment decisions against simulation state; they do not own simulation-wide event finalisation. Consolidation is performed by the simulation lifecycle after strategy execution, rather than by individual strategies.
+All production execution enters through `SimulationEngine.run(strategy, input)`.
+
+- `simulation-context.js` normalizes and validates input, cloning and freezing the values supplied to strategy planning.
+- `simulation-runtime.js` owns authoritative balances, actual event progression, outflow settlement, transfer and booking execution, cash-flow scheduling, the event ledger and unfinished result construction.
+- `simulation.js` drives revision-bound strategy sessions, adds the simulation-start marker and performs exactly-once finalization.
+- `strategy-contracts.js` defines immutable planning views and decision, wait, completion and batch signals.
+- `SimulationState` provides revisioned authoritative account values. Strategies receive immutable snapshots, not the state object.
+
+The runtime processes actual events chronologically. A strategy may request a future wait boundary or return a decision. The runtime validates the decision against the current revision and date, validates the complete plan, and commits staged changes atomically. The final consolidation sweep is simulation-wide and occurs once after the horizon.
+
+See [the simulation lifecycle reference](../SIMULATION-LIFECYCLE.md).
 
 ## Strategy boundary
 
-Strategies decide what to book and when to make an investment decision. They consume the common account, FD, cash-flow, transfer-fee, AIT and simulation models.
+Production strategies expose `createSession(context)`; they do not expose a `simulate(input)` execution method. A session consumes read-only planning views and returns immutable decision signals. It does not own actual event processing, settlement, booking/transfer execution or result construction.
 
-- **Greedy** makes local decisions from currently available options.
-- **GAML** explores a bounded set of promising candidate states.
-- **GSS** recursively seeks goal options and evaluates SPLIT and CONSOLIDATE plans.
-- **Absolute** performs exhaustive branch-and-bound search when run through the CLI.
+- **Greedy** uses `pickDailyGreedyPlan()` to make local SPLIT/CONSOLIDATE/CARRY decisions from the current view.
+- **GAML** retains bounded beam search and diagnostics, then emits its selected path as session decisions.
+- **Absolute** retains exhaustive branch-and-bound search, then emits its selected path as session decisions.
+- **GSS** retains recursive goal search, forecast contraction and interim-plan exploration in a private hypothetical planner, then emits its selected decision path.
+
+Hypothetical strategy projections may use local financial/event state to explore possible futures. The authoritative simulation and actual ledger remain in SimulationRuntime.
 
 See [the strategy guide](../STRATEGIES.md) for decision details.
 
@@ -50,7 +62,13 @@ GSS uses manager-provided candidates and evaluates their viability. It does not 
 
 ### Core engine
 
-Owns financial domain models, simulation state, event scheduling and lifecycle finalisation. Keep it runtime-neutral so CLI and browser calculations remain equivalent.
+- `simulation-context.js`: normalized immutable inputs.
+- `strategy-contracts.js`: revision-bound immutable planning views and signals.
+- `simulation-runtime.js`: actual chronological execution and result construction.
+- `simulation.js`: session driving and finalization.
+- `events.js`, `cashflows.js`, `models.js`, `results.js`: shared domain primitives.
+
+Keep the core runtime-neutral so CLI and browser calculations remain equivalent.
 
 ### Reporting
 
@@ -62,11 +80,12 @@ I/O adapters load and parse external data. Keep filesystem-specific operations o
 
 ### Web application
 
-The web frontend configures scenarios, invokes the shared engine and presents the resulting report. It should not contain a second implementation of financial or strategy logic.
+The web frontend configures scenarios, invokes `SimulationEngine.run()` and presents the resulting report. It should not contain a second implementation of financial or strategy logic.
 
 ## Related references
 
 - [Strategy guide](../STRATEGIES.md)
+- [Simulation lifecycle](../SIMULATION-LIFECYCLE.md)
 - [GSS technical reference](../strategies/GSS.md)
 - [Migration plan](../MIGRATION_PLAN.md)
 - [Contributing guide](/guide/contributing)
