@@ -516,9 +516,16 @@ function expandState(rawState, context, settings, mode, counters) {
 
   const balances = new Map(state.balances);
   const children = [];
-  const pushAction = (date, nextBalances, nextFlows, action, rootSignature = null) => {
+  const pushAction = (
+    date, nextBalances, nextFlows, action, rootSignature = null,
+    nextGoalProvenance = state.goalProvenance, nextGoalFlows = state.goalFlows ?? []
+  ) => {
     children.push({
-      state: { date, balances: nextBalances, flows: nextFlows, obligations: state.obligations, paid: state.paid },
+      state: {
+        date, balances: nextBalances, flows: nextFlows,
+        goalProvenance: nextGoalProvenance, goalFlows: nextGoalFlows,
+        obligations: state.obligations, paid: state.paid
+      },
       date: state.date, action, root_signature: rootSignature
     });
   };
@@ -576,13 +583,41 @@ function expandState(rawState, context, settings, mode, counters) {
     nextBalances = setSearchBalance(nextBalances, branch.target_id, 0);
     const flows = branch.option.generateCashFlowsAfterAIT(branch.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear)
       .map(flow => [formatISODate(flow.date), branch.target_id, flow.amount]);
+    let nextGoalProvenance = state.goalProvenance;
+    let nextGoalFlows = state.goalFlows ?? [];
+    if (nextGoalProvenance) {
+      nextGoalProvenance = nextGoalProvenance.clone();
+      for (const transfer of branch.transfers) {
+        nextGoalProvenance.transfer(transfer.src_id, transfer.tgt_id, transfer.amount, transfer.fee);
+        if (transfer.tgt_id === context.consolidationId) {
+          nextGoalProvenance.recognizeConsolidationCredit(context.consolidationId);
+        }
+      }
+      const bookedComponents = nextGoalProvenance.debit(branch.target_id, branch.principal);
+      const componentFlows = branch.option.generateCashFlowComponentsAfterAIT(
+        branch.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear
+      );
+      nextGoalFlows = [...nextGoalFlows];
+      for (const flow of componentFlows) {
+        const principalComponents = nextGoalProvenance.allocateBookedPrincipal(
+          bookedComponents, flow.principal, branch.principal
+        );
+        nextGoalFlows.push([formatISODate(flow.date), branch.target_id, {
+          principal_components: principalComponents, interest: flow.interest
+        }]);
+      }
+      nextGoalProvenance.recognizeConsolidationCredit(context.consolidationId);
+    }
     const action = {
       type: "consolidate", target_id: branch.target_id, option: branch.option,
       transfers: branch.transfers, principal: branch.principal, carries: branch.carries
     };
     const root = ["consolidate", branch.target_id, branch.option.label, branch.option.payout_type, branch.option.payout_period_str];
     const merged = mergePendingFlows(state.flows, flows);
-    pushAction(nextEventDate(state.date, merged, context.inflows, context.outflows, context.end), nextBalances, merged, action, root);
+    pushAction(
+      nextEventDate(state.date, merged, context.inflows, context.outflows, context.end),
+      nextBalances, merged, action, root, nextGoalProvenance, nextGoalFlows
+    );
   }
 
   const local = allLocalCombinations(activeIds, context, balances, parseISODate(state.date), {
