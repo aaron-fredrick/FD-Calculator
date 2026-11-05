@@ -251,4 +251,4 @@ for (const [category, title] of Object.entries(factorTitles)) {
   writeFileSync(new URL(title.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".svg", chartDir), svg);
 }
 writeFileSync(new URL("results.json", chartDir), JSON.stringify(report, null, 2) + "\n");
-process.stdout.write("GOAL_ACHIEVEMENT_SENSITIVITY_JSON=" + JSON.stringify(report) + "\\n");
+process.stdout.write("GOAL_ACHIEVEMENT_SENSITIVITY_JSON=" + JSON.stringify(report) + "\n");
