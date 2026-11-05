@@ -42,7 +42,7 @@ function input(target) {
       label: "30-day cumulative", period_str: "30d", annual_rate: 10,
       min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
     })],
-    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", label: "Main", balance: 100000 })],
     inflow_account_id: "main", consolidation_account_id: "main",
     fee_config: new TransferFeeConfig()
   };
@@ -112,7 +112,7 @@ test("final consolidation at the last event can be the first goal-credit boundar
   const scenario = input(100);
   scenario.accounts = [
     new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0 }),
-    new Account({ id: "reserve", bank_id: "BANK_A", bank_key: "a", balance: 100000 })
+    new Account({ id: "reserve", bank_id: "BANK_A", bank_key: "a", label: "Reserve", balance: 100000 })
   ];
   scenario.inflow_account_id = "main";
   scenario.consolidation_account_id = "main";
