@@ -1,0 +1,31 @@
+name: Strategy sensitivity study
+on:
+  pull_request:
+    paths:
+      - "scripts/strategy-sensitivity.js"
+      - "src/core/**"
+      - "src/strategies/**"
+      - "src/fd-options/**"
+      - "data/banks/**"
+      - "data/fd_options/**"
+      - ".github/workflows/strategy-sensitivity.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sensitivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Run strategy sensitivity study
+        run: node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
+      - name: Upload benchmark output
+        uses: actions/upload-artifact@v6
+        with:
+          name: strategy-sensitivity-results
+          path: strategy-sensitivity-output.txt
+          retention-days: 14

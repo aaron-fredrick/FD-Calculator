@@ -40,6 +40,7 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Strategy overview', link: '/STRATEGIES' },
+          { text: 'Sensitivity benchmark', link: '/strategies/benchmarks' },
           { text: 'GSS technical reference', link: '/strategies/GSS' },
         ],
       },

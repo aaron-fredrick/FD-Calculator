@@ -6,6 +6,10 @@ FD Cal provides several planning strategies. They share the same simulation and 
 
 The [strategy comparison](/STRATEGIES) explains the purpose, trade-offs, settings and optimality guarantees of each strategy.
 
+## Performance and sensitivity
+
+- [Strategy sensitivity benchmark](/strategies/benchmarks) — measured net-interest response to investment horizon, capital, account/bank diversity, inflows and eFD eligibility.
+
 ## Technical references
 
 - [GSS technical reference](/strategies/GSS) — recursive goal planning, SPLIT and CONSOLIDATE evaluation, forecast contraction and shared simulation finalisation.
