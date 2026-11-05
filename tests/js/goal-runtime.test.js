@@ -260,7 +260,7 @@ test("Absolute+ waits for a near-term inflow when it enables an earlier goal pay
     inflow_schedule: { "2026-01-15": 100000 }
   };
   const result = new SimulationEngine().run(new AbsolutePlusStrategy({
-    ait_enabled: false, beam_width: 32, max_local_branches: 16, max_decisions: 500
+    ait_enabled: false, beam_width: 2, max_local_branches: 2, max_decisions: 500
   }), scenario);
   assert.equal(result.goal_outcome.achieved, true);
   assert.equal(result.goal_outcome.achievement_date, "2026-02-14");
