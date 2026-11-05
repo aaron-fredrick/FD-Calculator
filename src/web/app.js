@@ -20,7 +20,7 @@ function syncStrategySettings(strategy=$("strategy-choice").value){
 }
 const today=()=>{let d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")};
 function effectiveEndDate(){return $("simulation-mode").value==="goal"?"":$("end-date").value}
-function renderSimulationMode(){const mode=$("simulation-mode").value;$("scoped-end-field").hidden=mode!=="scoped";$("end-date").required=mode==="scoped";$("goal-target").required=mode==="goal";$("goal-fields").hidden=mode!=="goal";$("period-hint").textContent=mode==="goal"?"The simulation continues until the consolidation net-interest target is reached. A 30-year internal safety horizon prevents non-terminating runs.":"Tenors maturing after the scoped end date are excluded."}
+function renderSimulationMode(){const mode=$("simulation-mode").value;$("scoped-end-field").hidden=mode!=="scoped";$("end-date").required=mode==="scoped";$("goal-target").required=mode==="goal";$("goal-fields").hidden=mode!=="goal";$("period-hint").textContent=mode==="goal"?"The simulation stops at the first credited-interest boundary that reaches the target. Greedy prioritizes the earliest available payout; Absolute+ explores bounded alternatives. A 30-year safety horizon is only a final guard.":"Tenors maturing after the scoped end date are excluded."}
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const id=()=>Math.random().toString(36).slice(2,9),err=m=>{$("error").textContent=m;$("error").hidden=!m};
 function clearFieldErrors(){document.querySelectorAll(".field-error").forEach(n=>n.remove());document.querySelectorAll(".invalid-field").forEach(n=>n.classList.remove("invalid-field"));document.querySelectorAll('[aria-invalid="true"]').forEach(n=>n.removeAttribute("aria-invalid"))}
@@ -60,7 +60,7 @@ function raw(){syncAccounts();syncSchedules();let accounts={};S.accounts.forEach
  if(mode==="goal")simulation.goal={metric:"consolidation_net_interest",target:Number($("goal-target").value)};
  else investment.end_date=end;
  let schedule=(arr,kind)=>arr.map(x=>({name:x.name,amount:Number(x.amount),account_id:x.account_id,type:x.type,...(x.type==="recurring"?{interval:x.interval,start_date:x.start_date||start,...(x.end_date||end?{end_date:x.end_date||end}:{})}:{dates:String(x.dates).split(",").map(s=>s.trim()).filter(Boolean)}),...(kind==="outflow"?{payment_policy:x.policy}:{})}));
- return {strategy:$("strategy-choice").value,simulation,investment,accounts,consolidation_account_id:(S.accounts.find(a=>a.primary)||S.accounts[0])?.id,inflows:schedule(S.inflows,"inflow"),outflows:schedule(S.outflows,"outflow"),transfer_fees:{default_inter_bank_fee:$("inter-fee").value.trim()===""?null:Number($("inter-fee").value),same_bank_fee:$("same-fee").value.trim()===""?null:Number($("same-fee").value),custom_fees:[]},compound:$("compound").checked,ait_enabled:$("ait").checked,actual_leap_year:$("leap-year").checked,gaml_settings:{beam_width:Number($("beam-width").value),max_local_branches:$("local-branches").value===""?null:Number($("local-branches").value),max_decisions:$("decision-cap").value===""?null:Number($("decision-cap").value)},greedy_settings:{tenor_tiebreaker:$("tenor-tiebreaker").value,plan_tenor_tiebreaker:$("plan-tenor-tiebreaker").value},gss_settings:{small_period_days:Number($("small-period-days").value||30)}}
+ return {strategy:$("strategy-choice").value,simulation,investment,accounts,consolidation_account_id:(S.accounts.find(a=>a.primary)||S.accounts[0])?.id,inflows:schedule(S.inflows,"inflow"),outflows:schedule(S.outflows,"outflow"),transfer_fees:{default_inter_bank_fee:$("inter-fee").value.trim()===""?null:Number($("inter-fee").value),same_bank_fee:$("same-fee").value.trim()===""?null:Number($("same-fee").value),custom_fees:[]},compound:$("compound").checked,ait_enabled:$("ait").checked,actual_leap_year:$("leap-year").checked,gaml_settings:{beam_width:Number($("beam-width").value),max_local_branches:$("local-branches").value===""?null:Number($("local-branches").value),max_decisions:$("decision-cap").value===""?(mode==="goal"&&$("strategy-choice").value==="gaml"?5000:null):Number($("decision-cap").value)},greedy_settings:{tenor_tiebreaker:$("tenor-tiebreaker").value,plan_tenor_tiebreaker:$("plan-tenor-tiebreaker").value},gss_settings:{small_period_days:Number($("small-period-days").value||30)}}
 }
 async function getOptions(ids){let out=[];for(let bank of [...new Set(ids)]){if(!S.cache.has(bank)){let row=S.index[bank];if(!row)throw Error("No FD option index entry for "+bank);let rows=await csv(DATA_ROOT+"fd_options/"+row.options_file),key=String(row.bank_key).toLowerCase(),fallback=({commercial:25000,dfcc:10000})[key]??25000;let opts=rows.map(r=>new FDOption({label:r.name,period_str:r.period,annual_rate:Number(r.annual_rate),min_amount:r.min_amount?Number(r.min_amount):fallback,payout_type:r.payout_type||"cumulative",payout_period_str:r.payout_period||"",bank_key:key,bank_id:bank,is_efd:String(r.eFD).toLowerCase()==="true"}));S.cache.set(bank,opts)}let opts=S.cache.get(bank);if(!opts.length)throw Error((S.banks[bank]?.name||bank)+" has no FD product rows in the current dataset. Choose a bank with configured rates.");out.push(...opts)}return out}
 function simulate(c){let input={options:c.options,start:c.start,end:c.end,simulation:c.simulation,inflow_schedule:c.inflow_schedule,accounts:c.accounts,inflow_account_id:c.accounts[0].id,fee_config:c.fee_config,consolidation_account_id:c.consolidation_account_id,outflow_schedule:c.outflow_schedule};let s=c.strategy==="greedy"?new GreedyStrategy({compound:c.compound,actual_leap_year:c.actual_leap_year,ait_enabled:c.ait_enabled,ait_rate:c.ait_rate,...c.greedy_settings}):c.strategy==="gss"?new GSSStrategy({compound:c.compound,actual_leap_year:c.actual_leap_year,ait_enabled:c.ait_enabled,ait_rate:c.ait_rate,...c.gss_settings}):new AbsolutePlusStrategy({compound:c.compound,actual_leap_year:c.actual_leap_year,ait_enabled:c.ait_enabled,ait_rate:c.ait_rate,...c.gaml_settings});if(c.strategy==="gaml")c.gaml_settings={beam_width:s.beam_width,max_local_branches:s.max_local_branches,max_decisions:s.max_decisions};if(c.strategy==="gss")c.gss_settings={small_period_days:s.small_period_days};let r=new SimulationEngine().run(s,input);if(!r.valid)throw Error("The strategy could not satisfy one or more strict outflows. Review amounts, dates and payment policies.");return r}
@@ -77,10 +77,39 @@ function saveDraft(){try{const draft=raw();localStorage.setItem(STORAGE_KEY,JSON
 function restoreDraft(){try{const saved=localStorage.getItem(STORAGE_KEY);if(!saved)return false;applyConfig(JSON.parse(saved));return true}catch(e){console.warn("FD Cal saved draft could not be restored:",e);try{localStorage.removeItem(STORAGE_KEY)}catch{}return false}}
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)}
 function exportRaw(){download(new Blob([JSON.stringify(raw(),null,2)],{type:"application/json"}),"fd-cal-config.json")}
-function results(r,c,html){if(S.url)URL.revokeObjectURL(S.url);S.url=URL.createObjectURL(new Blob([html],{type:"text/html"}));$("result-period").textContent=c.start.toISOString().slice(0,10)+" — "+r.end_date.toISOString().slice(0,10)+" · "+(c.simulation?.mode??"scoped")+" · "+r.strategy_name+(r.goal_outcome?" · Goal "+(r.goal_outcome.achieved?"achieved":"not reached"):"");
- const vals=[["Gross interest",r.total_interest],["AIT withheld",r.ait_withheld],["Transfer fees",r.total_transfer_fees],["Net interest",r.net_interest_after_ait],["Final value",r.final_value_after_ait],["Capital invested",r.total_principal]];if(r.goal_outcome)vals.unshift(["Goal target",r.goal_outcome.target],["Credited net interest",r.goal_outcome.actual]);
- $("metrics").innerHTML=vals.map((x,i)=>'<div class="metric '+(i===3||i===4?"primary":"")+'"><small>'+x[0]+'</small><strong>LKR '+Number(x[1]||0).toLocaleString("en-LK",{minimumFractionDigits:2,maximumFractionDigits:2})+'</strong></div>').join("");
- $("download-report").onclick=()=>download(new Blob([html],{type:"text/html"}),"fd-cal-report.html");$("open-report").onclick=()=>window.open(S.url,"_blank","noopener");$("download-result-config").onclick=exportRaw;$("results").hidden=false;$("results").scrollIntoView({behavior:"smooth"})}
+function results(r,c,html){
+ if(S.url)URL.revokeObjectURL(S.url);
+ S.url=URL.createObjectURL(new Blob([html],{type:"text/html"}));
+ const goal=r.goal_outcome??null;
+ const start=c.start.toISOString().slice(0,10),end=r.end_date.toISOString().slice(0,10);
+ $("result-period").textContent=goal
+  ? start+" — "+end+" · goal · "+r.strategy_name+" · "+(goal.achieved?"achieved "+goal.achievement_date+" ("+goal.elapsed_days+" days)":"not reached · "+goal.stopping_reason)
+  : start+" — "+end+" · scoped · "+r.strategy_name;
+ const moneyValue=value=>"LKR "+Number(value??0).toLocaleString("en-LK",{minimumFractionDigits:2,maximumFractionDigits:2});
+ const vals=goal?[
+  ["Goal target",goal.target,"money"],
+  ["Credited net interest",goal.actual,"money"],
+  ["Time to goal",goal.elapsed_days,"days"],
+  ["Achievement date",goal.achievement_date,"date"],
+  [goal.achieved?"Overshoot":"Remaining shortfall",goal.achieved?goal.overshoot:goal.shortfall,"money"],
+  ["Portfolio net interest",r.net_interest_after_ait,"money"],
+  ["Transfer fees",r.total_transfer_fees,"money"],
+  ["Capital invested",r.total_principal,"money"]
+ ]:[
+  ["Gross interest",r.total_interest,"money"],["AIT withheld",r.ait_withheld,"money"],
+  ["Transfer fees",r.total_transfer_fees,"money"],["Net interest",r.net_interest_after_ait,"money"],
+  ["Final value",r.final_value_after_ait,"money"],["Capital invested",r.total_principal,"money"]
+ ];
+ $("metrics").innerHTML=vals.map((x,i)=>{
+  const value=x[2]==="money"?moneyValue(x[1]):x[2]==="days"?(x[1]===null||x[1]===undefined?"—":Number(x[1]).toLocaleString("en-LK")+" days"):(x[1]??"Not achieved");
+  return '<div class="metric '+(goal?i<2?"primary":"":i===3||i===4?"primary":"")+'"><small>'+x[0]+'</small><strong>'+value+'</strong></div>';
+ }).join("");
+ $("download-report").onclick=()=>download(new Blob([html],{type:"text/html"}),"fd-cal-report.html");
+ $("open-report").onclick=()=>window.open(S.url,"_blank","noopener");
+ $("download-result-config").onclick=exportRaw;
+ $("results").hidden=false;
+ $("results").scrollIntoView({behavior:"smooth"});
+}
 function wire(){
  $("scenario-form").addEventListener("input",()=>{clearFieldErrors();err("");if(["start-date","simulation-mode"].includes(document.activeElement?.id))renderSimulationMode();saveDraft()});$("scenario-form").addEventListener("change",()=>{clearFieldErrors();err("");renderSimulationMode();saveDraft()});$("scenario-form").addEventListener("click",saveDraft);
  $("add-account").onclick=()=>{syncAccounts();syncSchedules();addAccount()};$("accounts-list").onchange=e=>{if(e.target.name==="primary"){S.accounts.forEach(a=>a.primary=a.id===e.target.value);$("consolidation-account").value=e.target.value}if(e.target.matches("[data-bank]")){syncAccounts();syncSchedules();let a=S.accounts.find(x=>x.id===e.target.closest(".account").dataset.id);a.bank_id=e.target.value;a.label=S.banks[a.bank_id].name+" account";renderAccounts();renderSchedules()}};
