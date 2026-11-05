@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { GAMLStrategy } from "../../src/strategies/gaml.js";
 import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
+import { SimulationEngine } from "../../src/core/simulation.js";
 import { LegacySearchStrategyBase } from "../fixtures/legacy-search-oracle.js";
 
 function scenario() {
@@ -77,7 +78,7 @@ for (const [name, Strategy, mode, settings] of [
   test(name + " session replay matches the pre-refactor execution ledger and diagnostics", () => {
     const input = scenario();
     const legacy = new LegacySearchStrategyBase({ ...settings, ait_enabled: true }, mode).simulate(input);
-    const migrated = new Strategy({ ...settings, ait_enabled: true }).simulate(input);
+    const migrated = new SimulationEngine().runUnfinalized(new Strategy({ ...settings, ait_enabled: true }), input);
     assert.deepEqual(normalize(migrated), normalize(legacy));
   });
 }
