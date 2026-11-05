@@ -57,7 +57,7 @@ export class GSSStrategy {
     this.opening_trigger_always = true;
   }
 
-  _planHypothetically({
+  #planHypothetically({
     options, start, end, inflow_schedule = {}, accounts = null,
     inflow_account_id = null, fee_config = null,
     consolidation_account_id = null, outflow_schedule = {}
@@ -692,7 +692,7 @@ export class GSSStrategy {
   }
 
   createSession(context) {
-    const planned = this._planHypothetically({
+    const planned = this.#planHypothetically({
       options: context.options, start: context.start, end: context.end,
       inflow_schedule: context.inflows, accounts: context.accounts,
       inflow_account_id: context.inflow_account_id,
