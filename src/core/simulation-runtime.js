@@ -167,7 +167,7 @@ export class SimulationRuntime {
       } else if (event.cash_components) {
         this.provenance.add(account.id, {
           ...(event.cash_components.principal_components ?? {}),
-          uncredited_interest: event.cash_components.interest ?? 0
+          uncredited_interest: Number(event.cash_components.principal_components?.uncredited_interest ?? 0) + Number(event.cash_components.interest ?? 0)
         });
       } else {
         // Compatibility for externally-created cash events without component metadata.
