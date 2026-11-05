@@ -678,6 +678,7 @@ function expandState(rawState, context, settings, mode, counters) {
   };
 
   let waitFirst = false;
+  let waitGoalDate = null;
   if (mode === "gaml") {
     const futureInflows = Object.keys(context.inflows).filter(date => date > state.date).sort();
     const nextInflow = futureInflows[0];
@@ -689,6 +690,7 @@ function expandState(rawState, context, settings, mode, counters) {
           const currentGoalDate = estimateGoalOpportunity(state, context);
           const futureGoalDate = estimateGoalOpportunity(projected, context);
           waitFirst = Boolean(futureGoalDate && (!currentGoalDate || futureGoalDate < currentGoalDate));
+          if (waitFirst) waitGoalDate = futureGoalDate;
         }
       }
     } else if (nextInflow && daysBetween(parseISODate(state.date), parseISODate(nextInflow)) <= 30) {
@@ -727,7 +729,8 @@ function expandState(rawState, context, settings, mode, counters) {
   }
   if (waitFirst && (mode !== "gaml" || settings.maxDecisions == null || counters.expanded < settings.maxDecisions)) {
     const action = { type: "carry", carries: activeIds };
-    pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
+    pushAction(nextDate, state.balances, state.flows, action, ["carry"],
+      state.goalProvenance, state.goalFlows ?? [], waitGoalDate);
   }
 
   const consolidation = buildConsolidationBranches(state.balances, context.accounts, context, context.feeConfig, parseISODate(state.date), {
