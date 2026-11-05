@@ -24,9 +24,9 @@ jobs:
         with:
           node-version: 22
       - name: Run strategy sensitivity study
-        run: node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
+        run: set -o pipefail && node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
       - name: Run GAML search sensitivity study
-        run: node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
+        run: set -o pipefail && node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
       - name: Upload benchmark output
         uses: actions/upload-artifact@v6
         with:
