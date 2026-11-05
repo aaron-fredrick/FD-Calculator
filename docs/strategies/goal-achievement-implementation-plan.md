@@ -264,7 +264,7 @@ outflow accounting is verified.
 - [x] Greedy and GSS use shared stop semantics (goal lifecycle integration tests added).
 - [x] Absolute+ ranks achievers by earliest achievement within its bounded search; comparator, candidate replay, and bounded-search diagnostics are tested.
 - [x] CLI, browser UI, schema, validation, and reports use the same mode contract; configuration normalization and browser-module syntax are covered.
-- [ ] Corrected goal sensitivity results are reproducible and separate from fixed-horizon tests; publish the refreshed 72-run artifact and charts after candidate replay settings and invalid-path handling are verified.
+- [x] Corrected goal sensitivity results are reproducible and separate from fixed-horizon tests; the refreshed 72-run artifact and charts include candidate replay settings and invalid-path handling.
 - [x] Outflow policy/provenance paths are covered by regression tests; outflows remain explicitly excluded from the primary sensitivity matrix.
 - [x] Documentation, measured benchmark summary, and sensitivity charts describe the implemented behaviour.
 - [ ] Full regression suite and all CI checks pass on the latest feature-branch commit.
@@ -290,13 +290,13 @@ outflow accounting is verified.
 - The general Node test workflow passed on commit `7b44a006433dc29db4b1d2ddd3300c63636505f9`, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
 - The documentation build passed on commit `7b44a006433dc29db4b1d2ddd3300c63636505f9`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
-- The initial 72-run goal sensitivity workflow completed, but review found the Absolute+ candidate replay had not inherited AIT/compounding/runtime settings. Its Absolute+ values and charts are superseded. After fixing setting inheritance, the corrected run exposed infeasible hypothetical paths; candidate replay now rejects and counts those paths instead of aborting the study. A new corrected 72-run study is queued. The earlier artifact [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) is retained for audit only.
+- The initial 72-run goal sensitivity workflow completed, but review found the Absolute+ candidate replay had not inherited AIT/compounding/runtime settings. Its Absolute+ values and charts are superseded. After fixing setting inheritance, the corrected run exposed infeasible hypothetical paths; candidate replay now rejects and counts those paths instead of aborting the study. The corrected 72-run study passed on commit `25067936a8a1f407884a2ff3e57f0f3cff0d0482`; its machine-readable artifact is [42097850306](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097850306). Corrected results and charts are published in `goal-achievement.md`. The earlier artifact [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) is retained for audit only.
 - A clean pre-change baseline was not captured. Existing regression tests are being used as compatibility gates instead.
 
 ### Remaining work
 
 - Verify the latest candidate replay rejection/counting tests, CodeQL, documentation build, corrected goal sensitivity run, and existing fixed-horizon sensitivity workflow.
-- Greedy/GSS benchmark results are validated. Refresh Absolute+ results, charts, and the machine-readable artifact after the corrected goal sensitivity run passes.
+- Corrected Greedy, GSS, and Absolute+ benchmark results, charts, and the machine-readable artifact are published; invalid candidate replay counts/reasons are included.
 - Greedy/GSS shared-lifecycle tests and Absolute+ lexicographic ranking/tie-breaker tests have been added.
 - Browser configuration mode controls and CLI input migration are implemented; browser module syntax-check and configuration regression tests have passed.
 - Outflow policy and provenance hardening now has strict/defer/best-effort, multi-account isolation, and same-day interest-credit/withdrawal tests. Outflows remain excluded from the goal sensitivity conclusions.
