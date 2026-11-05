@@ -49,7 +49,7 @@ test("Absolute+ CLI accepts configured and command-line search settings",async()
   const run=spawnSync(process.execPath,[join(root,"src/cli/fd-cal.js"),"--config",configPath,"--strategy","absolute-plus","--beam-width","4","--max-local-branches","2"],{cwd:root,encoding:"utf8",timeout:30000});
   assert.equal(run.status,0,run.stderr||run.stdout);
   assert.match(run.stdout,/SEARCH DIAGNOSTICS/);
-  assert.match(run.stdout,/Absolute\\+ settings\\s+: beam 4, local width 2, state cap 20/);
+  assert.ok(run.stdout.includes("Absolute+ settings                : beam 4, local width 2, state cap 20"));
   const html=await readFile(reportPath,"utf8");
   assert.match(html,/Portfolio outcome/);
  }finally{await rm(dir,{recursive:true,force:true});}
