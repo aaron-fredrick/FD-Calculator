@@ -555,14 +555,38 @@ function expandState(rawState, context, settings, mode, counters) {
   return { terminal: false, children };
 }
 
+function goalPathCanCredit(path, consolidationId) {
+  return path.some(({ action }) =>
+    (action.type === "consolidate" && action.target_id === consolidationId) ||
+    (action.type === "local" && action.bookings?.some(item => item.account_id === consolidationId))
+  );
+}
+
+function goalDateHasPassed(stateDate, context, score) {
+  return Boolean(score?.achieved &&
+    daysBetween(context.startDate, parseISODate(stateDate)) > score.elapsed_days);
+}
+
 function runAbsolute(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
-  let bestNode = null, bestGoalScore = initialGoalScore;
+  let bestNode = null, bestGoalScore = initialGoalScore, goalPrunedByAchievement = 0;
   function visit(rawState, parentNode = null) {
+    const path = evaluateGoal && parentNode ? nodePath(parentNode) : null;
+    if (path && goalPathCanCredit(path, context.consolidationId)) {
+      const score = evaluateGoal(path, null);
+      if (compareGoalScores(score, bestGoalScore) > 0) {
+        bestGoalScore = score;
+        bestNode = parentNode;
+      }
+    }
+    if (evaluateGoal && goalDateHasPassed(rawState.date, context, bestGoalScore)) {
+      goalPrunedByAchievement++;
+      return;
+    }
     counters.expanded++;
     const expanded = expandState(rawState, context, settings, "absolute", counters);
     if (expanded.terminal) {
       if (evaluateGoal) {
-        const score = evaluateGoal(nodePath(parentNode), expanded.value);
+        const score = evaluateGoal(path ?? nodePath(parentNode), expanded.value);
         if (compareGoalScores(score, bestGoalScore) > 0) { bestGoalScore = score; bestNode = parentNode; }
         return;
       }
@@ -578,17 +602,30 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
     }
   }
   visit(initial);
-  return { bestNode, bestGoalScore, optimalityProven: true };
+  return { bestNode, bestGoalScore, goalPrunedByAchievement, optimalityProven: true };
 }
 
 function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
   let bestNode = null, bestGoalScore = initialGoalScore, sequence = 0;
+  let goalPrunedByAchievement = 0;
   let beam = [{ state: initial, node: null, priority: makeUpperBound(initial, context, true), sequence: sequence++ }];
   let budgetStopped = false, beamPruned = 0, rootPeak = 0;
   while (beam.length) {
     const candidates = [], rootBest = new Map();
     let generated = 0;
     for (const entry of beam) {
+      const path = evaluateGoal && entry.node ? nodePath(entry.node) : null;
+      if (path && goalPathCanCredit(path, context.consolidationId)) {
+        const score = evaluateGoal(path, null);
+        if (compareGoalScores(score, bestGoalScore) > 0) {
+          bestGoalScore = score;
+          bestNode = entry.node;
+        }
+      }
+      if (evaluateGoal && goalDateHasPassed(entry.state.date, context, bestGoalScore)) {
+        goalPrunedByAchievement++;
+        continue;
+      }
       if (settings.maxDecisions != null && counters.expanded >= settings.maxDecisions) {
         budgetStopped = true; break;
       }
@@ -596,7 +633,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
       const expanded = expandState(entry.state, context, settings, "gaml", counters);
       if (expanded.terminal) {
         if (evaluateGoal) {
-          const score = evaluateGoal(nodePath(entry.node), expanded.value);
+          const score = evaluateGoal(path ?? nodePath(entry.node), expanded.value);
           if (compareGoalScores(score, bestGoalScore) > 0) { bestGoalScore = score; bestNode = entry.node; }
           continue;
         }
@@ -647,7 +684,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     beam = selected;
   }
   return {
-    bestNode, bestGoalScore, beamPruned, rootPeak, budgetStopped,
+    bestNode, bestGoalScore, beamPruned, rootPeak, budgetStopped, goalPrunedByAchievement,
     optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
 }
@@ -695,7 +732,11 @@ export class SearchStrategyBase {
     let goalCandidatesEvaluated = greedyGoal ? 1 : 0;
     let goalInvalidCandidates = 0;
     const goalInvalidReasons = new Map();
+    const evaluatedGoalPaths = new Set();
     const evaluateGoal = goalMode ? (path, value) => {
+      const pathKey = JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""]));
+      if (evaluatedGoalPaths.has(pathKey)) return { achieved: false, elapsed_days: Infinity, actual: -Infinity, fees: Infinity, operations: Infinity, terminal_value: -Infinity, signature: pathKey, duplicate: true };
+      evaluatedGoalPaths.add(pathKey);
       goalCandidatesEvaluated++;
       const score = evaluateGoalPath(path, engineContext, value, this);
       if (score.invalid_candidate) {
@@ -714,8 +755,11 @@ export class SearchStrategyBase {
       balances: makeBalanceState(Object.fromEntries([...context.accounts].map(([id, account]) => [id, account.balance]))),
       flows: [], obligations: [], paid: 0
     };
+    // Goal mode has a finite default budget so a 30-year safety horizon
+    // cannot turn a browser search into an effectively unbounded run.
+    const goalSearchBudget = goalMode ? (this.max_decisions ?? 5000) : this.max_decisions;
     const settings = {
-      maxDecisions: this.max_decisions, maxLocalBranches: this.max_local_branches,
+      maxDecisions: goalSearchBudget, maxLocalBranches: this.max_local_branches,
       beamWidth: this.beam_width, endDate: context.endDate
     };
     const search = this.mode === "absolute"
@@ -729,7 +773,7 @@ export class SearchStrategyBase {
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
-      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_objective: "earliest consolidation net-interest achievement", selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
+      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_objective: "earliest consolidation net-interest achievement", goal_search_budget: goalSearchBudget, goal_pruned_after_achievement: search.goalPrunedByAchievement ?? 0, selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
     const resultMetadata = {
       total_decisions_evaluated: diagnostics.expanded_states,
