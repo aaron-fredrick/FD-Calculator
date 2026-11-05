@@ -92,7 +92,7 @@ function results(r,c,html){
   ["Time to goal",goal.elapsed_days,"days"],
   ["Achievement date",goal.achievement_date,"date"],
   [goal.achieved?"Overshoot":"Remaining shortfall",goal.achieved?goal.overshoot:goal.shortfall,"money"],
-  ["Portfolio net interest",r.net_interest_after_ait,"money"],
+  ["Portfolio net interest (all accounts)",r.net_interest_after_ait,"money"],
   ["Transfer fees",r.total_transfer_fees,"money"],
   ["Capital invested",r.total_principal,"money"]
  ]:[
