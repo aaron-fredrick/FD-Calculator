@@ -119,7 +119,7 @@ Absolute+ uses a beam width of 96, local branch limit of 48, and a 5,000-decisio
 
 The superseded 72-row output remains available in [the earlier workflow run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) for audit only. The corrected run will publish a replacement machine-readable artifact with per-run fees, booking counts, runtime, search expansions, candidate counts, and proof status.
 
-These results are a measured baseline, not a universal ranking. GSS can reach some targets earlier despite lower final credited interest; Absolute+ can improve early achievement in some cases but remains bounded by its search budget. Outflows were excluded from this sensitivity matrix. The shared runtime now has regression coverage for strict, defer, and best-effort policies, multi-account isolation, same-day credited-interest withdrawals, and provenance consumption; a separate outflow sensitivity matrix is still required before drawing performance conclusions for cash-outflow scenarios.
+These Greedy/GSS results are a measured baseline, not a universal ranking. GSS can reach some targets earlier despite lower final credited interest. Absolute+ goal-aware ranking is implemented and tested, but no performance conclusion is drawn until the corrected replay benchmark completes. Outflows were excluded from this sensitivity matrix. The shared runtime now has regression coverage for strict, defer, and best-effort policies, multi-account isolation, same-day credited-interest withdrawals, and provenance consumption; a separate outflow sensitivity matrix is still required before drawing performance conclusions for cash-outflow scenarios.
 
 ## Implementation plan and acceptance
 
