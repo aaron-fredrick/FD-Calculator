@@ -261,7 +261,7 @@ export class SimulationRuntime {
       achieved: false, target: goal.target, actual,
       achievement_date: null, elapsed_days: null, overshoot: 0,
       shortfall: round2(Math.max(0, goal.target - actual)),
-      maximum_end_date: this.context.end_iso,
+      safety_horizon_end_date: this.context.end_iso,
       stopping_reason: this.valid ? "safety_horizon_reached" : "simulation_invalid"
     };
     return this.goalOutcome;
