@@ -276,8 +276,13 @@ export class SimulationRuntime {
         throw new RangeError("Booking references an invalid FD option index.");
       }
       const option = this.context.options[optionIndex];
-      const principal = Number(item.principal);
       const available = balances.get(target.id) ?? 0;
+      const requestedPrincipal = Number(item.principal);
+      // Search projections intentionally round hypothetical balances to cents.
+      // When the selected path books the whole account, replay against the
+      // authoritative amount if the difference is only that rounding residue.
+      const principal = Math.abs(available - requestedPrincipal) <= EPS
+        ? available : requestedPrincipal;
       const fitsHorizon = option.fitsBefore(this.currentDate, this.context.end);
       const accountEligible = target.canUseOption(option);
       if (!Number.isFinite(principal) || principal <= 0 ||
