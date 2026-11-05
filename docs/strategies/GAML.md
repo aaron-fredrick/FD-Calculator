@@ -13,7 +13,7 @@ GAML is FD Cal's bounded, layered beam-search optimiser. It explores multiple ca
 3. Expand each retained search state into feasible local booking, consolidation and carry decisions.
 4. Advance each candidate to the next relevant event date, including FD cash flows/maturities, inflows and outflows.
 5. Score resulting states and retain a bounded frontier for the next layer.
-6. Replay the best retained path through the shared result model and simulation lifecycle.
+6. Emit the best retained path as revision-bound session decisions. `SimulationRuntime` processes actual events and executes those decisions.
 
 The search state includes the date, account balances, pending FD cash flows, outflow obligations and paid outflows. Memoisation and dominance pruning reduce repeated or inferior states.
 
@@ -85,4 +85,4 @@ Do not interpret beam width or branch count as a percentage of optimality. They 
 
 ## Shared simulation lifecycle
 
-GAML returns an unfinished strategy result. The shared `SimulationEngine` owns overall event processing and performs the single final consolidation sweep after the strategy has completed. Search branches do not independently finalise the simulation.
+GAML exposes `createSession(context)`. Search branches remain hypothetical and produce a selected decision path; they do not process the authoritative event timeline or construct the actual result. `SimulationRuntime` executes the selected path and processes actual events. `SimulationEngine` adds the start marker and performs the single final consolidation sweep after the session completes. Search branches do not independently finalise the simulation.
