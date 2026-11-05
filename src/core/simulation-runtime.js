@@ -450,7 +450,8 @@ export class SimulationRuntime {
     for (const [id, balance] of balances) {
       if (Math.abs(round2(balance) - provenance.total(id)) > 0.02) throw new Error("Decision provenance does not reconcile for account " + id + ".");
     }
-    this.#commitBalances(balances);\n    this.provenance = provenance;\n    for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
+    this.#commitBalances(balances);
+    this.provenance = provenance;\n    for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
     this.provenance.recognizeConsolidationCredit(this.context.consolidation_account_id);
     this.totalFees += pendingFees;
     this.bookingNumber = pendingBookingNumber;
