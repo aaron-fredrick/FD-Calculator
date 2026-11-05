@@ -418,6 +418,7 @@ function advanceState(state, context) {
     flows: pending,
     goalFlows: pendingGoalFlows,
     goalProvenance: goalProvenance ?? state.goalProvenance,
+    goalPriorityHint: null,
     obligations: processed.pending,
     paid: round2(state.paid + processed.paid),
   };
@@ -663,13 +664,14 @@ function expandState(rawState, context, settings, mode, counters) {
   const children = [];
   const pushAction = (
     date, nextBalances, nextFlows, action, rootSignature = null,
-    nextGoalProvenance = state.goalProvenance, nextGoalFlows = state.goalFlows ?? []
+    nextGoalProvenance = state.goalProvenance, nextGoalFlows = state.goalFlows ?? [],
+    goalPriorityHint = null
   ) => {
     children.push({
       state: {
         date, balances: nextBalances, flows: nextFlows,
         goalProvenance: nextGoalProvenance, goalFlows: nextGoalFlows,
-        obligations: state.obligations, paid: state.paid
+        goalPriorityHint, obligations: state.obligations, paid: state.paid
       },
       date: state.date, action, root_signature: rootSignature
     });
