@@ -231,7 +231,7 @@ function buildExecution(result,accountDisplay) {
   return {html:cards.join("")||'<div class="panel">No FD bookings or actionable transfers were selected.</div>',investmentRows};
 }
 export function generateHtmlReport(result,config) {
-  const start=iso(config.start),end=iso(config.end),days=dayCount(start,end)+1;
+  const start=iso(config.start),end=iso(result.end_date??config.end),days=dayCount(start,end)+1;
   const accountDisplay={};
   for(const a of Object.values(result.accounts||{})){
     const bankId=a.bank_id||a.bank_key||"Bank";
@@ -268,7 +268,19 @@ export function generateHtmlReport(result,config) {
     '<article class="panel"><small>Consolidation account</small><strong>'+esc(accountDisplay[config.consolidation_account_id]||config.consolidation_account_id||"—")+'</strong><p>Terminal cash destination</p></article>'+
     '<article class="panel"><small>Default transfer fees</small><strong>'+money(fee.default_inter_bank_fee||0)+'</strong><p>Inter-bank · Same-bank '+money(fee.same_bank_fee||0)+'</p></article></div>';
   const warning=result.outstanding_outflows?.length?'<p class="warning">Outstanding outflows remain: '+esc(result.outstanding_outflows.map(x=>x.name+" "+amount(x.remaining)).join("; "))+'</p>':"";
-  const outcome='<div class="equation-panel"><b>Net interest reconciliation</b><div class="equation">'+
+  const goal=result.goal_outcome??null;
+  const goalPanel=goal?'<div class="equation-panel"><b>Goal outcome · consolidation net interest</b><div class="outcome-grid">'+
+    '<div class="outcome-metric"><small>Target (LKR)</small><strong>'+amount(goal.target)+'</strong><p>First-time net interest credited to consolidation.</p></div>'+
+    '<div class="outcome-metric"><small>Actual credited (LKR)</small><strong>'+amount(goal.actual)+'</strong><p>'+(goal.achieved?'Target achieved':'Maximum horizon reached')+'</p></div>'+
+    '<div class="outcome-metric"><small>Achievement date</small><strong>'+(goal.achievement_date||'Not achieved')+'</strong><p>'+(goal.elapsed_days===null?'No achievement duration':goal.elapsed_days+' elapsed days')+'</p></div>'+
+    '<div class="outcome-metric"><small>'+(goal.achieved?'Overshoot (LKR)':'Remaining shortfall (LKR)')+'</small><strong>'+amount(goal.achieved?goal.overshoot:goal.shortfall)+'</strong><p>'+esc(goal.stopping_reason||'')+'</p></div></div>'+
+    '<p class="muted">Only net interest credited to the consolidation account is counted. Principal is excluded; AIT is deducted before credit; transfers do not count the same interest twice.</p></div>':'';
+  const goalSearch=result.search_diagnostics?.goal_candidates_evaluated!==undefined
+    ? '<p class="muted">Goal candidates evaluated: '+amount(result.search_diagnostics.goal_candidates_evaluated)+' · Search optimality: '+(result.search_diagnostics.optimality_proven?'proven':'not proven within bounded search')+'</p>' : '';
+  const goalTimelineRows=[];
+  for(const [dateKey,events] of Object.entries(result.timeline||{}).sort(([a],[b])=>Number(a)-Number(b)))for(const event of events)if(Number.isFinite(event.goal_metric_after))goalTimelineRows.push({date:iso(event.on_date),event:event.label||event.event_type,credited:amount(event.goal_metric_after),status:goal?.achieved&&iso(event.on_date)===goal.achievement_date?'First achievement boundary':'—'});
+  const goalTimeline=goal?table('Goal achievement timeline',[['date','Date'],['event','Event boundary'],['credited','Cumulative credited net interest (LKR)'],['status','Status']],goalTimelineRows):'';
+  const outcome=goalPanel+goalSearch+goalTimeline+'<div class="equation-panel"><b>Net interest reconciliation</b><div class="equation">'+
     '<div><small>Gross interest (LKR)</small><strong class="positive">'+amount(gross)+'</strong></div><span>−</span>'+
     '<div><small>AIT withheld (LKR)</small><strong class="negative">'+amount(ait)+'</strong></div><span>−</span>'+
     '<div><small>Transfer fees (LKR)</small><strong class="negative">'+amount(fees)+'</strong></div><span>=</span>'+

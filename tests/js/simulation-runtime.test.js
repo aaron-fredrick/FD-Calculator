@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { createSimulationContext } from "../../src/core/simulation-context.js";
 import { SimulationRuntime } from "../../src/core/simulation-runtime.js";
+import { Event, EventType } from "../../src/core/events.js";
 import {
   createStrategyDecision, StrategyDecisionType
 } from "../../src/core/strategy-contracts.js";
@@ -205,4 +206,128 @@ test("split booking snapshots are sequential", () => {
   assert.equal(bookingEvents.length, 2);
   assert.deepEqual(bookingEvents[0].decision_context.balances_before, { a: 30000, b: 30000 });
   assert.deepEqual(bookingEvents[1].decision_context.balances_before, { a: 0, b: 30000 });
+});
+
+test("runtime carries FD principal provenance and recognises only net interest at consolidation", () => {
+  const runtime = makeRuntime();
+  const view = runtime.planningView();
+  runtime.executeSignal(createStrategyDecision({
+    revision: view.revision, date: view.date,
+    action: StrategyDecisionType.CONSOLIDATE,
+    plan: {
+      target_account_id: "main", option_index: 0, principal: 39970,
+      transfers: [{ source_account_id: "reserve", target_account_id: "main", amount: 30000, fee: 30 }],
+      carries: []
+    }
+  }));
+  assert.equal(runtime.provenance.total("main"), 0);
+  assert.equal(runtime.provenance.total("reserve"), 0);
+  assert.equal(runtime.provenance.creditedNetInterest, 0);
+  const maturityDate = runtime.nextEventDate();
+  runtime.processDate(maturityDate);
+  assert.ok(runtime.provenance.creditedNetInterest > 0);
+  assert.equal(runtime.provenance.snapshot("main").uncredited_interest, 0);
+  assert.equal(runtime.provenance.snapshot("main").counted_interest, runtime.provenance.creditedNetInterest);
+  const result = runtime.buildResult();
+  assert.equal(result.credited_net_interest, runtime.provenance.creditedNetInterest);
+});
+
+test("outflows consume provenance without reversing previously credited interest", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-02-28",
+    options: [new FDOption({
+      label: "Bank A 30d", period_str: "30d", annual_rate: 10,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 1000 })],
+    consolidation_account_id: "main",
+    outflow_schedule: {
+      "2026-01-01": [{ account_id: "main", amount: 250, payment_policy: "strict" }]
+    }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.provenance.total("main"), 750);
+  assert.equal(runtime.provenance.creditedNetInterest, 0);
+});
+
+test("runtime recognises consolidation interest before a same-day cash outflow", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-02-01",
+    options: [new FDOption({
+      label: "Bank A 30d", period_str: "30d", annual_rate: 10,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 1000 })],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    outflow_schedule: { "2026-01-31": [{ account_id: "main", amount: 500, payment_policy: "strict" }] }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  runtime.schedule(new Event({
+    event_type: EventType.CASH_FLOW, on_date: "2026-01-31", amount: 400,
+    label: "Net interest credited", account_id: "main",
+    cash_components: { principal_components: {}, interest: 400 }
+  }));
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.provenance.total("main"), 900);
+  assert.equal(runtime.provenance.creditedNetInterest, 400);
+  assert.ok(runtime.provenance.snapshot("main").counted_interest < 400);
+  assert.equal(runtime.totalOutflowsPaid, 500);
+});
+
+test("deferred outflows settle from later same-account inflows", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-01-31",
+    options: [new FDOption({ label: "FD", period_str: "30d", annual_rate: 8, min_amount: 1000, bank_id: "BANK_A", bank_key: "a" })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100 })],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    inflow_schedule: { "2026-01-10": { main: 100 } },
+    outflow_schedule: { "2026-01-01": [{ account_id: "main", amount: 150, payment_policy: "defer" }] }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.totalOutflowsPaid, 0);
+  assert.equal(runtime.pending[0].remaining, 150);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.totalOutflowsPaid, 150);
+  assert.equal(runtime.provenance.total("main"), 50);
+  assert.equal(runtime.pending.length, 0);
+  assert.equal(runtime.valid, true);
+});
+
+test("best-effort outflows pay available funds and retain the unpaid remainder", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-01-31",
+    options: [new FDOption({ label: "FD", period_str: "30d", annual_rate: 8, min_amount: 1000, bank_id: "BANK_A", bank_key: "a" })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100 })],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    outflow_schedule: { "2026-01-01": [{ account_id: "main", amount: 150, payment_policy: "best_effort" }] }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.totalOutflowsPaid, 100);
+  assert.equal(runtime.provenance.total("main"), 0);
+  assert.equal(runtime.pending[0].remaining, 50);
+  assert.equal(runtime.valid, true);
+});
+
+test("strict outflows invalidate an underfunded account without draining another account", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-01-31",
+    options: [new FDOption({ label: "FD", period_str: "30d", annual_rate: 8, min_amount: 1000, bank_id: "BANK_A", bank_key: "a" })],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100 }),
+      new Account({ id: "reserve", bank_id: "BANK_A", bank_key: "a", balance: 500 })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    outflow_schedule: { "2026-01-01": [{ account_id: "main", amount: 150, payment_policy: "strict" }] }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.valid, false);
+  assert.equal(runtime.totalOutflowsPaid, 0);
+  assert.equal(runtime.provenance.total("main"), 100);
+  assert.equal(runtime.provenance.total("reserve"), 500);
+  assert.equal(runtime.pending[0].remaining, 150);
 });

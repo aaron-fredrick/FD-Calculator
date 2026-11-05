@@ -113,3 +113,7 @@ footer{font-size:12px;line-height:1.55}
 .strategy-doc-link:hover,.strategy-doc-link:focus-visible{background:#1b3043;border-color:#6b9fc2;color:#d5edff}
 .strategy-row .field-label{align-items:center}
 @media(max-width:620px){.docs-link,.support-link{font-size:12px;min-height:40px;padding:8px}.top-actions{flex-wrap:wrap;justify-content:flex-end}}
+
+/* Simulation-mode fields override the card label/grid display rules. */
+#scoped-end-field[hidden],#duration-field[hidden]{display:none!important}
+.grid.two>.wide{grid-column:1/-1}

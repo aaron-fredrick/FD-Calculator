@@ -1,0 +1,35 @@
+name: Goal achievement sensitivity study
+on:
+  push:
+    branches: ["feature/**"]
+    paths:
+      - "scripts/goal-achievement-sensitivity.js"
+      - "src/core/**"
+      - "src/strategies/**"
+      - "src/fd-options/**"
+      - "data/banks/**"
+      - "data/fd_options/**"
+      - ".github/workflows/goal-achievement-sensitivity.yml"
+  workflow_dispatch:
+concurrency:
+  group: goal-sensitivity-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  goal-sensitivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Run goal achievement sensitivity study
+        run: set -o pipefail && node scripts/goal-achievement-sensitivity.js | tee goal-achievement-sensitivity-output.txt
+      - name: Upload goal benchmark output
+        uses: actions/upload-artifact@v6
+        with:
+          name: goal-achievement-sensitivity-results
+          path: goal-achievement-sensitivity-output.txt
+          retention-days: 30

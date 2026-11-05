@@ -13,6 +13,10 @@ See the [strategy comparison](/STRATEGIES) for purpose, trade-offs, settings and
 - [Greedy](/strategies/GREEDY) — local SPLIT/CONSOLIDATE/CARRY decisions, option selection and tie-breakers.
 - [GSS](/strategies/GSS) — recursive goal planning, forecast contraction and shared-runtime decision replay.
 
+## Simulation objectives
+
+- [Goal-based simulation](/strategies/goal-achievement) — first-credit consolidation net-interest objective, horizon semantics, strategy evaluation and goal sensitivity methodology.
+
 ## Performance and sensitivity
 
 - [Strategy sensitivity benchmark](/strategies/benchmarks) — measured net-interest response to investment horizon, capital, account/bank diversity, inflows and eFD eligibility.

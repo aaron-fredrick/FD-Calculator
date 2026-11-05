@@ -1,6 +1,7 @@
 name: Strategy sensitivity study
 on:
-  pull_request:
+  push:
+    branches: ["feature/**"]
     paths:
       - "scripts/strategy-sensitivity.js"
       - "scripts/gaml-sensitivity.js"
@@ -10,8 +11,10 @@ on:
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/strategy-sensitivity.yml"
-      - "docs/strategies/**"
   workflow_dispatch:
+concurrency:
+  group: strategy-sensitivity-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -24,9 +27,9 @@ jobs:
         with:
           node-version: 22
       - name: Run strategy sensitivity study
-        run: node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
+        run: set -o pipefail && node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
       - name: Run GAML search sensitivity study
-        run: node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
+        run: set -o pipefail && node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
       - name: Upload benchmark output
         uses: actions/upload-artifact@v6
         with:

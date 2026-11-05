@@ -48,6 +48,124 @@ function nodePath(node) {
   return path.reverse();
 }
 
+export function compareGoalScores(a, b) {
+  if (!b) return 1;
+  if (a.achieved !== b.achieved) return a.achieved ? 1 : -1;
+  if (a.achieved) {
+    if (a.elapsed_days !== b.elapsed_days) return b.elapsed_days - a.elapsed_days;
+    if (Math.abs(a.actual - b.actual) > EPS) return a.actual - b.actual;
+  } else if (Math.abs(a.actual - b.actual) > EPS) return a.actual - b.actual;
+  if (Math.abs(a.fees - b.fees) > EPS) return b.fees - a.fees;
+  if (a.operations !== b.operations) return b.operations - a.operations;
+  if (Math.abs(a.terminal_value - b.terminal_value) > EPS) return a.terminal_value - b.terminal_value;
+  return String(b.signature).localeCompare(String(a.signature));
+}
+
+export function createPathReplayStrategy(path, engineContext, runtimeSettings = {}) {
+  const actions = new Map(path.map(item => [item.date, item.action]));
+  const optionIndex = option => {
+    const exact = engineContext.options.indexOf(option);
+    if (exact >= 0) return exact;
+    const compatible = engineContext.options.findIndex(candidate =>
+      candidate.label === option.label && candidate.economic_terms_key === option.economic_terms_key &&
+      candidate.is_efd === option.is_efd
+    );
+    if (compatible < 0) throw new RangeError("Search path references an FD option outside the simulation context.");
+    return compatible;
+  };
+  const signalFor = (action, view) => {
+    if (action.type === "consolidate") return createStrategyDecision({
+      revision: view.revision, date: view.date, action: StrategyDecisionType.CONSOLIDATE,
+      plan: {
+        target_account_id: action.target_id, option_index: optionIndex(action.option),
+        principal: action.principal,
+        transfers: action.transfers.map(item => ({
+          source_account_id: item.src_id, target_account_id: item.tgt_id,
+          amount: item.amount, fee: item.fee
+        })),
+        carries: action.carries, carry_label: "Holding liquidity",
+        carry_snapshot: "decision_start"
+      }
+    });
+    if (action.type === "local") return createStrategyDecision({
+      revision: view.revision, date: view.date, action: StrategyDecisionType.SPLIT,
+      plan: {
+        bookings: action.bookings.map(item => ({
+          account_id: item.account_id, option_index: optionIndex(item.option), principal: item.principal
+        })),
+        carries: action.carries, carry_label: "Holding liquidity"
+      }
+    });
+    if (action.type === "carry") return createStrategyDecision({
+      revision: view.revision, date: view.date, action: StrategyDecisionType.CARRY,
+      plan: { carries: action.carries, carry_label: "Holding liquidity", carry_snapshot: "decision_start" }
+    });
+    throw new RangeError("Unknown search path action: " + action.type);
+  };
+  return {
+    name: "Absolute+ goal candidate replay",
+    compound: runtimeSettings.compound,
+    actual_leap_year: runtimeSettings.actual_leap_year,
+    ait_enabled: runtimeSettings.ait_enabled,
+    ait_rate: runtimeSettings.ait_rate,
+    outflow_account_tiebreak: runtimeSettings.outflow_account_tiebreak,
+    outflow_due_date_sort: runtimeSettings.outflow_due_date_sort,
+    round_balances: runtimeSettings.round_balances,
+    opening_trigger_always: runtimeSettings.opening_trigger_always,
+    createSession() {
+      return {
+        nextSignal(view) {
+          const action = actions.get(view.date);
+          if (action) { actions.delete(view.date); return signalFor(action, view); }
+          const overdue = [...actions.keys()].filter(date => date < view.date).sort();
+          if (overdue.length) throw new Error("Goal candidate decision date " + overdue[0] + " was skipped.");
+          const next = [...actions.keys()].sort()[0];
+          if (next && view.date < next) return createStrategyWait({ revision: view.revision, until: next });
+          if (view.date < view.end_date) return createStrategyWait({ revision: view.revision, until: view.end_date });
+          return createStrategyComplete({ revision: view.revision });
+        }
+      };
+    }
+  };
+}
+
+function scoreGoalResult(result, terminalValue, signature = "") {
+  const goal = result.goal_outcome ?? {};
+  const transfers = Object.values(result.timeline ?? {}).flat().filter(event =>
+    event.event_type === "transfer" && (event.label.startsWith("Transfer to ") || event.label.startsWith("Final sweep to "))
+  ).length;
+  return {
+    achieved: Boolean(goal.achieved),
+    elapsed_days: goal.elapsed_days ?? Infinity,
+    actual: Number(goal.actual ?? result.credited_net_interest ?? 0),
+    fees: Number(result.total_transfer_fees ?? 0),
+    operations: (result.bookings?.length ?? 0) + transfers,
+    terminal_value: Number(terminalValue ?? result.final_value ?? 0),
+    signature
+  };
+}
+
+export function evaluateGoalPath(path, engineContext, terminalValue, runtimeSettings) {
+  const signature = JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""]));
+  try {
+    const strategy = createPathReplayStrategy(path, engineContext, runtimeSettings);
+    const result = new SimulationEngine().run(strategy, {
+      options: engineContext.options, start: engineContext.start, end: engineContext.end,
+      simulation: engineContext.simulation, inflow_schedule: engineContext.inflows,
+      accounts: engineContext.accounts, inflow_account_id: engineContext.inflow_account_id,
+      fee_config: engineContext.fee_config, consolidation_account_id: engineContext.consolidation_account_id,
+      outflow_schedule: engineContext.outflows
+    });
+    return scoreGoalResult(result, terminalValue, signature);
+  } catch (error) {
+    return {
+      achieved: false, elapsed_days: Infinity, actual: -Infinity,
+      fees: Infinity, operations: Infinity, terminal_value: -Infinity,
+      signature, invalid_candidate: true, invalid_reason: String(error?.message ?? error)
+    };
+  }
+}
+
 function equivalentEfdBookings(bookings, optionsByAccount) {
   let count = 0;
   for (const booking of bookings) {
@@ -263,7 +381,7 @@ function makePriority(state, context) {
   return estimate + 0.05 * Math.max(0, upper - estimate);
 }
 
-function createContext({ options, start, end, inflow_schedule, accounts, inflow_account_id, fee_config, consolidation_account_id, outflow_schedule }, strategy) {
+function createContext({ options, start, end, simulation, inflow_schedule, accounts, inflow_account_id, fee_config, consolidation_account_id, outflow_schedule }, strategy) {
   const startDate = parseISODate(start), endDate = parseISODate(end);
   if (!Array.isArray(options) || !options.length) throw new TypeError(strategy.name + " simulation requires FD options.");
   if (!accounts?.length) {
@@ -294,7 +412,7 @@ function createContext({ options, start, end, inflow_schedule, accounts, inflow_
   const totalCapital = sum(accounts.map(account => account.balance)) + sum(Object.values(inflows).flatMap(day => Object.values(day)));
   return {
     accounts: accountMap, options: effectiveOptions, optionsByAccount, fdOptionManager, inflows, outflows,
-    startDate, endDate, start: formatISODate(startDate), end: formatISODate(endDate),
+    startDate, endDate, start: formatISODate(startDate), end: formatISODate(endDate), simulation: simulation ?? { mode: "scoped" },
     inflowAccountId: inflow_account_id, consolidationId: consolidation_account_id, feeConfig: fee_config,
     compound: strategy.compound, actualLeapYear: strategy.actual_leap_year, aitRate: strategy.effective_ait_rate,
     maxRate, totalCapital
@@ -309,18 +427,19 @@ function expandState(rawState, context, settings, mode, counters) {
     const value = terminalValue(state, context);
     return { terminal: true, value, state, children: [] };
   }
+  const goalMode = context.simulation?.mode === "goal";
   const bound = makeUpperBound(state, context, mode === "gaml");
-  if (bound <= counters.bestValue + EPS) {
+  if (!goalMode && bound <= counters.bestValue + EPS) {
     counters.boundPruned++;
     return { terminal: false, children: [] };
   }
   const key = stateKey(state);
   const prior = counters.memo.get(key);
-  if (prior !== undefined && prior >= bound - EPS) {
+  if (!goalMode && prior !== undefined && prior >= bound - EPS) {
     counters.memoPruned++;
     return { terminal: false, children: [] };
   }
-  counters.memo.set(key, bound);
+  if (!goalMode) counters.memo.set(key, bound);
 
   const nextDate = nextEventDate(state.date, state.flows, context.inflows, context.outflows, context.end);
   const activeIds = state.balances.filter(([, amount]) => amount > EPS).map(([id]) => id);
@@ -436,12 +555,17 @@ function expandState(rawState, context, settings, mode, counters) {
   return { terminal: false, children };
 }
 
-function runAbsolute(initial, context, settings, counters) {
-  let bestNode = null;
+function runAbsolute(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
+  let bestNode = null, bestGoalScore = initialGoalScore;
   function visit(rawState, parentNode = null) {
     counters.expanded++;
     const expanded = expandState(rawState, context, settings, "absolute", counters);
     if (expanded.terminal) {
+      if (evaluateGoal) {
+        const score = evaluateGoal(nodePath(parentNode), expanded.value);
+        if (compareGoalScores(score, bestGoalScore) > 0) { bestGoalScore = score; bestNode = parentNode; }
+        return;
+      }
       if (expanded.value > counters.bestValue + EPS) {
         counters.bestValue = expanded.value;
         bestNode = parentNode;
@@ -454,11 +578,11 @@ function runAbsolute(initial, context, settings, counters) {
     }
   }
   visit(initial);
-  return { bestNode, optimalityProven: true };
+  return { bestNode, bestGoalScore, optimalityProven: true };
 }
 
-function runGaml(initial, context, settings, counters) {
-  let bestNode = null, sequence = 0;
+function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
+  let bestNode = null, bestGoalScore = initialGoalScore, sequence = 0;
   let beam = [{ state: initial, node: null, priority: makeUpperBound(initial, context, true), sequence: sequence++ }];
   let budgetStopped = false, beamPruned = 0, rootPeak = 0;
   while (beam.length) {
@@ -471,6 +595,11 @@ function runGaml(initial, context, settings, counters) {
       counters.expanded++;
       const expanded = expandState(entry.state, context, settings, "gaml", counters);
       if (expanded.terminal) {
+        if (evaluateGoal) {
+          const score = evaluateGoal(nodePath(entry.node), expanded.value);
+          if (compareGoalScores(score, bestGoalScore) > 0) { bestGoalScore = score; bestNode = entry.node; }
+          continue;
+        }
         if (expanded.value > counters.bestValue + EPS) {
           counters.bestValue = expanded.value;
           bestNode = entry.node;
@@ -518,7 +647,7 @@ function runGaml(initial, context, settings, counters) {
     beam = selected;
   }
   return {
-    bestNode, beamPruned, rootPeak, budgetStopped,
+    bestNode, bestGoalScore, beamPruned, rootPeak, budgetStopped,
     optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
 }
@@ -543,7 +672,7 @@ export class SearchStrategyBase {
 
   createSession(engineContext) {
     const input = {
-      options: engineContext.options, start: engineContext.start, end: engineContext.end,
+      options: engineContext.options, start: engineContext.start, end: engineContext.end, simulation: engineContext.simulation,
       inflow_schedule: engineContext.inflows, accounts: engineContext.accounts,
       inflow_account_id: engineContext.inflow_account_id,
       fee_config: engineContext.fee_config,
@@ -560,9 +689,25 @@ export class SearchStrategyBase {
     const greedyObjective = greedy.valid
       ? greedy.final_value - calculateFinalSweepFees(greedy.accounts, context.consolidationId, context.feeConfig) - liabilities
       : -Infinity;
+    const goalMode = engineContext.simulation?.mode === "goal";
+    const greedyGoal = goalMode ? new SimulationEngine().run(greedyStrategy, input) : null;
+    const initialGoalScore = greedyGoal ? scoreGoalResult(greedyGoal, greedyObjective, "greedy-baseline") : null;
+    let goalCandidatesEvaluated = greedyGoal ? 1 : 0;
+    let goalInvalidCandidates = 0;
+    const goalInvalidReasons = new Map();
+    const evaluateGoal = goalMode ? (path, value) => {
+      goalCandidatesEvaluated++;
+      const score = evaluateGoalPath(path, engineContext, value, this);
+      if (score.invalid_candidate) {
+        goalInvalidCandidates++;
+        const reason = score.invalid_reason || "Unknown candidate replay failure";
+        goalInvalidReasons.set(reason, (goalInvalidReasons.get(reason) ?? 0) + 1);
+      }
+      return score;
+    } : null;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
-      bestValue: greedyObjective, alternatives: [], memo: new Map()
+      bestValue: goalMode ? -Infinity : greedyObjective, alternatives: [], memo: new Map()
     };
     const initial = {
       date: context.start,
@@ -574,8 +719,8 @@ export class SearchStrategyBase {
       beamWidth: this.beam_width, endDate: context.endDate
     };
     const search = this.mode === "absolute"
-      ? runAbsolute(initial, context, settings, counters)
-      : runGaml(initial, context, settings, counters);
+      ? runAbsolute(initial, context, settings, counters, evaluateGoal, initialGoalScore)
+      : runGaml(initial, context, settings, counters, evaluateGoal, initialGoalScore);
     const diagnostics = {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
@@ -583,7 +728,8 @@ export class SearchStrategyBase {
       root_strategy_peak: search.rootPeak || 0,
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
-      settings
+      settings,
+      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_objective: "earliest consolidation net-interest achievement", selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
     const resultMetadata = {
       total_decisions_evaluated: diagnostics.expanded_states,

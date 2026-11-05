@@ -1,8 +1,9 @@
 import { Event, EventType } from "./events.js";
 import { Account } from "./models.js";
 import { Booking, SimResult } from "./results.js";
-import { formatISODate, parseISODate } from "./dates.js";
+import { formatISODate, parseISODate, daysBetween } from "./dates.js";
 import { SimulationState, validateStrategySignal, StrategySignalType, StrategyDecisionType } from "./strategy-contracts.js";
+import { BalanceProvenance } from "./balance-provenance.js";
 
 const EPS = 0.001;
 const round2 = value => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -42,16 +43,18 @@ export class SimulationRuntime {
       label: account.label, balance: account.balance, supports_efd: account.supports_efd
     })]));
     this.state = null;
+    this.provenance = new BalanceProvenance(this.accounts.keys());
+    this.bookingProvenance = new Map();
     this.timeline = {};
     this.bookings = [];
     this.pending = [];
     this.processed = new Set();
     this.currentDate = null;
+    this.goalOutcome = null;
     this.bookingNumber = 0;
     this.totalFees = 0;
     this.totalOutflowsPaid = 0;
-    this.totalInflows = Object.values(context.inflows).reduce((total, entries) =>
-      total + Object.values(entries).reduce((sum, amount) => sum + amount, 0), 0);
+    this.totalInflows = 0;
     this.valid = true;
     this.#initializeEvents();
     this.#initializeState();
@@ -59,6 +62,7 @@ export class SimulationRuntime {
 
   #initializeState() {
     this.state = new SimulationState([...this.accounts.values()]);
+    for (const account of this.accounts.values()) this.provenance.addPrincipal(account.id, account.balance);
   }
 
   #initializeEvents() {
@@ -117,6 +121,14 @@ export class SimulationRuntime {
     return [...balances.values()].reduce((sum, balance) => sum + balance, 0);
   }
 
+  #assertProvenance(balances) {
+    for (const [id, balance] of balances) {
+      if (Math.abs(round2(balance) - this.provenance.total(id)) > 0.02) {
+        throw new Error("Balance provenance does not reconcile for account " + id + " on " + formatISODate(this.currentDate) + ": balance=" + round2(balance) + ", provenance=" + this.provenance.total(id) + ", events=" + JSON.stringify((this.timeline[dateKey(this.currentDate)] ?? []).filter(event => event.account_id === id).map(event => ({ type: event.event_type, amount: event.amount, label: event.label, cash_components: event.cash_components }))) + ".");
+      }
+    }
+  }
+
   nextEventDate() {
     const keys = Object.keys(this.timeline).map(Number)
       .filter(key => !this.processed.has(key) && keyDate(key) <= this.context.end_iso)
@@ -149,7 +161,19 @@ export class SimulationRuntime {
       event.bank_id = account.bank_id;
       event.balance_after = balances.get(account.id);
       event.total_balance_after = this.#totalBalance(balances);
+      if (event.event_type === EventType.INFLOW) {
+        this.totalInflows += event.amount;
+        this.provenance.addPrincipal(account.id, event.amount);
+      } else if (event.cash_components) {
+        this.provenance.addCashFlow(
+          account.id, event.cash_components.principal_components ?? {}, event.cash_components.interest ?? 0
+        );
+      } else {
+        // Compatibility for externally-created cash events without component metadata.
+        this.provenance.addPrincipal(account.id, event.amount);
+      }
     }
+    this.provenance.recognizeConsolidationCredit(this.context.consolidation_account_id);
 
     const dueOutflowEvents = events.filter(event => event.event_type === EventType.OUTFLOW);
     for (const event of dueOutflowEvents) {
@@ -193,6 +217,7 @@ export class SimulationRuntime {
       }
 
       if (paid > EPS) {
+        this.provenance.debit(account.id, paid);
         balances.set(account.id, round2(available - paid));
         this.totalOutflowsPaid += paid;
         const paidEvent = new Event({
@@ -207,8 +232,39 @@ export class SimulationRuntime {
       if (unpaid > EPS) remaining.push({ ...obligation, remaining: unpaid });
     }
     this.pending = remaining;
+    for (const event of this.timeline[key] ?? []) event.goal_metric_after = this.provenance.creditedNetInterest;
+    if (this.context.simulation?.mode === "goal") this.#assertProvenance(balances);
+    else for (const [id, balance] of balances) this.provenance.reconcile(id, balance);
     this.#commitBalances(balances);
     return { date: today, valid: this.valid, events: this.timeline[key] ?? [] };
+  }
+
+  isGoalAchieved() {
+    const goal = this.context.simulation?.goal;
+    if (!goal || this.goalOutcome || this.provenance.creditedNetInterest + EPS < goal.target) return Boolean(this.goalOutcome?.achieved);
+    const actual = this.provenance.creditedNetInterest;
+    this.goalOutcome = {
+      achieved: true, target: goal.target, actual,
+      achievement_date: formatISODate(this.currentDate),
+      elapsed_days: daysBetween(this.context.start, this.currentDate),
+      overshoot: round2(actual - goal.target),
+      stopping_reason: "goal_achieved"
+    };
+    return true;
+  }
+
+  completeGoalOutcome() {
+    const goal = this.context.simulation?.goal;
+    if (!goal || this.goalOutcome) return this.goalOutcome;
+    const actual = this.provenance.creditedNetInterest;
+    this.goalOutcome = {
+      achieved: false, target: goal.target, actual,
+      achievement_date: null, elapsed_days: null, overshoot: 0,
+      shortfall: round2(Math.max(0, goal.target - actual)),
+      maximum_end_date: this.context.end_iso,
+      stopping_reason: this.valid ? "maximum_end_date_reached" : "simulation_invalid"
+    };
+    return this.goalOutcome;
   }
 
   planningView() {
@@ -235,6 +291,8 @@ export class SimulationRuntime {
         signal.signal_type === StrategySignalType.COMPLETE) return signal;
 
     const balances = this.#balanceMap();
+    const provenance = this.provenance.clone();
+    const pendingBookingProvenance = new Map();
     const balancesAtDecisionStart = Object.fromEntries(balances);
     const account = id => {
       const value = this.accounts.get(String(id));
@@ -257,6 +315,8 @@ export class SimulationRuntime {
       }
       const channel = source.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase()
         ? "intra_bank" : "domestic_ceft";
+      provenance.transfer(source.id, target.id, amount, fee);
+      if (target.id === this.context.consolidation_account_id) provenance.recognizeConsolidationCredit(target.id);
       const sourceBalance = (balances.get(source.id) ?? 0) - amount;
       balances.set(source.id, this.roundBalances ? round2(sourceBalance) : sourceBalance);
       const sourceTotalAfter = this.#totalBalance(balances);
@@ -310,13 +370,15 @@ export class SimulationRuntime {
       const remainingBalance = (balances.get(target.id) ?? 0) - principal;
       balances.set(target.id, this.roundBalances ? round2(remainingBalance) : remainingBalance);
       const grossFlows = option.generateCashFlows(principal, this.currentDate, this.compound, this.actualLeapYear);
-      const netFlows = option.generateCashFlowsAfterAIT(principal, this.currentDate, this.effectiveAitRate, this.compound, this.actualLeapYear);
+      const bookedComponents = provenance.debit(target.id, principal);
+      const netFlows = option.generateCashFlowComponentsAfterAIT(principal, this.currentDate, this.effectiveAitRate, this.compound, this.actualLeapYear);
       const booking = new Booking({
         option, principal, start: this.currentDate, cash_flows: grossFlows,
         account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id
       });
       const ref = "FD-" + String(++pendingBookingNumber).padStart(4, "0");
       pendingBookings.push(booking);
+      pendingBookingProvenance.set(ref, bookedComponents);
       this.schedule(new Event({
         event_type: EventType.BOOKING, on_date: this.currentDate, amount: principal,
         label: "Book " + option.label + " @ " + option.annual_rate.toFixed(2) + "% -> matures " + formatISODate(booking.end),
@@ -331,7 +393,11 @@ export class SimulationRuntime {
           event_type: maturity ? EventType.MATURITY : EventType.CASH_FLOW,
           on_date: flow.date, amount: flow.amount,
           label: (maturity ? "Maturity " : "Cash flow ") + "[" + ref + "] (" + option.label + ")",
-          booking_ref: ref, account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id
+          booking_ref: ref, account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id,
+          cash_components: {
+            principal_components: provenance.allocateBookedPrincipal(bookedComponents, flow.principal, principal),
+            interest: flow.interest
+          }
         }));
       });
     };
@@ -412,7 +478,18 @@ export class SimulationRuntime {
     if (!Number.isFinite(this.totalFees + pendingFees)) {
       throw new RangeError("Decision would produce a non-finite transfer-fee total.");
     }
+    if (this.context.simulation?.mode === "goal") {
+      for (const [id, balance] of balances) {
+        if (Math.abs(round2(balance) - provenance.total(id)) > 0.02) throw new Error("Decision provenance does not reconcile for account " + id + ".");
+      }
+    } else {
+      for (const [id, balance] of balances) provenance.reconcile(id, balance);
+    }
     this.#commitBalances(balances);
+    this.provenance = provenance;
+    for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
+    this.provenance.recognizeConsolidationCredit(this.context.consolidation_account_id);
+    for (const event of pendingEvents) event.goal_metric_after = this.provenance.creditedNetInterest;
     this.totalFees += pendingFees;
     this.bookingNumber = pendingBookingNumber;
     this.bookings.push(...pendingBookings);
@@ -433,13 +510,20 @@ export class SimulationRuntime {
       name: item.name, account_id: item.account_id, remaining: item.remaining,
       payment_policy: item.payment_policy, due_date: item.due_date
     }));
-    return new SimResult({
+    const result = new SimResult({
       strategy_name: this.strategyName, timeline: this.timeline, bookings: this.bookings,
       total_principal: this.context.original_capital + this.totalInflows,
-      end_date: this.context.end, accounts, total_transfer_fees: this.totalFees,
+      end_date: this.context.simulation?.mode === "goal" ? (this.currentDate ?? this.context.end) : this.context.end, accounts, total_transfer_fees: this.totalFees,
       total_outflows_paid: this.totalOutflowsPaid, outstanding_outflows: outstanding,
       valid: this.valid, ait_enabled: this.aitEnabled, ait_rate: this.aitRate,
       decision_log: this.decisionLog
     });
+    result.start_date = this.context.start_iso;
+    result.credited_net_interest = this.provenance.creditedNetInterest;
+    result.simulation_mode = this.context.simulation?.mode ?? "scoped";
+    if (this.context.simulation?.goal) result.goal_outcome = this.goalOutcome ?? this.completeGoalOutcome();
+    result.provenance = Object.fromEntries([...this.provenance.accounts].map(([id, value]) => [id, { ...value }]));
+    result.provenance_adjustments = this.provenance.adjustments.map(item => ({ ...item }));
+    return result;
   }
 }

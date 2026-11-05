@@ -58,8 +58,9 @@ function bookingText(result){
 }
 export function formatSimulation(result,config,configPath,optionsPath,{color:useColor=Boolean(process.stdout?.isTTY&&!process.env.NO_COLOR),showEventTimeline=true,showBookingLedger=true}={}){
  const out=["",line("="),"  MULTI-BANK FIXED DEPOSIT INVESTMENT CALCULATOR",line("="),"  Config: "+configPath,"  FD options: "+optionsPath];
- const days=Math.round((new Date(config.end)-new Date(config.start))/86400000)+1;
- out.push("  Window: "+date(config.start)+" -> "+date(config.end)+" ("+days+" days) | Method: "+(config.compound?"Compound":"Simple interest")+" ("+(config.actual_leap_year?"366d leap":"365d")+")","  Start date: "+date(config.start),"  Accounts:");
+ const actualEnd=result.end_date??config.end;
+ const days=Math.round((new Date(actualEnd)-new Date(config.start))/86400000)+1;
+ out.push("  Window: "+date(config.start)+" -> "+date(actualEnd)+" ("+days+" days) | Method: "+(config.compound?"Compound":"Simple interest")+" ("+(config.actual_leap_year?"366d leap":"365d")+")","  Start date: "+date(config.start),"  Accounts:");
  for(const a of config.accounts)out.push("    - "+a.id+": "+a.label+" ["+a.bank_id+"] starting funds "+money(a.balance)+" LKR | eFD "+(a.supports_efd?"enabled":"disabled"));
  out.push("  AIT withholding: "+(config.ait_enabled?"enabled ("+(Number(config.ait_rate??.1)*100).toFixed(1)+"% of interest)":"disabled"),"  Transfer fees: inter-bank "+money(config.fee_config.default_inter_bank_fee)+" LKR | same-bank "+money(config.fee_config.same_bank_fee)+" LKR","  New-money inflows:");
  if(!config.inflow_summaries?.length)out.push("    - None");for(const x of config.inflow_summaries||[])out.push("    - "+x.name+": "+money(x.amount)+" LKR "+(x.type==="recurring"?"every "+x.interval+" from "+date(x.start_date)+" to "+date(x.end_date):"on "+(x.dates||[]).map(date).join(", "))+", account "+x.account_id+" | "+x.occurrences+" payments, "+money(x.total)+" LKR total");
@@ -68,7 +69,23 @@ export function formatSimulation(result,config,configPath,optionsPath,{color:use
  out.push("  Starting funds: "+money(start)+" LKR | Scheduled new money: "+money(inflows)+" LKR | Total planned capital: "+money(start+inflows)+" LKR");
  if(showEventTimeline)out.push(timelineText(result,useColor));
  if(result.decision_log?.length){} // The legacy decision log is opt-in; CLI disables it by default.
- out.push("",line("="),"  GRAND SUMMARY  ["+result.strategy_name+"]",line("-"));
+ if(result.goal_outcome){
+  const g=result.goal_outcome;
+  out.push("",line("="),"  GOAL OUTCOME  [consolidation net interest]",line("-"));
+  out.push(summaryLine("Goal Target",money(g.target)+" LKR",C.booking,useColor));
+  out.push(summaryLine("Credited Net Interest",money(g.actual)+" LKR",g.achieved?C.cash:C.outflow,useColor));
+  out.push(summaryLine("Status",g.achieved?"ACHIEVED":"NOT ACHIEVED",g.achieved?C.cash:C.outflow,useColor));
+  out.push(summaryLine("Achievement Date",g.achievement_date??"—",C.date,useColor));
+  out.push(summaryLine("Elapsed Days",g.elapsed_days===null?"—":String(g.elapsed_days),C.date,useColor));
+  out.push(summaryLine(g.achieved?"Overshoot":"Remaining Shortfall",money(g.achieved?g.overshoot:g.shortfall)+" LKR",C.transfer,useColor));
+  out.push("  Goal accounting counts first-time net interest credited to the consolidation account; principal is excluded.");
+  if(result.search_diagnostics?.goal_candidates_evaluated!==undefined){
+    out.push(summaryLine("Goal Candidates Evaluated",String(result.search_diagnostics.goal_candidates_evaluated),C.date,useColor));
+    out.push(summaryLine("Invalid Goal Candidates",String(result.search_diagnostics.goal_invalid_candidates??0),C.outflow,useColor));
+    out.push(summaryLine("Search Optimality",result.search_diagnostics.optimality_proven?"PROVEN":"NOT PROVEN (bounded search)",result.search_diagnostics.optimality_proven?C.cash:C.outflow,useColor));
+  }
+ }
+  out.push("",line("="),"  GRAND SUMMARY  ["+result.strategy_name+"]",line("-"));
  const totalRet=result.total_principal>0?result.total_interest/result.total_principal*100:0,netRet=result.total_principal>0?result.net_interest_after_ait/result.total_principal*100:0,annual=xirr(result);
  out.push(summaryLine("Total Capital",money(result.total_principal)+" LKR",C.inflow,useColor),summaryLine("Gross Interest",money(result.total_interest)+" LKR",C.maturity,useColor),summaryLine("Transfer Fees","-"+money(result.total_transfer_fees)+" LKR",C.transfer,useColor),summaryLine(result.ait_enabled?"AIT ("+(result.ait_rate*100).toFixed(0)+"% of interest)":"AIT (disabled)","-"+money(result.ait_withheld)+" LKR",C.outflow,useColor));
  if(result.total_outflows_due){out.push(summaryLine("Total Outflows",money(result.total_outflows_due)+" LKR",C.outflow,useColor),summaryLine("Outflows Paid",money(result.total_outflows_paid)+" LKR",C.outflow,useColor));if(result.outstanding_outflows?.length){const n=result.outstanding_outflows.reduce((s,x)=>s+Number(x.remaining||0),0);out.push(summaryLine("Outstanding",money(n)+" LKR",C.outflow,useColor));for(const x of result.outstanding_outflows)out.push("    - "+(x.name||"Outflow")+" ["+(x.account_id||"")+"]: "+money(x.remaining)+" LKR ("+(x.payment_policy||"")+")");}}

@@ -111,6 +111,35 @@ export class FDOption {
       return { date: flow.date, amount: Math.round((flow.amount - withheld) * 100) / 100 };
     });
   }
+  generateCashFlowComponentsAfterAIT(principal, start, aitRate, compound = false, actualLeapYear = true) {
+    const grossFlows = this.generateCashFlows(principal, start, compound, actualLeapYear);
+    const totalInterest = grossFlows.reduce((sum, flow) => sum + flow.amount, 0) - principal;
+    let principalAllocated = 0;
+    return grossFlows.map((flow, index) => {
+      let principalComponent = 0;
+      if (this.payout_type === CUMULATIVE || this.payout_type === PERIODIC_INTEREST) {
+        if (index === grossFlows.length - 1) principalComponent = principal;
+      } else {
+        principalComponent = index === grossFlows.length - 1
+          ? Math.round((principal - principalAllocated) * 100) / 100
+          : Math.round((principal / grossFlows.length) * 100) / 100;
+        principalAllocated += principalComponent;
+      }
+      const grossInterest = Math.max(0, flow.amount - principalComponent);
+      const aitBase = this.payout_type === INSTALLMENT
+        ? totalInterest / grossFlows.length : grossInterest;
+      const withheld = Math.round(Math.max(0, aitBase) * Math.max(0, aitRate) * 100) / 100;
+      const netInterest = Math.round((grossInterest - withheld) * 100) / 100;
+      const principalAmount = Math.round(principalComponent * 100) / 100;
+      return {
+        date: flow.date,
+        principal: principalAmount,
+        interest: netInterest,
+        amount: Math.round((principalAmount + netInterest) * 100) / 100,
+        ait_withheld: withheld
+      };
+    });
+  }
   generateCashFlowsAfterAIT(principal, start, aitRate, compound = false, actualLeapYear = true) {
     return this.applyAITToCashFlows(principal, this.generateCashFlows(principal, start, compound, actualLeapYear), aitRate);
   }
