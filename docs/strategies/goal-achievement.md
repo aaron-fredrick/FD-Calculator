@@ -1,6 +1,6 @@
 # Goal-Based Simulation
 
-Goal-based simulation is a third horizon mode alongside time-based and scoped simulation. It terminates at the first event boundary where the configured amount of **net interest first credited to the consolidation account** reaches the target, or at the maximum end date if the target is not reached.
+Goal-based simulation is a third horizon mode alongside time-based and scoped simulation. It terminates at the first event boundary where the configured amount of **net interest first credited to the consolidation account** reaches the target, or at the internal safety horizon if the target is not reached.
 
 ## Objective and accounting
 
@@ -24,8 +24,7 @@ The shared configuration contract uses `simulation.mode`:
 | Mode | Required horizon inputs | Stop condition |
 |---|---|---|
 | `scoped` | `investment.start_date`, `investment.end_date` | Explicit end date |
-| `time_based` | `investment.start_date`, `simulation.duration` | Start date plus duration |
-| `goal` | `investment.start_date`, goal target, maximum end date | First goal crossing or maximum end date |
+| `goal` | `investment.start_date`, goal target | First goal crossing; a 30-year internal safety horizon protects against non-terminating runs |
 
 Goal configuration:
 
@@ -35,8 +34,7 @@ Goal configuration:
     "mode": "goal",
     "goal": {
       "metric": "consolidation_net_interest",
-      "target": 50000,
-      "maximum_end_date": "2028-11-05"
+      "target": 50000
     }
   },
   "investment": {
@@ -48,7 +46,7 @@ Goal configuration:
 Goal outcomes are explicit:
 
 - `achieved`: includes target, actual credited interest, achievement date, elapsed days, and overshoot.
-- `goal_not_reached`: includes actual credited interest, maximum date, and remaining shortfall.
+- `goal_not_reached`: includes actual credited interest, internal safety horizon, and remaining shortfall.
 - Invalid simulations remain invalid; they are not converted into ordinary unachieved outcomes.
 
 Legacy configurations without a `simulation` object continue to normalize as scoped simulations.
