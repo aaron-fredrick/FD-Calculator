@@ -120,6 +120,9 @@
     "gss": {
       "$ref": "#/$defs/gssSettings",
       "deprecated": true
+    },
+    "simulation": {
+      "$ref": "#/$defs/simulation"
     }
   },
   "allOf": [
@@ -141,6 +144,127 @@
           },
           "gaml": {
             "$ref": "#/$defs/gamlSettings"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "simulation": {
+            "properties": {
+              "mode": {
+                "const": "time_based"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        },
+        "required": [
+          "simulation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "simulation": {
+            "required": [
+              "duration"
+            ],
+            "not": {
+              "required": [
+                "goal"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "simulation": {
+            "properties": {
+              "mode": {
+                "const": "scoped"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        },
+        "required": [
+          "simulation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "investment": {
+            "required": [
+              "start_date",
+              "end_date"
+            ]
+          },
+          "simulation": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "duration"
+                  ]
+                },
+                {
+                  "required": [
+                    "goal"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "simulation": {
+            "properties": {
+              "mode": {
+                "const": "goal"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        },
+        "required": [
+          "simulation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "investment": {
+            "required": [
+              "start_date"
+            ],
+            "not": {
+              "required": [
+                "end_date"
+              ]
+            }
+          },
+          "simulation": {
+            "required": [
+              "goal"
+            ],
+            "not": {
+              "required": [
+                "duration"
+              ]
+            }
           }
         }
       }
@@ -486,6 +610,54 @@
           "minimum": 1,
           "default": 30,
           "description": "Waiting periods at or below this threshold are processed without deeper recursive subdivision."
+        }
+      }
+    },
+    "simulation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "time_based",
+            "scoped",
+            "goal"
+          ]
+        },
+        "duration": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*[dmy]$",
+          "description": "Time-based horizon relative to investment.start_date."
+        },
+        "goal": {
+          "$ref": "#/$defs/goal"
+        }
+      }
+    },
+    "goal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "metric",
+        "target",
+        "maximum_end_date"
+      ],
+      "properties": {
+        "metric": {
+          "type": "string",
+          "const": "consolidation_net_interest"
+        },
+        "target": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "LKR of first-time net interest credited to the consolidation account."
+        },
+        "maximum_end_date": {
+          "$ref": "#/$defs/date"
         }
       }
     }
