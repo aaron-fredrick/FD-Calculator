@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 22
       - name: Run goal achievement sensitivity study
-        run: node scripts/goal-achievement-sensitivity.js | tee goal-achievement-sensitivity-output.txt
+        run: set -o pipefail && node scripts/goal-achievement-sensitivity.js | tee goal-achievement-sensitivity-output.txt
       - name: Upload goal benchmark output
         uses: actions/upload-artifact@v6
         with:
