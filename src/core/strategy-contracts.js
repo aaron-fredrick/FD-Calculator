@@ -13,7 +13,8 @@ export const StrategySignalType = Object.freeze({
 export const StrategyDecisionType = Object.freeze({
   SPLIT: "SPLIT",
   CONSOLIDATE: "CONSOLIDATE",
-  CARRY: "CARRY"
+  CARRY: "CARRY",
+  BATCH: "BATCH"
 });
 
 function freezeValue(value) {
