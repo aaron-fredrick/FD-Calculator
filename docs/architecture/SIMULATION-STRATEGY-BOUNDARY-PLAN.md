@@ -210,18 +210,59 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 
 | Phase | Status | Notes |
 |---|---|---|
-| Plan | In progress | Document and review the implementation sequence. |
-| 0 — Baseline | Not started | Capture reproducible behaviour and complete call-path inventory. |
-| 1 — Foundation | Not started | Finalize contract after Phase 0 evidence. |
+| Plan | Complete | Documented and linked in VitePress Architecture navigation. PR #45. |
+| 0 — Baseline | Complete with a fixture gap carried into Phase 1 | Existing CI suite passes; call paths and regression coverage mapped. Add explicit canonical cross-strategy event-ledger snapshots before the first strategy migration. |
+| 1 — Foundation | Ready to start | Finalize the contract and build the shared execution foundation without changing strategy algorithms. |
 | 2 — Greedy | Not started | Preserve decision semantics. |
 | 3 — Search | Not started | Preserve hypothetical search and actual replay parity. |
 | 4 — GSS | Not started | Preserve recursive forecast semantics. |
 | 5 — Enforcement | Not started | Remove adapters and enforce ownership. |
 | 6 — Documentation | Not started | Align docs after implementation. |
 
+### Phase 0 findings (2026-11-05)
+
+**Validation evidence**
+
+- PR #45 JavaScript tests workflow: Node.js 22, `npm test` — passed (run [42010842976](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42010842976)).
+- PR #45 full Tests workflow: `npm ci` and `npm test` — passed (run [42010842899](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42010842899)).
+- PR #45 documentation build: VitePress build and generated-site layout checks — passed (run [42010842954](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42010842954)).
+- CodeQL analysis step completed successfully (run [42010842889](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42010842889)); workflow cleanup was still completing when checked.
+- A local clone/test attempt was blocked because the execution container could not resolve github.com. CI is therefore the execution evidence; no local test run is claimed.
+
+**Production entry points and direct calls**
+
+- CLI `src/cli/fd-cal.js` constructs Greedy, GAML, Absolute or GSS and calls `new SimulationEngine().run(strategy, input)`.
+- Browser `src/web/app.js` constructs Greedy, GAML or GSS and also calls `SimulationEngine.run()`.
+- `src/strategies/index.js` exports strategy classes and search utilities; it does not itself execute simulations.
+- Strategy `.simulate()` remains directly callable. Tests intentionally call it to verify unfinished-result/finalization boundaries. SearchStrategyBase also calls Greedy.simulate() to obtain its incumbent. These are migration-sensitive internal paths; do not remove the method until all consumers have been replaced and tests prove compatibility.
+
+**Execution ownership inventory**
+
+- Greedy owns an actual event loop, inline outflow settlement, transfer and booking execution, cash-flow scheduling, and SimResult construction.
+- GSS owns its own actual event processing and outflow settlement as well as recursive goal planning, forecast projection/reassessment, plan execution, and result construction.
+- SearchStrategyBase owns hypothetical search-state transitions, but also owns a separate actual replay loop with outflow settlement, booking/transfer execution, cash-flow scheduling, and result construction.
+- `core/cashflows.js` already exposes reusable `processOutflows()`; search transitions use it, while Greedy and GSS currently implement related settlement logic inline. This is a concrete shared-rule candidate, but parity must be tested before consolidation.
+- `SimulationEngine` currently only wraps strategy simulation, adds the start marker, and finalizes. `finalizeSimulation()` already enforces a finalized-result guard and is the one shared final-sweep implementation.
+
+**Existing regression coverage**
+
+- Core tests cover date arithmetic, interest/leap-year behaviour, eFD eligibility, transfer fees, periodic and installment cash flows, AIT, and immutable outflow settlement including strict/defer/best-effort policies.
+- Greedy tests cover booking/maturity, eFD eligibility, and both option/plan tenor tie-break directions.
+- Search tests cover Absolute replay/optimality, GAML settings/budget/quality, and account-level eFD eligibility.
+- GSS tests cover manager-ordered candidate fallback, future inflows, parent forecast contraction, consolidation, interim booking maturity limits, no viable goal, start event, strict outflows, and three-level ancestor forecast contraction.
+- The repository already contains the 54-run, three-strategy sensitivity benchmark in `docs/strategies/benchmarks/results.json`, including horizon, capital, account/bank diversity, inflow and eFD sweeps. Treat it as a scenario-specific performance reference, not a universal financial golden file.
+
+**Gap carried forward**
+
+The current tests provide meaningful behavioural assertions, and the benchmark provides a numeric scenario reference, but there is no single canonical fixture that compares full booking and event ledgers for Greedy, GAML, Absolute and GSS. Add focused deterministic ledger snapshots/normalization tests at the start of Phase 1, before changing any strategy execution path. Keep snapshots readable and limited to stable fields; do not snapshot incidental object internals or runtime timings.
+
+**Phase 0 conclusion**
+
+The current test suite and docs build are green, and the execution paths are sufficiently mapped to begin the foundation phase. The remaining ledger-fixture gap is an explicit first task in Phase 1, not a reason to redesign the plan or alter strategy logic prematurely.
+
 ### Issue notes
 
-No implementation-phase issues have been recorded yet.
+- Environment limitation: local Git clone could not resolve github.com. Resolved for validation by using the repository's Node.js 22 GitHub Actions workflows; local execution remains unverified.
 
 ### Design decisions
 
