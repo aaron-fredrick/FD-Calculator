@@ -140,3 +140,43 @@ test("cash movement chart exposes cursor-anchored wheel zoom and reset controls"
   assert.ok(html.includes(".chart-panel .chart-reset{position:absolute;top:12px;right:14px"));
   assert.ok(html.includes("Shift + wheel scales vertically; Alt + wheel scales horizontally around the cursor"));
 });
+
+
+test("report layout, decision accents, maturity colors and chart hover controls stay consistent", () => {
+  const account = { id: "main", bank_id: "BANK_A", label: "Main", balance: 1000, supports_efd: false };
+  const booking = {
+    account_id: "main", bank_id: "BANK_A", principal: 500, total_interest: 50,
+    start: "2026-11-04", end: "2027-11-04", payout_type: "cumulative",
+    cash_flows: [{ date: "2027-11-04", amount: 550 }],
+    option: { label: "Bank A FD", bank_identity: "BANK_A", annual_rate: 10 }
+  };
+  const result = {
+    strategy_name: "Test", start_date: "2026-11-04", end_date: "2026-11-05",
+    timeline: {
+      20261104: [{ event_type: "inflow", on_date: "2026-11-04", amount: 100,
+        account_id: "main", balance_after: 1100, label: "Deposit" }]
+    },
+    accounts: { main: account }, bookings: [booking], total_interest: 50,
+    ait_withheld: 0, total_transfer_fees: 0, net_interest: 50, final_value: 1150,
+    total_principal: 1000, total_outflows_paid: 0, outstanding_outflows: [],
+    ait_enabled: false, ait_rate: 0
+  };
+  const config = {
+    start: "2026-11-04", end: "2026-11-05", compound: false, actual_leap_year: true,
+    accounts: [account], consolidation_account_id: "main", ait_enabled: false, ait_rate: 0,
+    fee_config: { default_inter_bank_fee: 0, same_bank_fee: 0 },
+    inflow_summaries: [], outflow_summaries: [], bank_registry: { BANK_A: { name: "Bank A" } }
+  };
+  const html = generateHtmlReport(result, config);
+  const json = html.match(/<script id="fd-report-data" type="application\\/json">([\\s\\S]*?)<\\/script>/)?.[1];
+  assert.ok(json, "report should embed chart data");
+  const charts = JSON.parse(json);
+  assert.equal(charts.maturities[0].color, charts.fd_principal[0].color);
+  assert.match(html, /style="--decision-color:rgb\\(130,170,255\\)"/);
+  assert.ok(html.includes("min(100%,150px)"), "overview tiles should use a compact responsive minimum width");
+  assert.ok(html.includes("var(--decision-color,var(--blue))"), "decision accent should use event-derived color");
+  assert.ok(html.includes("const candidates=[[8,8],[maxX,8],[8,maxY],[maxX,maxY]]"), "hover detail should choose a corner away from the pointer");
+  assert.ok(html.includes("function returnsChart(canvas,items)"));
+  assert.ok(html.includes("item._fdHidden=!item._fdHidden;returnsChart(canvas,items)"), "pie legend should support series visibility toggles");
+  assert.ok(html.includes("const items=(data.returns||[]).filter(v=>!v._fdHidden)"), "pie hover should track visible slices only");
+});
