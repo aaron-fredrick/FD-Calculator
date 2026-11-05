@@ -20,7 +20,7 @@ The simulation layer owns actual execution and finalization. Strategies own inve
 5. The engine advances the runtime to the next actual event date or requested wait boundary. The runtime applies inflows, FD cash flows and maturities, recognises eligible consolidation interest, then settles due outflows. In goal scope, it checks the credited net-interest target at the resulting event boundary.
 6. The strategy returns an immutable, revision-bound `SPLIT`, `CONSOLIDATE`, `CARRY`, `BATCH`, `WAIT`, or `COMPLETE` signal. The runtime validates the revision/date and validates the complete decision before committing any balance or ledger mutation.
 7. The runtime builds the unfinished result when the scoped date range completes, the goal is achieved, or the goal safety horizon is exhausted. The engine adds the one simulation-start marker and invokes the finalizer once.
-8. Finalization performs the single simulation-wide consolidation sweep, records remaining idle balances, and marks the result finalized. In goal scope, this occurs at the achievement boundary or safety boundary; it does not extend the simulation to a user-selected end date.
+8. Finalization runs exactly once. Scoped runs perform the single simulation-wide consolidation sweep. A goal-achieved run skips the final sweep so it cannot change the recorded achievement amount; an unachieved goal run performs the sweep at its actual stopping boundary. The result is then marked finalized. Goal scope never extends to a user-selected end date.
 
 A stale signal, malformed plan, invalid account reference, invalid transfer, or ineligible booking is rejected before the decision's staged mutations are committed. A session cannot signal completion before the overall horizon has been processed. Same-date GSS decisions use an atomic batch so a later invalid sub-action cannot leave earlier sub-actions partially executed.
 
@@ -35,8 +35,9 @@ Hypothetical strategy projections may use local copies of financial/event models
 
 ## Finalization invariants
 
-- Exactly one final consolidation sweep per completed `SimulationEngine.run()`.
-- In scoped mode, the sweep occurs after the requested date range and strategy session complete. In goal mode, it occurs after the first achieved goal boundary or after the internal safety horizon if the target is unreachable.
+- Exactly one finalization pass per completed `SimulationEngine.run()`.
+- Scoped mode performs one final consolidation sweep after the requested date range and strategy session complete.
+- Goal mode skips the final sweep when the target was achieved, preserving the first-crossing amount. If the target was not achieved, the final sweep runs once at the actual stopping boundary and its provenance is included in the outcome.
 - Recursive planning frames, search branches, waits and hypothetical projections are not finalization boundaries.
 - Strategies do not create the actual final result or final sweep events.
 - Final sweep fees are included in total transfer fees.
