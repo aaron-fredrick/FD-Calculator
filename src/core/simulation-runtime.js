@@ -54,8 +54,7 @@ export class SimulationRuntime {
     this.bookingNumber = 0;
     this.totalFees = 0;
     this.totalOutflowsPaid = 0;
-    this.totalInflows = Object.values(context.inflows).reduce((total, entries) =>
-      total + Object.values(entries).reduce((sum, amount) => sum + amount, 0), 0);
+    this.totalInflows = 0;
     this.valid = true;
     this.#initializeEvents();
     this.#initializeState();
@@ -163,6 +162,7 @@ export class SimulationRuntime {
       event.balance_after = balances.get(account.id);
       event.total_balance_after = this.#totalBalance(balances);
       if (event.event_type === EventType.INFLOW) {
+        this.totalInflows += event.amount;
         this.provenance.addPrincipal(account.id, event.amount);
       } else if (event.cash_components) {
         this.provenance.addCashFlow(
