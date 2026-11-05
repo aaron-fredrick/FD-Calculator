@@ -64,7 +64,7 @@ test("goal mode reaches the maximum boundary with explicit shortfall when target
   assert.equal(result.valid, true);
   assert.equal(result.goal_outcome.achieved, false);
   assert.equal(result.goal_outcome.achievement_date, null);
-  assert.equal(result.goal_outcome.stopping_reason, "maximum_end_date_reached");
+  assert.equal(result.goal_outcome.stopping_reason, "safety_horizon_reached");
   assert.ok(result.goal_outcome.shortfall > 0);
   assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
   assert.equal(result.finalized, true);
@@ -173,7 +173,7 @@ test("Greedy and GSS use the same shared goal outcome and stopping contract", ()
     assert.equal(result.valid, true);
     assert.equal(result.simulation_mode, "goal");
     assert.ok(result.goal_outcome);
-    assert.ok(["goal_achieved", "maximum_end_date_reached"].includes(result.goal_outcome.stopping_reason));
+    assert.ok(["goal_achieved", "safety_horizon_reached"].includes(result.goal_outcome.stopping_reason));
     assert.equal(result.finalized, true);
   }
 });
