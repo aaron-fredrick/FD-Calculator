@@ -6,7 +6,7 @@ import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { GAMLStrategy } from "../../src/strategies/gaml.js";
 import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
 import { SimulationEngine, finalizeSimulation } from "../../src/core/simulation.js";
-import { createStrategyDecision, createStrategyComplete, StrategyDecisionType } from "../../src/core/strategy-contracts.js";
+import { createStrategyDecision, createStrategyWait, createStrategyComplete, StrategyDecisionType } from "../../src/core/strategy-contracts.js";
 
 function scenario() {
   const accounts = [
@@ -89,6 +89,7 @@ test("SimulationEngine drives a decision session through shared event execution"
               plan: { bookings: [{ account_id: "main", option_index: 0, principal: 30000 }], carries: [] }
             });
           }
+          if (view.date < view.end_date) return createStrategyWait({ revision: view.revision, until: view.end_date });
           return createStrategyComplete({ revision: view.revision });
         }
       };
@@ -101,7 +102,7 @@ test("SimulationEngine drives a decision session through shared event execution"
   assert.equal(result.bookings[0].principal, 30000);
   assert.equal(events.filter(event => event.event_type === EventType.SIMULATION_START).length, 1);
   assert.equal(events.filter(event => event.event_type === EventType.BOOKING).length, 1);
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
 });
 
 test("SimulationEngine rejects invalid session decisions without accepting legacy simulate", () => {
@@ -131,6 +132,7 @@ test("strategy context cannot mutate runtime-owned dates, accounts, options or s
       context.start.setUTCFullYear(2035);
       return {
         nextSignal(view) {
+          if (view.date < view.end_date) return createStrategyWait({ revision: view.revision, until: view.end_date });
           return createStrategyComplete({ revision: view.revision });
         }
       };
