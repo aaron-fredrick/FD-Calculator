@@ -1,6 +1,6 @@
 import { Account, TransferFeeConfig } from "../core/models.js";
 import { Event, EventType, normalizeInflowSchedule } from "../core/events.js";
-import { Booking, SimResult } from "../core/results.js";
+import { Booking } from "../core/results.js";
 import { daysBetween, formatISODate, parseISODate } from "../core/dates.js";
 import { validateOutflowSchedule } from "../core/cashflows.js";
 import { createSimulationContext } from "../core/simulation-context.js";
@@ -719,7 +719,6 @@ export class GSSStrategy {
           : item.type === "SPLIT" ? StrategyDecisionType.SPLIT : StrategyDecisionType.CARRY,
         plan: {
           carries: item.carries,
-          carry_all: item.type !== "CARRY" ? false : false,
           carry_label: item.carry_label,
           carry_context: item.carry_context
         }
