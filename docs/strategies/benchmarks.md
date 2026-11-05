@@ -52,9 +52,13 @@ Each chart overlays all three strategy results for the same factor. Exact machin
 
 ![Account-count sensitivity](./assets/accounts.svg)
 
+The three strategy lines overlap because the measured returns are effectively identical across one, two and three accounts in this single-bank scenario. The near-flat result is meaningful: splitting the same capital across more accounts did not improve the available rate or net return in this catalogue snapshot.
+
 ### Number of banks
 
 ![Bank-count sensitivity](./assets/banks.svg)
+
+The Greedy and GAML lines overlap in this comparison. GSS remains close to its one-bank result and does not capture the same benefit from adding banks.
 
 ### Cash inflows
 
