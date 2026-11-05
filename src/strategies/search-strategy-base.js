@@ -694,10 +694,15 @@ export class SearchStrategyBase {
     const initialGoalScore = greedyGoal ? scoreGoalResult(greedyGoal, greedyObjective, "greedy-baseline") : null;
     let goalCandidatesEvaluated = greedyGoal ? 1 : 0;
     let goalInvalidCandidates = 0;
+    const goalInvalidReasons = new Map();
     const evaluateGoal = goalMode ? (path, value) => {
       goalCandidatesEvaluated++;
       const score = evaluateGoalPath(path, engineContext, value, this);
-      if (score.invalid_candidate) goalInvalidCandidates++;
+      if (score.invalid_candidate) {
+        goalInvalidCandidates++;
+        const reason = score.invalid_reason || "Unknown candidate replay failure";
+        goalInvalidReasons.set(reason, (goalInvalidReasons.get(reason) ?? 0) + 1);
+      }
       return score;
     } : null;
     const counters = {
@@ -724,7 +729,7 @@ export class SearchStrategyBase {
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
-      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_objective: "earliest consolidation net-interest achievement", selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
+      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_objective: "earliest consolidation net-interest achievement", selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
     const resultMetadata = {
       total_decisions_evaluated: diagnostics.expanded_states,
