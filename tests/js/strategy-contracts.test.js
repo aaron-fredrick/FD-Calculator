@@ -42,6 +42,10 @@ test("decision, wait and completion signals are revision-bound and validated", (
   assert.equal(validateStrategySignal(decision, {
     revision: 2, current_date: "2026-01-01", end_date: "2026-12-31"
   }), decision);
+  const mutableSignal = { ...decision, plan: { ...decision.plan } };
+  assert.throws(() => validateStrategySignal(mutableSignal, {
+    revision: 2, current_date: "2026-01-01", end_date: "2026-12-31"
+  }), /must be immutable/);
   assert.throws(() => validateStrategySignal(decision, {
     revision: 3, current_date: "2026-01-01", end_date: "2026-12-31"
   }), /Stale strategy signal/);
