@@ -23,7 +23,7 @@ export function createSimulationContext(input = {}) {
   if (!simulation || typeof simulation !== "object" || Array.isArray(simulation)) throw new TypeError("Simulation mode must be an object.");
   const mode = simulation.mode ?? "scoped";
   if (!["scoped", "goal"].includes(mode)) throw new RangeError("Unsupported simulation mode: " + mode);
-  const endDate = input.end ? parseISODate(input.end) : mode === "goal" ? addPeriod(startDate, "30y") : null;
+  const endDate = mode === "goal" ? addPeriod(startDate, "30y") : input.end ? parseISODate(input.end) : null;
   if (!endDate) throw new TypeError("Scoped simulations require an end date.");
   let goal = null;
   if (mode === "goal") {
