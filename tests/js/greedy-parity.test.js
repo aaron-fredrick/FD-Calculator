@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
-import { LegacyGreedyStrategy } from "./fixtures/legacy-greedy-oracle.js";
+import { LegacyGreedyStrategy } from "../fixtures/legacy-greedy-oracle.js";
 
 const date = value => new Date(value).toISOString().slice(0, 10);
 const round = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
