@@ -2,7 +2,7 @@
 
 ## Purpose and independence
 
-GSS is an independent recursive planning strategy. It never invokes Greedy, GAML or Absolute. Its decisions are based on goal candidates supplied by FDOptionManager and the actual simulation state.
+GSS is an independent recursive planning strategy. It never invokes Greedy, GAML or Absolute. It consumes immutable runtime planning snapshots and goal candidates supplied by FDOptionManager. Its private hypothetical planner explores recursive goal windows and records a selected decision path; the shared runtime alone owns actual event processing and execution.
 
 ## Candidate discovery and ordering
 
@@ -23,7 +23,7 @@ Both viable plans are evaluated using post-AIT interest and actual transfer fees
 
 If a candidate cannot be booked immediately, GSS projects future inflows, known FD cash flows/maturities and outflows to find the earliest event date at which that candidate can form a viable plan.
 
-GSS recursively advances the waiting period. The child planning window processes actual events and evaluates immediately achievable goals. It can invest interim balances, but only in products that mature no later than the parent target date. This prevents interim bookings from locking away liquidity needed by the parent goal.
+GSS recursively advances the waiting period. The child hypothetical planning window advances a private projection of known events and evaluates immediately achievable goals. It can invest interim balances, but only in products that mature no later than the parent target date. This prevents interim bookings from locking away liquidity needed by the parent goal.
 
 The projected target date is a forecast, not a fixed appointment. Every active recursive goal frame owns its candidate, projected target date, horizon and execution responsibility.
 
@@ -31,13 +31,13 @@ While a recursive window advances, GSS re-evaluates ancestor goals after each pr
 
 For each ancestor, from the innermost parent outwards, GSS:
 
-1. Rebuilds SPLIT and CONSOLIDATE plans against actual balances and pending obligations.
+1. Rebuilds SPLIT and CONSOLIDATE plans against projected balances and pending obligations.
 2. If a plan is viable now, signals early execution to the owning frame.
 3. Otherwise, reruns the future-date projection against the updated timeline.
 4. Contracts the frame's forecast when the newly projected viable date is earlier than its previous forecast.
 5. Records infeasibility separately when no future viable date remains within that frame's horizon.
 
-A contraction is propagated through recursive returns. If a revised ancestor boundary falls inside a descendant's current waiting window, that boundary pre-empts the descendant's original target. The simulation advances only to the revised date, then unwinds to the owning frame. The owner rebuilds its plan from actual state and executes only if it is still viable. A projected date is never treated as an execution guarantee.
+A contraction is propagated through recursive returns. If a revised ancestor boundary falls inside a descendant's current waiting window, that boundary pre-empts the descendant's original target. The hypothetical projection advances only to the revised date, then unwinds to the owning frame. The owner rebuilds its plan from the updated planning state and records its own decision only if it is still viable. A projected date is never treated as an execution guarantee.
 
 Forecasts are monotonic during a wait: they may move earlier, but are not extended later. A later or absent forecast does not silently extend an existing wait; the frame resumes normal candidate evaluation if its projected opportunity is no longer viable. Multiple ancestor changes are handled in innermost-to-outermost order, and a child never executes an ancestor's goal.
 
@@ -49,9 +49,9 @@ Planned outflows are also protected: split bookings retain the liquidity needed 
 
 The setting gss_settings.small_period_days defaults to 30 and must be a positive integer. Waiting periods at or below the threshold are advanced without further future-goal subdivision, while immediately viable goals are still evaluated. A hard recursion-depth guard prevents unbounded nested calls.
 
-## Shared simulation finalization
+## Shared simulation lifecycle
 
-GSS returns an unfinished SimResult. The shared SimulationEngine performs the one final consolidation sweep after the overall horizon. Recursive planning windows never trigger finalization.
+GSS exposes `createSession(context)`. Its private recursive planner returns a sequence of decisions; it does not return its hypothetical ledger as the actual simulation result. `SimulationRuntime` processes the authoritative events, settles outflows and atomically executes the selected decisions. Same-date recursive actions are emitted as one atomic batch. `SimulationEngine` performs the one final consolidation sweep after the overall horizon. Recursive planning windows never trigger finalization.
 
 ## Observed performance
 
@@ -59,4 +59,4 @@ The [strategy sensitivity benchmark](/strategies/benchmarks) compares GSS agains
 
 ## Diagnostics
 
-The result exposes gss_diagnostics with candidate count, SPLIT/CONSOLIDATE plan evaluations, future goals, recursive waits, early parent-goal rechecks/executions, forecast rechecks/contractions, maximum recursion depth and the configured threshold. The decision log records each contraction with its previous and revised target dates, reduction in days and owning recursion depth. The decision log records waits, selected plans and candidate exhaustion.
+The runtime result carries the planner's decision log and `gss_diagnostics`, including candidate count, SPLIT/CONSOLIDATE plan evaluations, future goals, recursive waits, early parent-goal rechecks/executions, forecast rechecks/contractions, maximum recursion depth and the configured threshold. The decision log records each contraction with its previous and revised target dates, reduction in days and owning recursion depth. The decision log records waits, selected plans and candidate exhaustion.

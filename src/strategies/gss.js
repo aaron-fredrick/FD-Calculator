@@ -1,8 +1,12 @@
 import { Account, TransferFeeConfig } from "../core/models.js";
 import { Event, EventType, normalizeInflowSchedule } from "../core/events.js";
-import { Booking, SimResult } from "../core/results.js";
+import { Booking } from "../core/results.js";
 import { daysBetween, formatISODate, parseISODate } from "../core/dates.js";
 import { validateOutflowSchedule } from "../core/cashflows.js";
+import {
+  createStrategyDecision, createStrategyWait, createStrategyComplete,
+  StrategyDecisionType
+} from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
 
 const EPS = 0.001;
@@ -45,9 +49,13 @@ export class GSSStrategy {
     this.ait_rate = ait_rate;
     this.effective_ait_rate = ait_enabled ? ait_rate : 0;
     this.small_period_days = small_period_days;
+    this.outflow_account_tiebreak = true;
+    this.outflow_due_date_sort = "string";
+    this.round_balances = true;
+    this.opening_trigger_always = true;
   }
 
-  simulate({
+  #planHypothetically({
     options, start, end, inflow_schedule = {}, accounts = null,
     inflow_account_id = null, fee_config = null,
     consolidation_account_id = null, outflow_schedule = {}
@@ -62,7 +70,6 @@ export class GSSStrategy {
     consolidation_account_id ||= inflow_account_id;
     fee_config ||= new TransferFeeConfig();
 
-    const originalCapital = accounts.reduce((sum, account) => sum + account.balance, 0);
     const accountMap = new Map(accounts.map(account => [account.id, cloneAccount(account)]));
     if (!accountMap.has(inflow_account_id)) throw new RangeError("inflow_account_id does not reference a configured account.");
     if (!accountMap.has(consolidation_account_id)) throw new RangeError("consolidation_account_id does not reference a configured account.");
@@ -74,9 +81,10 @@ export class GSSStrategy {
     const timeline = {};
     const bookings = [];
     const decisionLog = [];
+    const decisionPath = [];
     const processed = new Set();
     let pending = [], inflowNumber = 0, bookingNumber = 0;
-    let totalFees = 0, totalOutflowsPaid = 0, strictFailed = false;
+    let totalFees = 0, strictFailed = false;
     let earlyGoal = null, earlyGoalRechecks = 0, earlyGoalExecutions = 0;
     let forecastInterrupt = null, forecastRechecks = 0, forecastContractions = 0;
     let recursiveCalls = 0, candidatesConsidered = 0, splitPlansEvaluated = 0;
@@ -170,7 +178,6 @@ export class GSSStrategy {
         }
         if (paid > EPS) {
           account.balance = round2(account.balance - paid);
-          totalOutflowsPaid += paid;
           addEvent(new Event({
             event_type: EventType.OUTFLOW, on_date: date, amount: -paid,
             label: "Paid " + obligation.name + " (" + obligation.payment_policy + ")",
@@ -359,6 +366,13 @@ export class GSSStrategy {
 
     const recordCarry = (date, context) => {
       const balances = balanceSnapshot();
+      if (context?.action === "candidate_exhaustion") {
+        decisionPath.push({
+          date: formatISODate(date), type: "CARRY",
+          carries: accountList().map(account => account.id),
+          carry_label: "GSS holding liquidity", carry_context: context
+        });
+      }
       for (const account of accountList()) {
         const amount = balances.get(account.id) ?? 0;
         if (amount <= EPS) continue;
@@ -374,6 +388,38 @@ export class GSSStrategy {
 
     const executePlan = (plan, date, decisionDate, candidate) => {
       const before = Object.fromEntries(balanceSnapshot());
+      const bookingDecisionContext = {
+        strategy: "GSS", goal_account_id: candidate.account.id,
+        goal_option: candidate.option.label, plan: plan.type,
+        balances_before: before, considered_from: formatISODate(decisionDate)
+      };
+      const decisionLogEntry = {
+        date: formatISODate(date), goal_account_id: candidate.account.id,
+        goal_option: candidate.option.label, plan: plan.type,
+        net_interest: round2(plan.net_interest), transfer_fees: round2(plan.fees)
+      };
+      decisionPath.push({
+        date: formatISODate(date), type: plan.type,
+        goal_account_id: candidate.account.id, goal_option: candidate.option,
+        target_account_id: plan.target_account?.id,
+        principal: plan.bookings[0]?.principal,
+        transfers: plan.transfers.map(item => ({
+          source_account_id: item.source.id,
+          target_account_id: plan.target_account.id,
+          amount: item.amount, fee: item.fee
+        })),
+        bookings: plan.bookings.map(item => ({
+          account_id: item.account.id, option: item.option, principal: item.principal,
+          decision_context: bookingDecisionContext
+        })),
+        carries: accountList().map(account => account.id),
+        carry_label: "GSS holding liquidity",
+        carry_context: {
+          strategy: "GSS", action: "liquidity_carry",
+          goal_account_id: candidate.account.id, goal_option: candidate.option.label
+        },
+        decision_log_entry: decisionLogEntry
+      });
       if (plan.type === "CONSOLIDATE") {
         for (const transfer of plan.transfers) {
           const { source, amount, fee, net } = transfer;
@@ -422,11 +468,7 @@ export class GSSStrategy {
           booking_ref: reference, account_id: account.id, bank_key: account.bank_key,
           bank_id: account.bank_id, balance_after: account.balance,
           total_balance_after: sumBalances(balanceSnapshot()),
-          decision_context: {
-            strategy: "GSS", goal_account_id: candidate.account.id,
-            goal_option: candidate.option.label, plan: plan.type,
-            balances_before: before, considered_from: formatISODate(decisionDate)
-          }
+          decision_context: bookingDecisionContext
         }));
         netFlows.forEach((flow, index) => {
           const isMaturity = flow.date.getTime() === booking.end.getTime() &&
@@ -440,11 +482,7 @@ export class GSSStrategy {
           }));
         });
       }
-      decisionLog.push({
-        date: formatISODate(date), goal_account_id: candidate.account.id,
-        goal_option: candidate.option.label, plan: plan.type,
-        net_interest: round2(plan.net_interest), transfer_fees: round2(plan.fees)
-      });
+      decisionLog.push(decisionLogEntry);
       recordCarry(date, {
         strategy: "GSS", action: "liquidity_carry",
         goal_account_id: candidate.account.id, goal_option: candidate.option.label
@@ -630,29 +668,110 @@ export class GSSStrategy {
     cursor = advanceWindow(cursor, endDate, 0, true, []);
     if (!processed.has(dateKey(endDate))) processDate(endDate);
 
-    const totalInflow = Object.entries(normalizedInflows)
-      .filter(([date]) => date <= formatISODate(endDate))
-      .reduce((sum, [, amounts]) => sum + Object.values(amounts).reduce((inner, amount) => inner + amount, 0), 0);
-    const result = new SimResult({
-      strategy_name: this.name, timeline, bookings,
-      total_principal: totalInflow + originalCapital, end_date: endDate,
-      accounts: accountMap, total_transfer_fees: totalFees,
-      total_outflows_paid: totalOutflowsPaid, outstanding_outflows: pending,
-      valid: !strictFailed, ait_enabled: this.ait_enabled, ait_rate: this.ait_rate
-    });
-    result.decision_log = decisionLog;
-    result.gss_diagnostics = {
-      candidates_considered: candidatesConsidered,
-      split_plans_evaluated: splitPlansEvaluated,
-      consolidate_plans_evaluated: consolidatePlansEvaluated,
-      future_goals: futureGoals, recursive_waits: recursiveCalls,
-      early_goal_rechecks: earlyGoalRechecks,
-      early_goal_executions: earlyGoalExecutions,
-      forecast_rechecks: forecastRechecks,
-      forecast_contractions: forecastContractions,
-      maximum_recursion_depth: maximumDepth,
-      small_period_days: this.small_period_days
+    return {
+      decision_path: decisionPath,
+      decision_log: decisionLog,
+      valid: !strictFailed,
+      gss_diagnostics: {
+        candidates_considered: candidatesConsidered,
+        split_plans_evaluated: splitPlansEvaluated,
+        consolidate_plans_evaluated: consolidatePlansEvaluated,
+        future_goals: futureGoals, recursive_waits: recursiveCalls,
+        early_goal_rechecks: earlyGoalRechecks,
+        early_goal_executions: earlyGoalExecutions,
+        forecast_rechecks: forecastRechecks,
+        forecast_contractions: forecastContractions,
+        maximum_recursion_depth: maximumDepth,
+        small_period_days: this.small_period_days
+      }
     };
-    return result;
   }
+
+  createSession(context) {
+    const planned = this.#planHypothetically({
+      options: context.options, start: context.start, end: context.end,
+      inflow_schedule: context.inflows, accounts: context.accounts,
+      inflow_account_id: context.inflow_account_id,
+      fee_config: context.fee_config,
+      consolidation_account_id: context.consolidation_account_id,
+      outflow_schedule: context.outflows
+    });
+    const optionIndex = option => {
+      const exact = context.options.indexOf(option);
+      if (exact >= 0) return exact;
+      const compatible = context.options.findIndex(candidate =>
+        candidate.label === option.label &&
+        candidate.economic_terms_key === option.economic_terms_key &&
+        candidate.is_efd === option.is_efd
+      );
+      if (compatible < 0) throw new RangeError("GSS plan references an FD option outside the simulation context.");
+      return compatible;
+    };
+    const actions = new Map();
+    for (const item of planned.decision_path) {
+      const entry = {
+        date: item.date,
+        action: item.type === "CONSOLIDATE" ? StrategyDecisionType.CONSOLIDATE
+          : item.type === "SPLIT" ? StrategyDecisionType.SPLIT : StrategyDecisionType.CARRY,
+        plan: {
+          carries: item.carries,
+          carry_label: item.carry_label,
+          carry_context: item.carry_context
+        }
+      };
+      if (item.type === "CONSOLIDATE") {
+        const booking = item.bookings[0];
+        entry.plan.target_account_id = item.target_account_id;
+        entry.plan.option_index = optionIndex(booking.option);
+        entry.plan.principal = booking.principal;
+        entry.plan.transfers = item.transfers;
+        entry.plan.decision_context = booking.decision_context;
+      } else if (item.type === "SPLIT") {
+        entry.plan.bookings = item.bookings.map(booking => ({
+          account_id: booking.account_id,
+          option_index: optionIndex(booking.option),
+          principal: booking.principal,
+          decision_context: booking.decision_context
+        }));
+      } else {
+        entry.plan.carry_all = true;
+      }
+      const sameDate = actions.get(item.date) ?? [];
+      sameDate.push(entry);
+      actions.set(item.date, sameDate);
+    }
+
+    return {
+      resultMetadata: {
+        decision_log: planned.decision_log,
+        gss_diagnostics: planned.gss_diagnostics
+      },
+      nextSignal(view) {
+        const entries = actions.get(view.date);
+        if (entries) {
+          actions.delete(view.date);
+          if (entries.length === 1) {
+            const entry = entries[0];
+            return createStrategyDecision({
+              revision: view.revision, date: view.date,
+              action: entry.action, plan: entry.plan
+            });
+          }
+          return createStrategyDecision({
+            revision: view.revision, date: view.date,
+            action: StrategyDecisionType.BATCH,
+            plan: { actions: entries.map(({ action, plan }) => ({ action, plan })) }
+          });
+        }
+        const overdue = [...actions.keys()].filter(date => date < view.date).sort();
+        if (overdue.length) throw new Error("GSS decision date " + overdue[0] + " was skipped by actual simulation progression.");
+        const nextActionDate = [...actions.keys()].sort()[0];
+        const until = nextActionDate ?? context.end_iso;
+        if (view.date < until) return createStrategyWait({ revision: view.revision, until });
+        return createStrategyComplete({ revision: view.revision });
+      }
+    };
+  }
+
+
 }

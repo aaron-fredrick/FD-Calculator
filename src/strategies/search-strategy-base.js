@@ -1,9 +1,13 @@
-import { Account, FDOption, TransferFeeConfig } from "../core/models.js";
-import { Event, EventType, normalizeInflowSchedule } from "../core/events.js";
-import { Booking, SimResult } from "../core/results.js";
+import { Account, TransferFeeConfig } from "../core/models.js";
+import { normalizeInflowSchedule } from "../core/events.js";
 import { formatISODate, parseISODate, daysBetween } from "../core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../core/cashflows.js";
 import { GreedyStrategy } from "./greedy.js";
+import { SimulationEngine } from "../core/simulation.js";
+import {
+  createStrategyDecision, createStrategyWait, createStrategyComplete,
+  StrategyDecisionType
+} from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
 import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
 
@@ -519,178 +523,6 @@ function runGaml(initial, context, settings, counters) {
   };
 }
 
-function replay(path, context, strategy, diagnostics) {
-  const accounts = new Map([...context.accounts].map(([id, account]) => [id, new Account({
-    id, bank_key: account.bank_key, bank_id: account.bank_id, label: account.label,
-    balance: account.balance, supports_efd: account.supports_efd
-  })]));
-  const timeline = {};
-  const bookings = [];
-  let bookingNumber = 0, totalFees = 0, totalOutflowsPaid = 0;
-  let pending = [], strictFailed = false;
-  const addEvent = event => { (timeline[event.date_key] ||= []).push(event); };
-  const totalBalance = () => sum([...accounts.values()].map(account => account.balance));
-
-  let inflowNumber = 0;
-  for (const [date, amounts] of Object.entries(context.inflows).sort(([a], [b]) => a.localeCompare(b))) {
-    if (date > context.end) continue;
-    for (const [accountId, amount] of Object.entries(amounts).sort(([a], [b]) => a.localeCompare(b))) {
-      const account = accounts.get(accountId);
-      inflowNumber++;
-      addEvent(new Event({ event_type: EventType.INFLOW, on_date: date, amount,
-        label: "Inflow " + String(inflowNumber).padStart(2, "0"), account_id: accountId,
-        bank_key: account.bank_key, bank_id: account.bank_id }));
-    }
-  }
-  for (const [date, entries] of Object.entries(context.outflows).sort(([a], [b]) => a.localeCompare(b))) {
-    for (const entry of entries) {
-      const account = accounts.get(String(entry.account_id));
-      addEvent(new Event({ event_type: EventType.OUTFLOW, on_date: date, amount: Number(entry.amount),
-        label: String(entry.name || "Outflow"), account_id: account.id, payment_policy: entry.payment_policy || "strict",
-        bank_key: account.bank_key, bank_id: account.bank_id }));
-    }
-  }
-  const startKey = Number(context.start.replaceAll("-", ""));
-  if (!timeline[startKey] && [...accounts.values()].some(account => account.balance > EPS)) {
-    const account = accounts.get(context.inflowAccountId);
-    addEvent(new Event({ event_type: EventType.INFLOW, on_date: context.start, amount: 0,
-      label: "Opening balance trigger", account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id }));
-  }
-
-  const actions = new Map(path.map(item => [item.date, item.action]));
-  const processed = new Set();
-  while (true) {
-    const keys = Object.keys(timeline).map(Number).filter(key => !processed.has(key)).sort((a, b) => a - b);
-    if (!keys.length) break;
-    const key = keys[0]; processed.add(key);
-    const date = String(key).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3");
-    const dayEvents = timeline[key];
-    for (const event of dayEvents) {
-      if ([EventType.INFLOW, EventType.CASH_FLOW, EventType.MATURITY].includes(event.event_type)) {
-        const account = accounts.get(event.account_id) || accounts.get(context.inflowAccountId);
-        account.balance += event.amount;
-        event.account_id = account.id; event.bank_key = account.bank_key; event.bank_id = account.bank_id;
-        event.balance_after = account.balance; event.total_balance_after = totalBalance();
-      }
-    }
-    for (const event of dayEvents.filter(item => item.event_type === EventType.OUTFLOW)) {
-      pending.push({ name: event.label, account_id: event.account_id, remaining: event.amount,
-        payment_policy: event.payment_policy || "strict", due_date: parseISODate(date) });
-    }
-    const policyOrder = { strict: 0, defer: 1, best_effort: 2 };
-    const stillPending = [];
-    pending.sort((a, b) => (policyOrder[a.payment_policy] ?? 3) - (policyOrder[b.payment_policy] ?? 3) ||
-      a.due_date - b.due_date || a.account_id.localeCompare(b.account_id));
-    for (const obligation of pending) {
-      const account = accounts.get(obligation.account_id), required = Number(obligation.remaining);
-      let paid = 0;
-      if (obligation.payment_policy === "strict") {
-        if (account.balance + EPS < required) { strictFailed = true; stillPending.push(obligation); continue; }
-        paid = required;
-      } else if (obligation.payment_policy === "defer") {
-        if (account.balance + EPS < required) { stillPending.push(obligation); continue; }
-        paid = required;
-      } else {
-        paid = Math.min(account.balance, required);
-      }
-      if (paid > EPS) {
-        account.balance = round2(account.balance - paid);
-        totalOutflowsPaid += paid;
-        addEvent(new Event({ event_type: EventType.OUTFLOW, on_date: date, amount: -paid,
-          label: "Paid " + obligation.name + " (" + obligation.payment_policy + ")",
-          account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id,
-          balance_after: account.balance, total_balance_after: totalBalance() }));
-      }
-      const remaining = round2(required - paid);
-      if (remaining > EPS) stillPending.push({ ...obligation, remaining });
-    }
-    pending = stillPending;
-    if (strictFailed) break;
-
-    const action = actions.get(date);
-    if (!action) continue;
-    const snapshotBalances = () => Object.fromEntries([...accounts].map(([id, account]) => [id, account.balance]));
-    const before = snapshotBalances();
-    const recordCarry = (ids, balancesBefore = snapshotBalances()) => {
-      for (const id of ids || []) {
-        const account = accounts.get(id);
-        if (account?.balance > EPS) addEvent(new Event({
-          event_type: EventType.CARRY_FORWARD, on_date: date, amount: account.balance,
-          label: "Holding liquidity; balance " + account.balance.toFixed(2) + " carries forward",
-          account_id: id, bank_key: account.bank_key, bank_id: account.bank_id,
-          balance_after: account.balance, total_balance_after: totalBalance(),
-          decision_context: { action: "carry", balances_before: { ...balancesBefore } }
-        }));
-      }
-    };
-    const book = (account, option, actionName, balancesBefore = snapshotBalances()) => {
-      const principal = account.balance;
-      if (principal <= EPS) return;
-      account.balance = 0;
-      bookingNumber++;
-      const ref = "FD-" + String(bookingNumber).padStart(4, "0");
-      const grossFlows = option.generateCashFlows(principal, parseISODate(date), context.compound, context.actualLeapYear);
-      const netFlows = option.generateCashFlowsAfterAIT(principal, parseISODate(date), context.aitRate, context.compound, context.actualLeapYear);
-      const booking = new Booking({ option, principal, start: date, cash_flows: grossFlows,
-        account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id });
-      bookings.push(booking);
-      addEvent(new Event({ event_type: EventType.BOOKING, on_date: date, amount: principal,
-        label: "Book " + option.label + " @ " + option.annual_rate.toFixed(2) + "% -> matures " + formatISODate(booking.end),
-        booking_ref: ref, account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id,
-        balance_after: account.balance, total_balance_after: totalBalance(),
-        decision_context: { action: actionName, balances_before: { ...balancesBefore } } }));
-      netFlows.forEach((flow, index) => {
-        const isMaturity = flow.date.getTime() === booking.end.getTime() &&
-          (option.payout_type === "cumulative" || index === netFlows.length - 1);
-        addEvent(new Event({ event_type: isMaturity ? EventType.MATURITY : EventType.CASH_FLOW,
-          on_date: flow.date, amount: flow.amount,
-          label: (isMaturity ? "Maturity " : "Cash flow ") + "[" + ref + "] (" + option.label + ")",
-          booking_ref: ref, account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id }));
-      });
-    };
-
-    if (action.type === "consolidate") {
-      const target = accounts.get(action.target_id);
-      for (const transfer of action.transfers) {
-        const source = accounts.get(transfer.src_id), fee = transfer.fee, net = transfer.net, amount = transfer.amount;
-        totalFees += fee; source.balance = 0;
-        const channel = source.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase() ? "intra_bank" : "domestic_ceft";
-        addEvent(new Event({ event_type: EventType.TRANSFER, on_date: date, amount,
-          label: "Transfer to " + target.label + " (Amt: " + net.toFixed(2) + ", Fee: " + fee.toFixed(2) + ")",
-          account_id: source.id, bank_key: source.bank_key, bank_id: source.bank_id,
-          transfer_channel: channel, fee, balance_after: source.balance, total_balance_after: totalBalance() }));
-        target.balance += net;
-        addEvent(new Event({ event_type: EventType.TRANSFER, on_date: date, amount: net,
-          label: "Transfer received from " + source.label, account_id: target.id,
-          bank_key: target.bank_key, bank_id: target.bank_id, transfer_channel: channel,
-          balance_after: target.balance, total_balance_after: totalBalance() }));
-      }
-      book(target, action.option, "consolidate", before);
-      recordCarry(action.carries, before);
-    } else if (action.type === "local") {
-      for (const item of action.bookings) {
-        const balancesBefore = snapshotBalances();
-        book(accounts.get(item.account_id), item.option, "split", balancesBefore);
-      }
-      recordCarry(action.carries, snapshotBalances());
-    } else if (action.type === "carry") recordCarry(action.carries, before);
-  }
-
-  const totalInflow = sum(Object.values(context.inflows).flatMap(day => Object.values(day)));
-  const result = new SimResult({
-    strategy_name: strategy.name, timeline, bookings,
-    total_principal: context.totalCapital, end_date: context.endDate, accounts: asObject(accounts),
-    total_transfer_fees: totalFees, total_decisions_evaluated: diagnostics.expanded_states,
-    alternative_leaf_net_interests: diagnostics.alternative_leaf_net_interests,
-    total_outflows_paid: totalOutflowsPaid, outstanding_outflows: pending,
-    valid: !strictFailed, ait_enabled: strategy.ait_enabled, ait_rate: strategy.ait_rate
-  });
-  result.search_diagnostics = diagnostics;
-  result.optimality_proven = diagnostics.optimality_proven;
-  result.search_settings = diagnostics.settings;
-  return result;
-}
-
 export class SearchStrategyBase {
   constructor({ compound = false, actual_leap_year = true, ait_enabled = false, ait_rate = 0.10, ...settings } = {}, mode) {
     this.name = mode === "absolute" ? "Absolute" : "GAML";
@@ -700,6 +532,7 @@ export class SearchStrategyBase {
     this.ait_enabled = ait_enabled;
     this.ait_rate = ait_rate;
     this.effective_ait_rate = ait_enabled ? ait_rate : 0;
+    this.outflow_account_tiebreak = true;
     this.max_decisions = settings.max_decisions ?? settings.state_cap ?? null;
     this.max_local_branches = settings.max_local_branches === undefined ? 128 : settings.max_local_branches;
     this.beam_width = settings.beam_width === undefined ? 256 : settings.beam_width;
@@ -708,14 +541,21 @@ export class SearchStrategyBase {
     if (!Number.isInteger(this.beam_width) || this.beam_width < 1) throw new RangeError("beam_width must be at least 1.");
   }
 
-  simulate(input) {
+  createSession(engineContext) {
+    const input = {
+      options: engineContext.options, start: engineContext.start, end: engineContext.end,
+      inflow_schedule: engineContext.inflows, accounts: engineContext.accounts,
+      inflow_account_id: engineContext.inflow_account_id,
+      fee_config: engineContext.fee_config,
+      consolidation_account_id: engineContext.consolidation_account_id,
+      outflow_schedule: engineContext.outflows
+    };
     const context = createContext(input, this);
-    // Greedy remains a lower-bound candidate for bounded search. It returns an
-    // unfinished result; account for the shared final sweep fee when scoring it.
-    const greedy = new GreedyStrategy({
+    const greedyStrategy = new GreedyStrategy({
       compound: this.compound, actual_leap_year: this.actual_leap_year,
       ait_enabled: this.ait_enabled, ait_rate: this.ait_rate
-    }).simulate(input);
+    });
+    const greedy = new SimulationEngine().runUnfinalized(greedyStrategy, input);
     const liabilities = sum(greedy.outstanding_outflows.map(item => Number(item.remaining || 0)));
     const greedyObjective = greedy.valid
       ? greedy.final_value - calculateFinalSweepFees(greedy.accounts, context.consolidationId, context.feeConfig) - liabilities
@@ -736,7 +576,6 @@ export class SearchStrategyBase {
     const search = this.mode === "absolute"
       ? runAbsolute(initial, context, settings, counters)
       : runGaml(initial, context, settings, counters);
-    const path = nodePath(search.bestNode);
     const diagnostics = {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
@@ -746,14 +585,104 @@ export class SearchStrategyBase {
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings
     };
+    const resultMetadata = {
+      total_decisions_evaluated: diagnostics.expanded_states,
+      alternative_leaf_net_interests: diagnostics.alternative_leaf_net_interests,
+      search_diagnostics: diagnostics,
+      optimality_proven: diagnostics.optimality_proven,
+      search_settings: settings
+    };
+
     if (!search.bestNode) {
       if (!greedy.valid) throw new Error(this.name + " found no feasible path satisfying strict outflows.");
-      greedy.strategy_name = this.name;
-      greedy.search_diagnostics = diagnostics;
-      greedy.optimality_proven = diagnostics.optimality_proven;
-      greedy.search_settings = settings;
-      return greedy;
+      const fallback = new GreedyStrategy({
+        compound: this.compound, actual_leap_year: this.actual_leap_year,
+        ait_enabled: this.ait_enabled, ait_rate: this.ait_rate
+      }).createSession(engineContext);
+      fallback.resultMetadata = resultMetadata;
+      return fallback;
     }
-    return replay(path, context, this, diagnostics);
+
+    const path = nodePath(search.bestNode);
+    const actions = new Map(path.map(item => [item.date, item.action]));
+    const optionIndex = option => {
+      const exact = engineContext.options.indexOf(option);
+      if (exact >= 0) return exact;
+      const compatible = engineContext.options.findIndex(candidate =>
+        candidate.label === option.label &&
+        candidate.economic_terms_key === option.economic_terms_key &&
+        candidate.is_efd === option.is_efd
+      );
+      if (compatible < 0) throw new RangeError("Search path references an FD option outside the simulation context.");
+      return compatible;
+    };
+    const signalFor = (action, view) => {
+      if (action.type === "consolidate") {
+        return createStrategyDecision({
+          revision: view.revision, date: view.date,
+          action: StrategyDecisionType.CONSOLIDATE,
+          plan: {
+            target_account_id: action.target_id,
+            option_index: optionIndex(action.option),
+            principal: action.principal,
+            transfers: action.transfers.map(item => ({
+              source_account_id: item.src_id, target_account_id: item.tgt_id,
+              amount: item.amount, fee: item.fee
+            })),
+            carries: action.carries,
+            carry_label: "Holding liquidity",
+            carry_snapshot: "decision_start"
+          }
+        });
+      }
+      if (action.type === "local") {
+        return createStrategyDecision({
+          revision: view.revision, date: view.date,
+          action: StrategyDecisionType.SPLIT,
+          plan: {
+            bookings: action.bookings.map(item => ({
+              account_id: item.account_id,
+              option_index: optionIndex(item.option),
+              principal: item.principal
+            })),
+            carries: action.carries,
+            carry_label: "Holding liquidity"
+          }
+        });
+      }
+      if (action.type === "carry") {
+        return createStrategyDecision({
+          revision: view.revision, date: view.date,
+          action: StrategyDecisionType.CARRY,
+          plan: {
+            carries: action.carries,
+            carry_label: "Holding liquidity",
+            carry_snapshot: "decision_start"
+          }
+        });
+      }
+      throw new RangeError("Unknown search path action: " + action.type);
+    };
+
+    return {
+      resultMetadata,
+      nextSignal(view) {
+        const action = actions.get(view.date);
+        if (action) {
+          actions.delete(view.date);
+          return signalFor(action, view);
+        }
+        const overdue = [...actions.keys()].filter(date => date < view.date).sort();
+        if (overdue.length) throw new Error("Search decision date " + overdue[0] + " was skipped by actual simulation progression.");
+        const nextActionDate = [...actions.keys()].sort()[0];
+        const until = nextActionDate ?? engineContext.end_iso;
+        if (view.date < until) {
+          return createStrategyWait({ revision: view.revision, until });
+        }
+        return createStrategyComplete({ revision: view.revision });
+      }
+    };
   }
+
+
 }

@@ -45,14 +45,14 @@ Absolute uses exhaustive branch-and-bound search, with Greedy as a feasible lowe
 
 ## Goal-Seeking Strategy (GSS)
 
-GSS is independent of Greedy, GAML and Absolute. It obtains the complete account-compatible, horizon-compatible FD candidate list from FDOptionManager and consumes that manager-provided order; GSS does not duplicate rate/tenor ranking.
+GSS is independent of Greedy, GAML and Absolute. It obtains the complete account-compatible, horizon-compatible FD candidate list from FDOptionManager and consumes that manager-provided order; GSS does not duplicate rate/tenor ranking. Its recursive planner explores a private hypothetical projection and emits decisions for the shared runtime to execute.
 
 For each candidate account and FD option, GSS evaluates:
 
 - **SPLIT:** book the goal option in its account and use manager-ordered viable options in other accounts.
 - **CONSOLIDATE:** transfer available balances into the candidate account, deduct actual source-to-target fees, and book the candidate option.
 
-If neither plan is viable now, GSS projects scheduled inflows, existing FD cash flows/maturities and outflows to find a future affordability date. It recursively plans the waiting period with GSS itself. Interim bookings are restricted to FDs that mature by the parent goal date, preserving the parent goal's liquidity. The parent candidate is then re-evaluated against actual balances and events. If it fails, GSS continues through the remaining candidates. Candidate exhaustion leaves funds liquid; there is no Greedy fallback.
+If neither plan is viable now, GSS projects scheduled inflows, existing FD cash flows/maturities and outflows to find a future affordability date. It recursively plans the waiting period with GSS itself. Interim bookings are restricted to FDs that mature by the parent goal date, preserving the parent goal's liquidity. The parent candidate is then re-evaluated against the updated projected balances and events. If it fails, GSS continues through the remaining candidates. Candidate exhaustion leaves funds liquid; there is no Greedy fallback.
 
 ### GSS settings
 
@@ -71,7 +71,7 @@ See [GSS implementation details](strategies/GSS.md).
 
 ## Simulation lifecycle
 
-All strategies return an unfinished simulation result. The shared SimulationEngine processes the selected strategy's complete overall horizon, performs exactly one final consolidation sweep, records remaining idle balances, and returns the finalized result. Recursive strategy windows never finalize or sweep independently.
+All production strategies expose a planning session. `SimulationEngine` and `SimulationRuntime` own actual chronological event processing, outflow settlement, booking/transfer execution, result construction and exactly-once finalization. Strategies return immutable decisions and may perform separate hypothetical future exploration. The runtime processes the complete horizon, then the engine performs one final consolidation sweep and records remaining idle balances. Recursive or search-planning windows never finalize or sweep independently.
 
 ## Strategy performance and sensitivity
 

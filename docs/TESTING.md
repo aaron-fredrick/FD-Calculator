@@ -1,34 +1,31 @@
-# Testing the JavaScript migration
+# Testing the JavaScript calculator
 
-Run from the repository root with Node.js 22 or newer:
+Use Node.js 22 or newer from the repository root.
 
 ```sh
+npm ci
 npm test
 ```
 
-This runs every test under `tests/js` using Node's built-in test runner. The same suite runs in GitHub Actions on pushes and pull requests to the migration branch and main.
+The test command runs the JavaScript suite with Node's built-in test runner. The same suite is executed by GitHub Actions. The repository also exposes `npm run test:unit` for the test files under `tests/js`.
 
-To run the CLI entrypoint:
+## Coverage
 
-```sh
-npm run cli
-```
+The suite includes:
 
-**Current limitation:** the CLI entrypoint is still a migration placeholder and exits with status 2. It is not a working calculator yet. Do not use it for financial calculations.
+- Financial models, dates, leap-year calculations, FD eligibility, AIT and transfer fees.
+- Inflow/outflow schedules, periodic payouts, maturities and all supported outflow policies.
+- Immutable normalized simulation contexts and revision-bound strategy contracts.
+- Transactional booking, transfer and same-date batch execution, including rollback when a later operation is invalid.
+- Greedy, GAML, Absolute and GSS strategy behaviour.
+- Frozen pre-refactor execution oracles that compare normalized booking and event ledgers for Greedy, GAML, Absolute and GSS.
+- Search diagnostics, GSS recursive goal contraction, ancestor reforecasting and finalization lifecycle.
+- Architecture checks that strategies expose planning sessions rather than `simulate()` execution adapters, and that CLI/browser entry points use `SimulationEngine`.
 
-The browser page is also a placeholder. The implemented core modules can be imported directly from Node or a browser module environment, but no end-to-end calculation flow is wired up yet.
+## Production execution path
 
-## What the current tests cover
-
-- Date parsing, calendar month arithmetic and leap-year interest.
-- FD account/product model basics and eFD eligibility.
-- Transfer fee rules.
-- Gross FD payout schedules and AIT calculations.
-- Cash schedule expansion and configuration validation.
-- Event/booking/result accounting primitives.
-- Outflow policy helper behavior.
-- The contract that Absolute remains unavailable in the web strategy surface.
+The CLI and browser application both use the shared JavaScript engine. Production calculations enter through `SimulationEngine.run()`; the engine drives strategy sessions, `SimulationRuntime` owns actual chronological execution, and the engine performs finalization exactly once.
 
 ## What passing tests do not prove
 
-A green unit-test suite does not establish parity with the archived Python calculator. No full simulator, optimization strategy, HTML report, CLI, or browser workflow has been ported yet. Those require dedicated Python-vs-JavaScript golden fixtures and end-to-end parity tests before the migration is safe to use.
+A green test suite proves the covered contracts and regression scenarios, not every possible financial input or parity with every historical Python result. The frozen JavaScript oracles protect the pre-refactor strategy ledgers; they are not a guarantee that live bank products, rates or external assumptions are current. Add focused deterministic fixtures when changing financial semantics or strategy decision rules.

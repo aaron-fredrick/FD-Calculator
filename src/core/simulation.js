@@ -1,12 +1,16 @@
 import { Event, EventType } from "./events.js";
 import { TransferFeeConfig } from "./models.js";
+import { createSimulationContext } from "./simulation-context.js";
+import { SimulationRuntime } from "./simulation-runtime.js";
+import { parseISODate, formatISODate } from "./dates.js";
+import { StrategySignalType } from "./strategy-contracts.js";
 
 /**
  * Apply the one simulation-wide final consolidation sweep.
  *
- * Strategies return an unfinished SimResult. This finalizer runs once after
- * the selected strategy has processed the complete simulation horizon.
- * Recursive planning boundaries must never invoke it.
+ * SimulationRuntime constructs the unfinished result. This finalizer runs once
+ * after the selected strategy session has processed the complete horizon.
+ * Recursive planning boundaries and hypothetical projections never invoke it.
  */
 export function finalizeSimulation(result, {
   fee_config = null,
@@ -107,20 +111,87 @@ export function finalizeSimulation(result, {
   return result;
 }
 
+function createStrategyContextView(context) {
+  return Object.freeze({
+    ...context,
+    start: new Date(context.start),
+    end: new Date(context.end)
+  });
+}
+
+function runStrategySession(strategy, context) {
+  const runtime = new SimulationRuntime(context, {
+    strategy_name: strategy.name ?? strategy.constructor?.name ?? "Strategy",
+    compound: strategy.compound,
+    actual_leap_year: strategy.actual_leap_year,
+    ait_enabled: strategy.ait_enabled,
+    ait_rate: strategy.ait_rate,
+    outflow_account_tiebreak: strategy.outflow_account_tiebreak,
+    outflow_due_date_sort: strategy.outflow_due_date_sort,
+    round_balances: strategy.round_balances,
+    opening_trigger_always: strategy.opening_trigger_always
+  });
+  const session = strategy.createSession(createStrategyContextView(context));
+  if (!session || typeof session.nextSignal !== "function") {
+    throw new TypeError("Strategy createSession(context) must return a session with nextSignal(view).");
+  }
+
+  let waitUntil = null;
+  let iterations = 0;
+  while (true) {
+    if (++iterations > 100000) throw new Error("Strategy session exceeded the simulation progression limit.");
+    const eventDate = runtime.nextEventDate();
+    let nextDate = eventDate;
+    if (waitUntil && (!nextDate || waitUntil < formatISODate(nextDate))) {
+      nextDate = parseISODate(waitUntil);
+    }
+    if (!nextDate) nextDate = new Date(context.end);
+    if (nextDate > context.end) nextDate = new Date(context.end);
+    if (runtime.currentDate && nextDate <= runtime.currentDate) {
+      if (runtime.currentDate < context.end) nextDate = new Date(context.end);
+      else break;
+    }
+
+    runtime.processDate(nextDate);
+    if (!runtime.valid) break;
+    const signal = session.nextSignal(runtime.planningView());
+    runtime.executeSignal(signal);
+    if (signal.signal_type === StrategySignalType.COMPLETE) break;
+    waitUntil = signal.signal_type === StrategySignalType.WAIT ? signal.until : null;
+
+    if (runtime.currentDate.getTime() === context.end.getTime() &&
+        !runtime.nextEventDate() && signal.signal_type !== StrategySignalType.WAIT) {
+      break;
+    }
+  }
+
+  const result = runtime.buildResult();
+  if (session.resultMetadata) Object.assign(result, session.resultMetadata);
+  return result;
+}
+
 /** Shared entry point for executing and finalizing any strategy exactly once. */
 export class SimulationEngine {
-  run(strategy, input) {
-    if (!strategy || typeof strategy.simulate !== "function") {
-      throw new TypeError("SimulationEngine requires a strategy with a simulate(input) method.");
+  /**
+   * Engine-owned projection used by search strategies to score hypothetical
+   * incumbents. Normal application execution must use run().
+   */
+  runUnfinalized(strategy, input) {
+    if (!strategy || typeof strategy.createSession !== "function") {
+      throw new TypeError("SimulationEngine requires a strategy with createSession(context).");
     }
-    const result = strategy.simulate(input);
+    return runStrategySession(strategy, createSimulationContext(input));
+  }
 
-    // The simulation engine owns lifecycle boundaries. Keep the start marker
-    // out of strategy decision-making so every strategy reports the same
-    // simulation start, including runs with no opening cash or start-day flows.
+  run(strategy, input) {
+    if (!strategy || typeof strategy.createSession !== "function") {
+      throw new TypeError("SimulationEngine requires a strategy with createSession(context).");
+    }
+    const context = createSimulationContext(input);
+    const result = runStrategySession(strategy, context);
     const startEvent = new Event({
       event_type: EventType.SIMULATION_START,
-      on_date: input.start,
+      on_date: context.start,
       amount: 0,
       label: "Simulation starts",
       balance_after: 0,
@@ -135,14 +206,9 @@ export class SimulationEngine {
       (timeline[startEvent.date_key] ??= []).unshift(startEvent);
     }
     result.timeline = timeline;
-
-    const defaultAccountId = input?.consolidation_account_id ??
-      input?.inflow_account_id ??
-      input?.accounts?.[0]?.id ??
-      Object.keys(result.accounts ?? {})[0];
     return finalizeSimulation(result, {
-      fee_config: input?.fee_config ?? new TransferFeeConfig(),
-      consolidation_account_id: defaultAccountId
+      fee_config: context.fee_config,
+      consolidation_account_id: context.consolidation_account_id
     });
   }
 }

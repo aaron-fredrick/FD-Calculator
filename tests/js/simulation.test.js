@@ -5,7 +5,8 @@ import { EventType } from "../../src/core/events.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { GAMLStrategy } from "../../src/strategies/gaml.js";
 import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
-import { SimulationEngine } from "../../src/core/simulation.js";
+import { SimulationEngine, finalizeSimulation } from "../../src/core/simulation.js";
+import { createStrategyDecision, createStrategyWait, createStrategyComplete, StrategyDecisionType } from "../../src/core/strategy-contracts.js";
 
 function scenario() {
   const accounts = [
@@ -32,7 +33,7 @@ for (const [name, makeStrategy] of [
 ]) {
   test(name + " leaves final consolidation to the shared simulation engine", () => {
     const input = scenario();
-    const raw = makeStrategy().simulate(input);
+    const raw = new SimulationEngine().runUnfinalized(makeStrategy(), input);
     const rawEvents = Object.values(raw.timeline).flat();
     assert.equal(rawEvents.some(event => event.event_type === EventType.SIMULATION_START), false);
     assert.equal(raw.total_transfer_fees, 0);
@@ -59,5 +60,87 @@ test("shared finalization rejects a second final sweep", () => {
   const input = scenario();
   const engine = new SimulationEngine();
   const result = engine.run(new GreedyStrategy(), input);
-  assert.throws(() => engine.run({ simulate: () => result }, input), /already been finalized/);
+  assert.throws(() => finalizeSimulation(result), /already been finalized/);
+});
+
+test("SimulationEngine drives a decision session through shared event execution", () => {
+  const input = {
+    options: [new FDOption({
+      label: "Session 30d", period_str: "30d", annual_rate: 12,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    })],
+    start: "2026-01-01", end: "2026-03-01",
+    accounts: [new Account({
+      id: "main", bank_id: "BANK_A", bank_key: "a", balance: 30000
+    })],
+    inflow_account_id: "main", consolidation_account_id: "main"
+  };
+  let calls = 0;
+  const strategy = {
+    name: "Session test", compound: false, actual_leap_year: true,
+    ait_enabled: false, ait_rate: 0.10,
+    createSession() {
+      return {
+        nextSignal(view) {
+          calls++;
+          if (calls === 1) {
+            return createStrategyDecision({
+              revision: view.revision, date: view.date, action: StrategyDecisionType.SPLIT,
+              plan: { bookings: [{ account_id: "main", option_index: 0, principal: 30000 }], carries: [] }
+            });
+          }
+          if (view.date < view.end_date) return createStrategyWait({ revision: view.revision, until: view.end_date });
+          return createStrategyComplete({ revision: view.revision });
+        }
+      };
+    }
+  };
+  const result = new SimulationEngine().run(strategy, input);
+  const events = Object.values(result.timeline).flat();
+  assert.equal(result.finalized, true);
+  assert.equal(result.bookings.length, 1);
+  assert.equal(result.bookings[0].principal, 30000);
+  assert.equal(events.filter(event => event.event_type === EventType.SIMULATION_START).length, 1);
+  assert.equal(events.filter(event => event.event_type === EventType.BOOKING).length, 1);
+  assert.equal(calls, 3);
+});
+
+test("SimulationEngine rejects invalid session decisions without accepting legacy simulate", () => {
+  const input = scenario();
+  const strategy = {
+    createSession() {
+      return {
+        nextSignal(view) {
+          return createStrategyDecision({
+            revision: view.revision + 1, date: view.date,
+            action: StrategyDecisionType.SPLIT, plan: { bookings: [], carries: [] }
+          });
+        }
+      };
+    }
+  };
+  assert.throws(() => new SimulationEngine().run(strategy, input), /Stale strategy signal/);
+});
+
+test("strategy context cannot mutate runtime-owned dates, accounts, options or schedules", () => {
+  const input = scenario();
+  const strategy = {
+    createSession(context) {
+      assert.throws(() => { context.accounts[0].balance = 0; }, TypeError);
+      assert.throws(() => { context.options[0].annual_rate = 99; }, TypeError);
+      assert.throws(() => { context.outflows["2026-01-01"] = []; }, TypeError);
+      context.start.setUTCFullYear(2035);
+      return {
+        nextSignal(view) {
+          if (view.date < view.end_date) return createStrategyWait({ revision: view.revision, until: view.end_date });
+          return createStrategyComplete({ revision: view.revision });
+        }
+      };
+    }
+  };
+  const result = new SimulationEngine().run(strategy, input);
+  const start = Object.values(result.timeline).flat()
+    .find(event => event.event_type === EventType.SIMULATION_START);
+  assert.equal(start.on_date.toISOString().slice(0, 10), input.start);
+  assert.equal(result.accounts.main.balance, 19970);
 });
