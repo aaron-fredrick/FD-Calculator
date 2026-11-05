@@ -156,3 +156,20 @@ test("invalid same-date decision batch rolls back all earlier staged actions", (
   assert.equal(runtime.totalFees, 0);
   assert.equal(Object.values(runtime.timeline).flat().length, eventsBefore);
 });
+
+test("runtime rejects self-directed transfers without mutating state", () => {
+  const runtime = makeRuntime();
+  const view = runtime.planningView();
+  const signal = createStrategyDecision({
+    revision: view.revision, date: view.date,
+    action: StrategyDecisionType.CONSOLIDATE,
+    plan: {
+      target_account_id: "main", option_index: 0, principal: 10000,
+      transfers: [{ source_account_id: "main", target_account_id: "main", amount: 1000, fee: 0 }]
+    }
+  });
+  assert.throws(() => runtime.executeSignal(signal), /must differ/);
+  assert.deepEqual(runtime.planningView().accounts, view.accounts);
+  assert.equal(runtime.bookings.length, 0);
+  assert.equal(runtime.totalFees, 0);
+});
