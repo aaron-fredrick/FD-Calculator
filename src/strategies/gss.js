@@ -70,7 +70,6 @@ export class GSSStrategy {
     consolidation_account_id ||= inflow_account_id;
     fee_config ||= new TransferFeeConfig();
 
-    const originalCapital = accounts.reduce((sum, account) => sum + account.balance, 0);
     const accountMap = new Map(accounts.map(account => [account.id, cloneAccount(account)]));
     if (!accountMap.has(inflow_account_id)) throw new RangeError("inflow_account_id does not reference a configured account.");
     if (!accountMap.has(consolidation_account_id)) throw new RangeError("consolidation_account_id does not reference a configured account.");
@@ -85,7 +84,7 @@ export class GSSStrategy {
     const decisionPath = [];
     const processed = new Set();
     let pending = [], inflowNumber = 0, bookingNumber = 0;
-    let totalFees = 0, totalOutflowsPaid = 0, strictFailed = false;
+    let totalFees = 0, strictFailed = false;
     let earlyGoal = null, earlyGoalRechecks = 0, earlyGoalExecutions = 0;
     let forecastInterrupt = null, forecastRechecks = 0, forecastContractions = 0;
     let recursiveCalls = 0, candidatesConsidered = 0, splitPlansEvaluated = 0;
@@ -179,7 +178,6 @@ export class GSSStrategy {
         }
         if (paid > EPS) {
           account.balance = round2(account.balance - paid);
-          totalOutflowsPaid += paid;
           addEvent(new Event({
             event_type: EventType.OUTFLOW, on_date: date, amount: -paid,
             label: "Paid " + obligation.name + " (" + obligation.payment_policy + ")",
