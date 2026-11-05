@@ -3,6 +3,12 @@ import { Event, EventType, normalizeInflowSchedule } from "../core/events.js";
 import { Booking, SimResult } from "../core/results.js";
 import { daysBetween, formatISODate, parseISODate } from "../core/dates.js";
 import { validateOutflowSchedule } from "../core/cashflows.js";
+import { createSimulationContext } from "../core/simulation-context.js";
+import { runStrategySession } from "../core/simulation.js";
+import {
+  createStrategyDecision, createStrategyWait, createStrategyComplete,
+  StrategyDecisionType
+} from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
 
 const EPS = 0.001;
@@ -45,9 +51,13 @@ export class GSSStrategy {
     this.ait_rate = ait_rate;
     this.effective_ait_rate = ait_enabled ? ait_rate : 0;
     this.small_period_days = small_period_days;
+    this.outflow_account_tiebreak = true;
+    this.outflow_due_date_sort = "string";
+    this.round_balances = true;
+    this.opening_trigger_always = true;
   }
 
-  simulate({
+  _planHypothetically({
     options, start, end, inflow_schedule = {}, accounts = null,
     inflow_account_id = null, fee_config = null,
     consolidation_account_id = null, outflow_schedule = {}
@@ -74,6 +84,7 @@ export class GSSStrategy {
     const timeline = {};
     const bookings = [];
     const decisionLog = [];
+    const decisionPath = [];
     const processed = new Set();
     let pending = [], inflowNumber = 0, bookingNumber = 0;
     let totalFees = 0, totalOutflowsPaid = 0, strictFailed = false;
