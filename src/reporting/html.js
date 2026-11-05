@@ -231,7 +231,7 @@ function buildExecution(result,accountDisplay) {
   return {html:cards.join("")||'<div class="panel">No FD bookings or actionable transfers were selected.</div>',investmentRows};
 }
 export function generateHtmlReport(result,config) {
-  const start=iso(config.start),end=iso(config.end),days=dayCount(start,end)+1;
+  const start=iso(config.start),end=iso(result.end_date??config.end),days=dayCount(start,end)+1;
   const accountDisplay={};
   for(const a of Object.values(result.accounts||{})){
     const bankId=a.bank_id||a.bank_key||"Bank";
