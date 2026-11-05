@@ -8,6 +8,7 @@ import {
   StrategyDecisionType
 } from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
+import { BalanceProvenance } from "../core/balance-provenance.js";
 
 const EPS = 0.001;
 const round2 = value => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -58,7 +59,8 @@ export class GSSStrategy {
   #planHypothetically({
     options, start, end, inflow_schedule = {}, accounts = null,
     inflow_account_id = null, fee_config = null,
-    consolidation_account_id = null, outflow_schedule = {}
+    consolidation_account_id = null, outflow_schedule = {},
+    simulation = { mode: "scoped" }
   }) {
     const startDate = parseISODate(start), endDate = parseISODate(end);
     if (!Array.isArray(options) || !options.length) throw new TypeError("GSS simulation requires FD options.");
@@ -69,8 +71,16 @@ export class GSSStrategy {
     inflow_account_id ||= accounts[0].id;
     consolidation_account_id ||= inflow_account_id;
     fee_config ||= new TransferFeeConfig();
+    const goalMode = simulation?.mode === "goal";
+    const goal = goalMode ? simulation.goal : null;
 
     const accountMap = new Map(accounts.map(account => [account.id, cloneAccount(account)]));
+    const provenance = goalMode ? new BalanceProvenance([...accountMap.keys()]) : null;
+    if (provenance) {
+      for (const account of accountMap.values()) provenance.addPrincipal(account.id, account.balance);
+    }
+    const goalAchieved = () => Boolean(goalMode &&
+      provenance.creditedNetInterest + EPS >= Number(goal?.target));
     if (!accountMap.has(inflow_account_id)) throw new RangeError("inflow_account_id does not reference a configured account.");
     if (!accountMap.has(consolidation_account_id)) throw new RangeError("consolidation_account_id does not reference a configured account.");
 
@@ -140,12 +150,20 @@ export class GSSStrategy {
         if (![EventType.INFLOW, EventType.CASH_FLOW, EventType.MATURITY].includes(event.event_type)) continue;
         const account = accountMap.get(event.account_id) || accountMap.get(inflow_account_id);
         account.balance = round2(account.balance + event.amount);
+        if (provenance) {
+          if (event.event_type === EventType.INFLOW) provenance.addPrincipal(account.id, event.amount);
+          else if (event.cash_components) provenance.addCashFlow(
+            account.id, event.cash_components.principal_components ?? {}, event.cash_components.interest ?? 0
+          );
+          else provenance.addPrincipal(account.id, event.amount);
+        }
         event.account_id = account.id;
         event.bank_key = account.bank_key;
         event.bank_id = account.bank_id;
         event.balance_after = account.balance;
         event.total_balance_after = sumBalances(balanceSnapshot());
       }
+      provenance?.recognizeConsolidationCredit(consolidation_account_id);
 
       for (const event of dayEvents.filter(item => item.event_type === EventType.OUTFLOW)) {
         pending.push({
@@ -177,6 +195,7 @@ export class GSSStrategy {
           paid = Math.min(account.balance, required);
         }
         if (paid > EPS) {
+          if (provenance) provenance.debit(account.id, paid);
           account.balance = round2(account.balance - paid);
           addEvent(new Event({
             event_type: EventType.OUTFLOW, on_date: date, amount: -paid,
@@ -189,6 +208,13 @@ export class GSSStrategy {
         if (unpaid > EPS) remaining.push({ ...obligation, remaining: unpaid });
       }
       pending = remaining;
+      if (provenance) {
+        for (const account of accountMap.values()) {
+          if (Math.abs(round2(account.balance) - provenance.total(account.id)) > 0.02) {
+            throw new Error("GSS goal-planning provenance does not reconcile for account " + account.id + ".");
+          }
+        }
+      }
       return !strictFailed;
     };
 
@@ -423,6 +449,12 @@ export class GSSStrategy {
       if (plan.type === "CONSOLIDATE") {
         for (const transfer of plan.transfers) {
           const { source, amount, fee, net } = transfer;
+          if (provenance) {
+            provenance.transfer(source.id, plan.target_account.id, amount, fee);
+            if (plan.target_account.id === consolidation_account_id) {
+              provenance.recognizeConsolidationCredit(consolidation_account_id);
+            }
+          }
           source.balance = round2(source.balance - amount);
           totalFees += fee;
           const channel = source.bank_identity.trim().toUpperCase() ===
@@ -454,8 +486,12 @@ export class GSSStrategy {
         bookingNumber++;
         const reference = "FD-" + String(bookingNumber).padStart(4, "0");
         const grossFlows = item.option.generateCashFlows(principal, date, this.compound, this.actual_leap_year);
-        const netFlows = item.option.generateCashFlowsAfterAIT(principal, date,
-          this.effective_ait_rate, this.compound, this.actual_leap_year);
+        const bookedComponents = provenance ? provenance.debit(account.id, principal) : null;
+        const netFlows = provenance
+          ? item.option.generateCashFlowComponentsAfterAIT(principal, date,
+            this.effective_ait_rate, this.compound, this.actual_leap_year)
+          : item.option.generateCashFlowsAfterAIT(principal, date,
+            this.effective_ait_rate, this.compound, this.actual_leap_year);
         const booking = new Booking({
           option: item.option, principal, start: date, cash_flows: grossFlows,
           account_id: account.id, bank_key: account.bank_key, bank_id: account.bank_id
@@ -478,9 +514,23 @@ export class GSSStrategy {
             on_date: flow.date, amount: flow.amount,
             label: (isMaturity ? "Maturity " : "Cash flow ") + "[" + reference + "] (" + item.option.label + ")",
             booking_ref: reference, account_id: account.id,
-            bank_key: account.bank_key, bank_id: account.bank_id
+            bank_key: account.bank_key, bank_id: account.bank_id,
+            cash_components: provenance ? {
+              principal_components: provenance.allocateBookedPrincipal(
+                bookedComponents, flow.principal, principal
+              ),
+              interest: flow.interest
+            } : null
           }));
         });
+      }
+      provenance?.recognizeConsolidationCredit(consolidation_account_id);
+      if (provenance) {
+        for (const account of accountMap.values()) {
+          if (Math.abs(round2(account.balance) - provenance.total(account.id)) > 0.02) {
+            throw new Error("GSS goal-decision provenance does not reconcile for account " + account.id + ".");
+          }
+        }
       }
       decisionLog.push(decisionLogEntry);
       recordCarry(date, {
@@ -540,7 +590,7 @@ export class GSSStrategy {
 
     const advanceWindow = (fromDate, throughDate, depth, allowNested, parentGoals = []) => {
       let cursor = fromDate;
-      while (!strictFailed) {
+      while (!strictFailed && !goalAchieved()) {
         // A contracted ancestor boundary can pre-empt this frame's original
         // boundary. Only interrupt windows that actually extend to that date.
         const interruptApplies = forecastInterrupt &&
@@ -549,12 +599,14 @@ export class GSSStrategy {
         const next = eventDates(cursor, boundary)[0];
         if (next === undefined) {
           processDate(boundary);
+          if (goalAchieved()) return boundary;
           if (reassessParentGoals(boundary, parentGoals)) return boundary;
           return boundary;
         }
         const date = parseISODate(keyDate(next));
         if (!processDate(date)) return date;
         cursor = date;
+        if (goalAchieved()) return date;
         if (reassessParentGoals(date, parentGoals)) return date;
         if (date < boundary) {
           cursor = considerAtDate(date, boundary, depth + 1, allowNested, parentGoals);
@@ -574,7 +626,7 @@ export class GSSStrategy {
     const considerAtDate = (initialDate, horizon, depth, allowFuture, parentGoals = []) => {
       let today = initialDate;
       maximumDepth = Math.max(maximumDepth, depth);
-      while (!strictFailed) {
+      while (!strictFailed && !goalAchieved()) {
         const candidates = candidateList(today, horizon);
         let advanced = false;
         for (const candidate of candidates) {
@@ -665,8 +717,8 @@ export class GSSStrategy {
 
     processDate(startDate);
     let cursor = considerAtDate(startDate, endDate, 0, true);
-    cursor = advanceWindow(cursor, endDate, 0, true, []);
-    if (!processed.has(dateKey(endDate))) processDate(endDate);
+    if (!goalAchieved()) cursor = advanceWindow(cursor, endDate, 0, true, []);
+    if (!goalAchieved() && !processed.has(dateKey(endDate))) processDate(endDate);
 
     return {
       decision_path: decisionPath,
@@ -682,7 +734,12 @@ export class GSSStrategy {
         forecast_rechecks: forecastRechecks,
         forecast_contractions: forecastContractions,
         maximum_recursion_depth: maximumDepth,
-        small_period_days: this.small_period_days
+        small_period_days: this.small_period_days,
+        ...(goalMode ? {
+          goal_target: goal.target,
+          goal_credited_net_interest: provenance.creditedNetInterest,
+          planner_stopped_on_goal: goalAchieved()
+        } : {})
       }
     };
   }
@@ -694,7 +751,8 @@ export class GSSStrategy {
       inflow_account_id: context.inflow_account_id,
       fee_config: context.fee_config,
       consolidation_account_id: context.consolidation_account_id,
-      outflow_schedule: context.outflows
+      outflow_schedule: context.outflows,
+      simulation: context.simulation
     });
     const optionIndex = option => {
       const exact = context.options.indexOf(option);
