@@ -31,13 +31,13 @@ While a recursive window advances, GSS re-evaluates ancestor goals after each pr
 
 For each ancestor, from the innermost parent outwards, GSS:
 
-1. Rebuilds SPLIT and CONSOLIDATE plans against actual balances and pending obligations.
+1. Rebuilds SPLIT and CONSOLIDATE plans against projected balances and pending obligations.
 2. If a plan is viable now, signals early execution to the owning frame.
 3. Otherwise, reruns the future-date projection against the updated timeline.
 4. Contracts the frame's forecast when the newly projected viable date is earlier than its previous forecast.
 5. Records infeasibility separately when no future viable date remains within that frame's horizon.
 
-A contraction is propagated through recursive returns. If a revised ancestor boundary falls inside a descendant's current waiting window, that boundary pre-empts the descendant's original target. The simulation advances only to the revised date, then unwinds to the owning frame. The owner rebuilds its plan from actual state and executes only if it is still viable. A projected date is never treated as an execution guarantee.
+A contraction is propagated through recursive returns. If a revised ancestor boundary falls inside a descendant's current waiting window, that boundary pre-empts the descendant's original target. The simulation advances only to the revised date, then unwinds to the owning frame. The owner rebuilds its plan from the updated planning state and records its own decision only if it is still viable. A projected date is never treated as an execution guarantee.
 
 Forecasts are monotonic during a wait: they may move earlier, but are not extended later. A later or absent forecast does not silently extend an existing wait; the frame resumes normal candidate evaluation if its projected opportunity is no longer viable. Multiple ancestor changes are handled in innermost-to-outermost order, and a child never executes an ancestor's goal.
 
