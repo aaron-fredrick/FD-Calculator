@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aaron-fredrick.github.io/FD-Calculator/sitemap.xml
