@@ -258,7 +258,8 @@ export class SimulationRuntime {
       }
       const channel = source.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase()
         ? "intra_bank" : "domestic_ceft";
-      balances.set(source.id, (balances.get(source.id) ?? 0) - amount);
+      const sourceBalance = (balances.get(source.id) ?? 0) - amount;
+      balances.set(source.id, this.roundBalances ? round2(sourceBalance) : sourceBalance);
       const sourceTotalAfter = this.#totalBalance(balances);
       pendingFees += fee;
       this.schedule(new Event({
@@ -268,7 +269,8 @@ export class SimulationRuntime {
         transfer_channel: channel, fee, balance_after: balances.get(source.id),
         total_balance_after: sourceTotalAfter
       }));
-      balances.set(target.id, (balances.get(target.id) ?? 0) + amount - fee);
+      const targetBalance = (balances.get(target.id) ?? 0) + amount - fee;
+      balances.set(target.id, this.roundBalances ? round2(targetBalance) : targetBalance);
       this.schedule(new Event({
         event_type: EventType.TRANSFER, on_date: this.currentDate, amount: amount - fee,
         label: "Transfer received from " + source.label, account_id: target.id,
@@ -277,7 +279,7 @@ export class SimulationRuntime {
         total_balance_after: this.#totalBalance(balances)
       }));
     };
-    const book = (item, balancesBeforeOverride = null) => {
+    const book = (item, balancesBeforeOverride = null, actionName = signal.action, decisionContextOverride = null) => {
       const target = account(item.account_id);
       const optionIndex = Number(item.option_index);
       if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= this.context.options.length) {
@@ -306,7 +308,8 @@ export class SimulationRuntime {
         }));
       }
       const balancesBeforeBooking = balancesBeforeOverride ?? Object.fromEntries(balances);
-      balances.set(target.id, (balances.get(target.id) ?? 0) - principal);
+      const remainingBalance = (balances.get(target.id) ?? 0) - principal;
+      balances.set(target.id, this.roundBalances ? round2(remainingBalance) : remainingBalance);
       const grossFlows = option.generateCashFlows(principal, this.currentDate, this.compound, this.actualLeapYear);
       const netFlows = option.generateCashFlowsAfterAIT(principal, this.currentDate, this.effectiveAitRate, this.compound, this.actualLeapYear);
       const booking = new Booking({
@@ -320,7 +323,7 @@ export class SimulationRuntime {
         label: "Book " + option.label + " @ " + option.annual_rate.toFixed(2) + "% -> matures " + formatISODate(booking.end),
         booking_ref: ref, account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id,
         balance_after: balances.get(target.id), total_balance_after: this.#totalBalance(balances),
-        decision_context: { action: signal.action.toLowerCase(), balances_before: balancesBeforeBooking }
+        decision_context: decisionContextOverride ?? item.decision_context ?? { action: actionName.toLowerCase(), balances_before: balancesBeforeBooking }
       }));
       netFlows.forEach((flow, index) => {
         const maturity = flow.date.getTime() === booking.end.getTime() &&
