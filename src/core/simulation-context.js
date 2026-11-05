@@ -1,7 +1,7 @@
 import { Account, FDOption, TransferFeeConfig } from "./models.js";
 import { normalizeInflowSchedule } from "./events.js";
 import { validateOutflowSchedule } from "./cashflows.js";
-import { formatISODate, parseISODate } from "./dates.js";
+import { addPeriod, formatISODate, parseISODate } from "./dates.js";
 
 function deepFreeze(value) {
   if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
@@ -19,11 +19,12 @@ export function createSimulationContext(input = {}) {
     throw new TypeError("Simulation input must be an object.");
   }
   const startDate = parseISODate(input.start);
-  const endDate = parseISODate(input.end);
   const simulation = input.simulation ?? { mode: "scoped" };
   if (!simulation || typeof simulation !== "object" || Array.isArray(simulation)) throw new TypeError("Simulation mode must be an object.");
   const mode = simulation.mode ?? "scoped";
-  if (!["time_based", "scoped", "goal"].includes(mode)) throw new RangeError("Unsupported simulation mode: " + mode);
+  if (!["scoped", "goal"].includes(mode)) throw new RangeError("Unsupported simulation mode: " + mode);
+  const endDate = mode === "goal" ? addPeriod(startDate, "30y") : input.end ? parseISODate(input.end) : null;
+  if (!endDate) throw new TypeError("Scoped simulations require an end date.");
   let goal = null;
   if (mode === "goal") {
     if (simulation.goal?.metric !== "consolidation_net_interest") throw new RangeError("Goal metric must be consolidation_net_interest.");
@@ -32,7 +33,7 @@ export function createSimulationContext(input = {}) {
     goal = Object.freeze({ metric: "consolidation_net_interest", target });
   }
   if (startDate > endDate) throw new RangeError("Simulation start must not be after its end.");
-  if (mode === "goal" && startDate.getTime() === endDate.getTime()) throw new RangeError("Goal maximum end date must be after the simulation start.");
+  if (mode === "goal" && startDate.getTime() === endDate.getTime()) throw new RangeError("Goal safety horizon must be after the simulation start.");
 
   const sourceOptions = input.options;
   if (!Array.isArray(sourceOptions) || sourceOptions.length === 0) {

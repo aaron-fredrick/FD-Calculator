@@ -104,20 +104,14 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   const start = resolveDate(investment.start_date, { today });
   let end;
   let goal = null;
-  if (simulationMode === "time_based") {
-    end = addPeriod(start, simulation.duration);
-  } else if (simulationMode === "goal") {
-    goal = {
-      metric: simulation.goal.metric,
-      target: simulation.goal.target,
-      maximum_end_date: formatISODate(resolveDate(simulation.goal.maximum_end_date, { investmentStart: start, today }))
-    };
-    end = parseISODate(goal.maximum_end_date);
+  if (simulationMode === "goal") {
+    goal = { metric: simulation.goal.metric, target: simulation.goal.target };
+    end = addPeriod(start, "30y");
   } else {
     end = resolveDate(investment.end_date, { investmentStart: start, today });
   }
   if (end < start) throw new RangeError("Investment end date is before investment start date.");
-  if (simulationMode === "goal" && end.getTime() === start.getTime()) throw new RangeError("Goal maximum end date must be after the investment start date.");
+  if (simulationMode === "goal" && end.getTime() === start.getTime()) throw new RangeError("Goal safety horizon must be after the investment start date.");
   if (!raw.accounts || typeof raw.accounts !== "object" || Array.isArray(raw.accounts) || !Object.keys(raw.accounts).length) throw new TypeError("accounts must be a non-empty object keyed by account ID.");
 
   const accounts = [];

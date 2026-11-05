@@ -183,7 +183,14 @@ function runStrategySession(strategy, context) {
     if (waitUntil && (!nextDate || waitUntil < formatISODate(nextDate))) {
       nextDate = parseISODate(waitUntil);
     }
-    if (!nextDate) nextDate = new Date(context.end);
+    if (!nextDate) {
+      if (context.simulation?.mode === "goal" && runtime.currentDate &&
+          runtime.currentDate < context.end && !waitUntil) {
+        runtime.completeGoalOutcome("no_future_events");
+        break;
+      }
+      nextDate = new Date(context.end);
+    }
     if (nextDate > context.end) nextDate = new Date(context.end);
     if (runtime.currentDate && nextDate <= runtime.currentDate) {
       if (runtime.currentDate < context.end) nextDate = new Date(context.end);
@@ -192,8 +199,11 @@ function runStrategySession(strategy, context) {
 
     runtime.processDate(nextDate);
     if (!runtime.valid || runtime.isGoalAchieved()) break;
+
     const signal = session.nextSignal(runtime.planningView());
-    runtime.executeSignal(signal);
+    if (signal.signal_type !== StrategySignalType.COMPLETE || context.simulation?.mode !== "goal") {
+      runtime.executeSignal(signal);
+    }
     if (runtime.isGoalAchieved()) break;
     if (signal.signal_type === StrategySignalType.COMPLETE && context.simulation?.mode !== "goal") break;
     waitUntil = signal.signal_type === StrategySignalType.WAIT ? signal.until : null;

@@ -9,10 +9,10 @@ all acceptance criteria below are implemented and verified.
 
 ## Objective
 
-Add a third simulation mode alongside the existing time-based and scoped modes.
-Goal mode terminates at the first event boundary where the configured amount of
-net interest credited to the consolidation account reaches its target, or at a
-configured maximum end date when the target is not reached.
+Use two simulation modes: scoped date range and goal-driven execution. Goal mode
+terminates at the first event boundary where the configured amount of net interest
+credited to the consolidation account reaches its target. It has no user-configured
+end date; a 30-year internal safety horizon prevents non-terminating simulations.
 
 The goal is not portfolio value, gross interest, unrealised FD interest, or total
 interest earned across all accounts. It is cumulative net interest actually
@@ -28,8 +28,7 @@ Canonical shape:
     "mode": "goal",
     "goal": {
       "metric": "consolidation_net_interest",
-      "target": 50000,
-      "maximum_end_date": "2028-11-05"
+      "target": 50000
     }
   }
 }
@@ -37,16 +36,15 @@ Canonical shape:
 
 Modes:
 
-- `time_based`: start date plus configured duration.
 - `scoped`: explicit start and end dates.
-- `goal`: start date, positive target, and maximum end date safety boundary.
+- `goal`: start date and positive target; no user-defined end date. The engine applies a 30-year internal safety horizon.
 
 Legacy configurations remain valid through a single normalization layer. The CLI,
 browser configuration loader, and runtime must consume the same normalized contract.
 Existing investment date fields and strategy settings must remain backward compatible.
 
 Validation must reject unsupported modes/metrics, non-positive or non-finite targets,
-invalid dates, maximum end dates before the start date, missing mode-specific fields,
+invalid dates, internal safety horizons before the start date, missing mode-specific fields,
 and contradictory mode fields. Do not silently reinterpret malformed configurations.
 
 ## Accounting contract
@@ -107,14 +105,14 @@ not principal.
 - The runtime evaluates the canonical metric after each fully processed event
   boundary and records the first crossing.
 - The achieved run stops at that boundary; it must not process later events or run
-  the final consolidation sweep at the configured maximum date.
-- An unachieved run continues to the maximum end date and returns a valid
+  the final consolidation sweep at the internal safety-horizon boundary.
+- An unachieved run stops when no future events can advance it, or at the internal safety horizon, and returns a valid
   `goal_not_reached` outcome, distinct from invalid simulation or execution failure.
 - Finalization runs exactly once at the actual stopping boundary. Final sweep
   transfers must preserve provenance and must not retroactively change whether the
   goal was achieved.
 - Result metadata includes target, actual credited interest, achievement status,
-  achievement date, elapsed days, overshoot or shortfall, maximum boundary, and
+  achievement date, elapsed days, overshoot or shortfall, safety-horizon boundary, and
   stopping reason.
 
 ## Strategy compatibility
@@ -129,7 +127,7 @@ not principal.
   3. On the same date, higher net interest at achievement wins.
   4. Then lower transfer fees and fewer unnecessary operations.
   5. Then existing deterministic tie-breakers.
-- Non-achieving candidates are ranked by net interest at the maximum boundary,
+- Non-achieving candidates are ranked by net interest at the safety-horizon boundary,
   followed by existing tie-breakers.
 - Do not stop search at the first hypothetical crossing; compare candidates within
   the existing bounded search budget.
@@ -161,14 +159,14 @@ Goal-mode report sections, in this order:
    realised net interest, AIT, transfer fees.
 4. **Decision and performance analysis** — decisions, transfers, bookings, strategy
    diagnostics, and Absolute+ search/pruning details.
-5. **Scope status** — achieved or maximum boundary reached, with remaining shortfall.
+5. **Scope status** — achieved or safety-horizon boundary reached, with remaining shortfall.
 
 Do not present a fabricated achievement duration for an unachieved goal.
 
 ## Goal achievement sensitivity study
 
 Add a separate study; preserve the existing fixed-horizon sensitivity benchmark.
-Use identical financial inputs and maximum scope for Greedy, Absolute+, and GSS at
+Use identical financial inputs and the same fixed 30-year internal safety horizon for Greedy, Absolute+, and GSS at
 each test point. Keep AIT, compounding, transfer fees, payout assumptions, and FD
 catalogues identical.
 
@@ -182,12 +180,12 @@ One-factor-at-a-time dimensions:
 | Bank count | 1, 2, 3 |
 | Inflows | none; monthly LKR 10k; quarterly LKR 30k; lump LKR 100k |
 | eFD | standard-only; eligible |
-| Maximum scope | 6, 12, 24 months |
+| Internal safety horizon | Fixed at 30 years for all strategies and test points; not a user input |
 
 Use DFCC, Commercial Bank, and NDB as the bank suite. Include achievable and
 deliberately difficult targets. Record achievement date, days to achievement,
 actual interest at achievement, target attainment, final net interest at the
-maximum boundary, fees, bookings, runtime, Absolute+ expanded states, and proof
+safety-horizon boundary, fees, bookings, runtime, Absolute+ expanded states, and proof
 status. For unachieved runs, report final net interest and shortfall, not an
 achievement duration. Exclude outflow scenarios from primary conclusions until
 outflow accounting is verified.
@@ -210,9 +208,9 @@ outflow accounting is verified.
 
 3. **Simulation-mode normalization**
    - Introduce the canonical mode object and one normalization function.
-   - Preserve legacy time/scoped configuration behaviour.
+   - Preserve legacy scoped configurations; migrate legacy time-based browser drafts to scoped mode.
    - Update schema and semantic validation.
-   - Add migration tests for legacy configs and all three new modes.
+   - Add migration tests for legacy configs and both supported modes.
 
 4. **Shared runtime goal stop**
    - Add canonical metric, threshold detection, first-crossing metadata, and stop
@@ -249,14 +247,14 @@ outflow accounting is verified.
    - Exercise target crossing, overshoot, unreachable goals, maturity boundaries,
      same-day events, inflows, multiple accounts/banks, final consolidation, and
      search-budget exhaustion.
-   - Verify existing time-based/scoped output and settings remain unchanged.
+   - Verify existing scoped output and settings remain unchanged.
    - Run browser build/deployment checks and inspect CI.
    - Fix every regression found and repeat the full suite before marking complete.
 
 ## Acceptance gates
 
-- [x] Legacy time-based and scoped configurations retain their existing semantics under regression tests.
-- [x] All three modes use one normalized configuration contract and one runtime.
+- [x] Legacy scoped configurations retain their existing semantics under regression tests.
+- [x] Both supported modes use one normalized configuration contract and one runtime.
 - [x] Canonical metric counts only first-time net interest credited to consolidation.
 - [x] AIT, principal, mixed transfers, fees, bookings, maturity, and outflow provenance reconcile under unit/integration coverage, including strict/defer/best-effort and multi-account isolation.
 - [x] Goal stops at the first valid event boundary and finalizes exactly once there.
@@ -264,20 +262,20 @@ outflow accounting is verified.
 - [x] Greedy and GSS use shared stop semantics (goal lifecycle integration tests added).
 - [x] Absolute+ ranks achievers by earliest achievement within its bounded search; comparator, candidate replay, and bounded-search diagnostics are tested.
 - [x] CLI, browser UI, schema, validation, and reports use the same mode contract; configuration normalization and browser-module syntax are covered.
-- [x] Corrected goal sensitivity results are reproducible and separate from fixed-horizon tests; the refreshed 72-run artifact and charts include candidate replay settings and invalid-path handling.
+- [ ] Date-independent goal sensitivity matrix is rerun with the fixed 30-year internal safety horizon; the prior 72-run horizon-bounded artifact is superseded.
 - [x] Outflow policy/provenance paths are covered by regression tests; outflows remain explicitly excluded from the primary sensitivity matrix.
 - [x] Documentation, measured benchmark summary, and sensitivity charts describe the implemented behaviour.
-- [x] Full regression suite and all CI checks pass on the latest feature-branch commit.
+- [x] Full regression suite, JavaScript syntax checks, documentation build, dependency review, and CodeQL pass on the latest implementation commit.
 
 ## Current implementation state (updated 6 November 2026)
 
 ### Implemented on this branch
 
-- Added `simulation.mode` validation and normalization for scoped, time-based, and goal-based horizons. Legacy configs without a mode remain scoped.
+- Added `simulation.mode` validation and normalization for scoped and goal-based horizons. Legacy configs without a mode remain scoped.
 - Added post-AIT cash-flow component generation for cumulative, periodic-interest, and installment products.
 - Added provenance buckets for principal, uncredited net interest, and previously counted interest.
 - Added proportional transfer/fee allocation, proportional outflow consumption, and provenance propagation through FD booking and maturity.
-- Added shared-runtime consolidation-credit recognition, first-crossing stop metadata, maximum-boundary shortfall, and goal-aware final-sweep handling.
+- Added shared-runtime consolidation-credit recognition, first-crossing stop metadata, safety-horizon shortfall, and goal-aware final-sweep handling.
 - Added Greedy/GSS shared-runtime goal stopping and an Absolute+ goal candidate replay evaluator with lexicographic scoring, inherited runtime financial settings, invalid-candidate rejection, and bounded-search diagnostics.
 - Migrated CLI and browser configuration inputs; added mode controls, export/import normalization, and goal summaries.
 - Added goal outcome and event-boundary progression to HTML and CLI reports.
@@ -290,7 +288,7 @@ outflow accounting is verified.
 - The general Node test workflow passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
 - The documentation build passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
-- The initial 72-run goal sensitivity workflow completed, but review found the Absolute+ candidate replay had not inherited AIT/compounding/runtime settings. Its Absolute+ values and charts are superseded. After fixing setting inheritance, the corrected run exposed infeasible hypothetical paths; candidate replay now rejects and counts those paths instead of aborting the study. The corrected 72-run study passed on commit `25067936a8a1f407884a2ff3e57f0f3cff0d0482`; its machine-readable artifact is [42097850306](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097850306). Corrected results and charts are published in `goal-achievement.md`. The earlier artifact [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) is retained for audit only.
+- The earlier 72-run goal sensitivity matrix used 6-, 12-, and 24-month maximum scopes. It is superseded because goal mode no longer accepts a user-defined end date. The sensitivity runner now holds the 30-year internal safety horizon constant and removes horizon as a test dimension; the refreshed 63-run matrix is pending on this branch. The prior artifact [42097850306](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097850306) is retained as historical evidence only.
 - CodeQL passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`.
 - The existing fixed-horizon strategy sensitivity and GAML search sensitivity workflow passed: [run 42097833557](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097833557).
 - A clean pre-change baseline was not captured. Existing regression tests are used as compatibility gates instead.

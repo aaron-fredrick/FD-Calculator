@@ -253,7 +253,7 @@ export class SimulationRuntime {
     return true;
   }
 
-  completeGoalOutcome() {
+  completeGoalOutcome(stoppingReason = null) {
     const goal = this.context.simulation?.goal;
     if (!goal || this.goalOutcome) return this.goalOutcome;
     const actual = this.provenance.creditedNetInterest;
@@ -261,8 +261,8 @@ export class SimulationRuntime {
       achieved: false, target: goal.target, actual,
       achievement_date: null, elapsed_days: null, overshoot: 0,
       shortfall: round2(Math.max(0, goal.target - actual)),
-      maximum_end_date: this.context.end_iso,
-      stopping_reason: this.valid ? "maximum_end_date_reached" : "simulation_invalid"
+      safety_horizon_end_date: this.context.end_iso,
+      stopping_reason: this.valid ? (stoppingReason ?? "safety_horizon_reached") : "simulation_invalid"
     };
     return this.goalOutcome;
   }
