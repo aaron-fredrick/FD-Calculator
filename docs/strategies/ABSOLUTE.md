@@ -13,7 +13,7 @@ Absolute is the exhaustive branch-and-bound portfolio optimiser. It explores the
 3. Recursively expand feasible SPLIT, CONSOLIDATE and carry decisions across relevant event dates.
 4. Update the incumbent when a better complete feasible path is found.
 5. Prune a branch only when its upper bound cannot beat the incumbent, or when its state is dominated/equivalent to an already explored state.
-6. Replay the best complete path into the shared simulation result.
+6. Emit the best complete path as revision-bound session decisions for the shared runtime to execute.
 
 Unlike GAML, Absolute does not retain only a fixed-width beam. Its local booking combinations are exhaustive, and its search is not stopped by a GAML beam-width limit.
 
@@ -40,4 +40,4 @@ Inspect the search diagnostics and `optimality_proven` flag with every result. N
 
 ## Shared simulation lifecycle
 
-Absolute returns an unfinished strategy result. The shared `SimulationEngine` owns final event processing and performs exactly one final consolidation sweep. Search branches do not finalise or sweep independently.
+Absolute exposes `createSession(context)`. Its exhaustive search remains hypothetical and returns the selected decision path; it does not execute the authoritative event timeline or construct the actual result. `SimulationRuntime` executes the path, and `SimulationEngine` performs exactly one final consolidation sweep. Search branches do not finalise or sweep independently.
