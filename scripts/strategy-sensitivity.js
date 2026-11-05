@@ -91,7 +91,7 @@ function makeInflows(kind, accountId, end) {
 
 const strategies = [
   ["Greedy", () => new GreedyStrategy({ ait_enabled: true })],
-  ["GAML", () => new GAMLStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48 })],
+  ["GAML", () => new GAMLStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000 })],
   ["GSS", () => new GSSStrategy({ ait_enabled: true, small_period_days: 30 })]
 ];
 const results = [];
