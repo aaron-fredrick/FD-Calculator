@@ -180,3 +180,36 @@ test("report layout, decision accents, maturity colors and chart hover controls 
   assert.ok(html.includes("item._fdHidden=!item._fdHidden;returnsChart(canvas,items)"), "pie legend should support series visibility toggles");
   assert.ok(html.includes("const items=(data.returns||[]).filter(v=>!v._fdHidden)"), "pie hover should track visible slices only");
 });
+
+test("goal reports show the canonical consolidation-interest outcome and event progression", () => {
+  const account = new Account({ id: "main", bank_id: "BANK_A", bank_key: "bank_a", label: "Main", balance: 1100 });
+  const credit = new Event({
+    event_type: EventType.MATURITY, on_date: "2026-12-01", amount: 1100,
+    label: "Maturity [FD-0001]", account_id: "main", balance_after: 1100
+  });
+  credit.goal_metric_after = 100;
+  const result = new SimResult({
+    strategy_name: "Greedy", timeline: { 20261201: [credit] },
+    accounts: { main: account }, total_principal: 1000, end_date: "2026-12-01"
+  });
+  result.start_date = "2026-11-01";
+  result.goal_outcome = {
+    achieved: true, target: 90, actual: 100, achievement_date: "2026-12-01",
+    elapsed_days: 30, overshoot: 10, stopping_reason: "goal_achieved"
+  };
+  result.credited_net_interest = 100;
+  const config = {
+    start: "2026-11-01", end: "2026-12-01", compound: false,
+    actual_leap_year: true, accounts: [account], consolidation_account_id: "main",
+    ait_enabled: true, ait_rate: 0.1,
+    fee_config: { default_inter_bank_fee: 25, same_bank_fee: 0 },
+    inflow_summaries: [], outflow_summaries: [], bank_registry: { BANK_A: { name: "Bank A" } }
+  };
+  const html = generateHtmlReport(result, config);
+  assert.match(html, /Goal outcome · consolidation net interest/);
+  assert.match(html, /First achievement boundary/);
+  assert.match(html, /100\.00/);
+  const consoleText = formatSimulation(result, config, "goal.json", "fd_options.csv", { color: false, showBookingLedger: false });
+  assert.match(consoleText, /GOAL OUTCOME/);
+  assert.match(consoleText, /ACHIEVED/);
+});
