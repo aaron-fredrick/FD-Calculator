@@ -1,6 +1,6 @@
 # Goal-Based Simulation
 
-Goal-based simulation is one of two horizon modes alongside scoped simulation. It terminates at the first event boundary where the configured amount of **net interest first credited to the consolidation account** reaches the target, or at the internal safety horizon if the target is not reached.
+Goal-based simulation is one of two horizon modes alongside scoped simulation. It terminates at the first event boundary where the configured amount of **net interest first credited to the consolidation account** reaches the target, or when no future events can advance it, with the internal safety horizon as a final guard.
 
 ## Objective and accounting
 
@@ -24,7 +24,7 @@ The shared configuration contract uses `simulation.mode`:
 | Mode | Required horizon inputs | Stop condition |
 |---|---|---|
 | `scoped` | `investment.start_date`, `investment.end_date` | Explicit end date |
-| `goal` | `investment.start_date`, goal target | First goal crossing; a 30-year internal safety horizon protects against non-terminating runs |
+| `goal` | `investment.start_date`, goal target | First goal crossing; otherwise stops when no future events remain or at the 30-year internal safety horizon |
 
 Goal configuration:
 
@@ -46,7 +46,7 @@ Goal configuration:
 Goal outcomes are explicit:
 
 - `achieved`: includes target, actual credited interest, achievement date, elapsed days, and overshoot.
-- `goal_not_reached`: includes actual credited interest, internal safety horizon, and remaining shortfall.
+- `goal_not_reached`: includes actual credited interest, stopping reason, safety-horizon date, and remaining shortfall.
 - Invalid simulations remain invalid; they are not converted into ordinary unachieved outcomes.
 
 Legacy configurations without a `simulation` object continue to normalize as scoped simulations.
