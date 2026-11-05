@@ -39,6 +39,39 @@ GAML reports `optimality_proven` only when the search completes without a decisi
 
 The diagnostics include expanded states, leaves, bound and memo pruning, beam pruning, local-combination pruning, peak root strategy frontier, alternative leaf returns and the effective settings. Review these alongside net interest and runtime; a higher return obtained with more work should be judged against its additional computational cost.
 
+## Parameter sensitivity study
+
+The following controlled experiment varies one GAML search limit at a time. All runs use the actual `SimulationEngine`, the repository's DFCC, Commercial Bank and NDB FD catalogues, and an identical financial scenario:
+
+- Start: 5 November 2026; horizon: 24 months.
+- LKR 300,000 starting capital across three accounts at DFCC, Commercial Bank and NDB.
+- No inflows or outflows; eFD eligible; AIT enabled at 10%; simple interest.
+- Baseline controls: beam width 96, local branch limit 48, decision cap 5,000.
+
+Each graph has separate panels for net interest after AIT and transfer fees, expanded search states, and measured runtime. Runtime is specific to the CI runner; it is useful for relative cost within this run, not as a hardware-independent benchmark. Full raw results: [gaml-search-results.json](./benchmarks/gaml-search-results.json).
+
+### Beam width
+
+![GAML beam-width sensitivity](./assets/gaml-beam-width.svg)
+
+### Local branch limit
+
+![GAML local-branch sensitivity](./assets/gaml-local-branch-limit.svg)
+
+### Expanded-state decision cap
+
+![GAML decision-cap sensitivity](./assets/gaml-decision-cap.svg)
+
+### Observations
+
+- **Net interest did not change** across any of the 15 parameter settings: every run returned LKR 61,886.03. In this scenario, increasing search limits did not improve the selected financial outcome.
+- **Beam width had the clearest computational cost.** Increasing it from 32 to 256 raised runtime from about 0.80 s to 10.53 s; the 192- and 256-wide runs both reached the 5,000-state cap.
+- **Local branch limit had modest, non-monotonic runtime impact.** Runtime ranged from about 4.29 s to 5.07 s. Expanded-state counts stayed near 2,800, while local-combination pruning fell as the branch limit increased.
+- **The decision cap controls work directly until the search naturally exhausts its frontier.** Caps of 500, 1,000 and 2,500 were reached; caps of 5,000 and 10,000 both stopped naturally after 2,791 expanded states and produced effectively the same runtime.
+- **No run proved optimality.** Pruning occurred in every run, so identical net interest is evidence of a stable result for this scenario, not a global-optimality guarantee.
+
+The experiment is deliberately a one-factor sensitivity check, not a universal tuning prescription. Re-run it with different horizons, inflows and bank/account mixes before choosing production defaults. Raw measurements were produced by the [GAML sensitivity runner](../../scripts/gaml-sensitivity.js).
+
 ## Interpretation and use
 
 Use GAML when exploring alternative future booking sequences is worth more computation than a fast local heuristic. Start with defaults, then increase one control at a time. Compare identical financial inputs and record:
