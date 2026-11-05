@@ -638,7 +638,10 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
     }
   }
   visit(initial);
-  return { bestNode, bestGoalScore, goalPrunedByAchievement, optimalityProven: true };
+  const optimalityProven = evaluateGoal
+    ? counters.localPruned === 0 && counters.boundPruned === 0 && counters.memoPruned === 0
+    : true;
+  return { bestNode, bestGoalScore, goalPrunedByAchievement, optimalityProven };
 }
 
 function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
