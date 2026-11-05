@@ -147,10 +147,10 @@ for (const capital of [25000, 100000, 300000, 1000000]) {
   runCase("starting_capital_lkr", capital, { capital });
 }
 for (const accountCount of [1, 2, 3]) {
-  runCase("account_count", accountCount, { accountCount, capital: 300000, bankCount: 3 });
+  runCase("account_count", accountCount, { accountCount, capital: 300000, bankCount: 1 });
 }
 for (const bankCount of [1, 2, 3]) {
-  runCase("bank_count", bankCount, { accountCount: bankCount, capital: 300000, bankCount });
+  runCase("bank_count", bankCount, { accountCount: 3, capital: 300000, bankCount });
 }
 for (const inflow of ["none", "monthly_10k", "lump_100k"]) {
   runCase("inflow_pattern", inflow, { inflow });
