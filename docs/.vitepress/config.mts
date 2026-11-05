@@ -93,6 +93,7 @@ export default defineConfig({
         text: 'Architecture',
         collapsed: true,
         items: [
+          { text: 'Simulation lifecycle', link: '/SIMULATION-LIFECYCLE' },
           { text: 'Simulation/strategy boundary plan', link: '/architecture/SIMULATION-STRATEGY-BOUNDARY-PLAN' },
           { text: 'Codebase map', link: '/reference/CODEBASE' },
           { text: 'Migration plan', link: '/MIGRATION_PLAN' },
