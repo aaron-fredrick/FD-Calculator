@@ -81,6 +81,7 @@ export function formatSimulation(result,config,configPath,optionsPath,{color:use
   out.push("  Goal accounting counts first-time net interest credited to the consolidation account; principal is excluded.");
   if(result.search_diagnostics?.goal_candidates_evaluated!==undefined){
     out.push(summaryLine("Goal Candidates Evaluated",String(result.search_diagnostics.goal_candidates_evaluated),C.date,useColor));
+    out.push(summaryLine("Invalid Goal Candidates",String(result.search_diagnostics.goal_invalid_candidates??0),C.outflow,useColor));
     out.push(summaryLine("Search Optimality",result.search_diagnostics.optimality_proven?"PROVEN":"NOT PROVEN (bounded search)",result.search_diagnostics.optimality_proven?C.cash:C.outflow,useColor));
   }
  }
