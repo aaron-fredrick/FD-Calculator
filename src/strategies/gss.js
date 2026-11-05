@@ -418,35 +418,16 @@ export class GSSStrategy {
       }
       return { achieved: false, achievement_date: null, actual, first_credit_date: firstCreditDate, next_event_date: nextEventDate };
     };
-    const earliestGoalOpportunity = estimate => [
-      estimate.first_credit_date, estimate.next_event_date
-    ].filter(Boolean).sort()[0] ?? null;
     const compareGoalPlans = (left, right) => {
       const a = left.estimate, b = right.estimate;
-      if (a.achieved !== b.achieved) {
-        const unachieved = a.achieved ? b : a;
-        const achieved = a.achieved ? a : b;
-        const opportunity = earliestGoalOpportunity(unachieved);
-        // A non-consolidation payout can enable a transfer and goal credit
-        // before another plan's later projected maturity. Re-evaluate at that
-        // earlier boundary instead of treating the later projection as final.
-        if (opportunity && achieved.achievement_date &&
-            opportunity < achieved.achievement_date) {
-          return a.achieved ? 1 : -1;
-        }
-        return a.achieved ? -1 : 1;
-      }
+      if (a.achieved !== b.achieved) return a.achieved ? -1 : 1;
       if (a.achieved && a.achievement_date !== b.achievement_date) {
         return a.achievement_date.localeCompare(b.achievement_date);
       }
-      if (!a.achieved) {
-        const aOpportunity = earliestGoalOpportunity(a);
-        const bOpportunity = earliestGoalOpportunity(b);
-        if (aOpportunity !== bOpportunity) {
-          if (!aOpportunity) return 1;
-          if (!bOpportunity) return -1;
-          return aOpportunity.localeCompare(bOpportunity);
-        }
+      if (!a.achieved && a.first_credit_date !== b.first_credit_date) {
+        if (!a.first_credit_date) return 1;
+        if (!b.first_credit_date) return -1;
+        return a.first_credit_date.localeCompare(b.first_credit_date);
       }
       if (Math.abs(a.actual - b.actual) > EPS) return b.actual - a.actual;
       if (Math.abs(left.plan.fees - right.plan.fees) > EPS) return left.plan.fees - right.plan.fees;

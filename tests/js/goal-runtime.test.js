@@ -342,10 +342,10 @@ test("Absolute+ local truncation retains an earlier low-interest goal path", () 
 
 
 
-test("GSS prefers an earlier non-consolidation payout over a higher-interest later maturity", () => {
+test("GSS keeps a directly goal-achieving path ahead of an earlier insufficient payout", () => {
   const scenario = {
     start: "2026-01-01", end: "2026-04-01",
-    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 500 } },
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 3000 } },
     options: [
       new FDOption({ label: "Fast eFD 30d", period_str: "30d", annual_rate: 10, min_amount: 25000, bank_id: "BANK_B", bank_key: "b", is_efd: true }),
       new FDOption({ label: "Slow standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
@@ -362,8 +362,8 @@ test("GSS prefers an earlier non-consolidation payout over a higher-interest lat
   const greedy = engine.run(new GreedyStrategy({ ait_enabled: false }), scenario);
   const gss = engine.run(new GSSStrategy({ ait_enabled: false }), scenario);
   assert.equal(greedy.goal_outcome.achievement_date, "2026-03-02");
-  assert.equal(gss.goal_outcome.achievement_date, "2026-01-31");
-  assert.equal(gss.bookings[0].option.label, "Fast eFD 30d");
+  assert.equal(gss.goal_outcome.achievement_date, "2026-03-02");
+  assert.equal(gss.bookings[0].option.label, "Consolidation standard 60d");
 });
 
 
