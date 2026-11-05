@@ -99,8 +99,23 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   validateConfigurationShape(raw);
   const investment = raw.investment;
   if (!investment || typeof investment !== "object") throw new TypeError("Configuration requires an investment object.");
+  const simulation = raw.simulation ?? { mode: "scoped" };
+  const simulationMode = simulation.mode ?? "scoped";
   const start = resolveDate(investment.start_date, { today });
-  const end = resolveDate(investment.end_date, { investmentStart: start, today });
+  let end;
+  let goal = null;
+  if (simulationMode === "time_based") {
+    end = addPeriod(start, simulation.duration);
+  } else if (simulationMode === "goal") {
+    goal = {
+      metric: simulation.goal.metric,
+      target: simulation.goal.target,
+      maximum_end_date: formatISODate(resolveDate(simulation.goal.maximum_end_date, { investmentStart: start, today }))
+    };
+    end = parseISODate(goal.maximum_end_date);
+  } else {
+    end = resolveDate(investment.end_date, { investmentStart: start, today });
+  }
   if (end < start) throw new RangeError("Investment end date is before investment start date.");
   if (!raw.accounts || typeof raw.accounts !== "object" || Array.isArray(raw.accounts) || !Object.keys(raw.accounts).length) throw new TypeError("accounts must be a non-empty object keyed by account ID.");
 
@@ -189,7 +204,7 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     small_period_days: positiveInteger(gssRaw.small_period_days, "gss_settings.small_period_days", 30)
   };
   return {
-    start, end, accounts, accountIds, bankIds, options, consolidation_account_id: consolidationAccountId,
+    start, end, simulation: { mode: simulationMode, goal }, accounts, accountIds, bankIds, options, consolidation_account_id: consolidationAccountId,
     inflow_schedule: inflows.schedule, inflow_summaries: inflows.summaries,
     outflow_schedule: outflows.schedule, outflow_summaries: outflows.summaries,
     fee_config: feeConfig, strategy, gaml_settings: gamlSettings, greedy_settings: greedySettings, gss_settings: gssSettings, compound,
