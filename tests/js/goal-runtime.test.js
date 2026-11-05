@@ -247,6 +247,38 @@ test("Greedy and GSS use the same shared goal outcome and stopping contract", ()
   }
 });
 
+test("GSS waits for an earlier consolidation opportunity instead of rebooking interest elsewhere", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1000 } },
+    options: [
+      new FDOption({
+        label: "Reserve eFD", period_str: "30d", annual_rate: 36.5,
+        min_amount: 25000, bank_id: "BANK_B", bank_key: "b", is_efd: true
+      }),
+      new FDOption({
+        label: "Consolidation standard", period_str: "30d", annual_rate: 1,
+        min_amount: 110000, bank_id: "BANK_A", bank_key: "a"
+      })
+    ],
+    accounts: [
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000, supports_efd: true }),
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0, supports_efd: false })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    inflow_schedule: { "2026-02-01": { main: 20000 } },
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const result = new SimulationEngine().run(new GSSStrategy({ ait_enabled: false }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-02-01");
+  assert.equal(result.gss_diagnostics.planner_stopped_on_goal, true);
+  assert.ok(result.gss_diagnostics.goal_plan_evaluations > 0);
+  assert.ok(result.credited_net_interest >= 1000);
+  assert.equal(result.bookings[0].option.label, "Reserve eFD");
+  assert.equal(result.bookings[1].option.label, "Consolidation standard");
+});
+
 test("Absolute+ applies a finite default decision budget in goal mode", () => {
   const result = new SimulationEngine().run(new AbsolutePlusStrategy({
     beam_width: 8, max_local_branches: 4, ait_enabled: true
