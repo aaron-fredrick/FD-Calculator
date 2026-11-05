@@ -48,7 +48,7 @@ function nodePath(node) {
   return path.reverse();
 }
 
-function compareGoalScores(a, b) {
+export function compareGoalScores(a, b) {
   if (!b) return 1;
   if (a.achieved !== b.achieved) return a.achieved ? 1 : -1;
   if (a.achieved) {
