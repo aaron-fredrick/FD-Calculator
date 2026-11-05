@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { GSSStrategy } from "../../src/strategies/gss.js";
+import { SimulationEngine } from "../../src/core/simulation.js";
 import { LegacyGSSStrategy } from "../fixtures/legacy-gss-oracle.js";
 
 const fd = (label, rate, min, period = "30d", bank = "BANK_A") => new FDOption({
@@ -93,7 +94,7 @@ for (const [index, input] of scenarios.entries()) {
   test("GSS shared-runtime replay matches legacy ledger scenario " + (index + 1), () => {
     const settings = { small_period_days: 30, ait_enabled: true };
     const legacy = new LegacyGSSStrategy(settings).simulate(input);
-    const migrated = new GSSStrategy(settings).simulate(input);
+    const migrated = new SimulationEngine().runUnfinalized(new GSSStrategy(settings), input);
     assert.deepEqual(normalize(migrated), normalize(legacy));
   });
 }
