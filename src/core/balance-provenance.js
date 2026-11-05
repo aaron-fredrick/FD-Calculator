@@ -58,6 +58,15 @@ export class BalanceProvenance {
 
   addPrincipal(id, amount) { return this.add(id, { principal: amount }); }
 
+  addCashFlow(id, principalComponents, newlyGeneratedInterest) {
+    const interest = Number(newlyGeneratedInterest ?? 0);
+    if (!Number.isFinite(interest) || interest < 0) throw new RangeError("New FD interest must be finite and non-negative.");
+    return this.add(id, {
+      ...principalComponents,
+      uncredited_interest: Number(principalComponents?.uncredited_interest ?? 0) + interest
+    });
+  }
+
   /** Remove an amount pro rata; returns the exact component composition removed. */
   debit(id, amount) {
     const source = this.#get(id);
