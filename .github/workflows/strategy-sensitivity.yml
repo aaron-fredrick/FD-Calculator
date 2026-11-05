@@ -3,12 +3,14 @@ on:
   pull_request:
     paths:
       - "scripts/strategy-sensitivity.js"
+      - "scripts/gaml-sensitivity.js"
       - "src/core/**"
       - "src/strategies/**"
       - "src/fd-options/**"
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/strategy-sensitivity.yml"
+      - "docs/strategies/**"
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,9 +25,13 @@ jobs:
           node-version: 22
       - name: Run strategy sensitivity study
         run: node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
+      - name: Run GAML search sensitivity study
+        run: node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
       - name: Upload benchmark output
         uses: actions/upload-artifact@v6
         with:
           name: strategy-sensitivity-results
-          path: strategy-sensitivity-output.txt
+          path: |
+            strategy-sensitivity-output.txt
+            gaml-sensitivity-output.txt
           retention-days: 14

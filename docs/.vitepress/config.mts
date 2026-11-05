@@ -77,7 +77,16 @@ export default defineConfig({
         items: [
           { text: 'Strategy overview', link: '/STRATEGIES' },
           { text: 'Sensitivity benchmark', link: '/strategies/benchmarks' },
-          { text: 'GSS technical reference', link: '/strategies/GSS' },
+          {
+            text: 'Technical references',
+            collapsed: false,
+            items: [
+              { text: 'Greedy', link: '/strategies/GREEDY' },
+              { text: 'Absolute', link: '/strategies/ABSOLUTE' },
+              { text: 'GAML', link: '/strategies/GAML' },
+              { text: 'GSS', link: '/strategies/GSS' },
+            ],
+          },
         ],
       },
       {

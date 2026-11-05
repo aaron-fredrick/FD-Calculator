@@ -52,9 +52,13 @@ Each chart overlays all three strategy results for the same factor. Exact machin
 
 ![Account-count sensitivity](./assets/accounts.svg)
 
+The three strategy lines overlap because the measured returns are effectively identical across one, two and three accounts in this single-bank scenario. The near-flat result is meaningful: splitting the same capital across more accounts did not improve the available rate or net return in this catalogue snapshot.
+
 ### Number of banks
 
 ![Bank-count sensitivity](./assets/banks.svg)
+
+The Greedy and GAML lines overlap in this comparison. GSS remains close to its one-bank result and does not capture the same benefit from adding banks.
 
 ### Cash inflows
 
@@ -99,6 +103,10 @@ GAML matched Greedy on the monthly-inflow case, but used the full 5,000 expanded
 - **GSS** remained very fast, but underperformed Greedy on several multi-bank, longer-horizon and inflow scenarios. The eFD result also suggests that broader candidate availability is not automatically being converted into better goal outcomes.
 
 These are observations from this fixed catalogue snapshot and the stated one-factor sweeps, not universal rankings. Rate schedules, product minima, payout types, fees and eligibility all influence the result.
+
+## GAML search-parameter sensitivity
+
+A separate controlled experiment varies GAML's beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Results and overlay charts are published alongside the main study once the run completes and is reviewed.
 
 ## Reproducibility and limitations
 

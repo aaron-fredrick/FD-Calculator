@@ -11,6 +11,15 @@ FD Cal provides four implemented strategies. They share the same account, FD, ca
 | **Absolute** | Exhaustively explores the decision space using branch-and-bound. | Optimality proof for tractable scenarios. | Yes, when search completes |
 | **GSS** | Selects manager-ordered FD goals, compares SPLIT and CONSOLIDATE, and recursively plans waiting periods. | Goal-oriented plans with liquidity-aware interim investments. | No proof |
 
+## Technical implementation guides
+
+Detailed implementation references are available for all four strategies:
+
+- [Greedy](strategies/GREEDY.md)
+- [Absolute](strategies/ABSOLUTE.md)
+- [GAML](strategies/GAML.md)
+- [GSS](strategies/GSS.md)
+
 ## Greedy
 
 Greedy evaluates currently available balances and eligible FD options, then selects an immediate SPLIT or CONSOLIDATE plan. It is a fast baseline, not a guarantee of a globally best portfolio.
