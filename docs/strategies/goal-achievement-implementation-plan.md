@@ -264,7 +264,7 @@ outflow accounting is verified.
 - [x] Greedy and GSS use shared stop semantics (goal lifecycle integration tests added).
 - [x] Absolute+ ranks achievers by earliest achievement within its bounded search; comparator, candidate replay, and bounded-search diagnostics are tested.
 - [x] CLI, browser UI, schema, validation, and reports use the same mode contract; configuration normalization and browser-module syntax are covered.
-- [x] Goal sensitivity results are reproducible and separate from fixed-horizon tests; 72 measured runs are attached to the workflow artifact.
+- [ ] Corrected goal sensitivity results are reproducible and separate from fixed-horizon tests; publish the refreshed 72-run artifact and charts after candidate replay settings verification.
 - [x] Outflow policy/provenance paths are covered by regression tests; outflows remain explicitly excluded from the primary sensitivity matrix.
 - [x] Documentation, measured benchmark summary, and sensitivity charts describe the implemented behaviour.
 - [ ] Full regression suite and all CI checks pass on the latest feature-branch commit.
@@ -286,17 +286,17 @@ outflow accounting is verified.
 
 ### Verification evidence
 
-- The JavaScript test workflow, including the browser/CLI syntax-check step, passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`.
-- The general Node test workflow passed on the same commit, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
-- The documentation build passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`.
+- The JavaScript test workflow, including browser/CLI syntax checks, passed on commit `7b44a006433dc29db4b1d2ddd3300c63636505f9`; candidate replay settings inheritance was added afterward and is being re-verified.
+- The general Node test workflow passed on commit `7b44a006433dc29db4b1d2ddd3300c63636505f9`, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
+- The documentation build passed on commit `7b44a006433dc29db4b1d2ddd3300c63636505f9`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
-- Dedicated goal sensitivity workflow passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`; all 72 strategy runs completed and the measured summary is published in `goal-achievement.md`. The full machine-readable artifact is attached to workflow run [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770).
+- The initial 72-run goal sensitivity workflow completed, but review found the Absolute+ candidate replay had not inherited AIT/compounding/runtime settings. Its Absolute+ values and charts are superseded. Candidate replay now inherits those settings, and a corrected 72-run study is running. The earlier artifact [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) is retained for audit only.
 - A clean pre-change baseline was not captured. Existing regression tests are being used as compatibility gates instead.
 
 ### Remaining work
 
-- Verify the documentation-only artifact-link update, CodeQL, and existing fixed-horizon sensitivity workflow; the goal sensitivity run and full functional test suites have passed on the current implementation.
-- Measured benchmark output was reviewed; summary and charts are committed, with the full machine-readable result retained as the linked workflow artifact.
+- Verify the latest replay-settings fix and its tests, CodeQL, documentation build, corrected goal sensitivity run, and existing fixed-horizon sensitivity workflow.
+- Greedy/GSS benchmark results are validated. Refresh Absolute+ results, charts, and the machine-readable artifact after the corrected goal sensitivity run passes.
 - Greedy/GSS shared-lifecycle tests and Absolute+ lexicographic ranking/tie-breaker tests have been added.
 - Browser configuration mode controls and CLI input migration are implemented; browser module syntax-check and configuration regression tests have passed.
 - Outflow policy and provenance hardening now has strict/defer/best-effort, multi-account isolation, and same-day interest-credit/withdrawal tests. Outflows remain excluded from the goal sensitivity conclusions.
