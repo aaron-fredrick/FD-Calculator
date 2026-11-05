@@ -136,7 +136,7 @@ export class SimulationRuntime {
       if (![EventType.INFLOW, EventType.CASH_FLOW, EventType.MATURITY].includes(event.event_type)) continue;
       const account = this.accounts.get(event.account_id) ?? this.accounts.get(this.context.inflow_account_id);
       if (!account) throw new RangeError("Event references an unknown account.");
-      balances.set(account.id, round2((balances.get(account.id) ?? 0) + event.amount));
+      balances.set(account.id, (balances.get(account.id) ?? 0) + event.amount);
       event.account_id = account.id;
       event.bank_key = account.bank_key;
       event.bank_id = account.bank_id;
@@ -242,13 +242,14 @@ export class SimulationRuntime {
       if (!Number.isFinite(amount) || amount <= 0 || amount > (balances.get(source.id) ?? 0) + 1e-9) {
         throw new RangeError("Transfer amount exceeds available source balance.");
       }
-      if (!Number.isFinite(fee) || Math.abs(fee - expectedFee) > EPS || amount <= fee) {
+      if (!Number.isFinite(expectedFee) || expectedFee < 0 ||
+          !Number.isFinite(fee) || Math.abs(fee - expectedFee) > EPS || amount <= fee) {
         throw new RangeError("Transfer fee or net transfer amount is invalid.");
       }
       const channel = source.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase()
         ? "intra_bank" : "domestic_ceft";
-      balances.set(source.id, round2((balances.get(source.id) ?? 0) - amount));
-      balances.set(target.id, round2((balances.get(target.id) ?? 0) + amount - fee));
+      balances.set(source.id, (balances.get(source.id) ?? 0) - amount);
+      balances.set(target.id, (balances.get(target.id) ?? 0) + amount - fee);
       pendingFees += fee;
       this.schedule(new Event({
         event_type: EventType.TRANSFER, on_date: this.currentDate, amount,
@@ -274,13 +275,14 @@ export class SimulationRuntime {
       const option = this.context.options[optionIndex];
       const principal = Number(item.principal);
       if (!Number.isFinite(principal) || principal <= 0 ||
-          principal > (balances.get(target.id) ?? 0) + EPS ||
+          principal > (balances.get(target.id) ?? 0) + 1e-9 ||
           principal + EPS < option.min_amount ||
           !target.canUseOption(option) ||
           !option.fitsBefore(this.currentDate, this.context.end)) {
         throw new RangeError("Booking is not eligible for the current account balance, account capability, or horizon.");
       }
-      balances.set(target.id, round2((balances.get(target.id) ?? 0) - principal));
+      const balancesBeforeBooking = Object.fromEntries(balances);
+      balances.set(target.id, (balances.get(target.id) ?? 0) - principal);
       const grossFlows = option.generateCashFlows(principal, this.currentDate, this.compound, this.actualLeapYear);
       const netFlows = option.generateCashFlowsAfterAIT(principal, this.currentDate, this.effectiveAitRate, this.compound, this.actualLeapYear);
       const booking = new Booking({
@@ -294,7 +296,7 @@ export class SimulationRuntime {
         label: "Book " + option.label + " @ " + option.annual_rate.toFixed(2) + "% -> matures " + formatISODate(booking.end),
         booking_ref: ref, account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id,
         balance_after: balances.get(target.id), total_balance_after: this.#totalBalance(balances),
-        decision_context: { action: signal.action.toLowerCase(), balances_before: before }
+        decision_context: { action: signal.action.toLowerCase(), balances_before: balancesBeforeBooking }
       }));
       netFlows.forEach((flow, index) => {
         const maturity = flow.date.getTime() === booking.end.getTime() &&
@@ -333,12 +335,13 @@ export class SimulationRuntime {
         const target = account(id);
         const amount = balances.get(target.id) ?? 0;
         if (amount <= EPS) continue;
+        const balancesBeforeCarry = Object.fromEntries(balances);
         pendingEvents.push(new Event({
           event_type: EventType.CARRY_FORWARD, on_date: this.currentDate, amount,
-          label: "Balance " + amount.toFixed(2) + " carries forward",
+          label: "Below min / no option fits; balance " + amount.toFixed(2) + " carries forward",
           account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id,
           balance_after: amount, total_balance_after: this.#totalBalance(balances),
-          decision_context: { action: "carry", balances_before: before }
+          decision_context: { action: "carry", balances_before: balancesBeforeCarry }
         }));
       }
     } finally {
