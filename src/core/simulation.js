@@ -117,7 +117,8 @@ export function runStrategySession(strategy, context) {
       compound: strategy.compound,
       actual_leap_year: strategy.actual_leap_year,
       ait_enabled: strategy.ait_enabled,
-      ait_rate: strategy.ait_rate
+      ait_rate: strategy.ait_rate,
+      outflow_account_tiebreak: strategy.outflow_account_tiebreak
     });
     const session = strategy.createSession(context);
     if (!session || typeof session.nextSignal !== "function") {
@@ -154,6 +155,7 @@ export function runStrategySession(strategy, context) {
     }
 
     const result = runtime.buildResult();
+    if (session.resultMetadata) Object.assign(result, session.resultMetadata);
     return result;
   }
 
