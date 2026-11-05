@@ -118,7 +118,10 @@ export function runStrategySession(strategy, context) {
       actual_leap_year: strategy.actual_leap_year,
       ait_enabled: strategy.ait_enabled,
       ait_rate: strategy.ait_rate,
-      outflow_account_tiebreak: strategy.outflow_account_tiebreak
+      outflow_account_tiebreak: strategy.outflow_account_tiebreak,
+      outflow_due_date_sort: strategy.outflow_due_date_sort,
+      round_balances: strategy.round_balances,
+      opening_trigger_always: strategy.opening_trigger_always
     });
     const session = strategy.createSession(context);
     if (!session || typeof session.nextSignal !== "function") {
