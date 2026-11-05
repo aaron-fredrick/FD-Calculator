@@ -254,7 +254,7 @@ outflow accounting is verified.
 ## Acceptance gates
 
 - [x] Legacy scoped configurations retain their existing semantics under regression tests.
-- [x] All three modes use one normalized configuration contract and one runtime.
+- [x] Both supported modes use one normalized configuration contract and one runtime.
 - [x] Canonical metric counts only first-time net interest credited to consolidation.
 - [x] AIT, principal, mixed transfers, fees, bookings, maturity, and outflow provenance reconcile under unit/integration coverage, including strict/defer/best-effort and multi-account isolation.
 - [x] Goal stops at the first valid event boundary and finalizes exactly once there.
