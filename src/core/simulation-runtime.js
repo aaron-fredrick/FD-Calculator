@@ -3,6 +3,7 @@ import { Account } from "./models.js";
 import { Booking, SimResult } from "./results.js";
 import { formatISODate, parseISODate } from "./dates.js";
 import { SimulationState, validateStrategySignal, StrategySignalType, StrategyDecisionType } from "./strategy-contracts.js";
+import { BalanceProvenance } from "./balance-provenance.js";
 
 const EPS = 0.001;
 const round2 = value => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -42,6 +43,8 @@ export class SimulationRuntime {
       label: account.label, balance: account.balance, supports_efd: account.supports_efd
     })]));
     this.state = null;
+    this.provenance = new BalanceProvenance(this.accounts.keys());
+    this.bookingProvenance = new Map();
     this.timeline = {};
     this.bookings = [];
     this.pending = [];
@@ -59,6 +62,7 @@ export class SimulationRuntime {
 
   #initializeState() {
     this.state = new SimulationState([...this.accounts.values()]);
+    for (const account of this.accounts.values()) this.provenance.addPrincipal(account.id, account.balance);
   }
 
   #initializeEvents() {
@@ -149,7 +153,19 @@ export class SimulationRuntime {
       event.bank_id = account.bank_id;
       event.balance_after = balances.get(account.id);
       event.total_balance_after = this.#totalBalance(balances);
+      if (event.event_type === EventType.INFLOW) {
+        this.provenance.addPrincipal(account.id, event.amount);
+      } else if (event.cash_components) {
+        this.provenance.add(account.id, {
+          ...(event.cash_components.principal_components ?? {}),
+          uncredited_interest: event.cash_components.interest ?? 0
+        });
+      } else {
+        // Compatibility for externally-created cash events without component metadata.
+        this.provenance.addPrincipal(account.id, event.amount);
+      }
     }
+    this.provenance.recognizeConsolidationCredit(this.context.consolidation_account_id);
 
     const dueOutflowEvents = events.filter(event => event.event_type === EventType.OUTFLOW);
     for (const event of dueOutflowEvents) {
@@ -193,6 +209,7 @@ export class SimulationRuntime {
       }
 
       if (paid > EPS) {
+        this.provenance.debit(account.id, paid);
         balances.set(account.id, round2(available - paid));
         this.totalOutflowsPaid += paid;
         const paidEvent = new Event({
@@ -235,6 +252,8 @@ export class SimulationRuntime {
         signal.signal_type === StrategySignalType.COMPLETE) return signal;
 
     const balances = this.#balanceMap();
+    const provenance = this.provenance.clone();
+    const pendingBookingProvenance = new Map();
     const balancesAtDecisionStart = Object.fromEntries(balances);
     const account = id => {
       const value = this.accounts.get(String(id));
@@ -257,6 +276,7 @@ export class SimulationRuntime {
       }
       const channel = source.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase()
         ? "intra_bank" : "domestic_ceft";
+      provenance.transfer(source.id, target.id, amount, fee);
       const sourceBalance = (balances.get(source.id) ?? 0) - amount;
       balances.set(source.id, this.roundBalances ? round2(sourceBalance) : sourceBalance);
       const sourceTotalAfter = this.#totalBalance(balances);
@@ -310,13 +330,15 @@ export class SimulationRuntime {
       const remainingBalance = (balances.get(target.id) ?? 0) - principal;
       balances.set(target.id, this.roundBalances ? round2(remainingBalance) : remainingBalance);
       const grossFlows = option.generateCashFlows(principal, this.currentDate, this.compound, this.actualLeapYear);
-      const netFlows = option.generateCashFlowsAfterAIT(principal, this.currentDate, this.effectiveAitRate, this.compound, this.actualLeapYear);
+      const bookedComponents = provenance.debit(target.id, principal);
+      const netFlows = option.generateCashFlowComponentsAfterAIT(principal, this.currentDate, this.effectiveAitRate, this.compound, this.actualLeapYear);
       const booking = new Booking({
         option, principal, start: this.currentDate, cash_flows: grossFlows,
         account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id
       });
       const ref = "FD-" + String(++pendingBookingNumber).padStart(4, "0");
       pendingBookings.push(booking);
+      pendingBookingProvenance.set(ref, bookedComponents);
       this.schedule(new Event({
         event_type: EventType.BOOKING, on_date: this.currentDate, amount: principal,
         label: "Book " + option.label + " @ " + option.annual_rate.toFixed(2) + "% -> matures " + formatISODate(booking.end),
@@ -331,7 +353,11 @@ export class SimulationRuntime {
           event_type: maturity ? EventType.MATURITY : EventType.CASH_FLOW,
           on_date: flow.date, amount: flow.amount,
           label: (maturity ? "Maturity " : "Cash flow ") + "[" + ref + "] (" + option.label + ")",
-          booking_ref: ref, account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id
+          booking_ref: ref, account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id,
+          cash_components: {
+            principal_components: provenance.allocateBookedPrincipal(bookedComponents, flow.principal, principal),
+            interest: flow.interest
+          }
         }));
       });
     };
@@ -413,6 +439,9 @@ export class SimulationRuntime {
       throw new RangeError("Decision would produce a non-finite transfer-fee total.");
     }
     this.#commitBalances(balances);
+    this.provenance = provenance;
+    for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
+    this.provenance.recognizeConsolidationCredit(this.context.consolidation_account_id);
     this.totalFees += pendingFees;
     this.bookingNumber = pendingBookingNumber;
     this.bookings.push(...pendingBookings);
@@ -433,13 +462,16 @@ export class SimulationRuntime {
       name: item.name, account_id: item.account_id, remaining: item.remaining,
       payment_policy: item.payment_policy, due_date: item.due_date
     }));
-    return new SimResult({
+    const result = new SimResult({
       strategy_name: this.strategyName, timeline: this.timeline, bookings: this.bookings,
       total_principal: this.context.original_capital + this.totalInflows,
-      end_date: this.context.end, accounts, total_transfer_fees: this.totalFees,
+      end_date: this.currentDate ?? this.context.end, accounts, total_transfer_fees: this.totalFees,
       total_outflows_paid: this.totalOutflowsPaid, outstanding_outflows: outstanding,
       valid: this.valid, ait_enabled: this.aitEnabled, ait_rate: this.aitRate,
       decision_log: this.decisionLog
     });
+    result.credited_net_interest = this.provenance.creditedNetInterest;
+    result.provenance = Object.fromEntries([...this.provenance.accounts].map(([id, value]) => [id, { ...value }]));
+    return result;
   }
 }
