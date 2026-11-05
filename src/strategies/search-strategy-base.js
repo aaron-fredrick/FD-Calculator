@@ -61,7 +61,7 @@ export function compareGoalScores(a, b) {
   return String(b.signature).localeCompare(String(a.signature));
 }
 
-function createPathReplayStrategy(path, engineContext, runtimeSettings = {}) {
+export function createPathReplayStrategy(path, engineContext, runtimeSettings = {}) {
   const actions = new Map(path.map(item => [item.date, item.action]));
   const optionIndex = option => {
     const exact = engineContext.options.indexOf(option);
