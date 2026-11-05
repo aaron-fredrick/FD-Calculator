@@ -320,11 +320,14 @@ function buildConsolidationBranches(balances, accounts, context, feeConfig, toda
 
 function advanceState(state, context) {
   const { inflows, outflows } = context;
+  const goalMode = context.simulation?.mode === "goal";
+  const goalProvenance = goalMode ? state.goalProvenance.clone() : null;
   let balances = state.balances;
   const todayInflows = inflows[state.date] || {};
   for (const [accountId, amount] of Object.entries(todayInflows)) {
     if (!context.accounts.has(accountId)) throw new RangeError("Inflow destination account " + accountId + " is not configured.");
     balances = addSearchBalance(balances, accountId, amount);
+    goalProvenance?.addPrincipal(accountId, amount);
   }
 
   const pending = [];
@@ -335,12 +338,38 @@ function advanceState(state, context) {
     } else pending.push([date, entries]);
   }
 
+  const pendingGoalFlows = [];
+  for (const [date, accountId, components] of state.goalFlows ?? []) {
+    if (date < state.date) continue;
+    if (date === state.date) {
+      goalProvenance?.addCashFlow(
+        accountId, components.principal_components ?? {}, components.interest ?? 0
+      );
+    } else pendingGoalFlows.push([date, accountId, components]);
+  }
+  goalProvenance?.recognizeConsolidationCredit(context.consolidationId);
+
+  const beforeOutflows = goalMode ? new Map(balances) : null;
   const processed = processOutflows(state.date, balances, state.obligations, outflows[state.date] || []);
   if (!processed.valid) return null;
+  if (goalProvenance) {
+    const afterOutflows = new Map(processed.balances);
+    for (const [accountId, before] of beforeOutflows) {
+      const paid = round2(before - (afterOutflows.get(accountId) || 0));
+      if (paid > EPS) goalProvenance.debit(accountId, paid);
+    }
+    for (const [accountId, balance] of afterOutflows) {
+      if (Math.abs(round2(balance) - goalProvenance.total(accountId)) > 0.02) {
+        throw new Error("Goal search provenance does not reconcile for account " + accountId + ".");
+      }
+    }
+  }
   return {
     ...state,
     balances: processed.balances,
     flows: pending,
+    goalFlows: pendingGoalFlows,
+    goalProvenance: goalProvenance ?? state.goalProvenance,
     obligations: processed.pending,
     paid: round2(state.paid + processed.paid),
   };
