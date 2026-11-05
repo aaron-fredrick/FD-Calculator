@@ -3,8 +3,6 @@ import { Event, EventType, normalizeInflowSchedule } from "../core/events.js";
 import { Booking } from "../core/results.js";
 import { daysBetween, formatISODate, parseISODate } from "../core/dates.js";
 import { validateOutflowSchedule } from "../core/cashflows.js";
-import { createSimulationContext } from "../core/simulation-context.js";
-import { runStrategySession } from "../core/simulation.js";
 import {
   createStrategyDecision, createStrategyWait, createStrategyComplete,
   StrategyDecisionType
@@ -777,8 +775,5 @@ export class GSSStrategy {
     };
   }
 
-  // Compatibility adapter for callers that require an unfinished result.
-  simulate(input) {
-    return runStrategySession(this, createSimulationContext(input));
-  }
+
 }
