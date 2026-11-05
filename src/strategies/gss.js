@@ -350,6 +350,79 @@ export class GSSStrategy {
       return plans;
     };
 
+    let goalPlanEvaluations = 0;
+    const estimateGoalPlan = (plan, date) => {
+      if (!provenance || !goal) return null;
+      goalPlanEvaluations++;
+      const projected = provenance.clone();
+      const credits = new Map();
+      const addCredit = (onDate, amount) => {
+        const value = round2(Number(amount || 0));
+        if (value <= EPS) return;
+        const key = formatISODate(onDate);
+        credits.set(key, round2((credits.get(key) || 0) + value));
+      };
+      for (const [key, events] of Object.entries(timeline)) {
+        const onDate = keyDate(key);
+        if (onDate <= formatISODate(date)) continue;
+        for (const event of events) {
+          if (event.account_id !== consolidation_account_id || !event.cash_components) continue;
+          const carried = Number(event.cash_components.principal_components?.uncredited_interest || 0);
+          addCredit(onDate, carried + Number(event.cash_components.interest || 0));
+        }
+      }
+      const initialCredit = projected.creditedNetInterest;
+      for (const transfer of plan.transfers) {
+        projected.transfer(transfer.source.id, plan.target_account.id, transfer.amount, transfer.fee);
+        if (plan.target_account.id === consolidation_account_id) {
+          projected.recognizeConsolidationCredit(consolidation_account_id);
+        }
+      }
+      addCredit(date, projected.creditedNetInterest - initialCredit);
+      for (const item of plan.bookings) {
+        const booked = projected.debit(item.account.id, item.principal);
+        if (item.account.id !== consolidation_account_id) continue;
+        const flows = item.option.generateCashFlowComponentsAfterAIT(
+          item.principal, date, this.effective_ait_rate, this.compound, this.actual_leap_year
+        );
+        for (const flow of flows) {
+          const returned = projected.allocateBookedPrincipal(booked, flow.principal, item.principal);
+          addCredit(flow.date, returned.uncredited_interest + flow.interest);
+        }
+      }
+      const beforeRecognition = projected.creditedNetInterest;
+      projected.recognizeConsolidationCredit(consolidation_account_id);
+      addCredit(date, projected.creditedNetInterest - beforeRecognition);
+      let actual = provenance.creditedNetInterest;
+      let firstCreditDate = null;
+      for (const [onDate, amount] of [...credits].sort(([a], [b]) => a.localeCompare(b))) {
+        actual = round2(actual + amount);
+        firstCreditDate ??= onDate;
+        if (actual + EPS >= goal.target) {
+          return { achieved: true, achievement_date: onDate, actual, first_credit_date: firstCreditDate };
+        }
+      }
+      return { achieved: false, achievement_date: null, actual, first_credit_date: firstCreditDate };
+    };
+    const compareGoalPlans = (left, right) => {
+      const a = left.estimate, b = right.estimate;
+      if (a.achieved !== b.achieved) return a.achieved ? -1 : 1;
+      if (a.achieved && a.achievement_date !== b.achievement_date) return a.achievement_date.localeCompare(b.achievement_date);
+      if (!a.achieved && a.first_credit_date !== b.first_credit_date) {
+        if (!a.first_credit_date) return 1;
+        if (!b.first_credit_date) return -1;
+        return a.first_credit_date.localeCompare(b.first_credit_date);
+      }
+      if (Math.abs(a.actual - b.actual) > EPS) return b.actual - a.actual;
+      if (Math.abs(left.plan.fees - right.plan.fees) > EPS) return left.plan.fees - right.plan.fees;
+      return left.plan.bookings.length - right.plan.bookings.length;
+    };
+    const selectPlan = (plans, date) => {
+      if (!goalMode) return plans[0];
+      return plans.map(plan => ({ plan, estimate: estimateGoalPlan(plan, date) }))
+        .sort(compareGoalPlans)[0]?.plan;
+    };
+
     const findFutureDate = (candidate, fromDate, horizon, parentGoals = []) => {
       const balances = balanceSnapshot();
       let projectedPending = pending.map(item => ({ ...item }));
