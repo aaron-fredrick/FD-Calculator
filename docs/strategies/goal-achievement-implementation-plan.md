@@ -267,7 +267,7 @@ outflow accounting is verified.
 - [x] Corrected goal sensitivity results are reproducible and separate from fixed-horizon tests; the refreshed 72-run artifact and charts include candidate replay settings and invalid-path handling.
 - [x] Outflow policy/provenance paths are covered by regression tests; outflows remain explicitly excluded from the primary sensitivity matrix.
 - [x] Documentation, measured benchmark summary, and sensitivity charts describe the implemented behaviour.
-- [ ] Full regression suite and all CI checks pass on the latest feature-branch commit.
+- [x] Full regression suite and all CI checks pass on the latest feature-branch commit.
 
 ## Current implementation state (updated 6 November 2026)
 
@@ -286,20 +286,17 @@ outflow accounting is verified.
 
 ### Verification evidence
 
-- The JavaScript test workflow, including browser/CLI syntax checks, passed on commit `88c4091d77969ac80179d8d07230f6d32f9dbe61`, including candidate replay setting and invalid-path tests.
-- The general Node test workflow passed on commit `88c4091d77969ac80179d8d07230f6d32f9dbe61`, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
-- The documentation build passed on commit `88c4091d77969ac80179d8d07230f6d32f9dbe61`.
+- The JavaScript test workflow, including browser/CLI syntax checks, passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`, including candidate replay setting and invalid-path tests.
+- The general Node test workflow passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
+- The documentation build passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
 - The initial 72-run goal sensitivity workflow completed, but review found the Absolute+ candidate replay had not inherited AIT/compounding/runtime settings. Its Absolute+ values and charts are superseded. After fixing setting inheritance, the corrected run exposed infeasible hypothetical paths; candidate replay now rejects and counts those paths instead of aborting the study. The corrected 72-run study passed on commit `25067936a8a1f407884a2ff3e57f0f3cff0d0482`; its machine-readable artifact is [42097850306](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097850306). Corrected results and charts are published in `goal-achievement.md`. The earlier artifact [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) is retained for audit only.
-- A clean pre-change baseline was not captured. Existing regression tests are being used as compatibility gates instead.
+- CodeQL passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`.
+- The existing fixed-horizon strategy sensitivity and GAML search sensitivity workflow passed: [run 42097833557](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097833557).
+- A clean pre-change baseline was not captured. Existing regression tests are used as compatibility gates instead.
 
 ### Remaining work
 
-- Verify CodeQL only; latest functional tests, documentation build, corrected goal sensitivity study, and both fixed-horizon strategy/GAML sensitivity steps have passed.
-- Corrected Greedy, GSS, and Absolute+ benchmark results, charts, and the machine-readable artifact are published; invalid candidate replay counts/reasons are included.
-- Greedy/GSS shared-lifecycle tests and Absolute+ lexicographic ranking/tie-breaker tests have been added.
-- Browser configuration mode controls and CLI input migration are implemented; browser module syntax-check and configuration regression tests have passed.
-- Outflow policy and provenance hardening now has strict/defer/best-effort, multi-account isolation, and same-day interest-credit/withdrawal tests. Outflows remain excluded from the goal sensitivity conclusions.
-- Re-run all checks after the final fixes and update every acceptance gate with evidence.
+No required implementation or verification gates remain open. Outflow-heavy performance conclusions are intentionally excluded from the goal sensitivity matrix; a separate outflow sensitivity study can be added independently without blocking this feature.
 
-Do not mark the feature complete while any of these items or acceptance gates remain open.
+The feature is implemented and verified. Keep the PR unmerged until review is complete.
