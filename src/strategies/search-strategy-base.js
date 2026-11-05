@@ -884,10 +884,15 @@ export class SearchStrategyBase {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
       bestValue: goalMode ? -Infinity : greedyObjective, alternatives: [], memo: new Map()
     };
+    const initialGoalProvenance = goalMode ? new BalanceProvenance([...context.accounts.keys()]) : null;
+    if (initialGoalProvenance) {
+      for (const [id, account] of context.accounts) initialGoalProvenance.addPrincipal(id, account.balance);
+    }
     const initial = {
       date: context.start,
       balances: makeBalanceState(Object.fromEntries([...context.accounts].map(([id, account]) => [id, account.balance]))),
-      flows: [], obligations: [], paid: 0
+      flows: [], goalFlows: [], goalProvenance: initialGoalProvenance,
+      obligations: [], paid: 0
     };
     // Goal mode has a finite default budget so a 30-year safety horizon
     // cannot turn a browser search into an effectively unbounded run.
