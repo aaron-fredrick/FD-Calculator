@@ -14,7 +14,7 @@ The migration has reached the documentation-alignment phase:
 - Phase 0 — baseline and contract discovery: complete.
 - Phase 1 — simulation foundation: complete.
 - Phase 2 — Greedy session migration: complete, with frozen legacy ledger parity.
-- Phase 3 — GAML/Absolute session migration: complete, with frozen replay/diagnostic parity.
+- Phase 3 — Absolute+/Absolute session migration: complete, with frozen replay/diagnostic parity.
 - Phase 4 — GSS hypothetical planning and runtime replay: complete, with recursive-planner parity and atomic same-date batches.
 - Phase 5 — ownership enforcement: complete. Production strategies expose `createSession(context)`; `SimulationEngine.run()` rejects simulate-only strategies.
 - Phase 6 — documentation alignment and final validation: complete.
@@ -27,9 +27,9 @@ The current implementation is only partially separated:
 
 - `SimulationEngine.run()` calls `strategy.simulate(input)`, inserts the `SIMULATION_START` event, and calls the one final consolidation sweep.
 - Greedy and GSS each build and process their own actual event timelines, mutate their own account copies, execute bookings/transfers, schedule cash flows, and construct `SimResult`.
-- GAML and Absolute share search-state expansion and search drivers, but `SearchStrategyBase` builds a context, runs Greedy as an incumbent, searches hypothetical states, and replays the chosen path with a separate actual event loop that also executes bookings/transfers and constructs `SimResult`.
+- Absolute+ and Absolute share search-state expansion and search drivers, but `SearchStrategyBase` builds a context, runs Greedy as an incumbent, searches hypothetical states, and replays the chosen path with a separate actual event loop that also executes bookings/transfers and constructs `SimResult`.
 - GSS additionally owns recursive goal frames, future-goal projection, ancestor reassessment, and forecast contraction. These are strategy planning responsibilities and must remain strategy-owned.
-- Search-state projection is necessary for GAML/Absolute. It must remain distinct from actual execution and must not mutate the authoritative simulation state.
+- Search-state projection is necessary for Absolute+/Absolute. It must remain distinct from actual execution and must not mutate the authoritative simulation state.
 - Final consolidation is already centralized in `finalizeSimulation()`. Preserve its exactly-once behaviour.
 
 The existing `docs/SIMULATION-LIFECYCLE.md` describes finalization accurately, but its statement that strategies own event generation is too broad for the intended architecture and should be corrected after the implementation establishes the new contract.
@@ -59,7 +59,7 @@ Strategies own:
 - Choose investment goals and future decision boundaries.
 - Maintain strategy-specific planning state.
 - GSS recursive goals, interim planning, ancestor reforecasting, forecast contraction, and goal ownership.
-- GAML bounded search and Absolute exhaustive search, including their diagnostics and guarantees.
+- Absolute+ bounded search and Absolute exhaustive search, including their diagnostics and guarantees.
 - Hypothetical exploration needed to evaluate future decision sequences.
 
 Strategies must not mutate authoritative account balances, process the actual event timeline, execute actual transfers/bookings, append actual events, or construct the final `SimResult`.
@@ -97,11 +97,11 @@ The engine owns actual time progression. A strategy may request a future decisio
 
 Extract its current daily SPLIT/CONSOLIDATE/CARRY composition and ranking into decision logic. Preserve option selection, plan tie-breakers, eFD equivalence handling, transfer-fee evaluation, and decision timing. Move actual event processing, outflow settlement, transfer/booking execution, cash-flow scheduling, and result construction to the simulation layer.
 
-### GAML and Absolute
+### Absolute+ and Absolute
 
 Keep search algorithms, branch generation, state scoring, pruning, and hypothetical projections strategy-owned. Remove the independent actual replay executor from the strategy layer. The selected path must be validated and executed through the shared simulation layer.
 
-During Phase 1, explicitly decide whether these strategies return a complete decision plan or expose a search session. Do not force the batch-search strategies into a reactive algorithm merely for interface uniformity. Whatever contract is chosen must preserve chronological decisions, state-dependent validity, GAML budget/optimality diagnostics, Absolute's exhaustive guarantee, and the Greedy incumbent behaviour.
+During Phase 1, explicitly decide whether these strategies return a complete decision plan or expose a search session. Do not force the batch-search strategies into a reactive algorithm merely for interface uniformity. Whatever contract is chosen must preserve chronological decisions, state-dependent validity, Absolute+ budget/optimality diagnostics, Absolute's exhaustive guarantee, and the Greedy incumbent behaviour.
 
 ### GSS
 
@@ -119,7 +119,7 @@ Work:
 
 - Run the complete Node test suite and record the exact command/result.
 - Inspect all strategy, simulation, event, cash-flow, result, CLI, web and test call paths.
-- Capture deterministic baseline outputs for Greedy, GAML, Absolute and GSS: validity, net interest/final value, fees, outflows, account balances, booking ledger, event ledger, and strategy diagnostics.
+- Capture deterministic baseline outputs for Greedy, Absolute+, Absolute and GSS: validity, net interest/final value, fees, outflows, account balances, booking ledger, event ledger, and strategy diagnostics.
 - Cover periodic payouts, maturities, inflows, all outflow policies, transfers, eFD eligibility, no-investment cases, and GSS recursive contraction.
 - Identify all direct calls to `strategy.simulate()` and all production entry points.
 - Finalize the strategy contract options and decision DTO shape before implementation.
@@ -160,7 +160,7 @@ Exit gate:
 - Greedy works through the public SimulationEngine path.
 - No actual state mutation or execution remains in Greedy.
 
-### Phase 3 — GAML and Absolute migration
+### Phase 3 — Absolute+ and Absolute migration
 
 Keep hypothetical search and decision-path construction in the strategy layer. Route selected decisions through the simulation execution path. Remove the search replay executor.
 
@@ -169,7 +169,7 @@ Exit gate:
 - Search engine tests and strategy tests pass.
 - Deterministic baseline objective values and selected decision paths are preserved.
 - Absolute's optimality status remains correct.
-- GAML's budget, pruning, and optimality diagnostics remain correct.
+- Absolute+'s budget, pruning, and optimality diagnostics remain correct.
 - Replayed actual results match the selected hypothetical path.
 
 ### Phase 4 — GSS migration
@@ -229,7 +229,7 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 | 0 — Baseline | Complete with a fixture gap carried into Phase 1 | Existing CI suite passes; call paths and regression coverage mapped. Add explicit canonical cross-strategy event-ledger snapshots before the first strategy migration. |
 | 1 — Foundation | Complete | Added normalized context, revision-bound planning contracts, shared chronological runtime, transactional decision execution, session runner, and legacy strategy adapter. Greedy now consumes the session contract. |
 | 2 — Greedy | Complete | Greedy planning is session-based; actual execution moved to SimulationRuntime. A frozen pre-refactor oracle verifies the normalized financial/event ledger, and CI passes. |
-| 3 — Search | Complete | GAML/Absolute retain their search algorithms and diagnostics while selected paths execute through SimulationRuntime. Frozen legacy replay parity tests pass. |
+| 3 — Search | Complete | Absolute+/Absolute retain their search algorithms and diagnostics while selected paths execute through SimulationRuntime. Frozen legacy replay parity tests pass. |
 | 4 — GSS | Complete | Recursive planning remains hypothetical and emits decision paths; SimulationRuntime owns actual replay. Legacy GSS ledger/diagnostic parity and atomic batch tests pass. |
 | 5 — Enforcement | Complete | Removed production strategy adapters and legacy engine fallback; immutable contexts/signals and architecture tests enforce the session boundary. CLI/browser remain engine-driven. |
 | 6 — Documentation | Complete | Lifecycle, architecture, strategy guides, testing reference and codebase map aligned; final CI validation passed. |
@@ -246,8 +246,8 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 
 **Production entry points and direct calls**
 
-- CLI `src/cli/fd-cal.js` constructs Greedy, GAML, Absolute or GSS and calls `new SimulationEngine().run(strategy, input)`.
-- Browser `src/web/app.js` constructs Greedy, GAML or GSS and also calls `SimulationEngine.run()`.
+- CLI `src/cli/fd-cal.js` constructs Greedy, Absolute+, Absolute or GSS and calls `new SimulationEngine().run(strategy, input)`.
+- Browser `src/web/app.js` constructs Greedy, Absolute+ or GSS and also calls `SimulationEngine.run()`.
 - `src/strategies/index.js` exports strategy classes and search utilities; it does not itself execute simulations.
 - Strategy `.simulate()` remains directly callable. Tests intentionally call it to verify unfinished-result/finalization boundaries. SearchStrategyBase also calls Greedy.simulate() to obtain its incumbent. These are migration-sensitive internal paths; do not remove the method until all consumers have been replaced and tests prove compatibility.
 
@@ -263,13 +263,13 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 
 - Core tests cover date arithmetic, interest/leap-year behaviour, eFD eligibility, transfer fees, periodic and installment cash flows, AIT, and immutable outflow settlement including strict/defer/best-effort policies.
 - Greedy tests cover booking/maturity, eFD eligibility, and both option/plan tenor tie-break directions.
-- Search tests cover Absolute replay/optimality, GAML settings/budget/quality, and account-level eFD eligibility.
+- Search tests cover Absolute replay/optimality, Absolute+ settings/budget/quality, and account-level eFD eligibility.
 - GSS tests cover manager-ordered candidate fallback, future inflows, parent forecast contraction, consolidation, interim booking maturity limits, no viable goal, start event, strict outflows, and three-level ancestor forecast contraction.
 - The repository already contains the 54-run, three-strategy sensitivity benchmark in `docs/strategies/benchmarks/results.json`, including horizon, capital, account/bank diversity, inflow and eFD sweeps. Treat it as a scenario-specific performance reference, not a universal financial golden file.
 
 **Gap carried forward**
 
-The current tests provide meaningful behavioural assertions, and the benchmark provides a numeric scenario reference, but there is no single canonical fixture that compares full booking and event ledgers for Greedy, GAML, Absolute and GSS. Add focused deterministic ledger snapshots/normalization tests at the start of Phase 1, before changing any strategy execution path. Keep snapshots readable and limited to stable fields; do not snapshot incidental object internals or runtime timings.
+The current tests provide meaningful behavioural assertions, and the benchmark provides a numeric scenario reference, but there is no single canonical fixture that compares full booking and event ledgers for Greedy, Absolute+, Absolute and GSS. Add focused deterministic ledger snapshots/normalization tests at the start of Phase 1, before changing any strategy execution path. Keep snapshots readable and limited to stable fields; do not snapshot incidental object internals or runtime timings.
 
 **Phase 0 conclusion**
 
@@ -283,7 +283,7 @@ The current test suite and docs build are green, and the execution paths are suf
 
 - The engine owns actual simulation progression and execution; strategies own decisions and hypothetical planning.
 - GSS recursive goal frames and ancestor forecast logic remain strategy-owned.
-- GAML/Absolute hypothetical search remains strategy-owned; actual replay moves to the simulation layer.
+- Absolute+/Absolute hypothetical search remains strategy-owned; actual replay moves to the simulation layer.
 - Final consolidation remains a single engine-owned operation after the overall horizon.
 - The exact strategy contract and batch-search integration are deliberately finalized in Phase 0/1 using call-path and baseline evidence, rather than assumed in advance.
 
@@ -300,7 +300,7 @@ The current test suite and docs build are green, and the execution paths are suf
 
 **Baseline ledger coverage**
 
-- Added `tests/js/simulation-ledger.test.js`, which normalizes stable financial, booking, account, and event-ledger fields for Greedy, GAML, Absolute, and GSS and verifies repeat-run determinism.
+- Added `tests/js/simulation-ledger.test.js`, which normalizes stable financial, booking, account, and event-ledger fields for Greedy, Absolute+, Absolute, and GSS and verifies repeat-run determinism.
 - This is an initial deterministic regression baseline, not yet a checked-in golden-output fixture. It must not be treated as proof of cross-version financial equivalence; fixed expected snapshots and broader policy coverage remain open work before strategy migration.
 
 **Current boundary**
@@ -311,7 +311,7 @@ The current test suite and docs build are green, and the execution paths are suf
 
 **Issue note — baseline fixture compatibility**
 
-- Symptom: the first CI run failed only the new GAML and Absolute ledger tests; Greedy, GSS, and the contract tests passed.
+- Symptom: the first CI run failed only the new Absolute+ and Absolute ledger tests; Greedy, GSS, and the contract tests passed.
 - Reproduction: the shared baseline fixture supplied an FD product for BANK_A but configured a second account at BANK_B.
 - Root cause: SearchStrategyBase validates that every configured account has at least one compatible FD product before search. This is an existing input contract, not an executor or strategy regression.
 - Constraint: keep one common scenario valid for all four strategies; do not weaken search input validation to accommodate a test fixture.
@@ -362,7 +362,7 @@ The current test suite and docs build are green, and the execution paths are suf
 - Session-based actual execution has one shared runtime path. Unmigrated strategies continue through the explicitly temporary legacy adapter.
 - Finalization remains in `SimulationEngine` and is invoked once for session-based runs.
 - Node.js 22 full test suite, JavaScript test workflow, documentation build, and dependency review passed on commit `40aee827605c2677741653722fcbc5a6d7cd5fca`. Strategy sensitivity and CodeQL were still running when this phase note was prepared.
-- Phase 1 is complete; Phase 2 begins without removing the adapter required by GAML/Absolute and GSS.
+- Phase 1 is complete; Phase 2 begins without removing the adapter required by Absolute+/Absolute and GSS.
 
 **Runtime issue notes**
 
@@ -398,12 +398,12 @@ The current test suite and docs build are green, and the execution paths are suf
 
 **Phase 3 issue note — search projection cent rounding during replay**
 
-- Symptom: GAML and Absolute session replay rejected a local booking although the selected search path considered it eligible.
+- Symptom: Absolute+ and Absolute session replay rejected a local booking although the selected search path considered it eligible.
 - Reproduction: the search projection requested a principal of 40,314.91 while the actual runtime balance was 40,314.9095890411; the 0.0004109589 difference came from search-state cent rounding.
 - Root cause: hypothetical search states use rounded balances, while the legacy replay executor books the authoritative actual account balance. The first shared runtime required near-exact principal equality and therefore rejected a valid whole-account booking.
 - Constraint: preserve search's rounded projection model while replaying against actual balances; do not round or alter authoritative balances merely to satisfy the hypothetical plan.
 - Correction: when requested principal and actual available balance differ by no more than the existing 0.001 financial epsilon, execute the full authoritative balance. Larger mismatches remain invalid.
-- Regression coverage: cross-strategy ledger tests and the frozen GAML/Absolute replay oracle verify financial and event-ledger parity.
+- Regression coverage: cross-strategy ledger tests and the frozen Absolute+/Absolute replay oracle verify financial and event-ledger parity.
 
 
 ### Phase 2 completion — Greedy
@@ -414,21 +414,21 @@ The current test suite and docs build are green, and the execution paths are suf
 - A frozen pre-refactor Greedy oracle verifies financial totals, account balances, obligations, bookings, and normalized event-ledger parity. CI passed this test and the existing Greedy suite.
 - Phase 2 is complete.
 
-### Phase 3 progress — GAML and Absolute
+### Phase 3 progress — Absolute+ and Absolute
 
-- Search planning and diagnostics remain in SearchStrategyBase. The existing Absolute exhaustive search and GAML beam search generate a selected path, which is converted to revision-bound decisions.
+- Search planning and diagnostics remain in SearchStrategyBase. The existing Absolute exhaustive search and Absolute+ beam search generate a selected path, which is converted to revision-bound decisions.
 - The session emits WAIT signals between selected decision dates. Actual chronological event processing and path execution now run through SimulationRuntime.
 - Removed the separate search replay loop and result-construction path. The unfinished-result `simulate()` method is now a compatibility adapter over the shared session runner.
 - Search diagnostics, optimality status, alternative leaf values, and search settings are carried into the runtime-built result.
-- Added frozen pre-refactor search replay tests for GAML and Absolute. The JavaScript test workflow passed on commit `f239d2db8bbb555f80c0295c348dd7c463f4590d`; full CI and sensitivity validation remain in progress.
+- Added frozen pre-refactor search replay tests for Absolute+ and Absolute. The JavaScript test workflow passed on commit `f239d2db8bbb555f80c0295c348dd7c463f4590d`; full CI and sensitivity validation remain in progress.
 - Phase 3 is not complete until the full test workflow and differential replay tests pass.
 
 
-### Phase 3 completion — GAML and Absolute
+### Phase 3 completion — Absolute+ and Absolute
 
 - SearchStrategyBase now computes the same search path and diagnostics as before, then emits revision-bound decisions for the shared runtime.
 - The separate actual replay loop and result construction have been removed from SearchStrategyBase. Its direct `simulate()` method is a compatibility adapter over the session runner.
-- Frozen pre-refactor replay oracles compare GAML and Absolute financial totals, bookings, account balances, obligations, event ledgers, and search diagnostics.
+- Frozen pre-refactor replay oracles compare Absolute+ and Absolute financial totals, bookings, account balances, obligations, event ledgers, and search diagnostics.
 - JavaScript and full Node test workflows passed on the search migration validation. The strategy sensitivity workflow also completed successfully during this phase.
 - Phase 3 is complete.
 
@@ -459,7 +459,7 @@ The current test suite and docs build are green, and the execution paths are suf
 
 ### Phase 5 progress — enforce engine ownership
 
-- Removed the public `simulate(input)` adapters from Greedy, SearchStrategyBase (therefore GAML/Absolute), and GSS.
+- Removed the public `simulate(input)` adapters from Greedy, SearchStrategyBase (therefore Absolute+/Absolute), and GSS.
 - `SimulationEngine.run()` now accepts only strategies implementing `createSession(context)`; the legacy simulate-only fallback has been removed.
 - SearchStrategyBase's Greedy incumbent now runs through `SimulationEngine.runUnfinalized()`, an engine-owned projection path that deliberately omits the start marker/final sweep for search scoring. It does not call a strategy execution method.
 - The session runner is now private to `src/core/simulation.js`. Public strategy classes expose planning sessions, not actual simulation entry points.
@@ -470,11 +470,11 @@ The current test suite and docs build are green, and the execution paths are suf
 **Phase 5 issue note — frozen search oracle incumbent**
 
 - Symptom: after removing Greedy's production `simulate()` adapter, the frozen legacy SearchStrategyBase oracle failed before replay because its incumbent calculation still called `GreedyStrategy.simulate()`.
-- Reproduction: run the GAML/Absolute differential replay tests against the legacy search oracle.
+- Reproduction: run the Absolute+/Absolute differential replay tests against the legacy search oracle.
 - Root cause: the oracle intentionally retains the old search replay implementation but imports the current production Greedy class for its incumbent, creating a dependency on the removed adapter.
 - Constraint: keep the old search replay as the test oracle without reintroducing production strategy execution adapters.
 - Correction: route the oracle's incumbent through `SimulationEngine.runUnfinalized()`, matching the new engine-owned incumbent path.
-- Regression coverage: GAML and Absolute legacy replay parity tests passed in the subsequent JavaScript test workflow.
+- Regression coverage: Absolute+ and Absolute legacy replay parity tests passed in the subsequent JavaScript test workflow.
 
 
 **Phase 5 issue note — immutable signal enforcement test**
@@ -488,7 +488,7 @@ The current test suite and docs build are green, and the execution paths are suf
 
 **Phase 5 ownership boundary**
 
-- The production strategy classes no longer define `simulate()`. Greedy, GAML, Absolute, and GSS expose `createSession()` only.
+- The production strategy classes no longer define `simulate()`. Greedy, Absolute+, Absolute, and GSS expose `createSession()` only.
 - `SimulationEngine.run()` rejects simulate-only strategy objects. `runUnfinalized()` remains an engine-owned internal projection path used by SearchStrategyBase to score its Greedy incumbent and by focused unfinished-result tests.
 - Strategy contexts contain cloned, deeply frozen account, FD option, fee, and cash-flow values. Strategies receive isolated Date copies, not the runtime's authoritative Date objects.
 - Decision, wait, completion, and batch signals are factory-created and deeply immutable; runtime validates the signal revision/date before execution.
@@ -509,12 +509,12 @@ The current test suite and docs build are green, and the execution paths are suf
 
 **Phase 6 issue — search SPLIT event snapshots**
 
-- Symptom: the two-account GAML/Absolute parity fixture found a mismatch in the second SPLIT booking's `balances_before` event context.
+- Symptom: the two-account Absolute+/Absolute parity fixture found a mismatch in the second SPLIT booking's `balances_before` event context.
 - Reproduction: both accounts start at 30,000. After booking the first account, the legacy replay records the second booking snapshot with the first account at zero and the second still at 30,000.
 - Root cause: legacy SearchStrategyBase captures a separate balance snapshot immediately before each booking; it does not share one snapshot across the SPLIT action.
 - Constraint: preserve strategy-specific event-ledger semantics rather than assuming Greedy, Search and GSS use identical snapshots.
 - Correction: remove the search-wide snapshot override. Runtime captures balances before each SPLIT booking; consolidation retains its decision-start snapshot.
-- Regression coverage: multi-account GAML/Absolute parity tests and a direct sequential-snapshot runtime test.
+- Regression coverage: multi-account Absolute+/Absolute parity tests and a direct sequential-snapshot runtime test.
 
 
 ### Phase 6 validation update
@@ -534,6 +534,6 @@ The final validation set passed on commit `d51897883364e621eae1b3d49dda51edc343e
 - VitePress documentation build and generated-site layout checks: [run 42023202861](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023202861).
 - Dependency Review: [run 42023203033](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023203033).
 - CodeQL analysis: [run 42023203120](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023203120).
-- Strategy sensitivity study and GAML search sensitivity sweeps: [run 42023202858](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023202858).
+- Strategy sensitivity study and Absolute+ search sensitivity sweeps: [run 42023202858](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023202858).
 
 All six implementation phases are complete. The PR remains open and unmerged.
