@@ -145,7 +145,7 @@ function scoreGoalResult(result, terminalValue, signature = "") {
   };
 }
 
-function evaluateGoalPath(path, engineContext, terminalValue, runtimeSettings) {
+export function evaluateGoalPath(path, engineContext, terminalValue, runtimeSettings) {
   const signature = JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""]));
   try {
     const strategy = createPathReplayStrategy(path, engineContext, runtimeSettings);
