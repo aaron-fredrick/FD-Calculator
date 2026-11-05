@@ -123,6 +123,38 @@ The dual-scope implementation was compared against the archived fixed-horizon ba
 
 This is a strong scoped-regression check for the web strategies: goal-specific provenance, ranking and waiting logic do not alter the scoped financial outcomes or Absolute+ search diagnostics.
 
+## Goal-scope strategy benchmarks
+
+Goal mode uses a different objective from this fixed-horizon study: minimise elapsed time to the first valid consolidation net-interest credit. The dedicated goal-mode matrix compares Greedy, Absolute+ and GSS over 21 one-factor scenario inputs (63 strategy runs). Its six dashboards report elapsed days, credited interest, computation time, transfer fees, credited interest per day and target attainment.
+
+See the [goal-based simulation methodology and interpretation](./goal-achievement.md) for the scenario definitions, accounting contract, limitations and raw data.
+
+### Goal target
+
+![Goal target sensitivity](./assets/goal-achievement/goal-target.svg)
+
+### Starting capital
+
+![Goal starting-capital sensitivity](./assets/goal-achievement/starting-capital.svg)
+
+### Account count
+
+![Goal account-count sensitivity](./assets/goal-achievement/account-count.svg)
+
+### Bank count
+
+![Goal bank-count sensitivity](./assets/goal-achievement/bank-count.svg)
+
+### Inflow pattern
+
+![Goal inflow-pattern sensitivity](./assets/goal-achievement/inflow-pattern.svg)
+
+### eFD eligibility
+
+![Goal eFD eligibility sensitivity](./assets/goal-achievement/efd-eligibility.svg)
+
+Raw measurements: [goal-mode benchmark results](./assets/goal-achievement/results.json). These assets are regenerated together by the goal-achievement sensitivity workflow; computation times are single-run CI measurements, and bounded Absolute+ results are not global optimality proofs.
+
 ## Reproducibility and limitations
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.

@@ -314,12 +314,12 @@ export class GSSStrategy {
         if (source.id === targetAccount.id) continue;
         const balance = balances.get(source.id) ?? 0;
         if (balance <= EPS) continue;
-        // Keep enough source-account liquidity for its scheduled obligations
-        // across the remaining overall horizon; only excess funds are moved.
-        // Scoped mode preserves liquidity across the full requested range.
-        // Goal mode only reserves obligations through this plan's next maturity
-        // boundary; the recursive planner re-evaluates before later obligations.
-        const reserveThrough = goalMode ? targetMaturity : endDate;
+        // A consolidation transfer permanently removes cash from the source
+        // account; the transferred principal matures in the target account, not
+        // here. Preserve source liquidity for every remaining obligation unless
+        // scheduled inflows/cash flows cover it before its due date. This applies
+        // in both scopes; scoped mode retains its existing full-range behaviour.
+        const reserveThrough = endDate;
         const reserve = reservedLiquidity(source.id, date, reserveThrough, balances, pendingState);
         const amount = Math.max(0, balance - reserve);
         if (amount <= EPS) { carries.push(source.id); continue; }
