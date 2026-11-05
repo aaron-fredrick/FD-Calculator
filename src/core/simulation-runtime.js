@@ -233,6 +233,7 @@ export class SimulationRuntime {
       if (unpaid > EPS) remaining.push({ ...obligation, remaining: unpaid });
     }
     this.pending = remaining;
+    for (const event of this.timeline[key] ?? []) event.goal_metric_after = this.provenance.creditedNetInterest;
     if (this.context.simulation?.mode === "goal") this.#assertProvenance(balances);
     else for (const [id, balance] of balances) this.provenance.reconcile(id, balance);
     this.#commitBalances(balances);
@@ -488,6 +489,7 @@ export class SimulationRuntime {
     this.provenance = provenance;
     for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
     this.provenance.recognizeConsolidationCredit(this.context.consolidation_account_id);
+    for (const event of pendingEvents) event.goal_metric_after = this.provenance.creditedNetInterest;
     this.totalFees += pendingFees;
     this.bookingNumber = pendingBookingNumber;
     this.bookings.push(...pendingBookings);
