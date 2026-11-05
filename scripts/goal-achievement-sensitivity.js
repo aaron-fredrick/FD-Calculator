@@ -10,6 +10,7 @@ import { GSSStrategy } from "../src/strategies/gss.js";
 const START = "2026-11-05";
 const SAFETY_HORIZON_YEARS = 30;
 const END = formatISODate(addPeriod(START, SAFETY_HORIZON_YEARS + "y"));
+// Runs may terminate earlier when no future event can change the portfolio.
 const BANK_IDS = ["LK_DFCC_BANK", "LK_COMMERCIAL_BANK_OF_CEYLON", "LK_NATIONAL_DEVELOPMENT_BANK"];
 const root = new URL("../", import.meta.url);
 const read = path => readFileSync(new URL(path, root), "utf8");
