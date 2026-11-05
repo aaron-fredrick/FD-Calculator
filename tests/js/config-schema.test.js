@@ -106,7 +106,7 @@ test("validates scoped and date-independent goal simulation mode shapes", () => 
 
 test("rejects unsupported time-based mode and invalid goal settings", () => {
   const time = valid(); time.simulation = { mode: "time_based", duration: "6m" };
-  assert.throws(() => validateConfigurationShape(time), /must be scoped or goal/);
+  assert.throws(() => validateConfigurationShape(time), /simulation.duration: unknown property/);
   const goal = valid(); goal.simulation = { mode: "goal", goal: { metric: "portfolio_value", target: 0 } };
   delete goal.investment.end_date;
   assert.throws(() => validateConfigurationShape(goal), /simulation.goal.metric/);
