@@ -7,9 +7,9 @@ For a plain-language explanation of how the strategies differ and when to use ea
 The CLI supports all four JavaScript strategies:
 
 - **Greedy** — fast baseline heuristic.
-- **Absolute** — exhaustive branch-and-bound search. It uses Greedy as a feasible lower-bound incumbent and proves optimality when the search completes.
-- **GAML** — bounded layered beam search. It uses the same financial state transitions and replay path as Absolute, but limits frontier width and local booking combinations.
-- **GSS** — independent recursive goal planner with manager-ordered candidates, SPLIT/CONSOLIDATE evaluation and liquidity-aware waiting periods.
+- **Absolute** — exhaustive branch-and-bound in scoped mode; exhaustive earliest-achievement search in goal mode.
+- **GAML / Absolute+** — bounded layered beam search. Scoped mode ranks terminal portfolio value; goal mode uses provenance-aware credit timing, payout-aware local branches and goal-date-aware waiting.
+- **GSS** — independent recursive planner. Scoped mode preserves manager-ordered candidates; goal mode ranks viable plans by projected consolidation-credit timing and can defer rebooking for an earlier future consolidation opportunity.
 
 ## Run
 
@@ -41,7 +41,7 @@ GAML accepts these settings in the configuration JSON:
 }
 ```
 
-Defaults mirror the archived Python implementation. `beam_width` controls how many candidate states survive each search layer; `max_local_branches` controls how many local booking combinations are explored when expanding a state. `max_decisions: null` means no hard expanded-state cap. `max_local_branches: null` enumerates all local booking combinations rather than truncating the combination search. See the [strategy guide](STRATEGIES.md) for examples and trade-offs.
+Defaults mirror the archived Python implementation for scoped mode. `beam_width` controls how many candidate states survive each search layer; `max_local_branches` controls how many local booking combinations are explored when expanding a state. In scoped mode, `max_decisions: null` means no hard expanded-state cap. In goal mode, Absolute+ applies a default 5,000-state decision budget when no positive cap is configured. `max_local_branches: null` enumerates all local booking combinations rather than truncating the combination search. See the [strategy guide](STRATEGIES.md) for examples and trade-offs.
 
 CLI flags override the JSON values:
 
@@ -57,7 +57,7 @@ npm run cli -- --strategy gaml --max-local-branches none --max-decisions none
 
 The JSON key `gaml_settings` is canonical. For compatibility, `gaml` and `strategy_settings.gaml` are also accepted.
 
-GAML reports expanded states, terminal leaves, bound/memo pruning, beam pruning, local-combination pruning, root-strategy diversity and whether optimality was proven. If beam width, local combinations or a state budget truncate the search, the result is an incumbent solution, not a proof of global optimality.
+GAML reports expanded states, terminal leaves, bound/memo pruning, beam pruning, local-combination pruning, root-strategy diversity and whether optimality was proven. Goal mode additionally reports goal candidate evaluations, invalid replay candidates, the objective and the decision budget. If beam width, local combinations or a state budget truncate the search, the result is an incumbent solution, not a proof of global optimality. Absolute goal search is exhaustive and reports proof only when no unsafe pruning occurs.
 
 ## GSS settings
 
