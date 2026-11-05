@@ -17,7 +17,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, tests, financial-e
 All application code lives under `src/`:
 
 - `src/core/` — shared financial domain, configuration, dates, events and results.
-- `src/strategies/` — Greedy, GAML, Absolute, GSS and shared search algorithms.
+- `src/strategies/` — Absolute, Absolute+, Greedy, GSS and shared search algorithms.
 - `src/io/` — CSV parsing and Node-side data loading.
 - `src/reporting/` — shared console and standalone HTML reporting.
 - `src/cli/` — Node.js command-line entry point.
@@ -27,7 +27,7 @@ The root-level `data/`, `schema/`, `tests/` and `docs/` directories remain separ
 
 ## Strategies
 
-See [the strategy guide](docs/STRATEGIES.md) for Greedy, GAML, Absolute and GSS, their planning methods, and strategy settings.
+See [the strategy guide](docs/STRATEGIES.md) for Absolute, Absolute+, Greedy and GSS, their planning methods, and strategy settings.
 
 ## Migration status
 
@@ -36,7 +36,7 @@ Copy `config.json.example` to `config.json` and edit it for your scenario. The r
 The repository is being migrated to one shared, environment-neutral JavaScript calculation engine consumed by:
 
 - **Node.js CLI:** development, regression testing, diagnostics, and all strategies including Absolute.
-- **GitHub Pages web app:** interactive scenario configuration and execution of Greedy, GAML and GSS. Absolute is deliberately CLI-only for internal verification and testing.
+- **GitHub Pages web app:** interactive scenario configuration and execution of Absolute+, Greedy and GSS. Absolute is deliberately CLI-only for internal verification and testing.
 
 Both frontends must call the same strategy, simulation, and report-generation modules. They must emit equivalent result data and the same standalone HTML report format.
 

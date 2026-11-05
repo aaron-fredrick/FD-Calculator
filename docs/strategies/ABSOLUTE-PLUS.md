@@ -1,10 +1,10 @@
-# GAML — technical reference
+# Absolute+ — technical reference
 
 ## Purpose
 
-GAML is FD Cal's bounded, layered beam-search optimiser. It explores multiple candidate investment paths instead of committing to one locally selected plan. It is heuristic while any search states, local combinations or frontier candidates are pruned.
+Absolute+ builds on the Absolute portfolio-optimisation approach and applies bounded, layered search to explore multiple candidate investment paths. It applies bounded frontier and local-branch exploration to the Absolute optimisation approach rather than introducing a separate goal or decision model. It is heuristic while any search states, local combinations or frontier candidates are pruned.
 
-**Implementation:** `src/strategies/gaml.js` and `src/strategies/search-strategy-base.js`.
+**Implementation:** `src/strategies/absolute-plus.js (legacy module path; retained for configuration compatibility)` and `src/strategies/search-strategy-base.js`.
 
 ## Search model
 
@@ -35,13 +35,13 @@ Increasing one limit does not remove the other limits. Higher values can improve
 
 ## Optimality status
 
-GAML reports `optimality_proven` only when the search completes without a decision-budget stop, beam pruning or local-combination pruning. Otherwise, the result is the best feasible path found within the configured bounds, not a proof of global optimality.
+Absolute+ reports `optimality_proven` only when the search completes without a decision-budget stop, beam pruning or local-combination pruning. Otherwise, the result is the best feasible path found within the configured bounds, not a proof of global optimality.
 
 The diagnostics include expanded states, leaves, bound and memo pruning, beam pruning, local-combination pruning, peak root strategy frontier, alternative leaf returns and the effective settings. Review these alongside net interest and runtime; a higher return obtained with more work should be judged against its additional computational cost.
 
 ## Parameter sensitivity study
 
-The following controlled experiment varies one GAML search limit at a time. All runs use the actual `SimulationEngine`, the repository's DFCC, Commercial Bank and NDB FD catalogues, and an identical financial scenario:
+The following controlled experiment varies one Absolute+ search limit at a time. All runs use the actual `SimulationEngine`, the repository's DFCC, Commercial Bank and NDB FD catalogues, and an identical financial scenario:
 
 - Start: 5 November 2026; horizon: 24 months.
 - LKR 300,000 starting capital across three accounts at DFCC, Commercial Bank and NDB.
@@ -52,15 +52,15 @@ Each graph has separate panels for net interest after AIT and transfer fees, exp
 
 ### Beam width
 
-![GAML beam-width sensitivity](./assets/gaml-beam-width.svg)
+![Absolute+ beam-width sensitivity](./assets/gaml-beam-width.svg)
 
 ### Local branch limit
 
-![GAML local-branch sensitivity](./assets/gaml-local-branch-limit.svg)
+![Absolute+ local-branch sensitivity](./assets/gaml-local-branch-limit.svg)
 
 ### Expanded-state decision cap
 
-![GAML decision-cap sensitivity](./assets/gaml-decision-cap.svg)
+![Absolute+ decision-cap sensitivity](./assets/gaml-decision-cap.svg)
 
 ### Observations
 
@@ -70,11 +70,11 @@ Each graph has separate panels for net interest after AIT and transfer fees, exp
 - **The decision cap controls work directly until the search naturally exhausts its frontier.** Caps of 500, 1,000 and 2,500 were reached; caps of 5,000 and 10,000 both stopped naturally after 2,791 expanded states and produced effectively the same runtime.
 - **No run proved optimality.** Pruning occurred in every run, so identical net interest is evidence of a stable result for this scenario, not a global-optimality guarantee.
 
-The experiment is deliberately a one-factor sensitivity check, not a universal tuning prescription. Re-run it with different horizons, inflows and bank/account mixes before choosing production defaults. Raw measurements were produced by the [GAML sensitivity runner](../../scripts/gaml-sensitivity.js).
+This parameter study remains a historical sensitivity baseline for the bounded-search implementation. The experiment is deliberately a one-factor sensitivity check, not a universal tuning prescription. Re-run it with different horizons, inflows and bank/account mixes before choosing production defaults. Raw measurements were produced by the [Absolute+ sensitivity runner](../../scripts/gaml-sensitivity.js).
 
 ## Interpretation and use
 
-Use GAML when exploring alternative future booking sequences is worth more computation than a fast local heuristic. Start with defaults, then increase one control at a time. Compare identical financial inputs and record:
+Use Absolute+ when the Absolute optimisation approach needs broader practical exploration under explicit search-cost limits. Start with defaults, then increase one control at a time. Compare identical financial inputs and record:
 
 - Net interest after AIT and transfer fees.
 - Whether optimality was proven.
@@ -85,4 +85,4 @@ Do not interpret beam width or branch count as a percentage of optimality. They 
 
 ## Shared simulation lifecycle
 
-GAML exposes `createSession(context)`. Search branches remain hypothetical and produce a selected decision path; they do not process the authoritative event timeline or construct the actual result. `SimulationRuntime` executes the selected path and processes actual events. `SimulationEngine` adds the start marker and performs the single final consolidation sweep after the session completes. Search branches do not independently finalise the simulation.
+Absolute+ exposes `createSession(context)`. Search branches remain hypothetical and produce a selected decision path; they do not process the authoritative event timeline or construct the actual result. `SimulationRuntime` executes the selected path and processes actual events. `SimulationEngine` adds the start marker and performs the single final consolidation sweep after the session completes. Search branches do not independently finalise the simulation.

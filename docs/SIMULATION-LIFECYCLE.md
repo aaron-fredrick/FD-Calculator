@@ -27,7 +27,7 @@ A stale signal, malformed plan, invalid account reference, invalid transfer, or 
 ## Strategy planning boundaries
 
 - **Greedy** evaluates the current immutable account snapshot with its existing SPLIT/CONSOLIDATE/CARRY planner.
-- **GAML and Absolute** retain their hypothetical search state, branch expansion, pruning and diagnostics. Their selected path is emitted as session decisions; actual replay is performed by the runtime.
+- **Absolute+ and Absolute** retain their hypothetical search state, branch expansion, pruning and diagnostics. Their selected path is emitted as session decisions; actual replay is performed by the runtime.
 - **GSS** retains its recursive goal frames, forecast contraction, ancestor reforecasting and interim-plan exploration in a private hypothetical planner. It emits a decision path; the runtime processes the actual events and executes that path.
 
 Hypothetical strategy projections may use local copies of financial/event models to evaluate future choices. Those projections are not the authoritative simulation ledger and are never returned as the actual result.

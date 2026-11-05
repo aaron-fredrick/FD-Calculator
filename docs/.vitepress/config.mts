@@ -81,9 +81,9 @@ export default defineConfig({
             text: 'Technical references',
             collapsed: false,
             items: [
-              { text: 'Greedy', link: '/strategies/GREEDY' },
               { text: 'Absolute', link: '/strategies/ABSOLUTE' },
-              { text: 'GAML', link: '/strategies/GAML' },
+              { text: 'Absolute+', link: '/strategies/ABSOLUTE-PLUS' },
+              { text: 'Greedy', link: '/strategies/GREEDY' },
               { text: 'GSS', link: '/strategies/GSS' },
             ],
           },

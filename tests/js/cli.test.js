@@ -41,15 +41,15 @@ test("Greedy CLI executes from JSON config and writes a standalone report",async
  }finally{await rm(dir,{recursive:true,force:true});}
 });
 
-test("GAML CLI accepts configured and command-line search settings",async()=>{
- const dir=await mkdtemp(join(tmpdir(),"fdcal-gaml-")),configPath=join(dir,"scenario.json"),reportPath=join(dir,"gaml-report.html");
- const config={strategy:"gaml",gaml_settings:{beam_width:8,max_local_branches:4,max_decisions:20},options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-02-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"GAML Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath,show_timeline:false,show_ledger:false};
+test("Absolute+ CLI accepts configured and command-line search settings",async()=>{
+ const dir=await mkdtemp(join(tmpdir(),"fdcal-absolute-plus-")),configPath=join(dir,"scenario.json"),reportPath=join(dir,"absolute-plus-report.html");
+ const config={strategy:"gaml",gaml_settings:{beam_width:8,max_local_branches:4,max_decisions:20},options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-02-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"Absolute+ Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath,show_timeline:false,show_ledger:false};
  try{
   await writeFile(configPath,JSON.stringify(config,null,2));
-  const run=spawnSync(process.execPath,[join(root,"src/cli/fd-cal.js"),"--config",configPath,"--beam-width","4","--max-local-branches","2"],{cwd:root,encoding:"utf8",timeout:30000});
+  const run=spawnSync(process.execPath,[join(root,"src/cli/fd-cal.js"),"--config",configPath,"--strategy","absolute-plus","--beam-width","4","--max-local-branches","2"],{cwd:root,encoding:"utf8",timeout:30000});
   assert.equal(run.status,0,run.stderr||run.stdout);
   assert.match(run.stdout,/SEARCH DIAGNOSTICS/);
-  assert.match(run.stdout,/GAML settings\s+: beam 4, local width 2, state cap 20/);
+  assert.ok(run.stdout.includes("Absolute+ settings                : beam 4, local width 2, state cap 20"));
   const html=await readFile(reportPath,"utf8");
   assert.match(html,/Portfolio outcome/);
  }finally{await rm(dir,{recursive:true,force:true});}

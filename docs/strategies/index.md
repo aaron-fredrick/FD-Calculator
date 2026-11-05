@@ -1,19 +1,22 @@
 # Strategy documentation
 
-FD Cal provides several planning strategies. They share the same simulation and financial models, but use different decision processes and search boundaries.
+FD Cal provides four planning strategies. The technical references below are listed alphabetically.
 
 ## Strategy guide
 
-The [strategy comparison](/STRATEGIES) explains the purpose, trade-offs, settings and optimality guarantees of each strategy.
+See the [strategy comparison](/STRATEGIES) for purpose, trade-offs, settings and optimality guarantees.
+
+## Technical references
+
+- [Absolute](/strategies/ABSOLUTE) — exhaustive branch-and-bound search and optimality proof conditions.
+- [Absolute+](/strategies/ABSOLUTE-PLUS) — bounded search based on the Absolute optimisation approach.
+- [Greedy](/strategies/GREEDY) — local SPLIT/CONSOLIDATE/CARRY decisions, option selection and tie-breakers.
+- [GSS](/strategies/GSS) — recursive goal planning, forecast contraction and shared-runtime decision replay.
 
 ## Performance and sensitivity
 
 - [Strategy sensitivity benchmark](/strategies/benchmarks) — measured net-interest response to investment horizon, capital, account/bank diversity, inflows and eFD eligibility.
 
-## Technical references
+## Architecture
 
-- [Greedy technical reference](/strategies/GREEDY) — session planning, SPLIT/CONSOLIDATE/CARRY decisions, option selection and tie-breakers.
-- [Absolute technical reference](/strategies/ABSOLUTE) — exhaustive branch-and-bound search and optimality proof conditions.
-- [GAML technical reference](/strategies/GAML) — bounded beam search, local branch pruning, decision budgets and optimality status.
-- [GSS technical reference](/strategies/GSS) — recursive hypothetical goal planning, decision-path replay, SPLIT/CONSOLIDATE evaluation, forecast contraction and shared runtime finalisation.
 - [Codebase map](/reference/CODEBASE) — where strategy implementations fit into the application architecture.

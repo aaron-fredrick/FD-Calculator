@@ -55,7 +55,7 @@
     {
       "category": "horizon_months",
       "value": 6,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 6,
       "capital": 300000,
       "accounts": 3,
@@ -127,7 +127,7 @@
     {
       "category": "horizon_months",
       "value": 12,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 12,
       "capital": 300000,
       "accounts": 3,
@@ -199,7 +199,7 @@
     {
       "category": "horizon_months",
       "value": 24,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -271,7 +271,7 @@
     {
       "category": "starting_capital_lkr",
       "value": 25000,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 25000,
       "accounts": 3,
@@ -343,7 +343,7 @@
     {
       "category": "starting_capital_lkr",
       "value": 100000,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 100000,
       "accounts": 3,
@@ -415,7 +415,7 @@
     {
       "category": "starting_capital_lkr",
       "value": 300000,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -487,7 +487,7 @@
     {
       "category": "starting_capital_lkr",
       "value": 1000000,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 1000000,
       "accounts": 3,
@@ -559,7 +559,7 @@
     {
       "category": "account_count",
       "value": 1,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 1,
@@ -631,7 +631,7 @@
     {
       "category": "account_count",
       "value": 2,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 2,
@@ -703,7 +703,7 @@
     {
       "category": "account_count",
       "value": 3,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -775,7 +775,7 @@
     {
       "category": "bank_count",
       "value": 1,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -847,7 +847,7 @@
     {
       "category": "bank_count",
       "value": 2,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -919,7 +919,7 @@
     {
       "category": "bank_count",
       "value": 3,
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -991,7 +991,7 @@
     {
       "category": "inflow_pattern",
       "value": "none",
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -1063,7 +1063,7 @@
     {
       "category": "inflow_pattern",
       "value": "monthly_10k",
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -1135,7 +1135,7 @@
     {
       "category": "inflow_pattern",
       "value": "lump_100k",
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -1207,7 +1207,7 @@
     {
       "category": "efd_eligibility",
       "value": "standard_only",
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
@@ -1279,7 +1279,7 @@
     {
       "category": "efd_eligibility",
       "value": "eligible",
-      "strategy": "GAML",
+      "strategy": "Absolute+",
       "months": 24,
       "capital": 300000,
       "accounts": 3,
