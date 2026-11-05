@@ -78,13 +78,13 @@ jobs:
               });
               const latest = statuses[0];
 
-              if (latest && latest.state === "active") {
+              if (!latest || latest.state !== "inactive") {
                 await github.rest.repos.createDeploymentStatus({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   deployment_id: deployment.id,
                   state: "inactive",
-                  environment_url: latest.environment_url,
+                  environment_url: latest && latest.environment_url,
                   description: "Superseded Pages deployment removed before publishing the current site."
                 });
               }
