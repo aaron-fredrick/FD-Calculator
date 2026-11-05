@@ -4,7 +4,7 @@ import { Account, FDOption, TransferFeeConfig } from "../src/core/models.js";
 import { addPeriod, formatISODate } from "../src/core/dates.js";
 import { SimulationEngine } from "../src/core/simulation.js";
 import { GreedyStrategy } from "../src/strategies/greedy.js";
-import { AbsolutePlusStrategy } from "../src/strategies/gaml.js";
+import { AbsolutePlusStrategy } from "../src/strategies/absolute-plus.js";
 import { GSSStrategy } from "../src/strategies/gss.js";
 
 const START = "2026-11-05";
