@@ -460,3 +460,21 @@ The current test suite and docs build are green, and the execution paths are suf
 - Constraint: keep the old search replay as the test oracle without reintroducing production strategy execution adapters.
 - Correction: route the oracle's incumbent through `SimulationEngine.runUnfinalized()`, matching the new engine-owned incumbent path.
 - Regression coverage: GAML and Absolute legacy replay parity tests passed in the subsequent JavaScript test workflow.
+
+
+**Phase 5 issue note — immutable signal enforcement test**
+
+- Symptom: the new context-isolation test failed when the fake session returned a hand-written mutable completion object.
+- Reproduction: run the strategy-context immutability test after enabling strict signal immutability validation.
+- Root cause: the test strategy did not use the signal factory contract; production strategies already return factory-created frozen signals.
+- Constraint: do not weaken immutable signal validation to accommodate a test-only implementation.
+- Correction: update the fake session to return `createStrategyComplete()`.
+- Regression coverage: engine-session tests and the immutable-signal contract test.
+
+**Phase 5 ownership boundary**
+
+- The production strategy classes no longer define `simulate()`. Greedy, GAML, Absolute, and GSS expose `createSession()` only.
+- `SimulationEngine.run()` rejects simulate-only strategy objects. `runUnfinalized()` remains an engine-owned internal projection path used by SearchStrategyBase to score its Greedy incumbent and by focused unfinished-result tests.
+- Strategy contexts contain cloned, deeply frozen account, FD option, fee, and cash-flow values. Strategies receive isolated Date copies, not the runtime's authoritative Date objects.
+- Decision, wait, completion, and batch signals are factory-created and deeply immutable; runtime validates the signal revision/date before execution.
+- Added architecture tests for strategy entry points, legacy adapter rejection, runtime/finalization ownership, and CLI/browser engine usage.
