@@ -168,8 +168,9 @@ export class SimulationEngine {
   }
 
   run(strategy, input) {
-    if (!strategy || typeof strategy.simulate !== "function") {
-      throw new TypeError("SimulationEngine requires a strategy with a simulate(input) method.");
+    if (!strategy || (typeof strategy.simulate !== "function" &&
+        typeof strategy.createSession !== "function")) {
+      throw new TypeError("SimulationEngine requires a legacy simulate(input) strategy or a createSession(context) strategy.");
     }
     const context = createSimulationContext(input);
     if (typeof strategy.createSession === "function") {
