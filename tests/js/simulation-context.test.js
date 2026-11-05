@@ -32,6 +32,12 @@ test("simulation context normalizes dates, account ids and cash-flow schedules",
   assert.equal(context.accounts[0].balance, 5000);
   assert.notEqual(context.accounts[0], fixture().accounts[0]);
   assert.equal(Object.isFrozen(context), true);
+  assert.equal(Object.isFrozen(context.options[0]), true);
+  assert.equal(Object.isFrozen(context.accounts[0]), true);
+  assert.equal(Object.isFrozen(context.fee_config), true);
+  assert.equal(Object.isFrozen(context.inflows["2026-03-01"]), true);
+  assert.equal(Object.isFrozen(context.outflows["2026-04-01"][0]), true);
+  assert.notEqual(context.options[0], fixture().options[0]);
 });
 
 test("simulation context rejects invalid periods and unknown flow destinations", () => {
