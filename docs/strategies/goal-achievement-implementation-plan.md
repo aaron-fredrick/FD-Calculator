@@ -106,7 +106,7 @@ not principal.
   boundary and records the first crossing.
 - The achieved run stops at that boundary; it must not process later events or run
   the final consolidation sweep at the internal safety-horizon boundary.
-- An unachieved run continues to the internal safety horizon and returns a valid
+- An unachieved run stops when no future events can advance it, or at the internal safety horizon, and returns a valid
   `goal_not_reached` outcome, distinct from invalid simulation or execution failure.
 - Finalization runs exactly once at the actual stopping boundary. Final sweep
   transfers must preserve provenance and must not retroactively change whether the
