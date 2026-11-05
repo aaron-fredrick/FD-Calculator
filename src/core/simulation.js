@@ -111,7 +111,7 @@ export function finalizeSimulation(result, {
   return result;
 }
 
-export function runStrategySession(strategy, context) {
+function runStrategySession(strategy, context) {
     const runtime = new SimulationRuntime(context, {
       strategy_name: strategy.name ?? strategy.constructor?.name ?? "Strategy",
       compound: strategy.compound,
@@ -166,41 +166,19 @@ export function runStrategySession(strategy, context) {
 /** Shared entry point for executing and finalizing any strategy exactly once. */
 export class SimulationEngine {
 
+  runUnfinalized(strategy, input) {
+    if (!strategy || typeof strategy.createSession !== "function") {
+      throw new TypeError("SimulationEngine requires a strategy with createSession(context).");
+    }
+    return runStrategySession(strategy, createSimulationContext(input));
+  }
+
   run(strategy, input) {
-    if (!strategy || (typeof strategy.simulate !== "function" &&
-        typeof strategy.createSession !== "function")) {
-      throw new TypeError("SimulationEngine requires a legacy simulate(input) strategy or a createSession(context) strategy.");
+    if (!strategy || typeof strategy.createSession !== "function") {
+      throw new TypeError("SimulationEngine requires a strategy with createSession(context).");
     }
     const context = createSimulationContext(input);
-    if (typeof strategy.createSession === "function") {
-      const result = runStrategySession(strategy, context);
-      const startEvent = new Event({
-        event_type: EventType.SIMULATION_START, on_date: context.start,
-        amount: 0, label: "Simulation starts", balance_after: 0, total_balance_after: 0
-      });
-      (result.timeline[startEvent.date_key] ??= []).unshift(startEvent);
-      return finalizeSimulation(result, {
-        fee_config: context.fee_config,
-        consolidation_account_id: context.consolidation_account_id
-      });
-    }
-    const normalizedInput = {
-      ...input,
-      start: context.start,
-      end: context.end,
-      options: context.options,
-      accounts: context.accounts,
-      inflow_schedule: context.inflows,
-      outflow_schedule: context.outflows,
-      inflow_account_id: context.inflow_account_id,
-      consolidation_account_id: context.consolidation_account_id,
-      fee_config: context.fee_config
-    };
-    const result = strategy.simulate(normalizedInput);
-
-    // The simulation engine owns lifecycle boundaries. Keep the start marker
-    // out of strategy decision-making so every strategy reports the same
-    // simulation start, including runs with no opening cash or start-day flows.
+    const result = runStrategySession(strategy, context);
     const startEvent = new Event({
       event_type: EventType.SIMULATION_START,
       on_date: context.start,
@@ -218,9 +196,8 @@ export class SimulationEngine {
       (timeline[startEvent.date_key] ??= []).unshift(startEvent);
     }
     result.timeline = timeline;
-
     return finalizeSimulation(result, {
-      fee_config: context.fee_config ?? new TransferFeeConfig(),
+      fee_config: context.fee_config,
       consolidation_account_id: context.consolidation_account_id
     });
   }
