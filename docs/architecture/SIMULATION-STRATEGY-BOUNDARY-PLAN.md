@@ -6,7 +6,22 @@ Make `SimulationEngine` the owner of the actual simulation lifecycle and executi
 
 Preserve existing financial semantics and strategy behaviour while moving the ownership boundary. This is an incremental refactor, not an algorithm redesign.
 
-## Verified starting point
+
+## Current implementation status
+
+The migration has reached the documentation-alignment phase:
+
+- Phase 0 — baseline and contract discovery: complete.
+- Phase 1 — simulation foundation: complete.
+- Phase 2 — Greedy session migration: complete, with frozen legacy ledger parity.
+- Phase 3 — GAML/Absolute session migration: complete, with frozen replay/diagnostic parity.
+- Phase 4 — GSS hypothetical planning and runtime replay: complete, with recursive-planner parity and atomic same-date batches.
+- Phase 5 — ownership enforcement: complete. Production strategies expose `createSession(context)`; `SimulationEngine.run()` rejects simulate-only strategies.
+- Phase 6 — documentation alignment and final validation: in progress.
+
+Current implementation entry points and responsibilities are documented in [Simulation Lifecycle](../SIMULATION-LIFECYCLE.md) and [Codebase Map](../reference/CODEBASE.md). The verified starting point below is retained as historical Phase 0 evidence, not as a description of the current implementation.
+
+## Verified pre-refactor baseline (Phase 0)
 
 The current implementation is only partially separated:
 
