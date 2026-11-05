@@ -4,7 +4,7 @@
 
 Absolute+ builds on the Absolute portfolio-optimisation approach and applies bounded, layered search to explore multiple candidate investment paths. It applies bounded frontier and local-branch exploration to the Absolute optimisation approach rather than introducing a separate goal or decision model. It is heuristic while any search states, local combinations or frontier candidates are pruned.
 
-**Implementation:** `src/strategies/gaml.js (legacy module path; retained for configuration compatibility)` and `src/strategies/search-strategy-base.js`.
+**Implementation:** `src/strategies/absolute-plus.js (legacy module path; retained for configuration compatibility)` and `src/strategies/search-strategy-base.js`.
 
 ## Search model
 
