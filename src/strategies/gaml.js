@@ -9,7 +9,6 @@ import { SearchStrategyBase } from "./search-strategy-base.js";
  * - max_decisions: optional hard expanded-state budget (default unlimited)
  */
 export class GAMLStrategy extends SearchStrategyBase {
-  static name = "Absolute+";
   constructor(settings = {}) {
     super(settings, "gaml");
   }
