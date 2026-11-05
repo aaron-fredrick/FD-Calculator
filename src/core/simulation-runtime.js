@@ -447,8 +447,10 @@ export class SimulationRuntime {
     if (!Number.isFinite(this.totalFees + pendingFees)) {
       throw new RangeError("Decision would produce a non-finite transfer-fee total.");
     }
-    this.#commitBalances(balances);
-    for (const [id, balance] of balances) {\n      if (Math.abs(round2(balance) - provenance.total(id)) > 0.02) throw new Error("Decision provenance does not reconcile for account " + id + ".");\n    }\n    this.provenance = provenance;\n    for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
+    for (const [id, balance] of balances) {
+      if (Math.abs(round2(balance) - provenance.total(id)) > 0.02) throw new Error("Decision provenance does not reconcile for account " + id + ".");
+    }
+    this.#commitBalances(balances);\n    this.provenance = provenance;\n    for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
     this.provenance.recognizeConsolidationCredit(this.context.consolidation_account_id);
     this.totalFees += pendingFees;
     this.bookingNumber = pendingBookingNumber;
