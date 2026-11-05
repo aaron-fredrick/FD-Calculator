@@ -2,7 +2,7 @@ import { Event, EventType } from "./events.js";
 import { Account } from "./models.js";
 import { Booking, SimResult } from "./results.js";
 import { formatISODate, parseISODate } from "./dates.js";
-import { createPlanningView, validateStrategySignal, StrategySignalType } from "./strategy-contracts.js";
+import { SimulationState, validateStrategySignal, StrategySignalType } from "./strategy-contracts.js";
 
 const EPS = 0.001;
 const round2 = value => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -30,12 +30,13 @@ export class SimulationRuntime {
     this.compound = Boolean(compound);
     this.actualLeapYear = Boolean(actual_leap_year);
     this.aitEnabled = Boolean(ait_enabled);
-    this.aitRate = ait_enabled ? Number(ait_rate) : 0;
+    this.aitRate = Number(ait_rate);
+    this.effectiveAitRate = ait_enabled ? this.aitRate : 0;
     this.accounts = new Map(context.accounts.map(account => [account.id, new Account({
       id: account.id, bank_id: account.bank_id, bank_key: account.bank_key,
       label: account.label, balance: account.balance, supports_efd: account.supports_efd
     })]));
-    this.state = new (globalThis.__FD_CAL_SIM_STATE__ ?? Object)([]);
+    this.state = null;
     this.timeline = {};
     this.bookings = [];
     this.pending = [];
@@ -55,7 +56,7 @@ export class SimulationRuntime {
   #initializeState() {
     // Lazy import avoidance is not required here; the authoritative state type
     // is passed through a local factory to keep this runtime dependency explicit.
-    this.state = new SimulationStateAdapter([...this.accounts.values()]);
+    this.state = new SimulationState([...this.accounts.values()]);
   }
 
   #initializeEvents() {
@@ -105,7 +106,7 @@ export class SimulationRuntime {
   }
 
   #commitBalances(balances) {
-    this.state.apply([...balances].map(([account_id, balance]) => ({ account_id, balance })));
+    this.state.applyBalanceUpdates([...balances].map(([account_id, balance]) => ({ account_id, balance })), this.state.revision);
   }
 
   #totalBalance(balances) {
@@ -210,7 +211,7 @@ export class SimulationRuntime {
       .map(keyDate);
     return this.state.planningView({
       date: formatISODate(this.currentDate), end_date: this.context.end_iso,
-      pending_outflows: this.pending,
+      pending_outflows: this.pending.map(item => ({ ...item, due_date: formatISODate(item.due_date) })),
       scheduled_dates: futureDates
     });
   }
@@ -240,7 +241,7 @@ export class SimulationRuntime {
       const amount = Number(item.amount);
       const expectedFee = this.context.fee_config.getFee(source.bank_identity, target.bank_identity);
       const fee = Number(item.fee);
-      if (!Number.isFinite(amount) || amount <= 0 || amount > (balances.get(source.id) ?? 0) + EPS) {
+      if (!Number.isFinite(amount) || amount <= 0 || amount > (balances.get(source.id) ?? 0) + 1e-9) {
         throw new RangeError("Transfer amount exceeds available source balance.");
       }
       if (!Number.isFinite(fee) || Math.abs(fee - expectedFee) > EPS || amount <= fee) {
@@ -250,7 +251,7 @@ export class SimulationRuntime {
         ? "intra_bank" : "domestic_ceft";
       balances.set(source.id, round2((balances.get(source.id) ?? 0) - amount));
       balances.set(target.id, round2((balances.get(target.id) ?? 0) + amount - fee));
-      this.totalFees += fee;
+      pendingFees += fee;
       this.schedule(new Event({
         event_type: EventType.TRANSFER, on_date: this.currentDate, amount,
         label: "Transfer to " + target.label + " (Amt: " + (amount - fee).toFixed(2) + ", Fee: " + fee.toFixed(2) + ")",
@@ -283,13 +284,13 @@ export class SimulationRuntime {
       }
       balances.set(target.id, round2((balances.get(target.id) ?? 0) - principal));
       const grossFlows = option.generateCashFlows(principal, this.currentDate, this.compound, this.actualLeapYear);
-      const netFlows = option.generateCashFlowsAfterAIT(principal, this.currentDate, this.aitRate, this.compound, this.actualLeapYear);
+      const netFlows = option.generateCashFlowsAfterAIT(principal, this.currentDate, this.effectiveAitRate, this.compound, this.actualLeapYear);
       const booking = new Booking({
         option, principal, start: this.currentDate, cash_flows: grossFlows,
         account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id
       });
-      const ref = "FD-" + String(++this.bookingNumber).padStart(4, "0");
-      this.bookings.push(booking);
+      const ref = "FD-" + String(++pendingBookingNumber).padStart(4, "0");
+      pendingBookings.push(booking);
       this.schedule(new Event({
         event_type: EventType.BOOKING, on_date: this.currentDate, amount: principal,
         label: "Book " + option.label + " @ " + option.annual_rate.toFixed(2) + "% -> matures " + formatISODate(booking.end),
@@ -312,6 +313,9 @@ export class SimulationRuntime {
     // Validate the complete decision against a private balance copy first.
     // Any failure leaves authoritative balances and ledger untouched.
     const pendingEvents = [];
+    const pendingBookings = [];
+    let pendingBookingNumber = this.bookingNumber;
+    let pendingFees = 0;
     const originalSchedule = this.schedule.bind(this);
     this.schedule = event => { pendingEvents.push(event); return event; };
     try {
@@ -344,6 +348,9 @@ export class SimulationRuntime {
     }
 
     this.#commitBalances(balances);
+    this.totalFees += pendingFees;
+    this.bookingNumber = pendingBookingNumber;
+    this.bookings.push(...pendingBookings);
     for (const event of pendingEvents) originalSchedule(event);
     this.decisionLog.push({ date: formatISODate(this.currentDate), action: signal.action });
     return signal;
@@ -370,43 +377,5 @@ export class SimulationRuntime {
       valid: this.valid, ait_enabled: this.aitEnabled, ait_rate: this.aitRate,
       decision_log: this.decisionLog
     });
-  }
-}
-
-/** Private balance store with revisioned atomic updates for the executor. */
-class SimulationStateAdapter {
-  #accounts = new Map();
-  #revision = 0;
-
-  constructor(accounts) {
-    for (const account of accounts) {
-      this.#accounts.set(account.id, {
-        id: account.id, bank_id: account.bank_id, bank_key: account.bank_key,
-        label: account.label, balance: account.balance,
-        supports_efd: account.supports_efd
-      });
-    }
-  }
-
-  snapshot() {
-    return [...this.#accounts.values()].map(account => ({ ...account }));
-  }
-
-  planningView({ date, end_date, pending_outflows, scheduled_dates }) {
-    return createPlanningView({
-      revision: this.#revision, date, end_date,
-      accounts: this.snapshot(), pending_outflows, scheduled_dates
-    });
-  }
-
-  apply(updates) {
-    const next = new Map();
-    for (const update of updates) {
-      if (!this.#accounts.has(update.account_id)) throw new RangeError("Unknown account in balance update.");
-      if (!Number.isFinite(update.balance) || update.balance < 0) throw new RangeError("Invalid account balance update.");
-      next.set(update.account_id, update.balance);
-    }
-    for (const [id, balance] of next) this.#accounts.get(id).balance = balance;
-    if (next.size) this.#revision++;
   }
 }
