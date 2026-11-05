@@ -173,3 +173,38 @@ test("runtime rejects self-directed transfers without mutating state", () => {
   assert.equal(runtime.bookings.length, 0);
   assert.equal(runtime.totalFees, 0);
 });
+
+test("split booking snapshots can consistently represent the pre-decision state", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-03-31",
+    options: [
+      new FDOption({ label: "A 30d", period_str: "30d", annual_rate: 10, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" }),
+      new FDOption({ label: "B 30d", period_str: "30d", annual_rate: 10, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" })
+    ],
+    accounts: [
+      new Account({ id: "a", bank_id: "BANK_A", bank_key: "a", balance: 30000 }),
+      new Account({ id: "b", bank_id: "BANK_B", bank_key: "b", balance: 30000 })
+    ],
+    inflow_account_id: "a", consolidation_account_id: "a",
+    fee_config: new TransferFeeConfig()
+  });
+  const runtime = new SimulationRuntime(context, { strategy_name: "Test" });
+  runtime.processDate(runtime.nextEventDate());
+  const view = runtime.planningView();
+  runtime.executeSignal(createStrategyDecision({
+    revision: view.revision, date: view.date, action: StrategyDecisionType.SPLIT,
+    plan: {
+      booking_snapshot: "decision_start",
+      bookings: [
+        { account_id: "a", option_index: 0, principal: 30000 },
+        { account_id: "b", option_index: 1, principal: 30000 }
+      ],
+      carries: []
+    }
+  }));
+  const bookingEvents = runtime.timeline[20260101].filter(event => event.event_type === "booking");
+  assert.equal(bookingEvents.length, 2);
+  for (const event of bookingEvents) {
+    assert.deepEqual(event.decision_context.balances_before, { a: 30000, b: 30000 });
+  }
+});
