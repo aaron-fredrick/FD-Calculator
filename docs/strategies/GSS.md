@@ -30,7 +30,7 @@ If a candidate cannot be booked immediately, GSS projects future inflows, known 
 
 GSS recursively advances the waiting period. The child hypothetical planning window advances a private projection of known events and evaluates immediately achievable goals. It can invest interim balances, but only in products that mature no later than the parent target date. This prevents interim bookings from locking away liquidity needed by the parent goal.
 
-When no candidate can yet credit the goal, GSS ranks the earliest relevant payout/maturity boundary before projected tenor return. This causes recursive planning to re-evaluate at the first useful event rather than locking into a higher-interest, later-maturing product. The projection remains a heuristic; actual goal achievement is decided by runtime replay.
+When a plan's projected goal credit is later than another plan's first relevant payout/maturity boundary, GSS can prefer the earlier boundary and re-evaluate. This lets a non-consolidation payout be transferred and credited before a higher-interest, later-maturing product completes. If neither path has a projected goal date, the earliest relevant event is preferred before projected tenor return. These event-date estimates are heuristics; actual goal achievement is decided by runtime replay.
 
 The projected target date is a forecast, not a fixed appointment. Every active recursive goal frame owns its candidate, projected target date, horizon and execution responsibility.
 
