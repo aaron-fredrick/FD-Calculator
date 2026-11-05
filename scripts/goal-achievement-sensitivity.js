@@ -119,6 +119,7 @@ function runPoint(category, value, {
       goal_candidates_evaluated: result.search_diagnostics?.goal_candidates_evaluated ?? null,
       goal_invalid_candidates: result.search_diagnostics?.goal_invalid_candidates ?? null,
       goal_invalid_candidate_reasons: result.search_diagnostics?.goal_invalid_candidate_reasons ?? null,
+      goal_invalid_candidate_examples: result.search_diagnostics?.goal_invalid_candidate_examples ?? [],
       goal_search_score: result.search_diagnostics?.selected_goal_score ? {
         achieved: result.search_diagnostics.selected_goal_score.achieved,
         elapsed_days: Number.isFinite(result.search_diagnostics.selected_goal_score.elapsed_days) ? result.search_diagnostics.selected_goal_score.elapsed_days : null,
