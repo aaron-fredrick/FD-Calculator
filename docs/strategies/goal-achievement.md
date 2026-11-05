@@ -92,7 +92,7 @@ Outflows are excluded from the primary sensitivity matrix even though the shared
 
 ## Measured benchmark results
 
-<text color="secondary" size="xs">Run: 5 November 2026 · 72 strategy runs · 24 one-factor test points · AIT enabled · simple interest · no outflows</text>
+<text color="secondary" size="xs">Initial run (Absolute+ values superseded): 5 November 2026 · 72 strategy runs · 24 one-factor test points · AIT enabled · simple interest · no outflows</text>
 
 > **Benchmark refresh in progress:** the first sensitivity run replayed Absolute+ candidates without inheriting the strategy's AIT settings. The candidate replay now preserves AIT, compounding, and runtime settings. Absolute+ results and charts from the earlier artifact are superseded; the new 72-run study is running before refreshed values are published. Greedy and GSS rows below remain valid.
 
