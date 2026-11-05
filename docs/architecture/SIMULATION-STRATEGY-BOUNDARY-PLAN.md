@@ -362,3 +362,12 @@ The current test suite and docs build are green, and the execution paths are suf
 - Replaced Greedy's independent actual event loop, outflow settlement, transfer/booking execution, cash-flow scheduling, and result construction with a compatibility `simulate()` adapter that delegates to `runStrategySession()`.
 - `SimulationEngine.run()` now selects the session executor for Greedy. SearchStrategyBase can still call Greedy's unfinished-result adapter to obtain its incumbent.
 - Initial CI validation passed the complete existing test suite, JavaScript suite, documentation build, and dependency review after the Greedy migration. The strategy sensitivity study remains in progress and must be checked before declaring the Greedy phase complete.
+
+**Phase 2 issue note — legacy parity fixture path**
+
+- Symptom: the first CI run of the differential test failed during module resolution before executing the parity assertion.
+- Reproduction: `tests/js/greedy-parity.test.js` imported `./fixtures/legacy-greedy-oracle.js`, resolving to the nonexistent `tests/js/fixtures` directory.
+- Root cause: the fixture is stored under the sibling `tests/fixtures` directory.
+- Constraint: keep the frozen pre-migration implementation outside the production strategy tree and use it only as a test oracle.
+- Correction: change the test import to `../fixtures/legacy-greedy-oracle.js`.
+- Regression coverage: the parity test now resolves the oracle; CI rerun is pending.
