@@ -48,6 +48,103 @@ function nodePath(node) {
   return path.reverse();
 }
 
+function compareGoalScores(a, b) {
+  if (!b) return 1;
+  if (a.achieved !== b.achieved) return a.achieved ? 1 : -1;
+  if (a.achieved) {
+    if (a.elapsed_days !== b.elapsed_days) return b.elapsed_days - a.elapsed_days;
+    if (Math.abs(a.actual - b.actual) > EPS) return a.actual - b.actual;
+  } else if (Math.abs(a.actual - b.actual) > EPS) return a.actual - b.actual;
+  if (Math.abs(a.fees - b.fees) > EPS) return b.fees - a.fees;
+  if (a.operations !== b.operations) return b.operations - a.operations;
+  if (Math.abs(a.terminal_value - b.terminal_value) > EPS) return a.terminal_value - b.terminal_value;
+  return String(b.signature).localeCompare(String(a.signature));
+}
+
+function createPathReplayStrategy(path, engineContext) {
+  const actions = new Map(path.map(item => [item.date, item.action]));
+  const optionIndex = option => {
+    const exact = engineContext.options.indexOf(option);
+    if (exact >= 0) return exact;
+    const compatible = engineContext.options.findIndex(candidate =>
+      candidate.label === option.label && candidate.economic_terms_key === option.economic_terms_key &&
+      candidate.is_efd === option.is_efd
+    );
+    if (compatible < 0) throw new RangeError("Search path references an FD option outside the simulation context.");
+    return compatible;
+  };
+  const signalFor = (action, view) => {
+    if (action.type === "consolidate") return createStrategyDecision({
+      revision: view.revision, date: view.date, action: StrategyDecisionType.CONSOLIDATE,
+      plan: {
+        target_account_id: action.target_id, option_index: optionIndex(action.option),
+        principal: action.principal,
+        transfers: action.transfers.map(item => ({
+          source_account_id: item.src_id, target_account_id: item.tgt_id,
+          amount: item.amount, fee: item.fee
+        })),
+        carries: action.carries, carry_label: "Holding liquidity",
+        carry_snapshot: "decision_start"
+      }
+    });
+    if (action.type === "local") return createStrategyDecision({
+      revision: view.revision, date: view.date, action: StrategyDecisionType.SPLIT,
+      plan: {
+        bookings: action.bookings.map(item => ({
+          account_id: item.account_id, option_index: optionIndex(item.option), principal: item.principal
+        })),
+        carries: action.carries, carry_label: "Holding liquidity"
+      }
+    });
+    if (action.type === "carry") return createStrategyDecision({
+      revision: view.revision, date: view.date, action: StrategyDecisionType.CARRY,
+      plan: { carries: action.carries, carry_label: "Holding liquidity", carry_snapshot: "decision_start" }
+    });
+    throw new RangeError("Unknown search path action: " + action.type);
+  };
+  return {
+    name: "Absolute+ goal candidate replay",
+    createSession() {
+      return {
+        nextSignal(view) {
+          const action = actions.get(view.date);
+          if (action) { actions.delete(view.date); return signalFor(action, view); }
+          const overdue = [...actions.keys()].filter(date => date < view.date).sort();
+          if (overdue.length) throw new Error("Goal candidate decision date " + overdue[0] + " was skipped.");
+          const next = [...actions.keys()].sort()[0];
+          if (next && view.date < next) return createStrategyWait({ revision: view.revision, until: next });
+          if (view.date < view.end_date) return createStrategyWait({ revision: view.revision, until: view.end_date });
+          return createStrategyComplete({ revision: view.revision });
+        }
+      };
+    }
+  };
+}
+
+function evaluateGoalPath(path, engineContext, terminalValue) {
+  const strategy = createPathReplayStrategy(path, engineContext);
+  const result = new SimulationEngine().run(strategy, {
+    options: engineContext.options, start: engineContext.start, end: engineContext.end,
+    simulation: engineContext.simulation, inflow_schedule: engineContext.inflows,
+    accounts: engineContext.accounts, inflow_account_id: engineContext.inflow_account_id,
+    fee_config: engineContext.fee_config, consolidation_account_id: engineContext.consolidation_account_id,
+    outflow_schedule: engineContext.outflows
+  });
+  const goal = result.goal_outcome ?? {};
+  const transfers = Object.values(result.timeline ?? {}).flat().filter(event =>
+    event.event_type === "transfer" && (event.label.startsWith("Transfer to ") || event.label.startsWith("Final sweep to "))
+  ).length;
+  return {
+    achieved: Boolean(goal.achieved),
+    elapsed_days: goal.elapsed_days ?? Infinity,
+    actual: Number(goal.actual ?? result.credited_net_interest ?? 0),
+    fees: Number(result.total_transfer_fees ?? 0),
+    operations: (result.bookings?.length ?? 0) + transfers,
+    terminal_value: Number(terminalValue ?? result.final_value ?? 0),
+    signature: JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""]))
+  };
+}
+
 function equivalentEfdBookings(bookings, optionsByAccount) {
   let count = 0;
   for (const booking of bookings) {
