@@ -5,7 +5,7 @@ import { EventType } from "../../src/core/events.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { GAMLStrategy } from "../../src/strategies/gaml.js";
 import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
-import { SimulationEngine } from "../../src/core/simulation.js";
+import { SimulationEngine, finalizeSimulation } from "../../src/core/simulation.js";
 
 function scenario() {
   const accounts = [
@@ -32,7 +32,7 @@ for (const [name, makeStrategy] of [
 ]) {
   test(name + " leaves final consolidation to the shared simulation engine", () => {
     const input = scenario();
-    const raw = makeStrategy().simulate(input);
+    const raw = new SimulationEngine().runUnfinalized(makeStrategy(), input);
     const rawEvents = Object.values(raw.timeline).flat();
     assert.equal(rawEvents.some(event => event.event_type === EventType.SIMULATION_START), false);
     assert.equal(raw.total_transfer_fees, 0);
@@ -59,7 +59,7 @@ test("shared finalization rejects a second final sweep", () => {
   const input = scenario();
   const engine = new SimulationEngine();
   const result = engine.run(new GreedyStrategy(), input);
-  assert.throws(() => engine.run({ simulate: () => result }, input), /already been finalized/);
+  assert.throws(() => finalizeSimulation(result), /already been finalized/);
 });
 
 test("SimulationEngine drives a decision session through shared event execution", () => {
