@@ -21,6 +21,8 @@
 
   /* Semantic accents */
   --fd-color-accent: #56b4e9;
+  --fd-color-accent-strong: #28577a;
+  --fd-color-accent-border: #3e789f;
   --fd-color-accent-hover: #326b93;
   --fd-color-accent-surface: #172433;
   --fd-color-positive: #55c99a;
