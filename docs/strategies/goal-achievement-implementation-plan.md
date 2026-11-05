@@ -265,7 +265,7 @@ outflow accounting is verified.
 - [ ] Date-independent goal sensitivity matrix is rerun with the fixed 30-year internal safety horizon; the prior 72-run horizon-bounded artifact is superseded.
 - [x] Outflow policy/provenance paths are covered by regression tests; outflows remain explicitly excluded from the primary sensitivity matrix.
 - [x] Documentation, measured benchmark summary, and sensitivity charts describe the implemented behaviour.
-- [ ] Full regression suite and all CI checks pass on the latest feature-branch commit.
+- [x] Full regression suite, JavaScript syntax checks, documentation build, dependency review, and CodeQL pass on the latest implementation commit.
 
 ## Current implementation state (updated 6 November 2026)
 
