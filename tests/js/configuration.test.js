@@ -101,3 +101,48 @@ test("configuration exposes default and configured Greedy tenor policies",()=>{
   assert.deepEqual(validateConfiguration(base,context).greedy_settings,{tenor_tiebreaker:"shortest",plan_tenor_tiebreaker:"shortest"});
   assert.deepEqual(validateConfiguration({...base,greedy_settings:{tenor_tiebreaker:"longest",plan_tenor_tiebreaker:"shortest"}},context).greedy_settings,{tenor_tiebreaker:"longest",plan_tenor_tiebreaker:"shortest"});
 });
+
+test("normalizes time-based horizon from start date without changing financial inputs", () => {
+  const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
+  const config = validateConfiguration({
+    simulation: { mode: "time_based", duration: "6m" },
+    investment: { start_date: "2026-01-31" },
+    accounts: { main: { bank_id: "BANK_A", balance: 50000 } }
+  }, {
+    bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options
+  });
+  assert.equal(config.start.toISOString().slice(0, 10), "2026-01-31");
+  assert.equal(config.end.toISOString().slice(0, 10), "2026-07-31");
+  assert.deepEqual(config.simulation, { mode: "time_based", goal: null });
+  assert.equal(config.accounts[0].balance, 50000);
+});
+
+test("normalizes goal maximum horizon and preserves target metric", () => {
+  const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
+  const config = validateConfiguration({
+    simulation: { mode: "goal", goal: {
+      metric: "consolidation_net_interest", target: 25000, maximum_end_date: "2027-01-31"
+    }},
+    investment: { start_date: "2026-01-31" },
+    accounts: { main: { bank_id: "BANK_A", balance: 50000 } }
+  }, {
+    bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options
+  });
+  assert.equal(config.end.toISOString().slice(0, 10), "2027-01-31");
+  assert.deepEqual(config.simulation, { mode: "goal", goal: {
+    metric: "consolidation_net_interest", target: 25000, maximum_end_date: "2027-01-31"
+  }});
+});
+
+test("legacy configuration normalizes as scoped and retains explicit dates", () => {
+  const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
+  const config = validateConfiguration({
+    investment: { start_date: "2026-01-31", end_date: "2026-06-30" },
+    accounts: { main: { bank_id: "BANK_A", balance: 50000 } }
+  }, {
+    bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options
+  });
+  assert.equal(config.start.toISOString().slice(0, 10), "2026-01-31");
+  assert.equal(config.end.toISOString().slice(0, 10), "2026-06-30");
+  assert.deepEqual(config.simulation, { mode: "scoped", goal: null });
+});
