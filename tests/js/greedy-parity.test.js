@@ -68,7 +68,7 @@ function normalize(result) {
     })),
     accounts: Object.fromEntries(Object.entries(result.accounts).sort(([a], [b]) => a.localeCompare(b))
       .map(([id, account]) => [id, round(account.balance)])),
-    bookings, events
+    bookings, events, decision_log: result.decision_log
   };
 }
 
