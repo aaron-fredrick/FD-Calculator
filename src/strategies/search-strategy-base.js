@@ -3,8 +3,7 @@ import { normalizeInflowSchedule } from "../core/events.js";
 import { formatISODate, parseISODate, daysBetween } from "../core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../core/cashflows.js";
 import { GreedyStrategy } from "./greedy.js";
-import { createSimulationContext } from "../core/simulation-context.js";
-import { runStrategySession } from "../core/simulation.js";
+import { SimulationEngine } from "../core/simulation.js";
 import {
   createStrategyDecision, createStrategyWait, createStrategyComplete,
   StrategyDecisionType
@@ -552,10 +551,11 @@ export class SearchStrategyBase {
       outflow_schedule: engineContext.outflows
     };
     const context = createContext(input, this);
-    const greedy = new GreedyStrategy({
+    const greedyStrategy = new GreedyStrategy({
       compound: this.compound, actual_leap_year: this.actual_leap_year,
       ait_enabled: this.ait_enabled, ait_rate: this.ait_rate
-    }).simulate(input);
+    });
+    const greedy = new SimulationEngine().runUnfinalized(greedyStrategy, input);
     const liabilities = sum(greedy.outstanding_outflows.map(item => Number(item.remaining || 0)));
     const greedyObjective = greedy.valid
       ? greedy.final_value - calculateFinalSweepFees(greedy.accounts, context.consolidationId, context.feeConfig) - liabilities
@@ -684,8 +684,5 @@ export class SearchStrategyBase {
     };
   }
 
-  // Compatibility adapter for callers that require an unfinished result.
-  simulate(input) {
-    return runStrategySession(this, createSimulationContext(input));
-  }
+
 }
