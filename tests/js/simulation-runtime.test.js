@@ -275,3 +275,59 @@ test("runtime recognises consolidation interest before a same-day cash outflow",
   assert.ok(runtime.provenance.snapshot("main").counted_interest < 400);
   assert.equal(runtime.totalOutflowsPaid, 500);
 });
+
+test("deferred outflows settle from later same-account inflows", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-01-31",
+    options: [new FDOption({ label: "FD", period_str: "30d", annual_rate: 8, min_amount: 1000, bank_id: "BANK_A", bank_key: "a" })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100 })],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    inflow_schedule: { "2026-01-10": { main: 100 } },
+    outflow_schedule: { "2026-01-01": [{ account_id: "main", amount: 150, payment_policy: "defer" }] }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.totalOutflowsPaid, 0);
+  assert.equal(runtime.pending[0].remaining, 150);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.totalOutflowsPaid, 150);
+  assert.equal(runtime.provenance.total("main"), 50);
+  assert.equal(runtime.pending.length, 0);
+  assert.equal(runtime.valid, true);
+});
+
+test("best-effort outflows pay available funds and retain the unpaid remainder", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-01-31",
+    options: [new FDOption({ label: "FD", period_str: "30d", annual_rate: 8, min_amount: 1000, bank_id: "BANK_A", bank_key: "a" })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100 })],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    outflow_schedule: { "2026-01-01": [{ account_id: "main", amount: 150, payment_policy: "best_effort" }] }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.totalOutflowsPaid, 100);
+  assert.equal(runtime.provenance.total("main"), 0);
+  assert.equal(runtime.pending[0].remaining, 50);
+  assert.equal(runtime.valid, true);
+});
+
+test("strict outflows invalidate an underfunded account without draining another account", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-01-31",
+    options: [new FDOption({ label: "FD", period_str: "30d", annual_rate: 8, min_amount: 1000, bank_id: "BANK_A", bank_key: "a" })],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100 }),
+      new Account({ id: "reserve", bank_id: "BANK_A", bank_key: "a", balance: 500 })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    outflow_schedule: { "2026-01-01": [{ account_id: "main", amount: 150, payment_policy: "strict" }] }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.valid, false);
+  assert.equal(runtime.totalOutflowsPaid, 0);
+  assert.equal(runtime.provenance.total("main"), 100);
+  assert.equal(runtime.provenance.total("reserve"), 500);
+  assert.equal(runtime.pending[0].remaining, 150);
+});
