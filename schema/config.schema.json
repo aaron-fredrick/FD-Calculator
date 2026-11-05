@@ -196,6 +196,16 @@
                 "goal"
               ]
             }
+          },
+          "investment": {
+            "required": [
+              "start_date"
+            ],
+            "not": {
+              "required": [
+                "end_date"
+              ]
+            }
           }
         }
       }
