@@ -195,7 +195,8 @@ export function evaluateGoalPath(path, engineContext, terminalValue, runtimeSett
     return {
       achieved: false, elapsed_days: Infinity, actual: -Infinity,
       fees: Infinity, operations: Infinity, terminal_value: -Infinity,
-      signature, invalid_candidate: true, invalid_reason: String(error?.message ?? error)
+      signature, invalid_candidate: true, invalid_reason: String(error?.message ?? error),
+      invalid_stack: String(error?.stack ?? "")
     };
   }
 }
@@ -1027,6 +1028,7 @@ export class SearchStrategyBase {
     let goalCandidatesEvaluated = greedyGoal ? 1 : 0;
     let goalInvalidCandidates = 0;
     const goalInvalidReasons = new Map();
+    const goalInvalidExamples = [];
     const evaluatedGoalPaths = new Set();
     const evaluateGoal = goalMode ? (path, value) => {
       const pathKey = goalPathSignature(path);
@@ -1038,6 +1040,21 @@ export class SearchStrategyBase {
         goalInvalidCandidates++;
         const reason = score.invalid_reason || "Unknown candidate replay failure";
         goalInvalidReasons.set(reason, (goalInvalidReasons.get(reason) ?? 0) + 1);
+        if (goalInvalidExamples.length < 5) {
+          goalInvalidExamples.push({
+            reason, stack: score.invalid_stack.split("\\n").slice(0, 6),
+            actions: path.map(({ date, action }) => ({
+              date, type: action.type, target_id: action.target_id ?? null,
+              principal: action.principal ?? null,
+              transfers: (action.transfers ?? []).map(item => ({
+                source: item.src_id, target: item.tgt_id, amount: item.amount, fee: item.fee
+              })),
+              bookings: (action.bookings ?? []).map(item => ({
+                account_id: item.account_id, option: item.option?.label, principal: item.principal
+              }))
+            }))
+          });
+        }
       }
       return score;
     } : null;
@@ -1073,7 +1090,7 @@ export class SearchStrategyBase {
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
-      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_objective: "earliest consolidation net-interest achievement", goal_search_budget: goalSearchBudget, goal_pruned_after_achievement: search.goalPrunedByAchievement ?? 0, selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
+      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_invalid_candidate_examples: goalInvalidExamples, goal_objective: "earliest consolidation net-interest achievement", goal_search_budget: goalSearchBudget, goal_pruned_after_achievement: search.goalPrunedByAchievement ?? 0, selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
     const resultMetadata = {
       total_decisions_evaluated: diagnostics.expanded_states,
