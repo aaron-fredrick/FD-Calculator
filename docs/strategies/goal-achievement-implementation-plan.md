@@ -180,7 +180,7 @@ One-factor-at-a-time dimensions:
 | Bank count | 1, 2, 3 |
 | Inflows | none; monthly LKR 10k; quarterly LKR 30k; lump LKR 100k |
 | eFD | standard-only; eligible |
-| Maximum scope | 6, 12, 24 months |
+| Internal safety horizon | Fixed at 30 years for all strategies and test points; not a user input |
 
 Use DFCC, Commercial Bank, and NDB as the bank suite. Include achievable and
 deliberately difficult targets. Record achievement date, days to achievement,
@@ -208,9 +208,9 @@ outflow accounting is verified.
 
 3. **Simulation-mode normalization**
    - Introduce the canonical mode object and one normalization function.
-   - Preserve legacy time/scoped configuration behaviour.
+   - Preserve legacy scoped configurations; migrate legacy time-based browser drafts to scoped mode.
    - Update schema and semantic validation.
-   - Add migration tests for legacy configs and all three new modes.
+   - Add migration tests for legacy configs and both supported modes.
 
 4. **Shared runtime goal stop**
    - Add canonical metric, threshold detection, first-crossing metadata, and stop
@@ -275,7 +275,7 @@ outflow accounting is verified.
 - Added post-AIT cash-flow component generation for cumulative, periodic-interest, and installment products.
 - Added provenance buckets for principal, uncredited net interest, and previously counted interest.
 - Added proportional transfer/fee allocation, proportional outflow consumption, and provenance propagation through FD booking and maturity.
-- Added shared-runtime consolidation-credit recognition, first-crossing stop metadata, maximum-boundary shortfall, and goal-aware final-sweep handling.
+- Added shared-runtime consolidation-credit recognition, first-crossing stop metadata, safety-horizon shortfall, and goal-aware final-sweep handling.
 - Added Greedy/GSS shared-runtime goal stopping and an Absolute+ goal candidate replay evaluator with lexicographic scoring, inherited runtime financial settings, invalid-candidate rejection, and bounded-search diagnostics.
 - Migrated CLI and browser configuration inputs; added mode controls, export/import normalization, and goal summaries.
 - Added goal outcome and event-boundary progression to HTML and CLI reports.
