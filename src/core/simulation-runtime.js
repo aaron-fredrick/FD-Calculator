@@ -54,8 +54,6 @@ export class SimulationRuntime {
   }
 
   #initializeState() {
-    // Lazy import avoidance is not required here; the authoritative state type
-    // is passed through a local factory to keep this runtime dependency explicit.
     this.state = new SimulationState([...this.accounts.values()]);
   }
 
@@ -158,7 +156,7 @@ export class SimulationRuntime {
     const remaining = [];
     this.pending.sort((a, b) =>
       (POLICY_ORDER[a.payment_policy] ?? 3) - (POLICY_ORDER[b.payment_policy] ?? 3) ||
-      String(a.due_date).localeCompare(String(b.due_date)) ||
+      formatISODate(a.due_date).localeCompare(formatISODate(b.due_date)) ||
       a.account_id.localeCompare(b.account_id));
     for (const obligation of this.pending) {
       const account = this.accounts.get(obligation.account_id);
