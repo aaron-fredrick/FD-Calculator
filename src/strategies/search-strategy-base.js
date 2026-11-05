@@ -145,8 +145,23 @@ function scoreGoalResult(result, terminalValue, signature = "") {
   };
 }
 
+function goalPathSignature(path) {
+  return JSON.stringify(path.map(({ date, action }) => [
+    date, action.type, action.target_id ?? null,
+    action.option?.economic_terms_key ?? null,
+    action.principal ?? null,
+    (action.bookings ?? []).map(item => [
+      item.account_id, item.option?.economic_terms_key ?? null, item.principal
+    ]),
+    (action.transfers ?? []).map(item => [
+      item.src_id, item.tgt_id, item.amount, item.fee
+    ]),
+    action.carries ?? []
+  ]));
+}
+
 export function evaluateGoalPath(path, engineContext, terminalValue, runtimeSettings) {
-  const signature = JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""]));
+  const signature = goalPathSignature(path);
   try {
     const strategy = createPathReplayStrategy(path, engineContext, runtimeSettings);
     const result = new SimulationEngine().run(strategy, {
@@ -734,7 +749,7 @@ export class SearchStrategyBase {
     const goalInvalidReasons = new Map();
     const evaluatedGoalPaths = new Set();
     const evaluateGoal = goalMode ? (path, value) => {
-      const pathKey = JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""]));
+      const pathKey = goalPathSignature(path);
       if (evaluatedGoalPaths.has(pathKey)) return { achieved: false, elapsed_days: Infinity, actual: -Infinity, fees: Infinity, operations: Infinity, terminal_value: -Infinity, signature: pathKey, duplicate: true };
       evaluatedGoalPaths.add(pathKey);
       goalCandidatesEvaluated++;
