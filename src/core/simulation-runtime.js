@@ -125,7 +125,7 @@ export class SimulationRuntime {
   #assertProvenance(balances) {
     for (const [id, balance] of balances) {
       if (Math.abs(round2(balance) - this.provenance.total(id)) > 0.02) {
-        throw new Error("Balance provenance does not reconcile for account " + id + ".");
+        throw new Error("Balance provenance does not reconcile for account " + id + ": balance=" + round2(balance) + ", provenance=" + this.provenance.total(id) + ".");
       }
     }
   }
