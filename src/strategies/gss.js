@@ -373,9 +373,9 @@ export class GSSStrategy {
       for (const [key, events] of Object.entries(timeline)) {
         const onDate = keyDate(key);
         if (onDate <= formatISODate(date)) continue;
-        noteEventDate(onDate);
         for (const event of events) {
           if (event.account_id !== consolidation_account_id || !event.cash_components) continue;
+          noteEventDate(onDate);
           const carried = Number(event.cash_components.principal_components?.uncredited_interest || 0);
           addCredit(onDate, carried + Number(event.cash_components.interest || 0));
         }
