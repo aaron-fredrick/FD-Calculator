@@ -53,7 +53,6 @@ export class SimulationRuntime {
     this.totalInflows = Object.values(context.inflows).reduce((total, entries) =>
       total + Object.values(entries).reduce((sum, amount) => sum + amount, 0), 0);
     this.valid = true;
-    this.decisionLog = [];
     this.#initializeEvents();
     this.#initializeState();
   }
@@ -355,7 +354,6 @@ export class SimulationRuntime {
 
     const pendingEvents = [];
     const pendingBookings = [];
-    const pendingDecisionLog = [];
     let pendingBookingNumber = this.bookingNumber;
     let pendingFees = 0;
     const originalSchedule = this.schedule.bind(this);
@@ -401,7 +399,6 @@ export class SimulationRuntime {
             decision_context: carryContext
           }));
         }
-        pendingDecisionLog.push({ date: formatISODate(this.currentDate), action: actionName });
       }
     } finally {
       this.schedule = originalSchedule;
@@ -412,7 +409,6 @@ export class SimulationRuntime {
     this.bookingNumber = pendingBookingNumber;
     this.bookings.push(...pendingBookings);
     for (const event of pendingEvents) originalSchedule(event);
-    this.decisionLog.push(...pendingDecisionLog);
     return signal;
   }
 
