@@ -4,6 +4,7 @@ import { Booking, SimResult } from "../../src/core/results.js";
 import { formatISODate, parseISODate, daysBetween } from "../../src/core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../../src/core/cashflows.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
+import { SimulationEngine } from "../../src/core/simulation.js";
 import { FDOptionManager } from "../../src/fd-options/index.js";
 import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, mergePendingFlows, SEARCH_EPSILON } from "../../src/strategies/search-primitives.js";
 
@@ -713,10 +714,11 @@ export class LegacySearchStrategyBase {
     const context = createContext(input, this);
     // Greedy remains a lower-bound candidate for bounded search. It returns an
     // unfinished result; account for the shared final sweep fee when scoring it.
-    const greedy = new GreedyStrategy({
+    const greedyStrategy = new GreedyStrategy({
       compound: this.compound, actual_leap_year: this.actual_leap_year,
       ait_enabled: this.ait_enabled, ait_rate: this.ait_rate
-    }).simulate(input);
+    });
+    const greedy = new SimulationEngine().runUnfinalized(greedyStrategy, input);
     const liabilities = sum(greedy.outstanding_outflows.map(item => Number(item.remaining || 0)));
     const greedyObjective = greedy.valid
       ? greedy.final_value - calculateFinalSweepFees(greedy.accounts, context.consolidationId, context.feeConfig) - liabilities
