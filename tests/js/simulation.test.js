@@ -131,7 +131,7 @@ test("strategy context cannot mutate runtime-owned dates, accounts, options or s
       context.start.setUTCFullYear(2035);
       return {
         nextSignal(view) {
-          return { signal_type: "complete", revision: view.revision };
+          return createStrategyComplete({ revision: view.revision });
         }
       };
     }
