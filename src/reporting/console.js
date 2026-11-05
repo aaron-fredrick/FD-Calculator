@@ -69,7 +69,18 @@ export function formatSimulation(result,config,configPath,optionsPath,{color:use
  out.push("  Starting funds: "+money(start)+" LKR | Scheduled new money: "+money(inflows)+" LKR | Total planned capital: "+money(start+inflows)+" LKR");
  if(showEventTimeline)out.push(timelineText(result,useColor));
  if(result.decision_log?.length){} // The legacy decision log is opt-in; CLI disables it by default.
- out.push("",line("="),"  GRAND SUMMARY  ["+result.strategy_name+"]",line("-"));
+ if(result.goal_outcome){
+  const g=result.goal_outcome;
+  out.push("",line("="),"  GOAL OUTCOME  [consolidation net interest]",line("-"));
+  out.push(summaryLine("Goal Target",money(g.target)+" LKR",C.booking,useColor));
+  out.push(summaryLine("Credited Net Interest",money(g.actual)+" LKR",g.achieved?C.cash:C.outflow,useColor));
+  out.push(summaryLine("Status",g.achieved?"ACHIEVED":"NOT ACHIEVED",g.achieved?C.cash:C.outflow,useColor));
+  out.push(summaryLine("Achievement Date",g.achievement_date??"—",C.date,useColor));
+  out.push(summaryLine("Elapsed Days",g.elapsed_days===null?"—":String(g.elapsed_days),C.date,useColor));
+  out.push(summaryLine(g.achieved?"Overshoot":"Remaining Shortfall",money(g.achieved?g.overshoot:g.shortfall)+" LKR",C.transfer,useColor));
+  out.push("  Goal accounting counts first-time net interest credited to the consolidation account; principal is excluded.");
+ }
+  out.push("",line("="),"  GRAND SUMMARY  ["+result.strategy_name+"]",line("-"));
  const totalRet=result.total_principal>0?result.total_interest/result.total_principal*100:0,netRet=result.total_principal>0?result.net_interest_after_ait/result.total_principal*100:0,annual=xirr(result);
  out.push(summaryLine("Total Capital",money(result.total_principal)+" LKR",C.inflow,useColor),summaryLine("Gross Interest",money(result.total_interest)+" LKR",C.maturity,useColor),summaryLine("Transfer Fees","-"+money(result.total_transfer_fees)+" LKR",C.transfer,useColor),summaryLine(result.ait_enabled?"AIT ("+(result.ait_rate*100).toFixed(0)+"% of interest)":"AIT (disabled)","-"+money(result.ait_withheld)+" LKR",C.outflow,useColor));
  if(result.total_outflows_due){out.push(summaryLine("Total Outflows",money(result.total_outflows_due)+" LKR",C.outflow,useColor),summaryLine("Outflows Paid",money(result.total_outflows_paid)+" LKR",C.outflow,useColor));if(result.outstanding_outflows?.length){const n=result.outstanding_outflows.reduce((s,x)=>s+Number(x.remaining||0),0);out.push(summaryLine("Outstanding",money(n)+" LKR",C.outflow,useColor));for(const x of result.outstanding_outflows)out.push("    - "+(x.name||"Outflow")+" ["+(x.account_id||"")+"]: "+money(x.remaining)+" LKR ("+(x.payment_policy||"")+")");}}
