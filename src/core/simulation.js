@@ -111,9 +111,7 @@ export function finalizeSimulation(result, {
   return result;
 }
 
-/** Shared entry point for executing and finalizing any strategy exactly once. */
-export class SimulationEngine {
-  #runSession(strategy, context) {
+export function runStrategySession(strategy, context) {
     const runtime = new SimulationRuntime(context, {
       strategy_name: strategy.name ?? strategy.constructor?.name ?? "Strategy",
       compound: strategy.compound,
@@ -161,11 +159,12 @@ export class SimulationEngine {
       amount: 0, label: "Simulation starts", balance_after: 0, total_balance_after: 0
     });
     (result.timeline[startEvent.date_key] ??= []).unshift(startEvent);
-    return finalizeSimulation(result, {
-      fee_config: context.fee_config,
-      consolidation_account_id: context.consolidation_account_id
-    });
+    return result;
   }
+
+
+/** Shared entry point for executing and finalizing any strategy exactly once. */
+export class SimulationEngine {
 
   run(strategy, input) {
     if (!strategy || (typeof strategy.simulate !== "function" &&
@@ -174,7 +173,16 @@ export class SimulationEngine {
     }
     const context = createSimulationContext(input);
     if (typeof strategy.createSession === "function") {
-      return this.#runSession(strategy, context);
+      const result = runStrategySession(strategy, context);
+      const startEvent = new Event({
+        event_type: EventType.SIMULATION_START, on_date: context.start,
+        amount: 0, label: "Simulation starts", balance_after: 0, total_balance_after: 0
+      });
+      (result.timeline[startEvent.date_key] ??= []).unshift(startEvent);
+      return finalizeSimulation(result, {
+        fee_config: context.fee_config,
+        consolidation_account_id: context.consolidation_account_id
+      });
     }
     const normalizedInput = {
       ...input,
