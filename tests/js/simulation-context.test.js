@@ -66,3 +66,15 @@ test("simulation context preserves default account and fee configuration semanti
   assert.equal(context.accounts[0].id, "default");
   assert.equal(context.fee_config instanceof TransferFeeConfig, true);
 });
+
+
+test("goal context derives its safety horizon without a caller-supplied end date", () => {
+  const context = createSimulationContext({
+    start: "2026-01-31",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1000 } },
+    options: [new FDOption({ label: "one month", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 50000 })],
+    inflow_account_id: "main", consolidation_account_id: "main", fee_config: new TransferFeeConfig()
+  });
+  assert.equal(context.end_iso, "2056-01-31");
+});
