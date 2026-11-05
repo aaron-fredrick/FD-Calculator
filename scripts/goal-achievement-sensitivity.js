@@ -112,6 +112,7 @@ function runPoint(category, value, {
       runtime_ms: runtimeMs,
       absolute_plus_expanded_states: result.search_diagnostics?.expanded_states ?? null,
       goal_candidates_evaluated: result.search_diagnostics?.goal_candidates_evaluated ?? null,
+      goal_invalid_candidates: result.search_diagnostics?.goal_invalid_candidates ?? null,
       goal_search_score: result.search_diagnostics?.selected_goal_score ? {
         achieved: result.search_diagnostics.selected_goal_score.achieved,
         elapsed_days: Number.isFinite(result.search_diagnostics.selected_goal_score.elapsed_days) ? result.search_diagnostics.selected_goal_score.elapsed_days : null,
