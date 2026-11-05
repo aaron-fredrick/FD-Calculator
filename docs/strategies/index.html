@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#0b0e13">
+<meta name="description" content="FD Cal optimisation strategy documentation."><title>FD Cal — Strategy documentation</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#0b0e13;color:#e8edf5}*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:32px 20px}main{width:min(100%,820px);margin:0 auto}
+.eyebrow{color:#8da4bd;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+h1{margin:10px 0;font-size:clamp(28px,6vw,40px)}p{color:#aebdce;line-height:1.65}
+.strategy{margin-top:13px;padding:18px 20px;border:1px solid #273447;border-radius:12px;background:#111923}
+h2{margin:0 0 6px;font-size:17px}.links{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:14px}
+a{color:#8ac8ef;text-decoration:none}a:hover{text-decoration:underline}footer{margin-top:26px;color:#8190a3;font-size:13px}
+</style></head><body><main>
+<div class="eyebrow">FD Cal / Documentation</div><h1>Optimisation strategies</h1>
+<p>Strategy names in the web tool are intentionally kept concise. These guides explain the decision model and trade-offs behind each option.</p>
+<article class="strategy"><h2>GAML</h2><p>Bounded beam search that explores multiple promising plans while controlling search cost.</p><div class="links"><a href="https://github.com/aaron-fredrick/FD-Calculator/blob/main/docs/STRATEGIES.md#gaml" target="_blank" rel="noopener noreferrer">GAML guide ↗</a></div></article>
+<article class="strategy"><h2>GSS</h2><p>Recursive goal-seeking strategy that evaluates SPLIT and CONSOLIDATE plans and uses interim investments while preserving future goal liquidity.</p><div class="links"><a href="./GSS.md" target="_blank" rel="noopener noreferrer">GSS technical reference ↗</a><a href="https://github.com/aaron-fredrick/FD-Calculator/blob/main/docs/STRATEGIES.md#goal-seeking-strategy-gss" target="_blank" rel="noopener noreferrer">Strategy overview ↗</a></div></article>
+<article class="strategy"><h2>Greedy</h2><p>Fast local decision-making strategy. Useful as a baseline, without a global optimality guarantee.</p><div class="links"><a href="https://github.com/aaron-fredrick/FD-Calculator/blob/main/docs/STRATEGIES.md#greedy" target="_blank" rel="noopener noreferrer">Greedy guide ↗</a></div></article>
+<article class="strategy"><h2>Absolute</h2><p>Exhaustive branch-and-bound search. CLI only; can prove optimality if the search completes.</p><div class="links"><a href="https://github.com/aaron-fredrick/FD-Calculator/blob/main/docs/STRATEGIES.md#absolute" target="_blank" rel="noopener noreferrer">Absolute guide ↗</a></div></article>
+<footer><a href="../">All documentation</a> · <a href="../../web/">Open FD Cal</a></footer>
+</main></body></html>
