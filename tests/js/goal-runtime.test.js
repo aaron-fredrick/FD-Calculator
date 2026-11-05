@@ -66,7 +66,7 @@ test("goal mode reaches the maximum boundary with explicit shortfall when target
   assert.equal(result.goal_outcome.achievement_date, null);
   assert.equal(result.goal_outcome.stopping_reason, "safety_horizon_reached");
   assert.ok(result.goal_outcome.shortfall > 0);
-  assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
+  assert.equal(result.end_date.toISOString().slice(0, 10), "2056-01-01");
   assert.equal(result.finalized, true);
 });
 
@@ -116,8 +116,9 @@ test("maximum-date final consolidation can be the first goal-credit boundary", (
   scenario.consolidation_account_id = "main";
   const result = new SimulationEngine().run(strategy, scenario);
   assert.equal(result.goal_outcome.achieved, true);
-  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(result.goal_outcome.achievement_date, "2056-01-01");
   assert.equal(result.goal_outcome.stopping_reason, "goal_achieved_on_final_consolidation");
+  assert.equal(result.goal_outcome.achievement_date, "2056-01-01");
   assert.equal(result.accounts.reserve.balance, 0);
   assert.ok(result.accounts.main.balance > 100000);
 });
