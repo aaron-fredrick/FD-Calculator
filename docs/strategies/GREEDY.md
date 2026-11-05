@@ -10,21 +10,21 @@ Consequently, Greedy is fast and useful as a baseline, but it does not guarantee
 
 **Implementation:** `src/strategies/greedy.js`
 
-## 2. Inputs and setup
+## 2. Strategy context and configuration
 
-The strategy accepts:
+Greedy is created through `createSession(context)`, using the shared simulation context supplied by `SimulationEngine`. It does not accept or own the user's simulation inputs as a separate strategy-level input contract.
 
-- FD options.
-- Simulation start and end dates.
-- Initial accounts and their balances.
-- Inflow and outflow schedules.
-- Transfer-fee configuration.
-- Inflow and consolidation account IDs.
-- Interest compounding, leap-year and AIT settings.
+The shared context provides the strategy with the FD option catalogue and the simulation-wide configuration needed for planning, including:
 
-If accounts are not supplied, Greedy creates a default account using the first FD option's bank identity (or `commercial`). The inflow account defaults to the first account, and the consolidation account defaults to the inflow account.
+- The simulation start and effective end boundary.
+- Account definitions and initial balances.
+- Inflow and outflow schedules, which are processed by the shared runtime.
+- Transfer-fee configuration and the configured inflow and consolidation account IDs.
+- Interest compounding, leap-year and effective AIT settings.
 
-Greedy constructs one `FDOptionManager` for the supplied FD options. Account eligibility is evaluated against the individual account, including whether that account supports eFDs; eFD capability is not assumed to be uniform across all accounts at a bank.
+At each decision boundary, Greedy receives a read-only runtime view containing the current date, revision and account balances. It uses that snapshot together with the shared context to produce its next decision. The strategy does not independently advance dates or settle scheduled cash flows.
+
+Account defaults and input normalization belong to the simulation/configuration layer, not to Greedy. By the time a session is created, the context contains the resolved account and configuration state. Greedy constructs one `FDOptionManager` from the context's FD options. Account eligibility is evaluated against each individual account, including its eFD capability; eFD support is not assumed to be uniform across all accounts.
 
 ## 3. Session planning
 
