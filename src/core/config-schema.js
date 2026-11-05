@@ -4,14 +4,38 @@ const bad=(p,m)=>{throw new TypeError(p+": "+m)};
 const date=(v,p)=>{if(typeof v!=="string"||!v.trim())bad(p,"expected ISO date or supported keyword");const s=v.trim().toLowerCase();if(["today","start","investment_start","end","investment_end"].includes(s))return;if(/^investment_start\+[1-9][0-9]*[dmy]$/.test(s)){parsePeriod(s.slice(17));return}try{parseISODate(s)}catch{bad(p,"use YYYY-MM-DD, today, start, investment_start, end, investment_end, or investment_start+<period>")}};
 export function validateConfigurationShape(x){
  if(!obj(x))bad("$","must be an object");
- const root=["strategy","options_file","investment","accounts","consolidation_account_id","inflows","outflows","transfer_fees","compound","ait_enabled","actual_leap_year","gaml_settings","gaml","greedy_settings","greedy","gss_settings","gss","strategy_settings","show_timeline","show_ledger","show_plots","plot_output_dir","report_output_file"];
+ const root=["strategy","options_file","simulation","investment","accounts","consolidation_account_id","inflows","outflows","transfer_fees","compound","ait_enabled","actual_leap_year","gaml_settings","gaml","greedy_settings","greedy","gss_settings","gss","strategy_settings","show_timeline","show_ledger","show_plots","plot_output_dir","report_output_file"];
  Object.keys(x).forEach(k=>{if(!root.includes(k))bad(k,"unknown property")});
  if(x.strategy!==undefined&&!["absolute","greedy","gaml","gss"].includes(x.strategy))bad("strategy","must be absolute, greedy, gaml or gss");
  for(const k of ["compound","ait_enabled","actual_leap_year","show_timeline","show_ledger","show_plots"])if(x[k]!==undefined&&typeof x[k]!=="boolean")bad(k,"must be boolean");
  for(const k of ["options_file","plot_output_dir","report_output_file"])if(x[k]!==undefined&&(typeof x[k]!=="string"||!x[k].trim()))bad(k,"must be a non-empty string");
+ const mode=x.simulation?.mode??"scoped";
+ if(x.simulation!==undefined){
+  if(!obj(x.simulation))bad("simulation","must be an object");
+  Object.keys(x.simulation).forEach(k=>{if(!["mode","duration","goal"].includes(k))bad("simulation."+k,"unknown property")});
+  if(!["time_based","scoped","goal"].includes(mode))bad("simulation.mode","must be time_based, scoped or goal");
+  if(mode==="time_based"){
+   if(typeof x.simulation.duration!=="string")bad("simulation.duration","required period such as 30d, 6m or 1y");
+   try{if(parsePeriod(x.simulation.duration).amount<1)throw Error()}catch{bad("simulation.duration","must be a positive period such as 30d, 6m or 1y")}
+   if(x.simulation.goal!==undefined)bad("simulation.goal","not valid for time_based mode");
+  }else if(mode==="scoped"){
+   if(x.simulation.duration!==undefined||x.simulation.goal!==undefined)bad("simulation","scoped mode accepts only mode");
+  }else{
+   if(x.simulation.duration!==undefined)bad("simulation.duration","not valid for goal mode");
+   const g=x.simulation.goal;
+   if(!obj(g))bad("simulation.goal","required object for goal mode");
+   Object.keys(g).forEach(k=>{if(!["metric","target","maximum_end_date"].includes(k))bad("simulation.goal."+k,"unknown property")});
+   if(g.metric!=="consolidation_net_interest")bad("simulation.goal.metric","must be consolidation_net_interest");
+   if(typeof g.target!=="number"||!Number.isFinite(g.target)||g.target<=0)bad("simulation.goal.target","must be a finite positive number");
+   date(g.maximum_end_date,"simulation.goal.maximum_end_date");
+  }
+ }
  if(!obj(x.investment))bad("investment","required object");
  Object.keys(x.investment).forEach(k=>{if(!["start_date","end_date"].includes(k))bad("investment."+k,"unknown property")});
- for(const k of ["start_date","end_date"]){if(x.investment[k]===undefined)bad("investment."+k,"required");date(x.investment[k],"investment."+k)}
+ if(x.investment.start_date===undefined)bad("investment.start_date","required");
+ date(x.investment.start_date,"investment.start_date");
+ if(x.investment.end_date===undefined){if(!x.simulation||mode==="scoped")bad("investment.end_date","required")}else date(x.investment.end_date,"investment.end_date");
+ if(mode==="goal"&&x.investment.end_date!==undefined)bad("investment.end_date","omit when simulation.mode is goal; use simulation.goal.maximum_end_date");
  if(!obj(x.accounts)||!Object.keys(x.accounts).length)bad("accounts","must be a non-empty object");
  for(const [id,a] of Object.entries(x.accounts)){const p="accounts."+id;if(!id.trim()||!obj(a))bad(p,"invalid account object");Object.keys(a).forEach(k=>{if(!["bank_id","label","balance","supports_efd"].includes(k))bad(p+"."+k,"unknown property")});if(typeof a.bank_id!=="string"||!a.bank_id.trim())bad(p+".bank_id","required non-empty string");if(a.label!==undefined&&typeof a.label!=="string")bad(p+".label","must be a string");if(a.balance!==undefined&&(typeof a.balance!=="number"||!Number.isFinite(a.balance)||a.balance<0))bad(p+".balance","must be finite and non-negative");if(a.supports_efd!==undefined&&typeof a.supports_efd!=="boolean")bad(p+".supports_efd","must be boolean")}
  if(x.consolidation_account_id!==undefined&&typeof x.consolidation_account_id!=="string")bad("consolidation_account_id","must be an account ID");
