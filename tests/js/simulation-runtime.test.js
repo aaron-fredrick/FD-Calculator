@@ -96,3 +96,63 @@ test("shared runtime processes inflows and outflows before exposing planning sta
   assert.equal(runtime.totalOutflowsPaid, 500);
   assert.equal(view.pending_outflows.length, 0);
 });
+
+test("same-date decision batches execute atomically and preserve action order", () => {
+  const runtime = makeRuntime();
+  const view = runtime.planningView();
+  const signal = createStrategyDecision({
+    revision: view.revision, date: view.date,
+    action: StrategyDecisionType.BATCH,
+    plan: {
+      actions: [
+        {
+          action: StrategyDecisionType.SPLIT,
+          plan: { bookings: [{ account_id: "reserve", option_index: 1, principal: 30000 }], carries: [] }
+        },
+        {
+          action: StrategyDecisionType.CARRY,
+          plan: { carries: ["main"], carry_label: "Batch carry" }
+        }
+      ]
+    }
+  });
+  runtime.executeSignal(signal);
+  const after = runtime.planningView();
+  assert.equal(after.revision, view.revision + 1);
+  assert.equal(after.accounts.find(account => account.id === "reserve").balance, 0);
+  assert.equal(after.accounts.find(account => account.id === "main").balance, 10000);
+  const dayEvents = runtime.timeline[20260101];
+  assert.equal(dayEvents.filter(event => event.event_type === "booking").length, 1);
+  assert.equal(dayEvents.filter(event => event.event_type === "carry_forward").length, 1);
+});
+
+test("invalid same-date decision batch rolls back all earlier staged actions", () => {
+  const runtime = makeRuntime();
+  const view = runtime.planningView();
+  const eventsBefore = Object.values(runtime.timeline).flat().length;
+  const signal = createStrategyDecision({
+    revision: view.revision, date: view.date,
+    action: StrategyDecisionType.BATCH,
+    plan: {
+      actions: [
+        {
+          action: StrategyDecisionType.SPLIT,
+          plan: { bookings: [{ account_id: "reserve", option_index: 1, principal: 30000 }], carries: [] }
+        },
+        {
+          action: StrategyDecisionType.CONSOLIDATE,
+          plan: {
+            target_account_id: "main", option_index: 0, principal: 10000,
+            transfers: [{ source_account_id: "missing", target_account_id: "main", amount: 1000, fee: 30 }]
+          }
+        }
+      ]
+    }
+  });
+  assert.throws(() => runtime.executeSignal(signal), /unknown account/);
+  const after = runtime.planningView();
+  assert.deepEqual(after.accounts, view.accounts);
+  assert.equal(runtime.bookings.length, 0);
+  assert.equal(runtime.totalFees, 0);
+  assert.equal(Object.values(runtime.timeline).flat().length, eventsBefore);
+});
