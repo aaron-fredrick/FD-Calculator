@@ -30,12 +30,18 @@ jobs:
       - name: Publish generated goal benchmark charts and data to the feature branch
         run: |
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            mkdir -p /tmp/goal-achievement-output
+            cp -R docs/strategies/assets/goal-achievement/. /tmp/goal-achievement-output/
+            git fetch origin "$GITHUB_REF_NAME"
+            git checkout -B "$GITHUB_REF_NAME" "origin/$GITHUB_REF_NAME"
+            mkdir -p docs/strategies/assets/goal-achievement
+            cp -R /tmp/goal-achievement-output/. docs/strategies/assets/goal-achievement/
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add docs/strategies/assets/goal-achievement/
             if ! git diff --cached --quiet; then
               git commit -m "docs: publish goal-mode strategy sensitivity results"
-              git push
+              git push origin "HEAD:$GITHUB_REF_NAME"
             fi
           fi
       - name: Upload goal benchmark output
