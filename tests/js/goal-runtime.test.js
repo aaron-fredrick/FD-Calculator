@@ -330,7 +330,14 @@ test("GSS goal planning reserves source liquidity for outflows due before the ne
     fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
   };
   const result = new SimulationEngine().run(new GSSStrategy({ ait_enabled: false }), scenario);
-  assert.equal(result.valid, true);
+  assert.equal(result.valid, true, JSON.stringify({
+    total_outflows_paid: result.total_outflows_paid,
+    outstanding_outflows: result.outstanding_outflows,
+    goal_outcome: result.goal_outcome,
+    gss_diagnostics: result.gss_diagnostics,
+    bookings: result.bookings.map(item => ({ option: item.option.label, principal: item.principal, start: item.start.toISOString().slice(0, 10) })),
+    outflow_events: result.timeline[20260215]
+  }));
   assert.equal(result.total_outflows_paid, 50000);
   assert.equal(result.outstanding_outflows.length, 0);
   assert.ok(result.timeline[20260215].some(event => event.event_type === "outflow" && event.amount === 50000));
