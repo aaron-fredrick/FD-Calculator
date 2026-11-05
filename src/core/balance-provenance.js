@@ -30,7 +30,7 @@ export class BalanceProvenance {
     return result;
   }
 
-  total(id) { return cents(totalOf(this.#get(id))); }
+  clone() { const copy = new BalanceProvenance([...this.accounts.keys()]); copy.accounts = new Map([...this.accounts].map(([id, value]) => [id, { ...value }])); copy.creditedNetInterest = this.creditedNetInterest; return copy; }\n\n  total(id) { return cents(totalOf(this.#get(id))); }
 
   snapshot(id) { return { ...this.#get(id) }; }
 
