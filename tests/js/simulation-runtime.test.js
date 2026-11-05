@@ -206,3 +206,46 @@ test("split booking snapshots are sequential", () => {
   assert.deepEqual(bookingEvents[0].decision_context.balances_before, { a: 30000, b: 30000 });
   assert.deepEqual(bookingEvents[1].decision_context.balances_before, { a: 0, b: 30000 });
 });
+
+test("runtime carries FD principal provenance and recognises only net interest at consolidation", () => {
+  const runtime = makeRuntime();
+  const view = runtime.planningView();
+  runtime.executeSignal(createStrategyDecision({
+    revision: view.revision, date: view.date,
+    action: StrategyDecisionType.CONSOLIDATE,
+    plan: {
+      target_account_id: "main", option_index: 0, principal: 39970,
+      transfers: [{ source_account_id: "reserve", target_account_id: "main", amount: 30000, fee: 30 }],
+      carries: []
+    }
+  }));
+  assert.equal(runtime.provenance.total("main"), 0);
+  assert.equal(runtime.provenance.total("reserve"), 0);
+  assert.equal(runtime.provenance.creditedNetInterest, 0);
+  const maturityDate = runtime.nextEventDate();
+  runtime.processDate(maturityDate);
+  assert.ok(runtime.provenance.creditedNetInterest > 0);
+  assert.equal(runtime.provenance.snapshot("main").uncredited_interest, 0);
+  assert.equal(runtime.provenance.snapshot("main").counted_interest, runtime.provenance.creditedNetInterest);
+  const result = runtime.buildResult();
+  assert.equal(result.credited_net_interest, runtime.provenance.creditedNetInterest);
+});
+
+test("outflows consume provenance without reversing previously credited interest", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-02-28",
+    options: [new FDOption({
+      label: "Bank A 30d", period_str: "30d", annual_rate: 10,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 1000 })],
+    consolidation_account_id: "main",
+    outflow_schedule: {
+      "2026-01-01": [{ account_id: "main", amount: 250, payment_policy: "strict" }]
+    }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.provenance.total("main"), 750);
+  assert.equal(runtime.provenance.creditedNetInterest, 0);
+});
