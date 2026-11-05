@@ -247,6 +247,27 @@ test("Greedy and GSS use the same shared goal outcome and stopping contract", ()
   }
 });
 
+test("Absolute+ waits for a near-term inflow when it enables an earlier goal payout", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-04-01",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1000 } },
+    options: [
+      new FDOption({ label: "60d current", period_str: "60d", annual_rate: 20, min_amount: 100000, bank_id: "BANK_A", bank_key: "a" }),
+      new FDOption({ label: "30d threshold", period_str: "30d", annual_rate: 10, min_amount: 150000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    inflow_schedule: { "2026-01-15": 100000 }
+  };
+  const result = new SimulationEngine().run(new AbsolutePlusStrategy({
+    ait_enabled: false, beam_width: 32, max_local_branches: 16, max_decisions: 500
+  }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-02-14");
+  assert.equal(result.bookings[0].option.label, "30d threshold");
+  assert.equal(result.bookings[0].start.toISOString().slice(0, 10), "2026-01-15");
+});
+
 test("Absolute retains a fee-heavy consolidation path when it credits the goal sooner", () => {
   const scenario = {
     start: "2026-01-01", end: "2026-03-10",
