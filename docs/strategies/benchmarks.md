@@ -1,6 +1,6 @@
 # Strategy sensitivity benchmark
 
-This study executes the repository's actual `SimulationEngine` and the three strategies available in the web application: **Greedy**, **GAML** and **GSS**. Each comparison changes one scenario factor at a time and gives every strategy the same inputs.
+This study executes the repository's actual `SimulationEngine` and the three strategies available in the web application: **Greedy**, **Absolute+** and **GSS**. Each comparison changes one scenario factor at a time and gives every strategy the same inputs.
 
 All plotted values are **net interest after AIT and transfer fees**, in LKR. They are not gross interest or final portfolio value.
 
@@ -38,15 +38,19 @@ Transfer fees follow the bank catalogue: DFCC LKR 30 inter-bank, Commercial Bank
 
 ## Sensitivity graphs
 
-Each chart overlays all three strategy results for the same factor. Exact machine-readable rows are available in [benchmark-results.json](./benchmarks/results.json).
+Each chart overlays all three strategy results for the same factor. Numeric inputs use a linear numeric horizontal axis, so point spacing reflects the actual difference between tested values; categorical sweeps retain equal category spacing. Exact machine-readable rows are available in [benchmark-results.json](./benchmarks/results.json).
 
 ### Investment horizon
 
 ![Investment horizon sensitivity](./assets/horizon.svg)
 
+The horizontal axis is linear in months (6, 12 and 24). The 12-month point is placed one-third of the way from 6 to 24 months, reflecting the actual numeric interval.
+
 ### Starting capital
 
 ![Starting capital sensitivity](./assets/capital.svg)
+
+The horizontal axis is linear in LKR (25k, 100k, 300k and 1m). Unequal capital intervals therefore occupy unequal horizontal distances. This avoids visually presenting the four test points as equally sized increases. The vertical axis remains linear in net interest.
 
 ### Number of accounts
 
@@ -58,7 +62,7 @@ The three strategy lines overlap because the measured returns are effectively id
 
 ![Bank-count sensitivity](./assets/banks.svg)
 
-The Greedy and GAML lines overlap in this comparison. GSS remains close to its one-bank result and does not capture the same benefit from adding banks.
+The Greedy and Absolute+ lines overlap in this comparison. GSS remains close to its one-bank result and does not capture the same benefit from adding banks.
 
 ### Cash inflows
 
@@ -72,7 +76,7 @@ The Greedy and GAML lines overlap in this comparison. GSS remains close to its o
 
 ### 1. Longer horizons increase absolute net interest
 
-With LKR 300,000 across three banks, Greedy returned LKR 12,933.28 at 6 months, LKR 28,778.95 at 12 months and LKR 61,886.03 at 24 months. GAML was ahead by 4.28% and 2.90% at 6 and 12 months, then matched Greedy at 24 months. GSS was 0.56% behind at 6 months and 3.98–6.09% behind at the longer horizons.
+With LKR 300,000 across three banks, Greedy returned LKR 12,933.28 at 6 months, LKR 28,778.95 at 12 months and LKR 61,886.03 at 24 months. Absolute+ was ahead by 4.28% and 2.90% at 6 and 12 months, then matched Greedy at 24 months. GSS was 0.56% behind at 6 months and 3.98–6.09% behind at the longer horizons.
 
 ### 2. More accounts alone did not improve return
 
@@ -80,7 +84,7 @@ Holding the bank fixed at DFCC and total capital at LKR 300,000, 1, 2 and 3 acco
 
 ### 3. Bank diversity improved the Greedy result in this catalogue
 
-With three accounts and LKR 300,000 total capital, the Greedy result rose from LKR 59,481.38 with DFCC only to LKR 61,460.41 with DFCC and Commercial Bank, then LKR 61,886.03 with all three banks. That is a 4.04% increase from one to three banks, after modelled transfer fees of LKR 0, 25 and 50 respectively. GAML matched Greedy at all three points. GSS did not capture the same gain in the multi-bank cases.
+With three accounts and LKR 300,000 total capital, the Greedy result rose from LKR 59,481.38 with DFCC only to LKR 61,460.41 with DFCC and Commercial Bank, then LKR 61,886.03 with all three banks. That is a 4.04% increase from one to three banks, after modelled transfer fees of LKR 0, 25 and 50 respectively. Absolute+ matched Greedy at all three points. GSS did not capture the same gain in the multi-bank cases.
 
 ### 4. Inflows raise total interest, but later capital has less time to earn
 
@@ -90,29 +94,29 @@ The absolute interest rises as more capital enters, but the net-interest-to-tota
 
 ### 5. eFD eligibility was worth LKR 2,454.65 in the tested baseline
 
-For Greedy and GAML, enabling eFD eligibility increased net interest from LKR 59,431.38 to LKR 61,886.03 (+4.13%). GSS remained around LKR 59,421.46 when eFDs were enabled, slightly below its standard-only result. This is a strategy-specific gap worth investigating; eligibility expanded the available products but GSS did not convert that expansion into a better outcome in this scenario.
+For Greedy and Absolute+, enabling eFD eligibility increased net interest from LKR 59,431.38 to LKR 61,886.03 (+4.13%). GSS remained around LKR 59,421.46 when eFDs were enabled, slightly below its standard-only result. This is a strategy-specific gap worth investigating; eligibility expanded the available products but GSS did not convert that expansion into a better outcome in this scenario.
 
-### 6. GAML's search cost rises sharply with recurring inflows
+### 6. Absolute+'s search cost rises sharply with recurring inflows
 
-GAML matched Greedy on the monthly-inflow case, but used the full 5,000 expanded-state budget and took about 95 seconds in this CI run. Greedy completed in milliseconds and GSS in under 20 ms. Runtime is environment-dependent, but the relative cost is material. GAML's result is bounded and does not prove optimality; the study records `optimality_proven: false`.
+Absolute+ matched Greedy on the monthly-inflow case, but used the full 5,000 expanded-state budget and took about 95 seconds in this CI run. Greedy completed in milliseconds and GSS in under 20 ms. Runtime is environment-dependent, but the relative cost is material. Absolute+'s result is bounded and does not prove optimality; the study records `optimality_proven: false`.
 
 ## Strategy interpretation
 
 - **Greedy** was the strongest or tied strongest result in most tested scenarios, with very low runtime. It remains a useful baseline.
-- **GAML** found improvements in some short-horizon and capital cases, but often returned the Greedy result despite materially higher search cost. Its bounded result is not an optimality proof.
+- **Absolute+** found improvements in some short-horizon and capital cases, but often returned the Greedy result despite materially higher search cost. Its bounded result is not an optimality proof.
 - **GSS** remained very fast, but underperformed Greedy on several multi-bank, longer-horizon and inflow scenarios. The eFD result also suggests that broader candidate availability is not automatically being converted into better goal outcomes.
 
 These are observations from this fixed catalogue snapshot and the stated one-factor sweeps, not universal rankings. Rate schedules, product minima, payout types, fees and eligibility all influence the result.
 
-## GAML search-parameter sensitivity
+## Absolute+ search-parameter sensitivity
 
-A separate controlled experiment varies GAML's beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Results and overlay charts are published alongside the main study once the run completes and is reviewed.
+A separate controlled experiment varies Absolute+'s beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Results and overlay charts are published alongside the main study once the run completes and is reviewed.
 
 ## Reproducibility and limitations
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.
 - The workflow archives the raw output as a GitHub Actions artifact.
-- GAML uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget. Its results are approximate.
+- Absolute+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget. Its results are approximate.
 - Absolute is CLI-only and exhaustive; it is not included in this web-strategy comparison.
 - No outflows, early-termination penalties, liquidity preference, or rate changes during the forecast are modelled.
 - Published bank rates are a dated data snapshot, not guaranteed live offers. Confirm minimum balances, account eligibility, payout conditions and current tariffs with each bank before investing.
