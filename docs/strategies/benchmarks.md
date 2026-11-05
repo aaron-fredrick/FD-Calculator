@@ -2,7 +2,7 @@
 
 This study executes the repository's actual `SimulationEngine` and the three strategies available in the web application: **Greedy**, **Absolute+** and **GSS**. Each comparison changes one scenario factor at a time and gives every strategy the same inputs.
 
-All plotted values are **net interest after AIT and transfer fees**, in LKR. They are not gross interest or final portfolio value.
+All plotted values are **net interest after AIT and transfer fees**, in LKR. They are not gross interest or final portfolio value. This is the fixed-horizon study; goal-based runs use a separate objective and matrix documented in [Goal Achievement Sensitivity](./goal-achievement.md).
 
 ## Benchmark setup
 
