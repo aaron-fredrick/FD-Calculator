@@ -293,3 +293,12 @@ The current test suite and docs build are green, and the execution paths are suf
 - No strategy execution path has been migrated.
 - `SimulationEngine` still uses the legacy `strategy.simulate(input)` adapter. The shared chronological executor, outflow settlement integration, decision execution, and compatibility adapter remain to be implemented and tested.
 - Phase 1 remains in progress; do not begin Phase 2.
+
+**Issue note — baseline fixture compatibility**
+
+- Symptom: the first CI run failed only the new GAML and Absolute ledger tests; Greedy, GSS, and the contract tests passed.
+- Reproduction: the shared baseline fixture supplied an FD product for BANK_A but configured a second account at BANK_B.
+- Root cause: SearchStrategyBase validates that every configured account has at least one compatible FD product before search. This is an existing input contract, not an executor or strategy regression.
+- Constraint: keep one common scenario valid for all four strategies; do not weaken search input validation to accommodate a test fixture.
+- Correction: add an equivalent BANK_B product to the fixture, preserving the two-bank consolidation/fee scenario.
+- Regression coverage: the normalized ledger test continues to execute and compare deterministic outputs for all four strategies. CI rerun is pending.
