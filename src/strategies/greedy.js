@@ -54,14 +54,32 @@ function compareGoalPlans(a, b) {
     Number(b.net_interest) - Number(a.net_interest);
 }
 
+function selectFastestGoalOption(candidates, principal, date, aitRate, compound, actualLeapYear) {
+  return [...candidates].map(option => ({
+    option,
+    credit: firstCreditedInterest(option, principal, date, aitRate, compound, actualLeapYear)
+  })).filter(item => item.credit).sort((a, b) =>
+    a.credit.date - b.credit.date ||
+    b.credit.interest - a.credit.interest ||
+    b.option.annual_rate - a.option.annual_rate ||
+    a.option.days - b.option.days
+  )[0]?.option ?? null;
+}
+
 export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker, goalMode = false) {
   const active = Object.values(accounts).filter(account => account.balance > EPS);
   if (!active.length) return { type: "CARRY", carries: [] };
   const splitBookings = [], splitCarries = [];
   let splitGross = 0;
   for (const account of active) {
+    if (goalMode && account.id !== consolidationId) {
+      splitCarries.push(account);
+      continue;
+    }
     const eligible = optionManager.getEligibleOptions({ account, amount: account.balance, investmentDate: today, simulationEndDate: end });
-    const option = selectBestOption(eligible, tenorTieBreaker);
+    const option = goalMode
+      ? selectFastestGoalOption(eligible, account.balance, today, aitRate, compound, actualLeapYear)
+      : selectBestOption(eligible, tenorTieBreaker);
     if (!option) { splitCarries.push(account); continue; }
     const interest = option.totalInterestOn(account.balance, today, compound, actualLeapYear);
     splitBookings.push({ account, option, principal: account.balance, interest, rate: option.annual_rate, days: option.days });
@@ -95,7 +113,9 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
     }
     if (!transfers.length) continue;
     const eligible = optionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: end });
-    const option = selectBestOption(eligible, tenorTieBreaker);
+    const option = goalMode && target.id === consolidationId
+      ? selectFastestGoalOption(eligible, deployable, today, aitRate, compound, actualLeapYear)
+      : selectBestOption(eligible, tenorTieBreaker);
     if (!option) continue;
     const gross = option.totalInterestOn(deployable, today, compound, actualLeapYear);
     const net = gross * (1 - aitRate) - feesEval;
