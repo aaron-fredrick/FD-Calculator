@@ -271,7 +271,11 @@ test("GSS waits for an earlier consolidation opportunity instead of rebooking in
   };
   const result = new SimulationEngine().run(new GSSStrategy({ ait_enabled: false }), scenario);
   assert.equal(result.goal_outcome.achieved, true);
-  assert.equal(result.goal_outcome.achievement_date, "2026-02-01");
+  assert.equal(result.goal_outcome.achievement_date, "2026-02-01", JSON.stringify({
+    gss_diagnostics: result.gss_diagnostics,
+    decision_log: result.decision_log,
+    bookings: result.bookings.map(item => ({ option: item.option.label, start: item.start.toISOString().slice(0, 10), end: item.end.toISOString().slice(0, 10) }))
+  }));
   assert.equal(result.gss_diagnostics.planner_stopped_on_goal, true);
   assert.ok(result.gss_diagnostics.goal_plan_evaluations > 0);
   assert.ok(result.credited_net_interest >= 1000);
