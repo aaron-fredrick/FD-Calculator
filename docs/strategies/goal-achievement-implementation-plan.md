@@ -290,7 +290,7 @@ outflow accounting is verified.
 - The general Node test workflow passed on the same commit, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
 - The documentation build passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
-- Dedicated goal sensitivity workflow passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`; all 72 strategy runs completed and the measured summary is published in `goal-achievement.md`. The full machine-readable artifact is attached to workflow run [42096161209](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096161209).
+- Dedicated goal sensitivity workflow passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`; all 72 strategy runs completed and the measured summary is published in `goal-achievement.md`. The full machine-readable artifact is attached to workflow run [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770).
 - A clean pre-change baseline was not captured. Existing regression tests are being used as compatibility gates instead.
 
 ### Remaining work
