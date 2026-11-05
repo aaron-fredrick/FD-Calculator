@@ -257,14 +257,14 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
     for (const flow of directSchedule) {
       credited = round2(credited + flow.amount);
       if (credited + EPS >= settings.goalTarget) {
-        const days = daysBetween(formatISODate(today), flow.date);
+        const days = daysBetween(today, parseISODate(flow.date));
         const score = 1e12 - days * 1e6 + credited;
         goalOptionScores.set(key, score);
         return score;
       }
     }
     const firstDate = flows[0]?.date ?? formatISODate(today);
-    const days = daysBetween(formatISODate(today), firstDate);
+    const days = daysBetween(today, parseISODate(firstDate));
     const interest = sum(flows.map(flow => flow.amount));
     const score = (direct ? 1e9 : 0) - days * 1e5 + interest;
     goalOptionScores.set(key, score);
@@ -776,7 +776,10 @@ function expandState(rawState, context, settings, mode, counters) {
 
   const local = allLocalCombinations(activeIds, context, balances, parseISODate(state.date), {
     endDate: context.endDate, compound: context.compound, actualLeapYear: context.actualLeapYear,
-    aitRate: context.aitRate, maxLocalBranches: mode === "gaml" ? settings.maxLocalBranches : null
+    aitRate: context.aitRate, maxLocalBranches: mode === "gaml" ? settings.maxLocalBranches : null,
+    goalMode, goalTarget: context.simulation?.goal?.target,
+    goalProvenance: state.goalProvenance, goalFlows: state.goalFlows,
+    consolidationId: context.consolidationId
   });
   counters.localPruned += local.pruned;
   for (const branch of local.branches) {
