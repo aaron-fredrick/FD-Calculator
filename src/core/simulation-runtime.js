@@ -337,42 +337,71 @@ export class SimulationRuntime {
       });
     };
 
-    // Validate the complete decision against a private balance copy first.
-    // Any failure leaves authoritative balances and ledger untouched.
+    // Validate the complete decision (or same-date batch) against a private
+    // balance copy. Any failure leaves authoritative state and ledger untouched.
+    const actions = signal.action === StrategyDecisionType.BATCH
+      ? signal.plan.actions
+      : [{ action: signal.action, plan: signal.plan }];
+    if (!Array.isArray(actions) || actions.length === 0) {
+      throw new TypeError("A batched decision requires at least one action.");
+    }
+    for (const entry of actions) {
+      if (!entry || !Object.values(StrategyDecisionType).includes(entry.action) ||
+          entry.action === StrategyDecisionType.BATCH ||
+          !entry.plan || typeof entry.plan !== "object" || Array.isArray(entry.plan)) {
+        throw new TypeError("Batched decisions must contain valid non-batch actions and plans.");
+      }
+    }
+
     const pendingEvents = [];
     const pendingBookings = [];
+    const pendingDecisionLog = [];
     let pendingBookingNumber = this.bookingNumber;
     let pendingFees = 0;
     const originalSchedule = this.schedule.bind(this);
     this.schedule = event => { pendingEvents.push(event); return event; };
     try {
-      if (signal.action === "CONSOLIDATE") {
-        for (const item of signal.plan.transfers ?? []) transfer(item);
-        book({
-          account_id: signal.plan.target_account_id,
-          option_index: signal.plan.option_index,
-          principal: signal.plan.principal
-        }, balancesAtDecisionStart);
-      } else if (signal.action === "SPLIT") {
-        for (const item of signal.plan.bookings ?? []) book(item);
-      } else if (signal.action === "CARRY") {
-        // Carry decisions do not mutate cash. Their events are emitted below.
-      }
-      for (const id of signal.plan.carries ?? []) {
-        const target = account(id);
-        const amount = balances.get(target.id) ?? 0;
-        if (amount <= EPS) continue;
-        const balancesBeforeCarry = signal.plan.carry_snapshot === "decision_start"
-          ? balancesAtDecisionStart : Object.fromEntries(balances);
-        pendingEvents.push(new Event({
-          event_type: EventType.CARRY_FORWARD, on_date: this.currentDate, amount,
-          label: signal.plan.carry_label
-            ? signal.plan.carry_label + "; balance " + amount.toFixed(2) + " carries forward"
-            : "Below min / no option fits; balance " + amount.toFixed(2) + " carries forward",
-          account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id,
-          balance_after: amount, total_balance_after: this.#totalBalance(balances),
-          decision_context: { action: "carry", balances_before: balancesBeforeCarry }
-        }));
+      for (const entry of actions) {
+        const actionName = entry.action;
+        const plan = entry.plan;
+        const balancesAtActionStart = Object.fromEntries(balances);
+
+        if (actionName === StrategyDecisionType.CONSOLIDATE) {
+          for (const item of plan.transfers ?? []) transfer(item);
+          book({
+            account_id: plan.target_account_id,
+            option_index: plan.option_index,
+            principal: plan.principal,
+            decision_context: plan.decision_context
+          }, balancesAtActionStart, actionName, plan.decision_context);
+        } else if (actionName === StrategyDecisionType.SPLIT) {
+          for (const item of plan.bookings ?? []) {
+            book(item, null, actionName, item.decision_context ?? plan.decision_context);
+          }
+        } else if (actionName !== StrategyDecisionType.CARRY) {
+          throw new RangeError("Unsupported strategy action: " + actionName);
+        }
+
+        const carryIds = plan.carry_all ? [...this.accounts.keys()] : (plan.carries ?? []);
+        for (const id of carryIds) {
+          const target = account(id);
+          const amount = balances.get(target.id) ?? 0;
+          if (amount <= EPS) continue;
+          const balancesBeforeCarry = plan.carry_snapshot === "decision_start"
+            ? balancesAtActionStart : Object.fromEntries(balances);
+          const carryContext = plan.carry_context ??
+            { action: "carry", balances_before: balancesBeforeCarry };
+          pendingEvents.push(new Event({
+            event_type: EventType.CARRY_FORWARD, on_date: this.currentDate, amount,
+            label: plan.carry_label
+              ? plan.carry_label + "; balance " + amount.toFixed(2) + " carries forward"
+              : "Below min / no option fits; balance " + amount.toFixed(2) + " carries forward",
+            account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id,
+            balance_after: amount, total_balance_after: this.#totalBalance(balances),
+            decision_context: carryContext
+          }));
+        }
+        pendingDecisionLog.push({ date: formatISODate(this.currentDate), action: actionName });
       }
     } finally {
       this.schedule = originalSchedule;
@@ -383,7 +412,7 @@ export class SimulationRuntime {
     this.bookingNumber = pendingBookingNumber;
     this.bookings.push(...pendingBookings);
     for (const event of pendingEvents) originalSchedule(event);
-    this.decisionLog.push({ date: formatISODate(this.currentDate), action: signal.action });
+    this.decisionLog.push(...pendingDecisionLog);
     return signal;
   }
 
