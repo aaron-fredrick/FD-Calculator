@@ -1,7 +1,13 @@
-import { Account, TransferFeeConfig } from "./models.js";
+import { Account, FDOption, TransferFeeConfig } from "./models.js";
 import { normalizeInflowSchedule } from "./events.js";
 import { validateOutflowSchedule } from "./cashflows.js";
 import { formatISODate, parseISODate } from "./dates.js";
+
+function deepFreeze(value) {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) deepFreeze(child);
+  return Object.freeze(value);
+}
 
 /**
  * Normalize the public simulation input once at the engine boundary.
@@ -16,14 +22,20 @@ export function createSimulationContext(input = {}) {
   const endDate = parseISODate(input.end);
   if (startDate > endDate) throw new RangeError("Simulation start must not be after its end.");
 
-  const options = input.options;
-  if (!Array.isArray(options) || options.length === 0) {
+  const sourceOptions = input.options;
+  if (!Array.isArray(sourceOptions) || sourceOptions.length === 0) {
     throw new TypeError("Simulation requires at least one FD option.");
   }
-  if (options.some(option => !option || typeof option.canInvest !== "function" ||
+  if (sourceOptions.some(option => !option || typeof option.canInvest !== "function" ||
       typeof option.generateCashFlowsAfterAIT !== "function")) {
     throw new TypeError("Simulation options must be FDOption-compatible instances.");
   }
+  const options = sourceOptions.map(option => deepFreeze(new FDOption({
+    label: option.label, period_str: option.period_str, annual_rate: option.annual_rate,
+    min_amount: option.min_amount, payout_type: option.payout_type,
+    payout_period_str: option.payout_period_str, bank_key: option.bank_key,
+    bank_id: option.bank_id, is_efd: option.is_efd
+  })));
 
   let sourceAccounts = input.accounts;
   if (!Array.isArray(sourceAccounts) || sourceAccounts.length === 0) {
@@ -38,11 +50,11 @@ export function createSimulationContext(input = {}) {
     const id = String(account.id ?? "").trim();
     if (!id || ids.has(id)) throw new TypeError("Simulation account ids must be non-empty and unique.");
     ids.add(id);
-    return new Account({
+    return deepFreeze(new Account({
       id, bank_id: account.bank_id, bank_key: account.bank_key,
       label: account.label, balance: account.balance,
       supports_efd: account.supports_efd
-    });
+    }));
   });
 
   const inflowAccountId = String(input.inflow_account_id ?? accounts[0].id);
@@ -60,9 +72,16 @@ export function createSimulationContext(input = {}) {
     }
   }
 
-  const outflows = input.outflow_schedule ?? {};
+  const outflows = deepFreeze(structuredClone(input.outflow_schedule ?? {}));
   validateOutflowSchedule(outflows, formatISODate(startDate), formatISODate(endDate), ids);
-  const feeConfig = input.fee_config ?? new TransferFeeConfig();
+  const sourceFeeConfig = input.fee_config ?? new TransferFeeConfig();
+  const feeConfig = deepFreeze(new TransferFeeConfig({
+    default_inter_bank_fee: sourceFeeConfig.default_inter_bank_fee,
+    same_bank_fee: sourceFeeConfig.same_bank_fee,
+    custom_fees: structuredClone(sourceFeeConfig.custom_fees ?? {}),
+    bank_fees: structuredClone(sourceFeeConfig.bank_fees ?? {})
+  }));
+  deepFreeze(inflows);
 
   return Object.freeze({
     start: startDate,
@@ -74,7 +93,7 @@ export function createSimulationContext(input = {}) {
     account_ids: Object.freeze([...ids]),
     inflow_account_id: inflowAccountId,
     consolidation_account_id: consolidationAccountId,
-    inflows: Object.freeze(inflows),
+    inflows,
     outflows,
     fee_config: feeConfig,
     original_capital: accounts.reduce((total, account) => total + account.balance, 0)
