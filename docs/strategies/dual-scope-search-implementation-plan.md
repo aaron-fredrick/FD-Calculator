@@ -55,7 +55,7 @@ The primary goal-mode ordering is:
 
 1. An actually achieved candidate outranks an unachieved candidate.
 2. Among achieved candidates, the earliest achievement date wins.
-3. For same-date achievers, prefer the lower overshoot above the target (avoid needless excess credit).
+3. For same-date achievers, preserve the established goal contract: higher actual net interest credited at that achievement boundary wins.
 4. Then prefer lower transfer fees.
 5. Then fewer operations.
 6. Then higher remaining portfolio value and stable deterministic tie-breakers.
@@ -67,7 +67,7 @@ For unachieved candidates, rank by:
 4. Lower fees and operational burden.
 5. Remaining portfolio value and deterministic tie-breakers.
 
-Do not treat a heuristic estimate as a proof of feasibility or optimality. If an admissible earliest-achievement lower bound cannot be established, use it only for ordering, not pruning. The exact comparator and any changes to existing same-date semantics must be tested and recorded before adoption.
+Do not treat a heuristic estimate as a proof of feasibility or optimality. If an admissible earliest-achievement lower bound cannot be established, use it only for ordering, not pruning. Preserve the existing comparator semantics unless a demonstrated defect and explicit project-level decision justify changing them.
 
 ## Phase 0 — Source audit and baseline (must precede strategy changes)
 
