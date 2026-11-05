@@ -316,7 +316,11 @@ export class GSSStrategy {
         if (balance <= EPS) continue;
         // Keep enough source-account liquidity for its scheduled obligations
         // across the remaining overall horizon; only excess funds are moved.
-        const reserve = reservedLiquidity(source.id, date, endDate, balances, pendingState);
+        // Scoped mode preserves liquidity across the full requested range.
+        // Goal mode only reserves obligations through this plan's next maturity
+        // boundary; the recursive planner re-evaluates before later obligations.
+        const reserveThrough = goalMode ? targetMaturity : endDate;
+        const reserve = reservedLiquidity(source.id, date, reserveThrough, balances, pendingState);
         const amount = Math.max(0, balance - reserve);
         if (amount <= EPS) { carries.push(source.id); continue; }
         const fee = fee_config.getFee(source.bank_identity, targetAccount.bank_identity);
