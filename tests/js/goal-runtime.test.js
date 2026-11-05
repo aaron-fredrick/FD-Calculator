@@ -119,3 +119,45 @@ test("maximum-date final consolidation can be the first goal-credit boundary", (
   assert.equal(result.accounts.reserve.balance, 0);
   assert.ok(result.accounts.main.balance > 100000);
 });
+
+test("interest transferred to consolidation is counted before a same-signal reinvestment", () => {
+  let stage = 0;
+  const strategy = {
+    name: "Transfer then reinvest",
+    createSession() {
+      return {
+        nextSignal(view) {
+          if (stage++ === 0) return createStrategyDecision({
+            revision: view.revision, date: view.date,
+            action: StrategyDecisionType.SPLIT,
+            plan: { bookings: [{ account_id: "reserve", option_index: 0, principal: 100000 }], carries: [] }
+          });
+          const reserve = view.accounts.find(account => account.id === "reserve");
+          return createStrategyDecision({
+            revision: view.revision, date: view.date,
+            action: StrategyDecisionType.CONSOLIDATE,
+            plan: {
+              target_account_id: "main", option_index: 0, principal: 25000,
+              transfers: [{ source_account_id: "reserve", target_account_id: "main", amount: reserve.balance, fee: 0 }],
+              carries: []
+            }
+          });
+        }
+      };
+    }
+  };
+  const scenario = input(100);
+  scenario.end = "2026-03-02";
+  scenario.accounts = [
+    new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0 }),
+    new Account({ id: "reserve", bank_id: "BANK_A", bank_key: "a", balance: 100000 })
+  ];
+  scenario.inflow_account_id = "main";
+  scenario.consolidation_account_id = "main";
+  const result = new SimulationEngine().run(strategy, scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.ok(result.credited_net_interest >= 100);
+  assert.ok(result.provenance.main.counted_interest > 0);
+  assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
+});
