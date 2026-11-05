@@ -20,7 +20,7 @@ All plotted values are **net interest after AIT and transfer fees**, in LKR. The
 | Outflows | None |
 | Transfer fees | Bank-specific catalogue fees; applied to transfers and final sweep |
 
-The base portfolio is LKR 300,000 across three accounts and three banks over 24 months. Each sensitivity series varies only the named factor from that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands.
+The general base portfolio is LKR 300,000 across three accounts and three banks over 24 months. Horizon, capital, inflow and eFD sweeps use that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands. Scheduled inflows are deposited into the first (DFCC) account.
 
 ## Bank product catalogues
 
