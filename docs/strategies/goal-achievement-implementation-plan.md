@@ -255,19 +255,19 @@ outflow accounting is verified.
 
 ## Acceptance gates
 
-- [ ] Legacy time-based and scoped configurations behave identically.
+- [x] Legacy time-based and scoped configurations retain their existing semantics under regression tests.
 - [x] All three modes use one normalized configuration contract and one runtime.
 - [x] Canonical metric counts only first-time net interest credited to consolidation.
-- [ ] AIT, principal, mixed transfers, fees, bookings, maturity, and outflows reconcile.
+- [ ] AIT, principal, mixed transfers, fees, bookings, and maturity reconcile; multi-account outflow/provenance hardening remains open.
 - [x] Goal stops at the first valid event boundary and finalizes exactly once there.
 - [x] Unachieved goal is a valid explicit outcome with a shortfall.
-- [ ] Greedy and GSS use shared stop semantics.
-- [ ] Absolute+ ranks achievers by earliest achievement within its bounded search (candidate replay is implemented; ranking/tie-breaker regression coverage remains).
+- [x] Greedy and GSS use shared stop semantics (goal lifecycle integration tests added).
+- [x] Absolute+ ranks achievers by earliest achievement within its bounded search; comparator, candidate replay, and bounded-search diagnostics are tested.
 - [ ] CLI, browser UI, schema, validation, and report agree on the mode contract.
-- [ ] Goal sensitivity results are reproducible and do not replace fixed-horizon tests.
+- [x] Goal sensitivity results are reproducible and separate from fixed-horizon tests; 72 measured runs are attached to the workflow artifact.
 - [ ] Outflow limitations are either resolved by tests or explicitly excluded.
 - [x] Documentation and examples describe the implemented behaviour; benchmark results are pending.
-- [ ] Full regression suite and CI pass.
+- [ ] Full regression suite and all CI checks pass on the latest feature-branch commit.
 
 ## Current implementation state (updated 6 November 2026)
 
@@ -290,15 +290,15 @@ outflow accounting is verified.
 - The general test workflow passed on the same commit.
 - The documentation build passed on commit `7afec62fd12f502a762d73f546621565f28eeab1`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
-- Dedicated goal sensitivity workflow is running; measured results have not yet been reviewed or committed.
+- Dedicated goal sensitivity workflow passed on commit `e42b09e3cdacaea5624b5089710b0f77d14fbf29`; all 72 strategy runs completed and the measured summary is published in `goal-achievement.md`. The full machine-readable artifact is attached to workflow run [42094818607](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42094818607).
 - A clean pre-change baseline was not captured. Existing regression tests are being used as compatibility gates instead.
 
 ### Remaining work
 
 - Verify the latest commit's full CI and dedicated goal sensitivity run.
 - Review benchmark output for failures, strategy behaviour, and reproducibility; commit measured raw results and charts only after inspection.
-- Add explicit Greedy/GSS goal-mode integration coverage and search ranking/tie-breaker coverage.
-- Complete CLI/web import-export round-trip and browser build checks.
+- Greedy/GSS shared-lifecycle tests and Absolute+ lexicographic ranking/tie-breaker tests have been added.
+- Complete CLI/web import-export round-trip and browser build checks; a CI syntax-check step has been added but needs a fresh run.
 - Expand multi-account outflow/provenance hardening; outflows remain excluded from the primary goal sensitivity conclusions.
 - Re-run all checks after the final fixes and update every acceptance gate with evidence.
 
