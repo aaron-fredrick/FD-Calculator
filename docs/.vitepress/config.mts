@@ -29,7 +29,7 @@ export default defineConfig({
     const relativePath = pageData.relativePath.replace(/\\/g, '/');
     const route = relativePath === 'index.md'
       ? ''
-      : relativePath.replace(/index\\.md$/, '').replace(/\\.md$/, '.html');
+      : relativePath.replace(/index\.md$/, '').replace(/\.md$/, '.html');
     const canonical = 'https://aaron-fredrick.github.io/FD-Calculator/docs/' + route;
     const description = pageData.frontmatter.description || 'FD Cal documentation for fixed-deposit planning, investment strategies, bank product data and the shared simulation engine.';
     pageData.frontmatter.head ??= [];

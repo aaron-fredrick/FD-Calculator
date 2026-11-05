@@ -14,6 +14,7 @@ on:
       - "data/**"
       - "docs/**"
       - "README.md"
+      - "robots.txt"
       - "CONTRIBUTING.md"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -46,10 +47,57 @@ jobs:
           cp -R data site/data
           cp -R schema site/schema
           npm exec -- vitepress build docs
+          cp src/brand/favicon.svg site/favicon.svg
+          cp src/brand/favicon.svg site/docs/favicon.svg
+          cp src/brand/og-image.svg site/og-image.svg
+          cp robots.txt site/robots.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          site = Path("site")
+          namespace = "http://www.sitemaps.org/schemas/sitemap/0.9"
+          ET.register_namespace("", namespace)
+          docs_sitemap = site / "docs" / "sitemap.xml"
+          sitemap = ET.parse(docs_sitemap).getroot()
+          existing = {node.text for node in sitemap.findall(f"{{{namespace}}}url/{{{namespace}}}loc")}
+          for url in (
+              "https://aaron-fredrick.github.io/FD-Calculator/",
+              "https://aaron-fredrick.github.io/FD-Calculator/web/",
+          ):
+              if url not in existing:
+                  item = ET.SubElement(sitemap, f"{{{namespace}}}url")
+                  ET.SubElement(item, f"{{{namespace}}}loc").text = url
+          ET.ElementTree(sitemap).write(site / "sitemap.xml", encoding="utf-8", xml_declaration=True)
+          PY
           cp README.md CONTRIBUTING.md site/
           cat > site/index.html <<'EOF'
           <!doctype html>
-          <html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./web/"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FD Cal</title></head><body><p>Opening <a href="./web/">FD Cal</a>…</p></body></html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <meta name="theme-color" content="#0b0e13">
+            <meta name="description" content="FD Cal is a Sri Lankan fixed-deposit portfolio optimiser. Compare bank products, model cash flows and evaluate investment strategies.">
+            <meta name="robots" content="index,follow">
+            <link rel="canonical" href="https://aaron-fredrick.github.io/FD-Calculator/web/">
+            <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+            <meta http-equiv="refresh" content="0; url=./web/">
+            <meta property="og:type" content="website">
+            <meta property="og:site_name" content="FD Cal">
+            <meta property="og:title" content="FD Cal — Fixed Deposit Portfolio Optimiser">
+            <meta property="og:description" content="Plan and compare Sri Lankan bank fixed deposits with a multi-strategy portfolio simulator.">
+            <meta property="og:url" content="https://aaron-fredrick.github.io/FD-Calculator/">
+            <meta property="og:image" content="https://aaron-fredrick.github.io/FD-Calculator/og-image.svg">
+            <meta name="twitter:card" content="summary_large_image">
+            <meta name="twitter:image" content="https://aaron-fredrick.github.io/FD-Calculator/og-image.svg">
+            <title>FD Cal — Fixed Deposit Portfolio Optimiser</title>
+          </head>
+          <body>
+            <p>Opening <a href="./web/">FD Cal</a>…</p>
+            <script>window.location.replace("./web/");</script>
+          </body>
+          </html>
           EOF
       - uses: actions/upload-pages-artifact@v5
         with:
