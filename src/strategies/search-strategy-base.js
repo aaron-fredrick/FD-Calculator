@@ -1042,7 +1042,7 @@ export class SearchStrategyBase {
         goalInvalidReasons.set(reason, (goalInvalidReasons.get(reason) ?? 0) + 1);
         if (goalInvalidExamples.length < 5) {
           goalInvalidExamples.push({
-            reason, stack: score.invalid_stack.split("\\n").slice(0, 6),
+            reason, stack: score.invalid_stack.split("\n").slice(0, 6),
             actions: path.map(({ date, action }) => ({
               date, type: action.type, target_id: action.target_id ?? null,
               principal: action.principal ?? null,
