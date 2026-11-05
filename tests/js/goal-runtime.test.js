@@ -177,3 +177,14 @@ test("Greedy and GSS use the same shared goal outcome and stopping contract", ()
     assert.equal(result.finalized, true);
   }
 });
+
+test("goal termination excludes scheduled inflows after the achievement boundary", () => {
+  const scenario = input(100);
+  scenario.end = "2026-03-02";
+  scenario.inflow_schedule = { "2026-02-15": { main: 50000 } };
+  const result = new SimulationEngine().run(makeGoalStrategy(), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(result.total_principal, 100000);
+  assert.equal(result.accounts.main.balance, 100000 + result.goal_outcome.actual);
+});
