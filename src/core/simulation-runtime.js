@@ -125,7 +125,7 @@ export class SimulationRuntime {
   #assertProvenance(balances) {
     for (const [id, balance] of balances) {
       if (Math.abs(round2(balance) - this.provenance.total(id)) > 0.02) {
-        throw new Error("Balance provenance does not reconcile for account " + id + ": balance=" + round2(balance) + ", provenance=" + this.provenance.total(id) + ".");
+        throw new Error("Balance provenance does not reconcile for account " + id + " on " + formatISODate(this.currentDate) + ": balance=" + round2(balance) + ", provenance=" + this.provenance.total(id) + ", events=" + JSON.stringify((this.timeline[dateKey(this.currentDate)] ?? []).filter(event => event.account_id === id).map(event => ({ type: event.event_type, amount: event.amount, label: event.label, cash_components: event.cash_components }))) + ".");
       }
     }
   }
