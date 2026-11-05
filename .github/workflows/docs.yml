@@ -29,6 +29,6 @@ jobs:
         with:
           node-version: 22
       - name: Install documentation generator
-        run: npm install --no-save --package-lock=false vitepress@1.6.4
+        run: npm install --no-save --package-lock=false vitepress@2.0.0-alpha.21
       - name: Build documentation
         run: npm exec -- vitepress build docs
