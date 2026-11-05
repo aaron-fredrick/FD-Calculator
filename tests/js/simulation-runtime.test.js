@@ -55,6 +55,25 @@ test("shared runtime executes validated consolidation transfers and bookings", (
   assert.equal(runtime.timeline[20260101].filter(event => event.event_type === "booking").length, 1);
 });
 
+test("runtime clamps tolerated floating-point transfer excess before committing balances", () => {
+  const runtime = makeRuntime();
+  const view = runtime.planningView();
+  const signal = createStrategyDecision({
+    revision: view.revision, date: "2026-01-01",
+    action: StrategyDecisionType.CONSOLIDATE,
+    plan: {
+      target_account_id: "main", option_index: 0, principal: 39970,
+      transfers: [{ source_account_id: "reserve", target_account_id: "main", amount: 30000.0000000005, fee: 30 }],
+      carries: []
+    }
+  });
+  assert.doesNotThrow(() => runtime.executeSignal(signal));
+  const after = runtime.planningView();
+  assert.equal(after.accounts.find(account => account.id === "reserve").balance, 0);
+  assert.equal(after.accounts.find(account => account.id === "main").balance, 0);
+  assert.equal(runtime.totalFees, 30);
+});
+
 test("invalid compound decision leaves balances, ledger, bookings and fees unchanged", () => {
   const runtime = makeRuntime();
   const view = runtime.planningView();
