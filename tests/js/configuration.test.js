@@ -134,6 +134,19 @@ test("normalizes goal maximum horizon and preserves target metric", () => {
   }});
 });
 
+test("rejects a goal horizon that ends on its start date", () => {
+  const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
+  assert.throws(() => validateConfiguration({
+    simulation: { mode: "goal", goal: {
+      metric: "consolidation_net_interest", target: 1000, maximum_end_date: "2026-01-31"
+    }},
+    investment: { start_date: "2026-01-31" },
+    accounts: { main: { bank_id: "BANK_A", balance: 50000 } }
+  }, {
+    bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options
+  }), /Goal maximum end date must be after/);
+});
+
 test("legacy configuration normalizes as scoped and retains explicit dates", () => {
   const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
   const config = validateConfiguration({
