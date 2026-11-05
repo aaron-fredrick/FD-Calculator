@@ -216,9 +216,8 @@ test("Greedy goal mode consolidates other accounts into the goal account before 
   const result = new SimulationEngine().run(new GreedyStrategy({ ait_enabled: true }), scenario);
   assert.equal(result.goal_outcome.achieved, true);
   assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
-  assert.ok(Object.values(result.timeline).flat().some(event =>
-    event.event_type === "transfer" && event.label.startsWith("Transfer to Main")
-  ));
+  assert.equal(result.bookings[0].principal, 200000,
+    "the selected booking should include both accounts' balances after consolidation");
   assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
 });
 
