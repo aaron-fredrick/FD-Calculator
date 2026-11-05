@@ -59,14 +59,14 @@ test("goal mode stops on the first maturity boundary that credits the target int
   assert.equal(result.finalized, true);
 });
 
-test("goal mode reaches the maximum boundary with explicit shortfall when target is unreachable", () => {
+test("goal mode returns an explicit shortfall when no future events can advance it", () => {
   const result = new SimulationEngine().run(makeGoalStrategy(), input(1000000));
   assert.equal(result.valid, true);
   assert.equal(result.goal_outcome.achieved, false);
   assert.equal(result.goal_outcome.achievement_date, null);
-  assert.equal(result.goal_outcome.stopping_reason, "safety_horizon_reached");
+  assert.equal(result.goal_outcome.stopping_reason, "no_future_events");
   assert.ok(result.goal_outcome.shortfall > 0);
-  assert.equal(result.end_date.toISOString().slice(0, 10), "2056-01-01");
+  assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
   assert.equal(result.finalized, true);
 });
 
@@ -87,7 +87,7 @@ test("Absolute+ evaluates goal candidates against the Greedy baseline with bound
   assert.ok(result.search_diagnostics.selected_goal_score);
 });
 
-test("safety-horizon final consolidation can be the first goal-credit boundary", () => {
+test("final consolidation at the last event can be the first goal-credit boundary", () => {
   let booked = false;
   const strategy = {
     name: "Reserve maturity",
@@ -116,7 +116,7 @@ test("safety-horizon final consolidation can be the first goal-credit boundary",
   scenario.consolidation_account_id = "main";
   const result = new SimulationEngine().run(strategy, scenario);
   assert.equal(result.goal_outcome.achieved, true);
-  assert.equal(result.goal_outcome.achievement_date, "2056-01-01");
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
   assert.equal(result.goal_outcome.stopping_reason, "goal_achieved_on_final_consolidation");
   assert.equal(result.accounts.reserve.balance, 0);
   assert.ok(result.accounts.main.balance > 100000);
