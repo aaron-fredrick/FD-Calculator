@@ -121,15 +121,7 @@ function createPathReplayStrategy(path, engineContext) {
   };
 }
 
-function evaluateGoalPath(path, engineContext, terminalValue) {
-  const strategy = createPathReplayStrategy(path, engineContext);
-  const result = new SimulationEngine().run(strategy, {
-    options: engineContext.options, start: engineContext.start, end: engineContext.end,
-    simulation: engineContext.simulation, inflow_schedule: engineContext.inflows,
-    accounts: engineContext.accounts, inflow_account_id: engineContext.inflow_account_id,
-    fee_config: engineContext.fee_config, consolidation_account_id: engineContext.consolidation_account_id,
-    outflow_schedule: engineContext.outflows
-  });
+function scoreGoalResult(result, terminalValue, signature = "") {
   const goal = result.goal_outcome ?? {};
   const transfers = Object.values(result.timeline ?? {}).flat().filter(event =>
     event.event_type === "transfer" && (event.label.startsWith("Transfer to ") || event.label.startsWith("Final sweep to "))
@@ -141,8 +133,21 @@ function evaluateGoalPath(path, engineContext, terminalValue) {
     fees: Number(result.total_transfer_fees ?? 0),
     operations: (result.bookings?.length ?? 0) + transfers,
     terminal_value: Number(terminalValue ?? result.final_value ?? 0),
-    signature: JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""]))
+    signature
   };
+}
+
+function evaluateGoalPath(path, engineContext, terminalValue) {
+  const strategy = createPathReplayStrategy(path, engineContext);
+  const result = new SimulationEngine().run(strategy, {
+    options: engineContext.options, start: engineContext.start, end: engineContext.end,
+    simulation: engineContext.simulation, inflow_schedule: engineContext.inflows,
+    accounts: engineContext.accounts, inflow_account_id: engineContext.inflow_account_id,
+    fee_config: engineContext.fee_config, consolidation_account_id: engineContext.consolidation_account_id,
+    outflow_schedule: engineContext.outflows
+  });
+  return scoreGoalResult(result, terminalValue,
+    JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""])));
 }
 
 function equivalentEfdBookings(bookings, optionsByAccount) {
@@ -557,7 +562,7 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
     }
   }
   visit(initial);
-  return { bestNode, optimalityProven: true };
+  return { bestNode, bestGoalScore, optimalityProven: true };
 }
 
 function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
@@ -626,7 +631,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     beam = selected;
   }
   return {
-    bestNode, beamPruned, rootPeak, budgetStopped,
+    bestNode, bestGoalScore, beamPruned, rootPeak, budgetStopped,
     optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
 }
@@ -668,9 +673,17 @@ export class SearchStrategyBase {
     const greedyObjective = greedy.valid
       ? greedy.final_value - calculateFinalSweepFees(greedy.accounts, context.consolidationId, context.feeConfig) - liabilities
       : -Infinity;
+    const goalMode = engineContext.simulation?.mode === "goal";
+    const greedyGoal = goalMode ? new SimulationEngine().run(greedyStrategy, input) : null;
+    const initialGoalScore = greedyGoal ? scoreGoalResult(greedyGoal, greedyObjective, "greedy-baseline") : null;
+    let goalCandidatesEvaluated = greedyGoal ? 1 : 0;
+    const evaluateGoal = goalMode ? (path, value) => {
+      goalCandidatesEvaluated++;
+      return evaluateGoalPath(path, engineContext, value);
+    } : null;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
-      bestValue: greedyObjective, alternatives: [], memo: new Map()
+      bestValue: goalMode ? -Infinity : greedyObjective, alternatives: [], memo: new Map()
     };
     const initial = {
       date: context.start,
@@ -682,8 +695,8 @@ export class SearchStrategyBase {
       beamWidth: this.beam_width, endDate: context.endDate
     };
     const search = this.mode === "absolute"
-      ? runAbsolute(initial, context, settings, counters)
-      : runGaml(initial, context, settings, counters);
+      ? runAbsolute(initial, context, settings, counters, evaluateGoal, initialGoalScore)
+      : runGaml(initial, context, settings, counters, evaluateGoal, initialGoalScore);
     const diagnostics = {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
@@ -691,7 +704,8 @@ export class SearchStrategyBase {
       root_strategy_peak: search.rootPeak || 0,
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
-      settings
+      settings,
+      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_objective: "earliest consolidation net-interest achievement", selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
     const resultMetadata = {
       total_decisions_evaluated: diagnostics.expanded_states,
