@@ -634,18 +634,44 @@ function expandState(rawState, context, settings, mode, counters) {
     const carries = activeIds.filter(id => !bookedIds.has(id));
     let nextBalances = state.balances;
     const additions = [];
+    let nextGoalProvenance = state.goalProvenance;
+    let nextGoalFlows = state.goalFlows ?? [];
+    if (nextGoalProvenance) {
+      nextGoalProvenance = nextGoalProvenance.clone();
+      nextGoalFlows = [...nextGoalFlows];
+    }
     for (const booking of bookings) {
       nextBalances = setSearchBalance(nextBalances, booking.account_id, 0);
-      for (const flow of booking.option.generateCashFlowsAfterAIT(booking.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear)) {
-        additions.push([formatISODate(flow.date), booking.account_id, flow.amount]);
+      if (nextGoalProvenance) {
+        const bookedComponents = nextGoalProvenance.debit(booking.account_id, booking.principal);
+        const componentFlows = booking.option.generateCashFlowComponentsAfterAIT(
+          booking.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear
+        );
+        for (const flow of componentFlows) {
+          additions.push([formatISODate(flow.date), booking.account_id, flow.amount]);
+          const principalComponents = nextGoalProvenance.allocateBookedPrincipal(
+            bookedComponents, flow.principal, booking.principal
+          );
+          nextGoalFlows.push([formatISODate(flow.date), booking.account_id, {
+            principal_components: principalComponents, interest: flow.interest
+          }]);
+        }
+      } else {
+        for (const flow of booking.option.generateCashFlowsAfterAIT(
+          booking.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear
+        )) additions.push([formatISODate(flow.date), booking.account_id, flow.amount]);
       }
     }
+    nextGoalProvenance?.recognizeConsolidationCredit(context.consolidationId);
     const merged = mergePendingFlows(state.flows, additions);
     const action = { type: "local", bookings, carries };
     const root = ["local", bookings.map(item => [
       item.account_id, item.option.label, item.option.payout_type, item.option.payout_period_str
     ]).sort((a, b) => a[0].localeCompare(b[0]))];
-    pushAction(nextEventDate(state.date, merged, context.inflows, context.outflows, context.end), nextBalances, merged, action, root);
+    pushAction(
+      nextEventDate(state.date, merged, context.inflows, context.outflows, context.end),
+      nextBalances, merged, action, root, nextGoalProvenance, nextGoalFlows
+    );
   }
 
   if ((!waitFirst || mode !== "gaml") &&
