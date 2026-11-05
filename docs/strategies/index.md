@@ -12,8 +12,8 @@ The [strategy comparison](/STRATEGIES) explains the purpose, trade-offs, setting
 
 ## Technical references
 
-- [Greedy technical reference](/strategies/GREEDY) — event-driven decisions, SPLIT/CONSOLIDATE/CARRY plans, option selection and tie-breakers.
+- [Greedy technical reference](/strategies/GREEDY) — session planning, SPLIT/CONSOLIDATE/CARRY decisions, option selection and tie-breakers.
 - [Absolute technical reference](/strategies/ABSOLUTE) — exhaustive branch-and-bound search and optimality proof conditions.
 - [GAML technical reference](/strategies/GAML) — bounded beam search, local branch pruning, decision budgets and optimality status.
-- [GSS technical reference](/strategies/GSS) — recursive goal planning, SPLIT/CONSOLIDATE evaluation, forecast contraction and shared simulation finalisation.
+- [GSS technical reference](/strategies/GSS) — recursive hypothetical goal planning, decision-path replay, SPLIT/CONSOLIDATE evaluation, forecast contraction and shared runtime finalisation.
 - [Codebase map](/reference/CODEBASE) — where strategy implementations fit into the application architecture.
