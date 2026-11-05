@@ -105,7 +105,7 @@ not principal.
 - The runtime evaluates the canonical metric after each fully processed event
   boundary and records the first crossing.
 - The achieved run stops at that boundary; it must not process later events or run
-  the final consolidation sweep at the configured maximum date.
+  the final consolidation sweep at the internal safety-horizon boundary.
 - An unachieved run continues to the internal safety horizon and returns a valid
   `goal_not_reached` outcome, distinct from invalid simulation or execution failure.
 - Finalization runs exactly once at the actual stopping boundary. Final sweep
@@ -166,7 +166,7 @@ Do not present a fabricated achievement duration for an unachieved goal.
 ## Goal achievement sensitivity study
 
 Add a separate study; preserve the existing fixed-horizon sensitivity benchmark.
-Use identical financial inputs and maximum scope for Greedy, Absolute+, and GSS at
+Use identical financial inputs and the same fixed 30-year internal safety horizon for Greedy, Absolute+, and GSS at
 each test point. Keep AIT, compounding, transfer fees, payout assumptions, and FD
 catalogues identical.
 
@@ -262,10 +262,10 @@ outflow accounting is verified.
 - [x] Greedy and GSS use shared stop semantics (goal lifecycle integration tests added).
 - [x] Absolute+ ranks achievers by earliest achievement within its bounded search; comparator, candidate replay, and bounded-search diagnostics are tested.
 - [x] CLI, browser UI, schema, validation, and reports use the same mode contract; configuration normalization and browser-module syntax are covered.
-- [x] Corrected goal sensitivity results are reproducible and separate from fixed-horizon tests; the refreshed 72-run artifact and charts include candidate replay settings and invalid-path handling.
+- [ ] Date-independent goal sensitivity matrix is rerun with the fixed 30-year internal safety horizon; the prior 72-run horizon-bounded artifact is superseded.
 - [x] Outflow policy/provenance paths are covered by regression tests; outflows remain explicitly excluded from the primary sensitivity matrix.
 - [x] Documentation, measured benchmark summary, and sensitivity charts describe the implemented behaviour.
-- [x] Full regression suite and all CI checks pass on the latest feature-branch commit.
+- [ ] Full regression suite and all CI checks pass on the latest feature-branch commit.
 
 ## Current implementation state (updated 6 November 2026)
 
@@ -288,7 +288,7 @@ outflow accounting is verified.
 - The general Node test workflow passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
 - The documentation build passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
-- The initial 72-run goal sensitivity workflow completed, but review found the Absolute+ candidate replay had not inherited AIT/compounding/runtime settings. Its Absolute+ values and charts are superseded. After fixing setting inheritance, the corrected run exposed infeasible hypothetical paths; candidate replay now rejects and counts those paths instead of aborting the study. The corrected 72-run study passed on commit `25067936a8a1f407884a2ff3e57f0f3cff0d0482`; its machine-readable artifact is [42097850306](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097850306). Corrected results and charts are published in `goal-achievement.md`. The earlier artifact [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) is retained for audit only.
+- The earlier 72-run goal sensitivity matrix used 6-, 12-, and 24-month maximum scopes. It is superseded because goal mode no longer accepts a user-defined end date. The sensitivity runner now holds the 30-year internal safety horizon constant and removes horizon as a test dimension; the refreshed 63-run matrix is pending on this branch. The prior artifact [42097850306](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097850306) is retained as historical evidence only.
 - CodeQL passed on commit `cfb5ed1525d6bb8c77b5d7dfd7856793a32d7a15`.
 - The existing fixed-horizon strategy sensitivity and GAML search sensitivity workflow passed: [run 42097833557](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42097833557).
 - A clean pre-change baseline was not captured. Existing regression tests are used as compatibility gates instead.
