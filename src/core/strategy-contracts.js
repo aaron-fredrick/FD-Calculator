@@ -32,11 +32,22 @@ function requireRevision(revision) {
   }
 }
 
+function requireISODate(value, name) {
+  const date = String(value ?? "");
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date) ||
+      new Date(date + "T00:00:00Z").toISOString().slice(0, 10) !== date) {
+    throw new RangeError(name + " must be a valid YYYY-MM-DD date.");
+  }
+  return date;
+}
+
 export function createPlanningView({
   revision, date, end_date, accounts, pending_outflows = [], scheduled_dates = []
 }) {
   requireRevision(revision);
-  if (!date || !end_date || date > end_date) throw new RangeError("Planning view requires a valid current date and end date.");
+  date = requireISODate(date, "Planning view date");
+  end_date = requireISODate(end_date, "Planning view end date");
+  if (date > end_date) throw new RangeError("Planning view date cannot be after its end date.");
   if (!Array.isArray(accounts)) throw new TypeError("Planning view accounts must be an array.");
   const ids = new Set();
   const accountViews = accounts.map(account => {
@@ -52,15 +63,26 @@ export function createPlanningView({
       supports_efd: Boolean(account.supports_efd)
     };
   });
+  if (!Array.isArray(pending_outflows)) throw new TypeError("Planning view pending_outflows must be an array.");
+  const pendingViews = pending_outflows.map(item => {
+    const account_id = String(item.account_id ?? "");
+    const remaining = Number(item.remaining);
+    const payment_policy = String(item.payment_policy ?? "strict").toLowerCase();
+    if (!ids.has(account_id)) throw new RangeError("Pending outflow targets unknown account " + account_id + ".");
+    if (!Number.isFinite(remaining) || remaining <= 0) throw new RangeError("Pending outflow remaining amount must be finite and positive.");
+    if (!["strict", "defer", "best_effort"].includes(payment_policy)) throw new RangeError("Unknown pending outflow policy " + payment_policy + ".");
+    return {
+      name: String(item.name ?? "Outflow"), account_id, remaining, payment_policy,
+      due_date: requireISODate(item.due_date ?? date, "Pending outflow due date")
+    };
+  });
+  if (!Array.isArray(scheduled_dates)) throw new TypeError("Planning view scheduled_dates must be an array.");
+  const dates = scheduled_dates.map(value => requireISODate(value, "Scheduled event date"));
   return freezeValue({
-    revision, date: String(date), end_date: String(end_date),
+    revision, date, end_date,
     accounts: accountViews,
-    pending_outflows: pending_outflows.map(item => ({
-      name: String(item.name ?? "Outflow"), account_id: String(item.account_id),
-      remaining: Number(item.remaining), payment_policy: String(item.payment_policy ?? "strict"),
-      due_date: String(item.due_date ?? date)
-    })),
-    scheduled_dates: [...new Set(scheduled_dates.map(String))].sort()
+    pending_outflows: pendingViews,
+    scheduled_dates: [...new Set(dates)].sort()
   });
 }
 
@@ -69,20 +91,21 @@ export function createStrategyDecision({ revision, date, action, plan }) {
   if (!Object.values(StrategyDecisionType).includes(action)) {
     throw new RangeError("Unknown strategy decision action: " + action);
   }
-  if (!date || !plan || typeof plan !== "object" || Array.isArray(plan)) {
-    throw new TypeError("A strategy decision requires a date and structured plan.");
+  date = requireISODate(date, "Strategy decision date");
+  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
+    throw new TypeError("A strategy decision requires a structured plan.");
   }
   return freezeValue({
     signal_type: StrategySignalType.DECISION,
-    revision, date: String(date), action, plan: structuredClone(plan)
+    revision, date, action, plan: structuredClone(plan)
   });
 }
 
 export function createStrategyWait({ revision, until }) {
   requireRevision(revision);
-  if (!until) throw new TypeError("A strategy wait requires a future boundary.");
+  until = requireISODate(until, "Strategy wait boundary");
   return Object.freeze({
-    signal_type: StrategySignalType.WAIT, revision, until: String(until)
+    signal_type: StrategySignalType.WAIT, revision, until
   });
 }
 
@@ -99,6 +122,9 @@ export function validateStrategySignal(signal, {
   revision, current_date, end_date
 }) {
   requireRevision(revision);
+  current_date = requireISODate(current_date, "Current simulation date");
+  end_date = requireISODate(end_date, "Simulation end date");
+  if (current_date > end_date) throw new RangeError("Current simulation date cannot be after the simulation end.");
   if (!signal || typeof signal !== "object") throw new TypeError("Strategy must return a structured signal.");
   if (signal.revision !== revision) throw new Error("Stale strategy signal: simulation state has changed.");
   if (signal.signal_type === StrategySignalType.DECISION) {
