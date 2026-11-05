@@ -175,7 +175,6 @@ function runStrategySession(strategy, context) {
   }
 
   let waitUntil = null;
-  let strategyComplete = false;
   let iterations = 0;
   while (true) {
     if (++iterations > 100000) throw new Error("Strategy session exceeded the simulation progression limit.");
@@ -194,19 +193,10 @@ function runStrategySession(strategy, context) {
     runtime.processDate(nextDate);
     if (!runtime.valid || runtime.isGoalAchieved()) break;
 
-    if (strategyComplete) {
-      if (runtime.currentDate.getTime() === context.end.getTime() && !runtime.nextEventDate()) break;
-      continue;
-    }
-
     const signal = session.nextSignal(runtime.planningView());
-    if (signal.signal_type === StrategySignalType.COMPLETE && context.simulation?.mode === "goal") {
-      strategyComplete = true;
-      waitUntil = null;
-      if (runtime.currentDate.getTime() === context.end.getTime() && !runtime.nextEventDate()) break;
-      continue;
+    if (signal.signal_type !== StrategySignalType.COMPLETE || context.simulation?.mode !== "goal") {
+      runtime.executeSignal(signal);
     }
-    runtime.executeSignal(signal);
     if (runtime.isGoalAchieved()) break;
     if (signal.signal_type === StrategySignalType.COMPLETE) break;
     waitUntil = signal.signal_type === StrategySignalType.WAIT ? signal.until : null;
