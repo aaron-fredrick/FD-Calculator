@@ -135,7 +135,7 @@ function runCase(category, value, {
       search_expanded: result.search_diagnostics?.expanded_states ?? null
     };
     results.push(row);
-    process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify({ category, value, strategy: name, net_interest: row.net_interest, duration_ms: duration }) + "\\n");
+    process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify({ category, value, strategy: name, net_interest: row.net_interest, duration_ms: duration }) + "\n");
   }
 }
 
