@@ -36,7 +36,7 @@ test("simulation context normalizes dates, account ids and cash-flow schedules",
 
 test("simulation context rejects invalid periods and unknown flow destinations", () => {
   const input = fixture();
-  input.start = "2026-12-31";
+  input.start = "2027-01-01";
   assert.throws(() => createSimulationContext(input), /start must not be after/);
 
   const unknownInflow = fixture();
@@ -54,6 +54,7 @@ test("simulation context preserves default account and fee configuration semanti
   const input = fixture();
   delete input.accounts;
   delete input.fee_config;
+  input.outflow_schedule = {};
   const context = createSimulationContext(input);
   assert.equal(context.accounts[0].id, "default");
   assert.equal(context.fee_config instanceof TransferFeeConfig, true);
