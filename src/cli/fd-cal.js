@@ -57,7 +57,7 @@ async function main() {
   config.source_path = loaded.resolvedConfig;
 
   const input = {
-    options: config.options, start: config.start, end: config.end,
+    options: config.options, start: config.start, end: config.end, simulation: config.simulation,
     inflow_schedule: config.inflow_schedule, accounts: config.accounts,
     inflow_account_id: config.accounts[0].id, fee_config: config.fee_config,
     consolidation_account_id: config.consolidation_account_id,
