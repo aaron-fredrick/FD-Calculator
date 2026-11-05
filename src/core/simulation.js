@@ -154,11 +154,6 @@ export function runStrategySession(strategy, context) {
     }
 
     const result = runtime.buildResult();
-    const startEvent = new Event({
-      event_type: EventType.SIMULATION_START, on_date: context.start,
-      amount: 0, label: "Simulation starts", balance_after: 0, total_balance_after: 0
-    });
-    (result.timeline[startEvent.date_key] ??= []).unshift(startEvent);
     return result;
   }
 
