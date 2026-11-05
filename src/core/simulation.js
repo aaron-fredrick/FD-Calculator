@@ -198,7 +198,7 @@ function runStrategySession(strategy, context) {
       runtime.executeSignal(signal);
     }
     if (runtime.isGoalAchieved()) break;
-    if (signal.signal_type === StrategySignalType.COMPLETE) break;
+    if (signal.signal_type === StrategySignalType.COMPLETE && context.simulation?.mode !== "goal") break;
     waitUntil = signal.signal_type === StrategySignalType.WAIT ? signal.until : null;
 
     if (runtime.currentDate.getTime() === context.end.getTime() &&
