@@ -247,6 +247,26 @@ test("Greedy and GSS use the same shared goal outcome and stopping contract", ()
   }
 });
 
+test("Absolute+ goal ranking keeps the faster lower-interest payout under local truncation", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 700 } },
+    options: [
+      new FDOption({ label: "Fast 30d", period_str: "30d", annual_rate: 10, min_amount: 10000, bank_id: "BANK_A", bank_key: "a" }),
+      new FDOption({ label: "Slow 60d", period_str: "60d", annual_rate: 20, min_amount: 10000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    inflow_account_id: "main", consolidation_account_id: "main"
+  };
+  const result = new SimulationEngine().run(new AbsolutePlusStrategy({
+    ait_enabled: false, beam_width: 4, max_local_branches: 2, max_decisions: 100
+  }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(result.bookings[0].option.label, "Fast 30d");
+  assert.equal(result.optimality_proven, false);
+});
+
 test("GSS waits for an earlier consolidation opportunity instead of rebooking interest elsewhere", () => {
   const scenario = {
     start: "2026-01-01", end: "2026-03-10",
