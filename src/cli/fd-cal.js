@@ -5,7 +5,7 @@ import { loadConfigurationFromFile } from "../io/data-loader.js";
 import { validateConfiguration } from "../core/configuration.js";
 import { GreedyStrategy } from "../strategies/greedy.js";
 import { AbsoluteStrategy } from "../strategies/absolute.js";
-import { GAMLStrategy } from "../strategies/gaml.js";
+import { Absolute+Strategy } from "../strategies/gaml.js";
 import { GSSStrategy } from "../strategies/gss.js";
 import { SimulationEngine } from "../core/simulation.js";
 import { formatSimulation } from "../reporting/console.js";
@@ -37,7 +37,7 @@ async function main() {
   if (cli.help) {
     console.log([
       "Usage: npm run cli -- [--config config.json] [--strategy greedy|gaml|absolute|gss]",
-      "GAML settings: --beam-width N --max-local-branches N|none --max-decisions N|none",
+      "Absolute+ settings: --beam-width N --max-local-branches N|none --max-decisions N|none",
       "GSS setting: --small-period-days N (default: 30)"
     ].join("\n"));
     return;
@@ -88,7 +88,7 @@ async function main() {
     for (const key of ["beam_width", "max_local_branches", "max_decisions"]) {
       if (cli[key] !== undefined) settings[key] = cli[key];
     }
-    strategy = new GAMLStrategy({
+    strategy = new Absolute+Strategy({
       compound: config.compound, actual_leap_year: config.actual_leap_year,
       ait_enabled: config.ait_enabled, ait_rate: config.ait_rate,
       ...settings
@@ -117,7 +117,7 @@ async function main() {
       console.log("Local-combination pruned     : " + d.local_combination_pruned.toLocaleString("en-US"));
       console.log("Root strategy diversity peak : " + d.root_strategy_peak.toLocaleString("en-US"));
       console.log("Optimality                   : " + (d.optimality_proven ? "proven" : "not proven"));
-      console.log("GAML settings                : beam " + strategy.beam_width +
+      console.log("Absolute+ settings                : beam " + strategy.beam_width +
         ", local width " + (strategy.max_local_branches ?? "unlimited") +
         ", state cap " + (strategy.max_decisions ?? "unlimited"));
     } else console.log("Optimality                   : proven (exhaustive branch-and-bound)");
