@@ -505,3 +505,13 @@ The current test suite and docs build are green, and the execution paths are suf
 - Added architecture tests for the absence of strategy `simulate()` methods, rejection of legacy simulate-only strategies, runtime/finalization ownership, and CLI/browser use of SimulationEngine.
 - JavaScript tests passed on commit `c67f024da95f007017bb8124450b22c96d5ee0f3`. The Node 22 full test step also completed successfully on that commit before the workflow was cancelled during cleanup; the immediately preceding full Tests workflow passed on commit `6ba6c8e6ddc48235efb2ba8855a68a6c72c58fcc`.
 - Phase 5 is complete. Phase 6 documentation alignment is now in progress.
+
+
+**Phase 6 issue — search SPLIT event snapshots**
+
+- Symptom: the two-account GAML/Absolute parity fixture found a mismatch in the second SPLIT booking's `balances_before` event context.
+- Reproduction: both accounts start at 30,000. After booking the first account, the legacy replay records the second booking snapshot with the first account at zero and the second still at 30,000.
+- Root cause: legacy SearchStrategyBase captures a separate balance snapshot immediately before each booking; it does not share one snapshot across the SPLIT action.
+- Constraint: preserve strategy-specific event-ledger semantics rather than assuming Greedy, Search and GSS use identical snapshots.
+- Correction: remove the search-wide snapshot override. Runtime captures balances before each SPLIT booking; consolidation retains its decision-start snapshot.
+- Regression coverage: multi-account GAML/Absolute parity tests and a direct sequential-snapshot runtime test.
