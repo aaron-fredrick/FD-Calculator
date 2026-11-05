@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { SimulationEngine } from "../../src/core/simulation.js";
+import { AbsolutePlusStrategy } from "../../src/strategies/absolute-plus.js";
 import {
   createStrategyDecision, createStrategyComplete, StrategyDecisionType
 } from "../../src/core/strategy-contracts.js";
@@ -65,4 +66,21 @@ test("goal mode reaches the maximum boundary with explicit shortfall when target
   assert.ok(result.goal_outcome.shortfall > 0);
   assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
   assert.equal(result.finalized, true);
+});
+
+test("Absolute+ evaluates goal candidates against the Greedy baseline with bounded-search diagnostics", () => {
+  const scenario = input(100);
+  scenario.end = "2026-04-01";
+  scenario.options.push(new FDOption({
+    label: "60-day cumulative", period_str: "60d", annual_rate: 11,
+    min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+  }));
+  const result = new SimulationEngine().run(new AbsolutePlusStrategy({
+    beam_width: 8, max_local_branches: 4, max_decisions: 80,
+    ait_enabled: true
+  }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.ok(result.search_diagnostics.goal_candidates_evaluated >= 1);
+  assert.equal(result.search_diagnostics.goal_objective, "earliest consolidation net-interest achievement");
+  assert.ok(result.search_diagnostics.selected_goal_score);
 });
