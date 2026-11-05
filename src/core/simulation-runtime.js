@@ -374,7 +374,8 @@ export class SimulationRuntime {
           }, balancesAtActionStart, actionName, plan.decision_context);
         } else if (actionName === StrategyDecisionType.SPLIT) {
           for (const item of plan.bookings ?? []) {
-            book(item, null, actionName, item.decision_context ?? plan.decision_context);
+            const snapshot = plan.booking_snapshot === "decision_start" ? balancesAtActionStart : null;
+            book(item, snapshot, actionName, item.decision_context ?? plan.decision_context);
           }
         } else if (actionName !== StrategyDecisionType.CARRY) {
           throw new RangeError("Unsupported strategy action: " + actionName);
