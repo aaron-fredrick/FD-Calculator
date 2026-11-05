@@ -371,3 +371,12 @@ The current test suite and docs build are green, and the execution paths are suf
 - Constraint: keep the frozen pre-migration implementation outside the production strategy tree and use it only as a test oracle.
 - Correction: change the test import to `../fixtures/legacy-greedy-oracle.js`.
 - Regression coverage: the parity test now resolves the oracle; CI rerun is pending.
+
+**Phase 2 issue note — consolidation decision snapshot parity**
+
+- Symptom: the differential ledger test found a mismatch in `BOOKING.decision_context.balances_before` for a consolidation booking; balances, booking principal, fees, and the rest of the ledger matched.
+- Reproduction: a two-account case where Greedy consolidates 9,000 and 19,500 into one account. The migrated executor recorded the post-transfer balance (28,470 and 0), while the legacy executor recorded the decision-time pre-transfer balances (9,000 and 19,500).
+- Root cause: the shared runtime captured the booking snapshot inside the booking helper, after executing consolidation transfers. Legacy Greedy captures the snapshot before transfers and attaches it to the subsequent booking event.
+- Constraint: decision context is part of the observable event ledger and must preserve the strategy's original snapshot semantics.
+- Correction: capture the decision-start balances before executing the staged transfers and pass that snapshot to the consolidation booking; split bookings continue to snapshot immediately before each booking.
+- Regression coverage: the frozen legacy Greedy oracle compares the normalized full event ledger, including decision context.
