@@ -165,10 +165,9 @@ export class SimulationRuntime {
       if (event.event_type === EventType.INFLOW) {
         this.provenance.addPrincipal(account.id, event.amount);
       } else if (event.cash_components) {
-        this.provenance.add(account.id, {
-          ...(event.cash_components.principal_components ?? {}),
-          uncredited_interest: Number(event.cash_components.principal_components?.uncredited_interest ?? 0) + Number(event.cash_components.interest ?? 0)
-        });
+        this.provenance.addCashFlow(
+          account.id, event.cash_components.principal_components ?? {}, event.cash_components.interest ?? 0
+        );
       } else {
         // Compatibility for externally-created cash events without component metadata.
         this.provenance.addPrincipal(account.id, event.amount);
