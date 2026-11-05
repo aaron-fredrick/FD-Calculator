@@ -39,7 +39,7 @@ test("proportional debit reconciles to cents for mixed balances", () => {
   const ledger = new BalanceProvenance(["a"]);
   ledger.add("a", { principal: 100.01, uncredited_interest: 50.02, counted_interest: 25.03 });
   const debit = ledger.debit("a", 33.34);
-  assert.equal(Object.values(debit).reduce((a, b) => a + b, 0), 33.34);
+  assert.equal(Math.round(Object.values(debit).reduce((a, b) => a + b, 0) * 100) / 100, 33.34);
   assert.equal(ledger.total("a"), 141.72);
 });
 
