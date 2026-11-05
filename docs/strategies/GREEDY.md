@@ -166,7 +166,7 @@ Greedy does not perform a final sweep. After the complete simulation horizon and
 
 `SimulationRuntime` constructs the unfinished result from actual bookings, timeline events, transfer fees, paid/outstanding outflows, account balances and validity status. `SimulationEngine` then finalizes it. AIT is applied through the configured effective AIT rate when calculating net interest and generating net cash flows.
 
-Booking and carry events include a `decision_context` with the action and balances before the action. The runtime decision log records the selected action by date. Greedy still does not expose a full trace of every candidate considered, rejected or ranked.
+Booking and carry events include a `decision_context` with the action and balances before the action. Greedy retains its existing empty `decision_log`; it does not expose a full trace of every candidate considered, rejected or ranked.
 
 ## 10. Strengths and limitations
 
