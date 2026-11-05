@@ -220,9 +220,9 @@ For every phase and meaningful sub-step:
 - [x] Starting main commit identified: `1f57da418ae32f2895207a4d262cf4da67ae06be`.
 - [x] Initial audit confirmed existing goal runtime, provenance, candidate replay and goal comparator; these will be reused.
 - [x] Phase 0 — source audit and available scoped baseline recorded; limitation: no fresh dedicated pre-change Absolute benchmark exists.
-- [ ] Phase 1 — shared goal-search foundations.
-- [ ] Phase 2 — GSS goal-aware recursive planning.
-- [ ] Phase 3 — Absolute goal-aware exhaustive search.
-- [ ] Phase 4 — Absolute+ goal-aware bounded search.
-- [ ] Phase 5 — cross-scope regression and sensitivity.
-- [ ] Phase 6 — docs, schema/UI alignment and release verification.
+- [x] Phase 1 — shared goal-search foundations. Reused the runtime provenance model in goal search states; preserved distinct goal action histories; retained all goal-compatible options; retained fee-heavy consolidation branches; made Absolute proof status conditional. Comparator and replay remain the existing authoritative contract.
+- [x] Phase 2 — GSS goal-aware recursive planning. Added provenance-aware payout/transfer estimates, earliest-credit plan ranking, deferral for a future consolidation opportunity, next-maturity liquidity reservation in goal mode, and planner stopping at the target. Scoped GSS ordering remains unchanged.
+- [x] Phase 3 — Absolute goal-aware exhaustive search. Goal mode avoids scoped terminal-value/memo pruning and option dominance reduction, keeps executable fee-heavy transfer branches, replays goal candidates, and reports proof only when no unsafe pruning occurred.
+- [x] Phase 4 — Absolute+ goal-aware bounded search. Added provenance-aware goal state, path-sensitive deduplication, goal-credit beam priority, payout-aware local branch ranking, and earliest-goal-date waiting comparison. Scoped priority and ordering remain on the original path.
+- [ ] Phase 5 — cross-scope regression and sensitivity. Unit/integration tests are passing; full scoped sensitivity and goal matrix results still need to complete and be compared.
+- [ ] Phase 6 — docs, schema/UI alignment and release verification. Strategy and goal docs have been updated; final documentation build, public-contract audit, final CI and diff review remain.
