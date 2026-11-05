@@ -62,8 +62,11 @@ test("decision, wait and completion signals are revision-bound and validated", (
   }), /after the current date/);
   const complete = createStrategyComplete({ revision: 2 });
   assert.equal(validateStrategySignal(complete, {
-    revision: 2, current_date: "2026-01-01", end_date: "2026-12-31"
+    revision: 2, current_date: "2026-12-31", end_date: "2026-12-31"
   }), complete);
+  assert.throws(() => validateStrategySignal(complete, {
+    revision: 2, current_date: "2026-01-01", end_date: "2026-12-31"
+  }), /cannot complete before the simulation horizon ends/);
 });
 
 test("planning views reject malformed dates and invalid pending obligations", () => {
