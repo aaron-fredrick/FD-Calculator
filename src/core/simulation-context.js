@@ -32,6 +32,7 @@ export function createSimulationContext(input = {}) {
     goal = Object.freeze({ metric: "consolidation_net_interest", target });
   }
   if (startDate > endDate) throw new RangeError("Simulation start must not be after its end.");
+  if (mode === "goal" && startDate.getTime() === endDate.getTime()) throw new RangeError("Goal maximum end date must be after the simulation start.");
 
   const sourceOptions = input.options;
   if (!Array.isArray(sourceOptions) || sourceOptions.length === 0) {
