@@ -17,7 +17,7 @@ The migration has reached the documentation-alignment phase:
 - Phase 3 — GAML/Absolute session migration: complete, with frozen replay/diagnostic parity.
 - Phase 4 — GSS hypothetical planning and runtime replay: complete, with recursive-planner parity and atomic same-date batches.
 - Phase 5 — ownership enforcement: complete. Production strategies expose `createSession(context)`; `SimulationEngine.run()` rejects simulate-only strategies.
-- Phase 6 — documentation alignment and final validation: in progress.
+- Phase 6 — documentation alignment and final validation: complete.
 
 Current implementation entry points and responsibilities are documented in [Simulation Lifecycle](../SIMULATION-LIFECYCLE.md) and [Codebase Map](../reference/CODEBASE.md). The verified starting point below is retained as historical Phase 0 evidence, not as a description of the current implementation.
 
@@ -232,7 +232,7 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 | 3 — Search | Complete | GAML/Absolute retain their search algorithms and diagnostics while selected paths execute through SimulationRuntime. Frozen legacy replay parity tests pass. |
 | 4 — GSS | Complete | Recursive planning remains hypothetical and emits decision paths; SimulationRuntime owns actual replay. Legacy GSS ledger/diagnostic parity and atomic batch tests pass. |
 | 5 — Enforcement | Complete | Removed production strategy adapters and legacy engine fallback; immutable contexts/signals and architecture tests enforce the session boundary. CLI/browser remain engine-driven. |
-| 6 — Documentation | In progress | Align lifecycle, architecture, strategy guides, and codebase map with the implemented session/runtime boundary; run the final docs build and full validation. |
+| 6 — Documentation | Complete | Lifecycle, architecture, strategy guides, testing reference and codebase map aligned; final CI validation passed. |
 
 ### Phase 0 findings (2026-11-05)
 
@@ -523,3 +523,17 @@ The current test suite and docs build are green, and the execution paths are suf
 - The VitePress documentation build and generated-site layout checks passed on commit `7768a5e44df38aa19f4fde0545b152b6c863158e`.
 - Full Node.js tests, JavaScript tests and Dependency Review passed on the same commit.
 - The strategy sensitivity study and CodeQL analysis are still running. Phase 6 remains open until both complete.
+
+
+### Phase 6 completion — final validation
+
+The final validation set passed on commit `d51897883364e621eae1b3d49dda51edc343e23e`:
+
+- Node.js 22 full test suite: [run 42023203038](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023203038).
+- JavaScript test suite: [run 42023202888](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023202888).
+- VitePress documentation build and generated-site layout checks: [run 42023202861](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023202861).
+- Dependency Review: [run 42023203033](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023203033).
+- CodeQL analysis: [run 42023203120](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023203120).
+- Strategy sensitivity study and GAML search sensitivity sweeps: [run 42023202858](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42023202858).
+
+All six implementation phases are complete. The PR remains open and unmerged.
