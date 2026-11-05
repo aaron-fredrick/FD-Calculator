@@ -32,3 +32,9 @@ jobs:
         run: npm install --no-save --package-lock=false vitepress@2.0.0-alpha.21
       - name: Build documentation
         run: npm exec -- vitepress build docs
+      - name: Verify generated site layout
+        run: |
+          test -s site/docs/index.html
+          test -s site/docs/strategies/index.html
+          test -s site/docs/strategies/GSS.html
+          grep -q '/FD-Calculator/docs/assets/' site/docs/index.html
