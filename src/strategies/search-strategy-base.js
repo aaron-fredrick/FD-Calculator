@@ -360,7 +360,7 @@ function makePriority(state, context) {
   return estimate + 0.05 * Math.max(0, upper - estimate);
 }
 
-function createContext({ options, start, end, inflow_schedule, accounts, inflow_account_id, fee_config, consolidation_account_id, outflow_schedule }, strategy) {
+function createContext({ options, start, end, simulation, inflow_schedule, accounts, inflow_account_id, fee_config, consolidation_account_id, outflow_schedule }, strategy) {
   const startDate = parseISODate(start), endDate = parseISODate(end);
   if (!Array.isArray(options) || !options.length) throw new TypeError(strategy.name + " simulation requires FD options.");
   if (!accounts?.length) {
@@ -391,7 +391,7 @@ function createContext({ options, start, end, inflow_schedule, accounts, inflow_
   const totalCapital = sum(accounts.map(account => account.balance)) + sum(Object.values(inflows).flatMap(day => Object.values(day)));
   return {
     accounts: accountMap, options: effectiveOptions, optionsByAccount, fdOptionManager, inflows, outflows,
-    startDate, endDate, start: formatISODate(startDate), end: formatISODate(endDate),
+    startDate, endDate, start: formatISODate(startDate), end: formatISODate(endDate), simulation: simulation ?? { mode: "scoped" },
     inflowAccountId: inflow_account_id, consolidationId: consolidation_account_id, feeConfig: fee_config,
     compound: strategy.compound, actualLeapYear: strategy.actual_leap_year, aitRate: strategy.effective_ait_rate,
     maxRate, totalCapital
@@ -406,18 +406,19 @@ function expandState(rawState, context, settings, mode, counters) {
     const value = terminalValue(state, context);
     return { terminal: true, value, state, children: [] };
   }
+  const goalMode = context.simulation?.mode === "goal";
   const bound = makeUpperBound(state, context, mode === "gaml");
-  if (bound <= counters.bestValue + EPS) {
+  if (!goalMode && bound <= counters.bestValue + EPS) {
     counters.boundPruned++;
     return { terminal: false, children: [] };
   }
   const key = stateKey(state);
   const prior = counters.memo.get(key);
-  if (prior !== undefined && prior >= bound - EPS) {
+  if (!goalMode && prior !== undefined && prior >= bound - EPS) {
     counters.memoPruned++;
     return { terminal: false, children: [] };
   }
-  counters.memo.set(key, bound);
+  if (!goalMode) counters.memo.set(key, bound);
 
   const nextDate = nextEventDate(state.date, state.flows, context.inflows, context.outflows, context.end);
   const activeIds = state.balances.filter(([, amount]) => amount > EPS).map(([id]) => id);
@@ -533,12 +534,17 @@ function expandState(rawState, context, settings, mode, counters) {
   return { terminal: false, children };
 }
 
-function runAbsolute(initial, context, settings, counters) {
-  let bestNode = null;
+function runAbsolute(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
+  let bestNode = null, bestGoalScore = initialGoalScore;
   function visit(rawState, parentNode = null) {
     counters.expanded++;
     const expanded = expandState(rawState, context, settings, "absolute", counters);
     if (expanded.terminal) {
+      if (evaluateGoal) {
+        const score = evaluateGoal(nodePath(parentNode), expanded.value);
+        if (compareGoalScores(score, bestGoalScore) > 0) { bestGoalScore = score; bestNode = parentNode; }
+        return;
+      }
       if (expanded.value > counters.bestValue + EPS) {
         counters.bestValue = expanded.value;
         bestNode = parentNode;
@@ -554,8 +560,8 @@ function runAbsolute(initial, context, settings, counters) {
   return { bestNode, optimalityProven: true };
 }
 
-function runGaml(initial, context, settings, counters) {
-  let bestNode = null, sequence = 0;
+function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
+  let bestNode = null, bestGoalScore = initialGoalScore, sequence = 0;
   let beam = [{ state: initial, node: null, priority: makeUpperBound(initial, context, true), sequence: sequence++ }];
   let budgetStopped = false, beamPruned = 0, rootPeak = 0;
   while (beam.length) {
@@ -568,6 +574,11 @@ function runGaml(initial, context, settings, counters) {
       counters.expanded++;
       const expanded = expandState(entry.state, context, settings, "gaml", counters);
       if (expanded.terminal) {
+        if (evaluateGoal) {
+          const score = evaluateGoal(nodePath(entry.node), expanded.value);
+          if (compareGoalScores(score, bestGoalScore) > 0) { bestGoalScore = score; bestNode = entry.node; }
+          continue;
+        }
         if (expanded.value > counters.bestValue + EPS) {
           counters.bestValue = expanded.value;
           bestNode = entry.node;
@@ -640,7 +651,7 @@ export class SearchStrategyBase {
 
   createSession(engineContext) {
     const input = {
-      options: engineContext.options, start: engineContext.start, end: engineContext.end,
+      options: engineContext.options, start: engineContext.start, end: engineContext.end, simulation: engineContext.simulation,
       inflow_schedule: engineContext.inflows, accounts: engineContext.accounts,
       inflow_account_id: engineContext.inflow_account_id,
       fee_config: engineContext.fee_config,
