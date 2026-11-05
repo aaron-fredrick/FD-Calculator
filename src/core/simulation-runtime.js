@@ -226,7 +226,6 @@ export class SimulationRuntime {
         signal.signal_type === StrategySignalType.COMPLETE) return signal;
 
     const balances = this.#balanceMap();
-    const before = Object.fromEntries(balances);
     const account = id => {
       const value = this.accounts.get(String(id));
       if (!value) throw new RangeError("Decision references unknown account " + id + ".");
