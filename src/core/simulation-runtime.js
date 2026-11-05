@@ -248,15 +248,16 @@ export class SimulationRuntime {
       const channel = source.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase()
         ? "intra_bank" : "domestic_ceft";
       balances.set(source.id, (balances.get(source.id) ?? 0) - amount);
-      balances.set(target.id, (balances.get(target.id) ?? 0) + amount - fee);
+      const sourceTotalAfter = this.#totalBalance(balances);
       pendingFees += fee;
       this.schedule(new Event({
         event_type: EventType.TRANSFER, on_date: this.currentDate, amount,
         label: "Transfer to " + target.label + " (Amt: " + (amount - fee).toFixed(2) + ", Fee: " + fee.toFixed(2) + ")",
         account_id: source.id, bank_key: source.bank_key, bank_id: source.bank_id,
         transfer_channel: channel, fee, balance_after: balances.get(source.id),
-        total_balance_after: this.#totalBalance(balances)
+        total_balance_after: sourceTotalAfter
       }));
+      balances.set(target.id, (balances.get(target.id) ?? 0) + amount - fee);
       this.schedule(new Event({
         event_type: EventType.TRANSFER, on_date: this.currentDate, amount: amount - fee,
         label: "Transfer received from " + source.label, account_id: target.id,
