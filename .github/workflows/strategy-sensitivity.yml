@@ -10,7 +10,6 @@ on:
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/strategy-sensitivity.yml"
-      - "docs/strategies/**"
   workflow_dispatch:
 permissions:
   contents: read
