@@ -311,6 +311,36 @@ test("Absolute+ goal ranking keeps the faster lower-interest payout under local 
   assert.equal(result.optimality_proven, false);
 });
 
+
+test("Absolute+ local truncation retains an earlier low-interest goal path", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-04-01",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 500 } },
+    options: [
+      new FDOption({ label: "Fast eFD 30d", period_str: "30d", annual_rate: 10, min_amount: 25000, bank_id: "BANK_B", bank_key: "b", is_efd: true }),
+      new FDOption({ label: "Slow standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Consolidation standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0, supports_efd: false }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000, supports_efd: true })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const engine = new SimulationEngine();
+  const exhaustive = engine.run(new AbsoluteStrategy({ ait_enabled: false }), scenario);
+  const bounded = engine.run(new AbsolutePlusStrategy({
+    ait_enabled: false, beam_width: 32, max_local_branches: 2, max_decisions: 500
+  }), scenario);
+  assert.equal(exhaustive.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(bounded.goal_outcome.achievement_date, exhaustive.goal_outcome.achievement_date);
+  assert.equal(bounded.bookings[0].option.label, "Fast eFD 30d");
+  assert.ok(bounded.search_diagnostics.local_combination_pruned > 0);
+  assert.equal(bounded.optimality_proven, false);
+});
+
+
 test("GSS goal planning reserves source liquidity for strict outflows beyond the next maturity", () => {
   const scenario = {
     start: "2026-01-01", end: "2026-03-10",

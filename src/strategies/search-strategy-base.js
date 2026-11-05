@@ -310,7 +310,9 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
         expanded.push({ score: partial.score, choices: [...partial.choices, [id, null]] });
         for (const option of choices) {
           expanded.push({
-            score: partial.score + option.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) * (1 - settings.aitRate),
+            score: partial.score + (settings.goalMode
+              ? goalOptionScore(id, option)
+              : option.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) * (1 - settings.aitRate)),
             choices: [...partial.choices, [id, option]]
           });
         }
