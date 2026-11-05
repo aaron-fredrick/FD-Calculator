@@ -117,6 +117,7 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     end = resolveDate(investment.end_date, { investmentStart: start, today });
   }
   if (end < start) throw new RangeError("Investment end date is before investment start date.");
+  if (simulationMode === "goal" && end.getTime() === start.getTime()) throw new RangeError("Goal maximum end date must be after the investment start date.");
   if (!raw.accounts || typeof raw.accounts !== "object" || Array.isArray(raw.accounts) || !Object.keys(raw.accounts).length) throw new TypeError("accounts must be a non-empty object keyed by account ID.");
 
   const accounts = [];
