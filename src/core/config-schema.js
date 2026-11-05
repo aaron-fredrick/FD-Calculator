@@ -18,6 +18,7 @@ export function validateConfigurationShape(x){
    if(typeof x.simulation.duration!=="string")bad("simulation.duration","required period such as 30d, 6m or 1y");
    try{if(parsePeriod(x.simulation.duration).amount<1)throw Error()}catch{bad("simulation.duration","must be a positive period such as 30d, 6m or 1y")}
    if(x.simulation.goal!==undefined)bad("simulation.goal","not valid for time_based mode");
+   if(x.investment?.end_date!==undefined)bad("investment.end_date","omit for time_based mode; use simulation.duration");
   }else if(mode==="scoped"){
    if(x.simulation.duration!==undefined||x.simulation.goal!==undefined)bad("simulation","scoped mode accepts only mode");
   }else{
