@@ -14,8 +14,12 @@ function makeScenario() {
   return {
     options: [
       new FDOption({
-        label: "Baseline 30-day FD", period_str: "30d", annual_rate: 12,
+        label: "Baseline 30-day FD A", period_str: "30d", annual_rate: 12,
         min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+      }),
+      new FDOption({
+        label: "Baseline 30-day FD B", period_str: "30d", annual_rate: 12,
+        min_amount: 25000, bank_id: "BANK_B", bank_key: "b"
       })
     ],
     start: "2026-01-01",
