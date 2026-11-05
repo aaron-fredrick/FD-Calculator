@@ -1,6 +1,6 @@
 # Goal-Based Simulation
 
-Goal-based simulation is a third horizon mode alongside time-based and scoped simulation. It terminates at the first event boundary where the configured amount of **net interest first credited to the consolidation account** reaches the target, or at the internal safety horizon if the target is not reached.
+Goal-based simulation is one of two horizon modes alongside scoped simulation. It terminates at the first event boundary where the configured amount of **net interest first credited to the consolidation account** reaches the target, or at the internal safety horizon if the target is not reached.
 
 ## Objective and accounting
 
@@ -102,7 +102,7 @@ The base case is LKR 300,000 across three accounts and three banks, with eFD eli
 | LKR 75,000 | Not reached · LKR 28,824 | Not reached · LKR 29,692 | Not reached · LKR 27,077 |
 | LKR 100,000 | Not reached · LKR 28,824 | Not reached · LKR 29,692 | Not reached · LKR 27,077 |
 
-*For achieved cases, the value is net interest credited at the first achievement boundary. For unachieved cases, it is credited net interest at the maximum boundary.*
+*For achieved cases, the value is net interest credited at the first achievement boundary. For unachieved cases, it is credited net interest at the internal safety-horizon boundary.*
 
 ![Goal target sensitivity: days to achievement](assets/goal-achievement/goal-target.svg)
 
