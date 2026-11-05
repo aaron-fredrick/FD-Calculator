@@ -404,6 +404,14 @@ export class SimulationRuntime {
       this.schedule = originalSchedule;
     }
 
+    for (const event of pendingEvents) {
+      if (!(event instanceof Event) || event.on_date < this.context.start || event.on_date > this.context.end) {
+        throw new RangeError("Decision produced an invalid or out-of-horizon event; no state was committed.");
+      }
+    }
+    if (!Number.isFinite(this.totalFees + pendingFees)) {
+      throw new RangeError("Decision would produce a non-finite transfer-fee total.");
+    }
     this.#commitBalances(balances);
     this.totalFees += pendingFees;
     this.bookingNumber = pendingBookingNumber;
