@@ -122,7 +122,7 @@ Key observations:
 
 Absolute+ used a beam width of 96, local branch limit of 48, and a 5,000-decision cap. In the base goal-target sweep it evaluated 1,113 search states and 172 goal candidates. Its `optimality_proven` flag was false, so the observed 151-day result is the earliest candidate found within the bounded search, not a global-optimality proof.
 
-The full 72-row machine-readable output, including per-run fees, booking counts, runtime, search expansions, candidate counts, and proof status, is attached to the [Goal Achievement Sensitivity workflow run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096161209) as the `goal-achievement-sensitivity-results` artifact. The artifact is retained for 30 days.
+The full 72-row machine-readable output, including per-run fees, booking counts, runtime, search expansions, candidate counts, and proof status, is attached to the [Goal Achievement Sensitivity workflow run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) as the `goal-achievement-sensitivity-results` artifact. The artifact is retained for 30 days.
 
 These results are a measured baseline, not a universal ranking. GSS can reach some targets earlier despite lower final credited interest; Absolute+ can improve early achievement in some cases but remains bounded by its search budget. Outflows were excluded from this sensitivity matrix. The shared runtime now has regression coverage for strict, defer, and best-effort policies, multi-account isolation, same-day credited-interest withdrawals, and provenance consumption; a separate outflow sensitivity matrix is still required before drawing performance conclusions for cash-outflow scenarios.
 
