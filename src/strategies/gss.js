@@ -390,12 +390,12 @@ export class GSSStrategy {
       addCredit(date, projected.creditedNetInterest - initialCredit);
       for (const item of plan.bookings) {
         const booked = projected.debit(item.account.id, item.principal);
-        if (item.account.id !== consolidation_account_id) continue;
         const flows = item.option.generateCashFlowComponentsAfterAIT(
           item.principal, date, this.effective_ait_rate, this.compound, this.actual_leap_year
         );
         for (const flow of flows) {
           noteEventDate(flow.date);
+          if (item.account.id !== consolidation_account_id) continue;
           const returned = projected.allocateBookedPrincipal(booked, flow.principal, item.principal);
           addCredit(flow.date, returned.uncredited_interest + flow.interest);
         }
