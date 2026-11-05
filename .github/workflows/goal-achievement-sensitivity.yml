@@ -9,7 +9,6 @@ on:
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/goal-achievement-sensitivity.yml"
-      - "docs/strategies/goal-achievement.md"
   workflow_dispatch:
 permissions:
   contents: read
