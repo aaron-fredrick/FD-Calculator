@@ -12,6 +12,8 @@ on:
       - "schema/**"
       - "data/**"
       - "docs/**"
+      - "README.md"
+      - "CONTRIBUTING.md"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 permissions:
@@ -40,6 +42,7 @@ jobs:
           cp -R data site/data
           cp -R schema site/schema
           cp -R docs/. site/docs/
+          cp README.md CONTRIBUTING.md site/
           cat > site/index.html <<'EOF'
           <!doctype html>
           <html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./web/"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FD Cal</title></head><body><p>Opening <a href="./web/">FD Cal</a>…</p></body></html>
