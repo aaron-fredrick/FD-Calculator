@@ -37,7 +37,7 @@ For each ancestor, from the innermost parent outwards, GSS:
 4. Contracts the frame's forecast when the newly projected viable date is earlier than its previous forecast.
 5. Records infeasibility separately when no future viable date remains within that frame's horizon.
 
-A contraction is propagated through recursive returns. If a revised ancestor boundary falls inside a descendant's current waiting window, that boundary pre-empts the descendant's original target. The simulation advances only to the revised date, then unwinds to the owning frame. The owner rebuilds its plan from the updated planning state and records its own decision only if it is still viable. A projected date is never treated as an execution guarantee.
+A contraction is propagated through recursive returns. If a revised ancestor boundary falls inside a descendant's current waiting window, that boundary pre-empts the descendant's original target. The hypothetical projection advances only to the revised date, then unwinds to the owning frame. The owner rebuilds its plan from the updated planning state and records its own decision only if it is still viable. A projected date is never treated as an execution guarantee.
 
 Forecasts are monotonic during a wait: they may move earlier, but are not extended later. A later or absent forecast does not silently extend an existing wait; the frame resumes normal candidate evaluation if its projected opportunity is no longer viable. Multiple ancestor changes are handled in innermost-to-outermost order, and a child never executes an ancestor's goal.
 
@@ -59,4 +59,4 @@ The [strategy sensitivity benchmark](/strategies/benchmarks) compares GSS agains
 
 ## Diagnostics
 
-The runtime result carries the decision log and `gss_diagnostics` from the hypothetical planner. The result exposes gss_diagnostics with candidate count, SPLIT/CONSOLIDATE plan evaluations, future goals, recursive waits, early parent-goal rechecks/executions, forecast rechecks/contractions, maximum recursion depth and the configured threshold. The decision log records each contraction with its previous and revised target dates, reduction in days and owning recursion depth. The decision log records waits, selected plans and candidate exhaustion.
+The runtime result carries the planner's decision log and `gss_diagnostics`, including candidate count, SPLIT/CONSOLIDATE plan evaluations, future goals, recursive waits, early parent-goal rechecks/executions, forecast rechecks/contractions, maximum recursion depth and the configured threshold. The decision log records each contraction with its previous and revised target dates, reduction in days and owning recursion depth. The decision log records waits, selected plans and candidate exhaustion.
