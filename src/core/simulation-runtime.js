@@ -121,6 +121,14 @@ export class SimulationRuntime {
     return [...balances.values()].reduce((sum, balance) => sum + balance, 0);
   }
 
+  #assertProvenance(balances) {
+    for (const [id, balance] of balances) {
+      if (Math.abs(round2(balance) - this.provenance.total(id)) > 0.02) {
+        throw new Error("Balance provenance does not reconcile for account " + id + ".");
+      }
+    }
+  }
+
   nextEventDate() {
     const keys = Object.keys(this.timeline).map(Number)
       .filter(key => !this.processed.has(key) && keyDate(key) <= this.context.end_iso)
@@ -224,6 +232,7 @@ export class SimulationRuntime {
       if (unpaid > EPS) remaining.push({ ...obligation, remaining: unpaid });
     }
     this.pending = remaining;
+    this.#assertProvenance(balances);
     this.#commitBalances(balances);
     return { date: today, valid: this.valid, events: this.timeline[key] ?? [] };
   }
@@ -439,8 +448,7 @@ export class SimulationRuntime {
       throw new RangeError("Decision would produce a non-finite transfer-fee total.");
     }
     this.#commitBalances(balances);
-    this.provenance = provenance;
-    for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
+    for (const [id, balance] of balances) {\n      if (Math.abs(round2(balance) - provenance.total(id)) > 0.02) throw new Error("Decision provenance does not reconcile for account " + id + ".");\n    }\n    this.provenance = provenance;\n    for (const [ref, components] of pendingBookingProvenance) this.bookingProvenance.set(ref, components);
     this.provenance.recognizeConsolidationCredit(this.context.consolidation_account_id);
     this.totalFees += pendingFees;
     this.bookingNumber = pendingBookingNumber;
