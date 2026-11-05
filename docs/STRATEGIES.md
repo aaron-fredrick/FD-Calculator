@@ -7,7 +7,7 @@ FD Cal provides four implemented strategies. They share the same account, FD, ca
 | Strategy | How it decides | Typical use | Optimality |
 |---|---|---|---|
 | **Greedy** | Makes the best-looking decision available at each step. | Fast baseline and quick comparisons. | No proof |
-| **GAML** | Explores several promising plans in parallel with a bounded beam. | Broader exploration with controllable search cost. | Only when search completes without truncation |
+| **Absolute+** | Explores several promising plans in parallel with a bounded beam. | Broader exploration with controllable search cost. | Only when search completes without truncation |
 | **Absolute** | Exhaustively explores the decision space using branch-and-bound. | Optimality proof for tractable scenarios. | Yes, when search completes |
 | **GSS** | Selects manager-ordered FD goals, compares SPLIT and CONSOLIDATE, and recursively plans waiting periods. | Goal-oriented plans with liquidity-aware interim investments. | No proof |
 
@@ -17,7 +17,7 @@ Detailed implementation references are available for all four strategies:
 
 - [Greedy](strategies/GREEDY.md)
 - [Absolute](strategies/ABSOLUTE.md)
-- [GAML](strategies/GAML.md)
+- [Absolute+](strategies/Absolute+.md)
 - [GSS](strategies/GSS.md)
 
 ## Greedy
@@ -29,9 +29,9 @@ Its two independent tenor settings both default to shortest:
 - tenor_tiebreaker: after annual rate, choose the shortest or longest option tenor.
 - plan_tenor_tiebreaker: after plan rate, choose the shortest or longest plan tenor.
 
-## GAML
+## Absolute+
 
-GAML is a heuristic beam-search strategy. It expands multiple candidate plans and retains a limited number of promising states.
+Absolute+ is a heuristic beam-search strategy. It expands multiple candidate plans and retains a limited number of promising states.
 
 - beam_width: maximum candidate states retained per layer (default 256).
 - max_local_branches: local booking combinations per expanded state (default 128; null means unlimited).
@@ -45,7 +45,7 @@ Absolute uses exhaustive branch-and-bound search, with Greedy as a feasible lowe
 
 ## Goal-Seeking Strategy (GSS)
 
-GSS is independent of Greedy, GAML and Absolute. It obtains the complete account-compatible, horizon-compatible FD candidate list from FDOptionManager and consumes that manager-provided order; GSS does not duplicate rate/tenor ranking. Its recursive planner explores a private hypothetical projection and emits decisions for the shared runtime to execute.
+GSS is independent of Greedy, Absolute+ and Absolute. It obtains the complete account-compatible, horizon-compatible FD candidate list from FDOptionManager and consumes that manager-provided order; GSS does not duplicate rate/tenor ranking. Its recursive planner explores a private hypothetical projection and emits decisions for the shared runtime to execute.
 
 For each candidate account and FD option, GSS evaluates:
 
@@ -80,7 +80,7 @@ See the [strategy sensitivity benchmark](/strategies/benchmarks) for reproducibl
 ## Choosing a strategy
 
 - Use **Greedy** for a quick baseline.
-- Use **GAML** for broader but bounded search.
+- Use **Absolute+** for broader but bounded search.
 - Use **Absolute** when a proof is important and the scenario is tractable.
 - Use **GSS** when the plan should pursue future FD goals while using interim funds without compromising parent-goal liquidity.
 
