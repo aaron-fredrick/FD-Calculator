@@ -266,7 +266,7 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
     const firstDate = flows[0]?.date ?? formatISODate(today);
     const days = daysBetween(today, parseISODate(firstDate));
     const interest = sum(flows.map(flow => flow.amount));
-    const score = (direct ? 1e9 : 0) - days * 1e5 + interest;
+    const score = (direct ? 1e10 : 1e9) - days * 1e4 + interest;
     goalOptionScores.set(key, score);
     return score;
   };
