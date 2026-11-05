@@ -58,8 +58,9 @@ function bookingText(result){
 }
 export function formatSimulation(result,config,configPath,optionsPath,{color:useColor=Boolean(process.stdout?.isTTY&&!process.env.NO_COLOR),showEventTimeline=true,showBookingLedger=true}={}){
  const out=["",line("="),"  MULTI-BANK FIXED DEPOSIT INVESTMENT CALCULATOR",line("="),"  Config: "+configPath,"  FD options: "+optionsPath];
- const days=Math.round((new Date(config.end)-new Date(config.start))/86400000)+1;
- out.push("  Window: "+date(config.start)+" -> "+date(config.end)+" ("+days+" days) | Method: "+(config.compound?"Compound":"Simple interest")+" ("+(config.actual_leap_year?"366d leap":"365d")+")","  Start date: "+date(config.start),"  Accounts:");
+ const actualEnd=result.end_date??config.end;
+ const days=Math.round((new Date(actualEnd)-new Date(config.start))/86400000)+1;
+ out.push("  Window: "+date(config.start)+" -> "+date(actualEnd)+" ("+days+" days) | Method: "+(config.compound?"Compound":"Simple interest")+" ("+(config.actual_leap_year?"366d leap":"365d")+")","  Start date: "+date(config.start),"  Accounts:");
  for(const a of config.accounts)out.push("    - "+a.id+": "+a.label+" ["+a.bank_id+"] starting funds "+money(a.balance)+" LKR | eFD "+(a.supports_efd?"enabled":"disabled"));
  out.push("  AIT withholding: "+(config.ait_enabled?"enabled ("+(Number(config.ait_rate??.1)*100).toFixed(1)+"% of interest)":"disabled"),"  Transfer fees: inter-bank "+money(config.fee_config.default_inter_bank_fee)+" LKR | same-bank "+money(config.fee_config.same_bank_fee)+" LKR","  New-money inflows:");
  if(!config.inflow_summaries?.length)out.push("    - None");for(const x of config.inflow_summaries||[])out.push("    - "+x.name+": "+money(x.amount)+" LKR "+(x.type==="recurring"?"every "+x.interval+" from "+date(x.start_date)+" to "+date(x.end_date):"on "+(x.dates||[]).map(date).join(", "))+", account "+x.account_id+" | "+x.occurrences+" payments, "+money(x.total)+" LKR total");
