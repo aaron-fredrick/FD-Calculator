@@ -88,7 +88,7 @@ The study compares Greedy, Absolute+, and GSS with the same financial inputs per
 
 The bank suite is DFCC, Commercial Bank, and NDB. AIT is enabled, compounding is disabled, and the same catalogue and transfer-fee configuration are used across strategies. The Absolute+ benchmark uses a recorded bounded budget (beam width 96, local branches 48, 5,000 expanded decisions). The output records achievement date/days, credited interest at stop, shortfall, fees, bookings, runtime, search expansions, and proof status.
 
-Outflows are excluded from the primary sensitivity matrix until the provenance/outflow interaction has independent regression coverage. The benchmark output is uploaded as a GitHub Actions artifact by the strategy sensitivity workflow. Results must be interpreted as measurements under the stated budget, not as proof that Absolute+ globally optimises every case.
+Outflows are excluded from the primary sensitivity matrix even though the shared runtime has policy and provenance regression coverage; performance conclusions with outflows require a separate study. The benchmark output is uploaded as a GitHub Actions artifact by the strategy sensitivity workflow. Results must be interpreted as measurements under the stated budget, not as proof that Absolute+ globally optimises every case.
 
 ## Measured benchmark results
 
@@ -124,7 +124,7 @@ Absolute+ used a beam width of 96, local branch limit of 48, and a 5,000-decisio
 
 The full 72-row machine-readable output, including per-run fees, booking counts, runtime, search expansions, candidate counts, and proof status, is attached to the [Goal Achievement Sensitivity workflow run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42094818607) as the `goal-achievement-sensitivity-results` artifact. The artifact is retained for 30 days.
 
-These results are a measured baseline, not a universal ranking. GSS can reach some targets earlier despite lower final credited interest; Absolute+ can improve early achievement in some cases but remains bounded by its search budget. Outflows were excluded and require separate verification before extending these conclusions to cash-outflow scenarios.
+These results are a measured baseline, not a universal ranking. GSS can reach some targets earlier despite lower final credited interest; Absolute+ can improve early achievement in some cases but remains bounded by its search budget. Outflows were excluded from this sensitivity matrix. The shared runtime now has regression coverage for strict, defer, and best-effort policies, multi-account isolation, same-day credited-interest withdrawals, and provenance consumption; a separate outflow sensitivity matrix is still required before drawing performance conclusions for cash-outflow scenarios.
 
 ## Implementation plan and acceptance
 
