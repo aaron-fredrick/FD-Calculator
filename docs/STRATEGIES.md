@@ -52,7 +52,7 @@ For each candidate account and FD option, GSS evaluates:
 - **SPLIT:** book the goal option in its account and use manager-ordered viable options in other accounts.
 - **CONSOLIDATE:** transfer available balances into the candidate account, deduct actual source-to-target fees, and book the candidate option.
 
-If neither plan is viable now, GSS projects scheduled inflows, existing FD cash flows/maturities and outflows to find a future affordability date. It recursively plans the waiting period with GSS itself. Interim bookings are restricted to FDs that mature by the parent goal date, preserving the parent goal's liquidity. The parent candidate is then re-evaluated against actual balances and events. If it fails, GSS continues through the remaining candidates. Candidate exhaustion leaves funds liquid; there is no Greedy fallback.
+If neither plan is viable now, GSS projects scheduled inflows, existing FD cash flows/maturities and outflows to find a future affordability date. It recursively plans the waiting period with GSS itself. Interim bookings are restricted to FDs that mature by the parent goal date, preserving the parent goal's liquidity. The parent candidate is then re-evaluated against the updated projected balances and events. If it fails, GSS continues through the remaining candidates. Candidate exhaustion leaves funds liquid; there is no Greedy fallback.
 
 ### GSS settings
 
