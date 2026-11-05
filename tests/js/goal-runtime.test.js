@@ -84,3 +84,38 @@ test("Absolute+ evaluates goal candidates against the Greedy baseline with bound
   assert.equal(result.search_diagnostics.goal_objective, "earliest consolidation net-interest achievement");
   assert.ok(result.search_diagnostics.selected_goal_score);
 });
+
+test("maximum-date final consolidation can be the first goal-credit boundary", () => {
+  let booked = false;
+  const strategy = {
+    name: "Reserve maturity",
+    createSession() {
+      return {
+        nextSignal(view) {
+          if (!booked) {
+            booked = true;
+            return createStrategyDecision({
+              revision: view.revision, date: view.date,
+              action: StrategyDecisionType.SPLIT,
+              plan: { bookings: [{ account_id: "reserve", option_index: 0, principal: 100000 }], carries: [] }
+            });
+          }
+          return createStrategyComplete({ revision: view.revision });
+        }
+      };
+    }
+  };
+  const scenario = input(100);
+  scenario.accounts = [
+    new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0 }),
+    new Account({ id: "reserve", bank_id: "BANK_A", bank_key: "a", balance: 100000 })
+  ];
+  scenario.inflow_account_id = "main";
+  scenario.consolidation_account_id = "main";
+  const result = new SimulationEngine().run(strategy, scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(result.goal_outcome.stopping_reason, "goal_achieved_on_final_consolidation");
+  assert.equal(result.accounts.reserve.balance, 0);
+  assert.ok(result.accounts.main.balance > 100000);
+});
