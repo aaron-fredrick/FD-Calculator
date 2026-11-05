@@ -5,7 +5,7 @@ import { loadConfigurationFromFile } from "../io/data-loader.js";
 import { validateConfiguration } from "../core/configuration.js";
 import { GreedyStrategy } from "../strategies/greedy.js";
 import { AbsoluteStrategy } from "../strategies/absolute.js";
-import { GAMLStrategy } from "../strategies/gaml.js";
+import { AbsolutePlusStrategy } from "../strategies/gaml.js";
 import { GSSStrategy } from "../strategies/gss.js";
 import { SimulationEngine } from "../core/simulation.js";
 import { formatSimulation } from "../reporting/console.js";
@@ -88,7 +88,7 @@ async function main() {
     for (const key of ["beam_width", "max_local_branches", "max_decisions"]) {
       if (cli[key] !== undefined) settings[key] = cli[key];
     }
-    strategy = new GAMLStrategy({
+    strategy = new AbsolutePlusStrategy({
       compound: config.compound, actual_leap_year: config.actual_leap_year,
       ait_enabled: config.ait_enabled, ait_rate: config.ait_rate,
       ...settings
