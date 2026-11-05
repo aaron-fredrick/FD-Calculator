@@ -525,7 +525,7 @@ function runGaml(initial, context, settings, counters) {
 
 export class SearchStrategyBase {
   constructor({ compound = false, actual_leap_year = true, ait_enabled = false, ait_rate = 0.10, ...settings } = {}, mode) {
-    this.name = mode === "absolute" ? "Absolute" : "GAML";
+    this.name = mode === "absolute" ? "Absolute" : "Absolute+";
     this.mode = mode;
     this.compound = compound;
     this.actual_leap_year = actual_leap_year;
