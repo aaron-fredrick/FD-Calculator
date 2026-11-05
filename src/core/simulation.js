@@ -124,6 +124,9 @@ export function finalizeSimulation(result, {
     result.credited_net_interest = provenance.creditedNetInterest;
     result.provenance = Object.fromEntries([...provenance.accounts].map(([id, value]) => [id, { ...value }]));
     result.provenance_adjustments = provenance.adjustments.map(item => ({ ...item }));
+    const endKey = Number(formatISODate(endDate).replaceAll("-", ""));
+    const endEvents = timeline instanceof Map ? (timeline.get(endKey) ?? []) : (timeline[endKey] ?? []);
+    for (const event of endEvents) event.goal_metric_after = provenance.creditedNetInterest;
   }
   for (const account of values) {
     if (account.balance <= 0.01) continue;
