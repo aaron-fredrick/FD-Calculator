@@ -748,8 +748,9 @@ export class GSSStrategy {
             viable.sort(compareGoalPlans);
             const bestImmediate = viable[0];
             const future = [];
+            const viableCandidates = new Set(viable.map(item => item.candidate));
             for (const [candidate, details] of futureDetails) {
-              if (candidate.account.id !== consolidation_account_id) continue;
+              if (viableCandidates.has(candidate) || candidate.account.id !== consolidation_account_id) continue;
               for (const plan of details.plans) {
                 future.push({
                   candidate, plan,
