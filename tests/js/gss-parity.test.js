@@ -65,7 +65,9 @@ function normalize(result) {
       name: item.name, account_id: item.account_id, remaining: round(item.remaining),
       payment_policy: item.payment_policy, due_date: iso(item.due_date)
     })),
-    accounts: Object.fromEntries(Object.entries(result.accounts).sort(([a], [b]) => a.localeCompare(b))
+    accounts: Object.fromEntries((result.accounts instanceof Map
+      ? [...result.accounts.entries()] : Object.entries(result.accounts))
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([id, value]) => [id, round(value.balance)])),
     bookings: result.bookings.map(booking => ({
       option: booking.option.label, principal: round(booking.principal),
