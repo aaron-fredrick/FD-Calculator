@@ -35,7 +35,7 @@ export class Event {
     this.transfer_channel = String(transfer_channel);
     this.balance_after = balance_after;
     this.total_balance_after = total_balance_after;
-    this.decision_context = decision_context;
+    this.decision_context = decision_context;\n    this.cash_components = cash_components ? structuredClone(cash_components) : null;
   }
   get date_key() { return Number(formatISODate(this.on_date).replaceAll("-", "")); }
 }
