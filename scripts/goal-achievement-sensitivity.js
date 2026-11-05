@@ -214,8 +214,13 @@ function renderPanel(rows, metric, x, y, width, height) {
   const values = rows.map(row => row[metric.key]).filter(Number.isFinite);
   const max = Math.max(1, ...values) * 1.12, min = 0;
   const labels = [...new Set(rows.map(row => String(row.value)))];
-  const xPos = value => labels.length === 1 ? (left + right) / 2
-    : left + labels.indexOf(String(value)) * (right - left) / (labels.length - 1);
+  const numericAxis = labels.every(label => Number.isFinite(Number(label)));
+  const numericMin = Math.min(...labels.map(Number)), numericMax = Math.max(...labels.map(Number));
+  const xPos = value => labels.length === 1 || (numericAxis && numericMin === numericMax)
+    ? (left + right) / 2
+    : numericAxis
+      ? left + (Number(value) - numericMin) * (right - left) / (numericMax - numericMin)
+      : left + labels.indexOf(String(value)) * (right - left) / (labels.length - 1);
   const yPos = value => bottom - (value - min) / (max - min) * (bottom - top);
   let svg = `<text x="${x+16}" y="${y+25}" font-size="17" font-weight="700" fill="#111827">${xml(metric.title)} (${xml(metric.unit)})</text>`;
   for (let tick = 0; tick <= 4; tick++) {
@@ -239,7 +244,7 @@ function renderPanel(rows, metric, x, y, width, height) {
 for (const [category, title] of Object.entries(factorTitles)) {
   const rows = results.filter(row => row.category === category);
   const panels = chartMetrics.map((metric, i) => renderPanel(rows, metric,
-    24 + (i % 2) * 700, 24 + Math.floor(i / 2) * 340, 680, 320)).join("");
+    24 + (i % 2) * 700, 50 + Math.floor(i / 2) * 340, 680, 320)).join("");
   const legend = ["Greedy", "Absolute+", "GSS"].map((name, i) =>
     `<line x1="${48+i*180}" y1="1080" x2="${78+i*180}" y2="1080" stroke="${strategyColors[name]}" stroke-width="3"/><text x="${86+i*180}" y="1085" font-size="13" fill="#374151">${xml(name)}</text>`).join("");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1110" viewBox="0 0 1440 1110"><rect width="100%" height="100%" fill="#ffffff"/><text x="28" y="30" font-size="21" font-weight="700" fill="#111827">${xml(title)} — goal-mode strategy sensitivity</text>${panels}${legend}<text x="28" y="1102" font-size="10" fill="#6b7280">Same scenario inputs per point. Runtime is a single-run measurement; null values indicate unavailable metrics.</text></svg>`;
