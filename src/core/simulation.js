@@ -1,5 +1,6 @@
 import { Event, EventType } from "./events.js";
 import { TransferFeeConfig } from "./models.js";
+import { createSimulationContext } from "./simulation-context.js";
 
 /**
  * Apply the one simulation-wide final consolidation sweep.
@@ -113,14 +114,27 @@ export class SimulationEngine {
     if (!strategy || typeof strategy.simulate !== "function") {
       throw new TypeError("SimulationEngine requires a strategy with a simulate(input) method.");
     }
-    const result = strategy.simulate(input);
+    const context = createSimulationContext(input);
+    const normalizedInput = {
+      ...input,
+      start: context.start,
+      end: context.end,
+      options: context.options,
+      accounts: context.accounts,
+      inflow_schedule: context.inflows,
+      outflow_schedule: context.outflows,
+      inflow_account_id: context.inflow_account_id,
+      consolidation_account_id: context.consolidation_account_id,
+      fee_config: context.fee_config
+    };
+    const result = strategy.simulate(normalizedInput);
 
     // The simulation engine owns lifecycle boundaries. Keep the start marker
     // out of strategy decision-making so every strategy reports the same
     // simulation start, including runs with no opening cash or start-day flows.
     const startEvent = new Event({
       event_type: EventType.SIMULATION_START,
-      on_date: input.start,
+      on_date: context.start,
       amount: 0,
       label: "Simulation starts",
       balance_after: 0,
@@ -136,13 +150,9 @@ export class SimulationEngine {
     }
     result.timeline = timeline;
 
-    const defaultAccountId = input?.consolidation_account_id ??
-      input?.inflow_account_id ??
-      input?.accounts?.[0]?.id ??
-      Object.keys(result.accounts ?? {})[0];
     return finalizeSimulation(result, {
-      fee_config: input?.fee_config ?? new TransferFeeConfig(),
-      consolidation_account_id: defaultAccountId
+      fee_config: context.fee_config ?? new TransferFeeConfig(),
+      consolidation_account_id: context.consolidation_account_id
     });
   }
 }
