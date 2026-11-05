@@ -80,7 +80,8 @@ export class SimulationRuntime {
         }));
       }
     }
-    if ([...this.accounts.values()].some(account => account.balance > EPS)) {
+    const startKey = dateKey(this.context.start);
+    if (!this.timeline[startKey] && [...this.accounts.values()].some(account => account.balance > EPS)) {
       const account = this.accounts.get(this.context.inflow_account_id);
       this.schedule(new Event({
         event_type: EventType.INFLOW, on_date: this.context.start, amount: 0,
@@ -144,8 +145,8 @@ export class SimulationRuntime {
       event.total_balance_after = this.#totalBalance(balances);
     }
 
-    for (const event of events) {
-      if (event.event_type !== EventType.OUTFLOW) continue;
+    const dueOutflowEvents = events.filter(event => event.event_type === EventType.OUTFLOW);
+    for (const event of dueOutflowEvents) {
       this.pending.push({
         name: event.label, account_id: event.account_id,
         remaining: event.amount, payment_policy: event.payment_policy || "strict",
@@ -156,8 +157,7 @@ export class SimulationRuntime {
     const remaining = [];
     this.pending.sort((a, b) =>
       (POLICY_ORDER[a.payment_policy] ?? 3) - (POLICY_ORDER[b.payment_policy] ?? 3) ||
-      formatISODate(a.due_date).localeCompare(formatISODate(b.due_date)) ||
-      a.account_id.localeCompare(b.account_id));
+      formatISODate(a.due_date).localeCompare(formatISODate(b.due_date)));
     for (const obligation of this.pending) {
       const account = this.accounts.get(obligation.account_id);
       if (!account) throw new RangeError("Pending outflow targets an unknown account.");
