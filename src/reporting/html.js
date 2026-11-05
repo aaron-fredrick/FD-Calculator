@@ -4,6 +4,7 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({
   "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;"
 }[ch]));
 const amount = value => Number(value ?? 0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const count = value => Number(value ?? 0).toLocaleString("en-US",{maximumFractionDigits:0});
 const money = value => "LKR " + amount(value);
 const iso = value => {
   if (value instanceof Date) return value.toISOString().slice(0,10);
@@ -276,11 +277,11 @@ export function generateHtmlReport(result,config) {
     '<div class="outcome-metric"><small>Goal target (LKR)</small><strong>'+amount(goal.target)+'</strong><p>Required first-time interest credited to consolidation.</p></div>'+
     '<div class="outcome-metric"><small>Actual credited at stop (LKR)</small><strong>'+amount(goal.actual)+'</strong><p>'+(goal.achieved?'Credited net interest at the first achievement boundary':'Credited net interest at the stopping boundary')+'</p></div>'+
     '<div class="outcome-metric"><small>Achievement date</small><strong>'+(goal.achievement_date||'Not achieved')+'</strong><p>'+goalStatus+'</p></div>'+
-    '<div class="outcome-metric"><small>Time to goal</small><strong>'+(goal.elapsed_days===null?'—':amount(goal.elapsed_days)+' days')+'</strong><p>Elapsed calendar days from the simulation start.</p></div>'+
+    '<div class="outcome-metric"><small>Time to goal</small><strong>'+(goal.elapsed_days===null?'—':count(goal.elapsed_days)+' days')+'</strong><p>Elapsed calendar days from the simulation start.</p></div>'+
     '<div class="outcome-metric"><small>'+(goal.achieved?'Overshoot (LKR)':'Remaining shortfall (LKR)')+'</small><strong>'+amount(goal.achieved?goal.overshoot:goal.shortfall)+'</strong><p>'+esc(goal.stopping_reason||'')+'</p></div></div>'+
     '<p class="muted">The goal metric counts only first-time net interest credited to the consolidation account. It excludes principal and interest still held in other accounts; AIT and attributable transfer fees are accounted for before credit. Portfolio-wide net interest below is a separate measure.</p></div>':'';
   const goalSearch=result.search_diagnostics?.goal_candidates_evaluated!==undefined
-    ? '<p class="muted">Goal candidates evaluated: '+amount(result.search_diagnostics.goal_candidates_evaluated)+' · Search states: '+amount(result.total_decisions_evaluated??0)+' · Goal-date pruning: '+amount(result.search_diagnostics.goal_pruned_after_achievement??0)+' · Search budget: '+amount(result.search_diagnostics.goal_search_budget??0)+' · Optimality: '+(result.search_diagnostics.optimality_proven?'proven':'not proven within bounded search')+'</p>' : '';
+    ? '<p class="muted">Goal candidates evaluated: '+count(result.search_diagnostics.goal_candidates_evaluated)+' · Search states: '+count(result.total_decisions_evaluated??0)+' · Goal-date pruning: '+count(result.search_diagnostics.goal_pruned_after_achievement??0)+' · Search budget: '+count(result.search_diagnostics.goal_search_budget??0)+' · Optimality: '+(result.search_diagnostics.optimality_proven?'proven':'not proven within bounded search')+'</p>' : '';
   const goalTimelineRows=[];
   for(const [dateKey,events] of Object.entries(result.timeline||{}).sort(([a],[b])=>Number(a)-Number(b)))for(const event of events)if(Number.isFinite(event.goal_metric_after))goalTimelineRows.push({date:iso(event.on_date),event:event.label||event.event_type,credited:amount(event.goal_metric_after),status:goal?.achieved&&iso(event.on_date)===goal.achievement_date?'First achievement boundary':'—'});
   const goalTimeline=goal?table('Goal-credit progression',[['date','Date'],['event','Event boundary'],['credited','Cumulative credited net interest (LKR)'],['status','Status']],goalTimelineRows):'';
