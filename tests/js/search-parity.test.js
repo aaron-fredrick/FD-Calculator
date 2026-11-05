@@ -32,6 +32,29 @@ function scenario() {
   };
 }
 
+function multiAccountScenario() {
+  return {
+    options: [
+      new FDOption({
+        label: "Bank A 30d", period_str: "30d", annual_rate: 20,
+        min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+      }),
+      new FDOption({
+        label: "Bank B 30d", period_str: "30d", annual_rate: 20,
+        min_amount: 25000, bank_id: "BANK_B", bank_key: "b"
+      })
+    ],
+    start: "2026-01-01", end: "2026-03-15",
+    accounts: [
+      new Account({ id: "a", bank_id: "BANK_A", bank_key: "a", balance: 30000 }),
+      new Account({ id: "b", bank_id: "BANK_B", bank_key: "b", balance: 30000 })
+    ],
+    inflow_account_id: "a", consolidation_account_id: "a",
+    inflow_schedule: {}, outflow_schedule: {},
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 30, same_bank_fee: 0 })
+  };
+}
+
 const iso = value => new Date(value).toISOString().slice(0, 10);
 const round = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
@@ -80,6 +103,13 @@ for (const [name, Strategy, mode, settings] of [
     const input = scenario();
     const legacy = new LegacySearchStrategyBase({ ...settings, ait_enabled: true }, mode).simulate(input);
     const migrated = new SimulationEngine().runUnfinalized(new Strategy({ ...settings, ait_enabled: true }), input);
+    assert.deepEqual(normalize(migrated), normalize(legacy));
+  });
+  test(name + " preserves shared pre-decision snapshots for multi-account splits", () => {
+    const input = multiAccountScenario();
+    const legacy = new LegacySearchStrategyBase({ ...settings, ait_enabled: true }, mode).simulate(input);
+    const migrated = new SimulationEngine().runUnfinalized(new Strategy({ ...settings, ait_enabled: true }), input);
+    assert.ok(legacy.bookings.filter(booking => iso(booking.start) === "2026-01-01").length >= 2);
     assert.deepEqual(normalize(migrated), normalize(legacy));
   });
 }
