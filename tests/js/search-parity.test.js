@@ -63,6 +63,7 @@ function normalize(result) {
         total_balance_after: round(event.total_balance_after),
         decision_context: event.decision_context
       }))),
+    decision_log: result.decision_log,
     total_decisions_evaluated: result.total_decisions_evaluated,
     alternative_leaf_net_interests: result.alternative_leaf_net_interests,
     search_diagnostics: result.search_diagnostics,
