@@ -440,3 +440,23 @@ The current test suite and docs build are green, and the execution paths are suf
 
 - Symptom: the first batch-executor test run raised a ReferenceError while validating the new BATCH action. Root cause: the runtime used `StrategyDecisionType.BATCH` without importing `StrategyDecisionType`. Correction: add the explicit import. Regression coverage: atomic batch tests and GSS parity tests.
 - Symptom: the first GSS parity test reported empty legacy account balances while migrated balances were populated. Root cause: the legacy GSS result stores accounts in a `Map`, while the runtime result stores them in an object; the test normalizer used `Object.entries(Map)`. Correction: normalize both supported account containers. Regression coverage: all four frozen GSS parity scenarios now pass.
+
+
+### Phase 5 progress — enforce engine ownership
+
+- Removed the public `simulate(input)` adapters from Greedy, SearchStrategyBase (therefore GAML/Absolute), and GSS.
+- `SimulationEngine.run()` now accepts only strategies implementing `createSession(context)`; the legacy simulate-only fallback has been removed.
+- SearchStrategyBase's Greedy incumbent now runs through `SimulationEngine.runUnfinalized()`, an engine-owned projection path that deliberately omits the start marker/final sweep for search scoring. It does not call a strategy execution method.
+- The session runner is now private to `src/core/simulation.js`. Public strategy classes expose planning sessions, not actual simulation entry points.
+- Simulation input context now clones and deeply freezes FD options, account values, fee configuration, and cash-flow schedules. Strategies receive isolated date copies, so mutating their context cannot alter runtime-owned dates or state.
+- Updated parity and unfinished-result tests to use the engine's explicit unfinalized projection path. Added architecture tests proving all production strategies expose `createSession` and no `simulate`, and that simulate-only strategies are rejected.
+- JavaScript tests passed on commit `4792a157481c644af526d226378a6a2a1ce7d093`; the full Node test workflow is still running.
+
+**Phase 5 issue note — frozen search oracle incumbent**
+
+- Symptom: after removing Greedy's production `simulate()` adapter, the frozen legacy SearchStrategyBase oracle failed before replay because its incumbent calculation still called `GreedyStrategy.simulate()`.
+- Reproduction: run the GAML/Absolute differential replay tests against the legacy search oracle.
+- Root cause: the oracle intentionally retains the old search replay implementation but imports the current production Greedy class for its incumbent, creating a dependency on the removed adapter.
+- Constraint: keep the old search replay as the test oracle without reintroducing production strategy execution adapters.
+- Correction: route the oracle's incumbent through `SimulationEngine.runUnfinalized()`, matching the new engine-owned incumbent path.
+- Regression coverage: GAML and Absolute legacy replay parity tests passed in the subsequent JavaScript test workflow.
