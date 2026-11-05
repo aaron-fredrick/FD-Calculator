@@ -121,3 +121,25 @@ test("SimulationEngine rejects invalid session decisions without accepting legac
   };
   assert.throws(() => new SimulationEngine().run(strategy, input), /Stale strategy signal/);
 });
+
+test("strategy context cannot mutate runtime-owned dates, accounts, options or schedules", () => {
+  const input = scenario();
+  const strategy = {
+    createSession(context) {
+      assert.throws(() => { context.accounts[0].balance = 0; }, TypeError);
+      assert.throws(() => { context.options[0].annual_rate = 99; }, TypeError);
+      assert.throws(() => { context.outflows["2026-01-01"] = []; }, TypeError);
+      context.start.setUTCFullYear(2035);
+      return {
+        nextSignal(view) {
+          return { signal_type: "complete", revision: view.revision };
+        }
+      };
+    }
+  };
+  const result = new SimulationEngine().run(strategy, input);
+  const start = Object.values(result.timeline).flat()
+    .find(event => event.event_type === EventType.SIMULATION_START);
+  assert.equal(start.on_date.toISOString().slice(0, 10), input.start);
+  assert.equal(result.accounts.main.balance, 19970);
+});
