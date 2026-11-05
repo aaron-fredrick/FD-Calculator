@@ -573,12 +573,22 @@ function makeGoalPriority(state, context) {
   const direct = pending.filter(item => item.accountId === context.consolidationId)
     .sort((a, b) => a.date.localeCompare(b.date));
   let running = credited;
+  let directAchievementDate = null;
   for (const flow of direct) {
     running = round2(running + flow.interest);
     if (running + EPS >= target) {
-      const days = daysBetween(parseISODate(context.start), parseISODate(flow.date));
-      return 1e14 - days * 1e9 + running;
+      directAchievementDate = flow.date;
+      break;
     }
+  }
+  if (state.goalPriorityHint &&
+      (!directAchievementDate || state.goalPriorityHint < directAchievementDate)) {
+    const days = daysBetween(parseISODate(context.start), parseISODate(state.goalPriorityHint));
+    return 1e14 - days * 1e9 + 5e8;
+  }
+  if (directAchievementDate) {
+    const days = daysBetween(parseISODate(context.start), parseISODate(directAchievementDate));
+    return 1e14 - days * 1e9 + running;
   }
 
   const liquidUncredited = sum([...provenance.accounts.values()].map(item => item.uncredited_interest));
