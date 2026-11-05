@@ -729,29 +729,56 @@ export class GSSStrategy {
         const futureDates = new Map();
         if (goalMode) {
           const viable = [];
+          const futureDetails = new Map();
           for (const candidate of candidates) {
             candidatesConsidered++;
             const plans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
             for (const plan of plans) {
               viable.push({ candidate, plan, estimate: estimateGoalPlan(plan, today) });
             }
+            if (allowFuture) {
+              const details = findFutureDate(candidate, today, horizon, parentGoals, true);
+              if (details && details.date > today) {
+                futureDetails.set(candidate, details);
+                futureDates.set(candidate, details.date);
+              }
+            }
           }
           if (viable.length) {
             viable.sort(compareGoalPlans);
-            executePlan(viable[0].plan, today, initialDate, viable[0].candidate);
+            const bestImmediate = viable[0];
+            const future = [];
+            for (const [candidate, details] of futureDetails) {
+              if (candidate.account.id !== consolidation_account_id) continue;
+              for (const plan of details.plans) {
+                future.push({
+                  candidate, plan,
+                  estimate: estimateGoalPlan(plan, details.date, details.provenance),
+                  targetDate: details.date
+                });
+              }
+            }
+            future.sort(compareGoalPlans);
+            const bestFuture = future[0];
+            const immediateCutoff = bestImmediate.estimate.achievement_date ||
+              bestImmediate.estimate.first_credit_date || bestImmediate.estimate.next_event_date;
+            const futureCreditDate = bestFuture?.estimate.achievement_date ||
+              bestFuture?.estimate.first_credit_date;
+            if (bestFuture && immediateCutoff && futureCreditDate &&
+                futureCreditDate < immediateCutoff) {
+              candidates = [bestFuture.candidate, ...candidates.filter(item => item !== bestFuture.candidate)];
+            } else {
+              executePlan(bestImmediate.plan, today, initialDate, bestImmediate.candidate);
+              return today;
+            }
+          } else if (!allowFuture) {
             return today;
           }
-          if (!allowFuture) return today;
-          const future = [];
-          for (const candidate of candidates) {
-            const targetDate = findFutureDate(candidate, today, horizon, parentGoals);
-            if (targetDate && targetDate > today) {
-              futureDates.set(candidate, targetDate);
-              future.push({ candidate, targetDate });
-            }
+          if (!viable.length) {
+            candidates = [...futureDates.entries()]
+              .sort((a, b) => a[1].getTime() - b[1].getTime())
+              .map(([candidate]) => candidate);
           }
-          future.sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime());
-          candidates = future.map(item => item.candidate);
         }
         let advanced = false;
         for (const candidate of candidates) {
