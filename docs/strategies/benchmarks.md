@@ -100,6 +100,10 @@ GAML matched Greedy on the monthly-inflow case, but used the full 5,000 expanded
 
 These are observations from this fixed catalogue snapshot and the stated one-factor sweeps, not universal rankings. Rate schedules, product minima, payout types, fees and eligibility all influence the result.
 
+## GAML search-parameter sensitivity
+
+A separate controlled experiment varies GAML's beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Results and overlay charts are published alongside the main study once the run completes and is reviewed.
+
 ## Reproducibility and limitations
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.

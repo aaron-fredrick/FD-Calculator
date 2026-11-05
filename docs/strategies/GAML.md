@@ -1,0 +1,55 @@
+# GAML — technical reference
+
+## Purpose
+
+GAML is FD Cal's bounded, layered beam-search optimiser. It explores multiple candidate investment paths instead of committing to one locally selected plan. It is heuristic while any search states, local combinations or frontier candidates are pruned.
+
+**Implementation:** `src/strategies/gaml.js` and `src/strategies/search-strategy-base.js`.
+
+## Search model
+
+1. Build a simulation context containing accounts, eligible FD products, cash-flow schedules, transfer fees and the investment horizon.
+2. Run Greedy to obtain a feasible incumbent and lower-bound candidate.
+3. Expand each retained search state into feasible local booking, consolidation and carry decisions.
+4. Advance each candidate to the next relevant event date, including FD cash flows/maturities, inflows and outflows.
+5. Score resulting states and retain a bounded frontier for the next layer.
+6. Replay the best retained path through the shared result model and simulation lifecycle.
+
+The search state includes the date, account balances, pending FD cash flows, outflow obligations and paid outflows. Memoisation and dominance pruning reduce repeated or inferior states.
+
+## Search controls
+
+| Setting | Default | Meaning |
+|---|---:|---|
+| `beam_width` | 256 | Maximum number of candidate states retained at each search layer. |
+| `max_local_branches` | 128 | Maximum partial local-booking combinations retained while expanding a state. `null` disables this local limit. |
+| `max_decisions` | Unlimited | Optional cap on expanded search states. Reaching it stops further search. |
+
+These controls limit different parts of the search:
+
+- **Beam width** controls breadth across the retained frontier.
+- **Local branch limit** controls the combinations considered inside one state expansion.
+- **Decision cap** controls the total number of states expanded.
+
+Increasing one limit does not remove the other limits. Higher values can improve the best result found, but may increase runtime and memory. A larger setting is not guaranteed to improve the result monotonically because the search is heuristic and pruning/order effects remain.
+
+## Optimality status
+
+GAML reports `optimality_proven` only when the search completes without a decision-budget stop, beam pruning or local-combination pruning. Otherwise, the result is the best feasible path found within the configured bounds, not a proof of global optimality.
+
+The diagnostics include expanded states, leaves, bound and memo pruning, beam pruning, local-combination pruning, peak root strategy frontier, alternative leaf returns and the effective settings. Review these alongside net interest and runtime; a higher return obtained with more work should be judged against its additional computational cost.
+
+## Interpretation and use
+
+Use GAML when exploring alternative future booking sequences is worth more computation than a fast local heuristic. Start with defaults, then increase one control at a time. Compare identical financial inputs and record:
+
+- Net interest after AIT and transfer fees.
+- Whether optimality was proven.
+- Expanded states and each pruning count.
+- Runtime and peak memory where available.
+
+Do not interpret beam width or branch count as a percentage of optimality. They are search limits, not confidence scores.
+
+## Shared simulation lifecycle
+
+GAML returns an unfinished strategy result. The shared `SimulationEngine` owns overall event processing and performs the single final consolidation sweep after the strategy has completed. Search branches do not independently finalise the simulation.
