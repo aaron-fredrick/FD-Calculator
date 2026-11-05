@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compareGoalScores, createPathReplayStrategy } from "../../src/strategies/search-strategy-base.js";
+import { compareGoalScores, createPathReplayStrategy, evaluateGoalPath } from "../../src/strategies/search-strategy-base.js";
 
 const score = overrides => ({
   achieved: false, elapsed_days: Infinity, actual: 0, fees: 0,
@@ -41,4 +41,14 @@ test("goal candidate replay inherits the strategy's financial and runtime settin
   };
   const replay = createPathReplayStrategy([], { options: [] }, settings);
   for (const [key, value] of Object.entries(settings)) assert.equal(replay[key], value);
+});
+
+test("invalid hypothetical goal candidates are rejected without aborting the search", () => {
+  const invalid = evaluateGoalPath([], {}, 0, {});
+  assert.equal(invalid.invalid_candidate, true);
+  assert.equal(invalid.achieved, false);
+  assert.equal(invalid.actual, -Infinity);
+  assert.ok(invalid.invalid_reason);
+  const valid = score({ achieved: false, actual: 10 });
+  assert.ok(compareGoalScores(valid, invalid) > 0);
 });
