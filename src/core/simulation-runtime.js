@@ -277,12 +277,20 @@ export class SimulationRuntime {
       }
       const option = this.context.options[optionIndex];
       const principal = Number(item.principal);
+      const available = balances.get(target.id) ?? 0;
+      const fitsHorizon = option.fitsBefore(this.currentDate, this.context.end);
+      const accountEligible = target.canUseOption(option);
       if (!Number.isFinite(principal) || principal <= 0 ||
-          principal > (balances.get(target.id) ?? 0) + 1e-9 ||
+          principal > available + 1e-9 ||
           principal + EPS < option.min_amount ||
-          !target.canUseOption(option) ||
-          !option.fitsBefore(this.currentDate, this.context.end)) {
-        throw new RangeError("Booking is not eligible for the current account balance, account capability, or horizon.");
+          !accountEligible || !fitsHorizon) {
+        throw new RangeError("Booking is not eligible: " + JSON.stringify({
+          date: formatISODate(this.currentDate), account_id: target.id, principal,
+          available, minimum: option.min_amount, efd: option.is_efd,
+          supports_efd: target.supports_efd, accountEligible, fitsHorizon,
+          maturity: formatISODate(option.maturityDate(this.currentDate)),
+          end: this.context.end_iso
+        }));
       }
       const balancesBeforeBooking = balancesBeforeOverride ?? Object.fromEntries(balances);
       balances.set(target.id, (balances.get(target.id) ?? 0) - principal);
