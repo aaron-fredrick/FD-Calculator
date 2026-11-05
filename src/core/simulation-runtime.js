@@ -1,7 +1,7 @@
 import { Event, EventType } from "./events.js";
 import { Account } from "./models.js";
 import { Booking, SimResult } from "./results.js";
-import { formatISODate, parseISODate } from "./dates.js";
+import { formatISODate, parseISODate, daysBetween } from "./dates.js";
 import { SimulationState, validateStrategySignal, StrategySignalType, StrategyDecisionType } from "./strategy-contracts.js";
 import { BalanceProvenance } from "./balance-provenance.js";
 
@@ -50,6 +50,7 @@ export class SimulationRuntime {
     this.pending = [];
     this.processed = new Set();
     this.currentDate = null;
+    this.goalOutcome = null;
     this.bookingNumber = 0;
     this.totalFees = 0;
     this.totalOutflowsPaid = 0;
@@ -235,6 +236,34 @@ export class SimulationRuntime {
     this.#assertProvenance(balances);
     this.#commitBalances(balances);
     return { date: today, valid: this.valid, events: this.timeline[key] ?? [] };
+  }
+
+  isGoalAchieved() {
+    const goal = this.context.simulation?.goal;
+    if (!goal || this.goalOutcome || this.provenance.creditedNetInterest + EPS < goal.target) return Boolean(this.goalOutcome?.achieved);
+    const actual = this.provenance.creditedNetInterest;
+    this.goalOutcome = {
+      achieved: true, target: goal.target, actual,
+      achievement_date: formatISODate(this.currentDate),
+      elapsed_days: daysBetween(this.context.start, this.currentDate),
+      overshoot: round2(actual - goal.target),
+      stopping_reason: "goal_achieved"
+    };
+    return true;
+  }
+
+  completeGoalOutcome() {
+    const goal = this.context.simulation?.goal;
+    if (!goal || this.goalOutcome) return this.goalOutcome;
+    const actual = this.provenance.creditedNetInterest;
+    this.goalOutcome = {
+      achieved: false, target: goal.target, actual,
+      achievement_date: null, elapsed_days: null, overshoot: 0,
+      shortfall: round2(Math.max(0, goal.target - actual)),
+      maximum_end_date: this.context.end_iso,
+      stopping_reason: this.valid ? "maximum_end_date_reached" : "simulation_invalid"
+    };
+    return this.goalOutcome;
   }
 
   planningView() {
@@ -477,12 +506,14 @@ export class SimulationRuntime {
     const result = new SimResult({
       strategy_name: this.strategyName, timeline: this.timeline, bookings: this.bookings,
       total_principal: this.context.original_capital + this.totalInflows,
-      end_date: this.currentDate ?? this.context.end, accounts, total_transfer_fees: this.totalFees,
+      end_date: this.context.simulation?.mode === "goal" ? (this.currentDate ?? this.context.end) : this.context.end, accounts, total_transfer_fees: this.totalFees,
       total_outflows_paid: this.totalOutflowsPaid, outstanding_outflows: outstanding,
       valid: this.valid, ait_enabled: this.aitEnabled, ait_rate: this.aitRate,
       decision_log: this.decisionLog
     });
     result.credited_net_interest = this.provenance.creditedNetInterest;
+    result.simulation_mode = this.context.simulation?.mode ?? "scoped";
+    if (this.context.simulation?.goal) result.goal_outcome = this.goalOutcome ?? this.completeGoalOutcome();
     result.provenance = Object.fromEntries([...this.provenance.accounts].map(([id, value]) => [id, { ...value }]));
     return result;
   }
