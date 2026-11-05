@@ -212,8 +212,8 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 |---|---|---|
 | Plan | Complete | Documented and linked in VitePress Architecture navigation. PR #45. |
 | 0 — Baseline | Complete with a fixture gap carried into Phase 1 | Existing CI suite passes; call paths and regression coverage mapped. Add explicit canonical cross-strategy event-ledger snapshots before the first strategy migration. |
-| 1 — Foundation | In progress | Added revision-bound contracts, normalized engine input context, and engine-boundary normalization. Shared chronological executor, decision execution, and compatibility adapter remain outstanding. |
-| 2 — Greedy | Not started | Preserve decision semantics. |
+| 1 — Foundation | Complete | Added normalized context, revision-bound planning contracts, shared chronological runtime, transactional decision execution, session runner, and legacy strategy adapter. Greedy now consumes the session contract. |
+| 2 — Greedy | In progress | Greedy now emits revision-bound SPLIT/CONSOLIDATE/CARRY decisions; SimulationRuntime owns actual progression, settlement, transfers, bookings, events, and result construction. CI regression suite passed on the migration commit; continue differential and edge-case validation. |
 | 3 — Search | Not started | Preserve hypothetical search and actual replay parity. |
 | 4 — GSS | Not started | Preserve recursive forecast semantics. |
 | 5 — Enforcement | Not started | Remove adapters and enforce ownership. |
@@ -326,3 +326,39 @@ The current test suite and docs build are green, and the execution paths are suf
 - Constraint: tests must assert the intended contract condition and not suppress production validation.
 - Correction: set start after end for the invalid-period case and clear the outflow schedule in the default-account case.
 - Regression coverage: corrected tests are in `tests/js/simulation-context.test.js`; CI rerun is pending.
+
+
+### Phase 1 completion (2026-11-05)
+
+**Implemented foundation**
+
+- Added `src/core/simulation-context.js` for engine-boundary normalization of dates, accounts, FDOption-compatible products, inflows, outflows, fee configuration, and original capital.
+- Added `src/core/simulation-runtime.js` as the shared actual executor. It owns chronological event progression, actual inflow/cash-flow/maturity processing, pending outflow settlement, transactional transfer/booking execution, actual event creation, and unfinished `SimResult` construction.
+- Extended `SimulationState` with immutable snapshots; runtime decisions are validated against the current state revision and date before any staged transfer/booking events or balance changes are committed.
+- Added `runStrategySession()` as the common strategy-session driver. `SimulationEngine` adds the simulation-start event and invokes the existing exactly-once finalizer after session completion.
+- Kept the legacy `strategy.simulate(input)` adapter for unmigrated strategies. Direct strategy result callers remain supported while the migration proceeds.
+- Added runtime tests for chronological cash-flow processing, successful consolidation execution, and transaction rollback when a compound decision contains an invalid FD option reference.
+- Added engine-session integration tests, including stale-signal rejection.
+
+**Exit-gate assessment**
+
+- Foundation and runtime tests pass.
+- Stale/invalid signals are rejected before state mutation; a compound transfer-plus-invalid-booking test verifies balances, ledger, booking list, and fees remain unchanged.
+- Session-based actual execution has one shared runtime path. Unmigrated strategies continue through the explicitly temporary legacy adapter.
+- Finalization remains in `SimulationEngine` and is invoked once for session-based runs.
+- Node.js 22 full test suite, JavaScript test workflow, documentation build, and dependency review passed on commit `40aee827605c2677741653722fcbc5a6d7cd5fca`. Strategy sensitivity and CodeQL were still running when this phase note was prepared.
+- Phase 1 is complete; Phase 2 begins without removing the adapter required by GAML/Absolute and GSS.
+
+**Runtime issue notes**
+
+- Symptom: paid-outflow events were appended to the same event array that the runtime was iterating to discover due outflows. Reproduction: process any date containing an outflow. Root cause: a live array iterator would also visit the newly appended payment event and re-enqueue it as a new obligation. Correction: snapshot due outflow events before settlement. Regression coverage: shared runtime outflow test.
+- Symptom: the initial-balance trigger could be added even when another event already existed on the start date. Root cause: the first runtime draft did not retain Greedy's existing start-key guard. Correction: add the trigger only when no start-date event exists. Regression coverage: session/ledger tests and Greedy suite.
+- Symptom: an invalid compound decision could increment fee/booking counters before a later operation failed. Root cause: staged event creation did not initially stage all associated counters and booking objects. Correction: stage fees, booking sequence, and booking objects alongside events, then commit only after the full decision validates. Regression coverage: invalid compound-decision atomicity test.
+
+### Phase 2 progress — Greedy migration (2026-11-05)
+
+- Extracted the existing `pickDailyGreedyPlan()` decision logic without changing its ranking, option tenor tie-breakers, plan tenor tie-breakers, eFD equivalence preference, or transfer-fee evaluation.
+- Added `GreedyStrategy.createSession(context)`. It converts read-only planning views into temporary account values, runs the existing planner, and returns revision-bound SPLIT/CONSOLIDATE/CARRY DTOs using option indices and account IDs rather than mutable domain objects.
+- Replaced Greedy's independent actual event loop, outflow settlement, transfer/booking execution, cash-flow scheduling, and result construction with a compatibility `simulate()` adapter that delegates to `runStrategySession()`.
+- `SimulationEngine.run()` now selects the session executor for Greedy. SearchStrategyBase can still call Greedy's unfinished-result adapter to obtain its incumbent.
+- Initial CI validation passed the complete existing test suite, JavaScript suite, documentation build, and dependency review after the Greedy migration. The strategy sensitivity study remains in progress and must be checked before declaring the Greedy phase complete.
