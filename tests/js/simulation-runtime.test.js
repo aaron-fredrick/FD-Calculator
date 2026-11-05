@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { createSimulationContext } from "../../src/core/simulation-context.js";
 import { SimulationRuntime } from "../../src/core/simulation-runtime.js";
+import { Event, EventType } from "../../src/core/events.js";
 import {
   createStrategyDecision, StrategyDecisionType
 } from "../../src/core/strategy-contracts.js";
@@ -248,4 +249,29 @@ test("outflows consume provenance without reversing previously credited interest
   runtime.processDate(runtime.nextEventDate());
   assert.equal(runtime.provenance.total("main"), 750);
   assert.equal(runtime.provenance.creditedNetInterest, 0);
+});
+
+test("runtime recognises consolidation interest before a same-day cash outflow", () => {
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-02-01",
+    options: [new FDOption({
+      label: "Bank A 30d", period_str: "30d", annual_rate: 10,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    })],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 1000 })],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    outflow_schedule: { "2026-01-31": [{ account_id: "main", amount: 500, payment_policy: "strict" }] }
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  runtime.schedule(new Event({
+    event_type: EventType.CASH_FLOW, on_date: "2026-01-31", amount: 400,
+    label: "Net interest credited", account_id: "main",
+    cash_components: { principal_components: {}, interest: 400 }
+  }));
+  runtime.processDate(runtime.nextEventDate());
+  assert.equal(runtime.provenance.total("main"), 900);
+  assert.equal(runtime.provenance.creditedNetInterest, 400);
+  assert.ok(runtime.provenance.snapshot("main").counted_interest < 400);
+  assert.equal(runtime.totalOutflowsPaid, 500);
 });
