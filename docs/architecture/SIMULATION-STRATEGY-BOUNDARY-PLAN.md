@@ -515,3 +515,11 @@ The current test suite and docs build are green, and the execution paths are suf
 - Constraint: preserve strategy-specific event-ledger semantics rather than assuming Greedy, Search and GSS use identical snapshots.
 - Correction: remove the search-wide snapshot override. Runtime captures balances before each SPLIT booking; consolidation retains its decision-start snapshot.
 - Regression coverage: multi-account GAML/Absolute parity tests and a direct sequential-snapshot runtime test.
+
+
+### Phase 6 validation update
+
+- The lifecycle, codebase map, strategy guides, overview, testing reference and VitePress architecture navigation now describe the implemented session/runtime ownership boundary.
+- The VitePress documentation build and generated-site layout checks passed on commit `7768a5e44df38aa19f4fde0545b152b6c863158e`.
+- Full Node.js tests, JavaScript tests and Dependency Review passed on the same commit.
+- The strategy sensitivity study and CodeQL analysis are still running. Phase 6 remains open until both complete.
