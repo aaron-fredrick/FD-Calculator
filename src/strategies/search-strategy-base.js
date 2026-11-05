@@ -36,6 +36,15 @@ function stateKey(state) {
   ]);
 }
 
+/**
+ * Scoped optimisation may discard products dominated on identical payout
+ * mechanics. Goal search keeps the complete catalogue: a longer product can
+ * still be the only single payout large enough to cross a particular target.
+ */
+export function selectSearchOptions(options, simulation = { mode: "scoped" }) {
+  return simulation?.mode === "goal" ? [...options] : pruneDominatedOptions(options);
+}
+
 function makeNode(parent, action, date, rootSignature = null) {
   return { parent, action, date, root_signature: rootSignature ?? parent?.root_signature ?? null };
 }
@@ -158,6 +167,15 @@ function goalPathSignature(path) {
     ]),
     action.carries ?? []
   ]));
+}
+
+/**
+ * Scalar balances and aggregate cash flows are insufficient to prove two goal
+ * search paths equivalent: their interest/principal provenance can differ.
+ * Keep distinct action histories separate in goal-mode beam deduplication.
+ */
+export function goalSearchStateKey(state, path = []) {
+  return JSON.stringify([stateKey(state), goalPathSignature(path)]);
 }
 
 export function evaluateGoalPath(path, engineContext, terminalValue, runtimeSettings) {
@@ -283,7 +301,10 @@ function buildConsolidationBranches(balances, accounts, context, feeConfig, toda
     for (const option of context.fdOptionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: settings.endDate })) {
       const score = option.totalInterestOn(deployable, today, settings.compound, settings.actualLeapYear) *
         (1 - settings.aitRate) - fees;
-      if (score <= 0) continue;
+      // A negative portfolio-return delta is not proof that a transfer path
+      // cannot contribute positive credited interest after provenance-based
+      // fee allocation. Keep every financially executable goal candidate.
+      if (score <= 0 && context.simulation?.mode !== "goal") continue;
       branches.push({
         score, efd: option.is_efd && (optionsByAccount.get(targetId) || []).some(candidate =>
           !candidate.is_efd && candidate.economic_terms_key === option.economic_terms_key
@@ -415,7 +436,7 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
   const inflows = normalizeInflowSchedule(inflow_schedule, inflow_account_id);
   const outflows = outflow_schedule || {};
   validateOutflowSchedule(outflows, formatISODate(startDate), formatISODate(endDate), new Set(accountMap.keys()));
-  const effectiveOptions = pruneDominatedOptions(options);
+  const effectiveOptions = selectSearchOptions(options, simulation);
   const fdOptionManager = new FDOptionManager(effectiveOptions);
   const optionsByAccount = new Map();
   for (const [id, account] of accountMap) {
@@ -676,9 +697,13 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
       }
     }
     if (budgetStopped) break;
+    const goalMode = context.simulation?.mode === "goal";
+    const candidateKey = candidate => goalMode
+      ? goalSearchStateKey(candidate.state, candidate.node ? nodePath(candidate.node) : [])
+      : stateKey(candidate.state);
     const bestByState = new Map();
     for (const candidate of candidates) {
-      const key = stateKey(candidate.state);
+      const key = candidateKey(candidate);
       const previous = bestByState.get(key);
       if (!previous || candidate.priority > previous.priority) bestByState.set(key, candidate);
     }
@@ -687,12 +712,12 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     rootPeak = Math.max(rootPeak, diversity.length);
     const selected = [], seen = new Set();
     for (const candidate of diversity) {
-      const key = stateKey(candidate.state);
+      const key = candidateKey(candidate);
       if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
     }
     for (const candidate of unique) {
       if (selected.length >= settings.beamWidth) break;
-      const key = stateKey(candidate.state);
+      const key = candidateKey(candidate);
       if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
     }
     beamPruned += Math.max(0, generated - selected.length);
