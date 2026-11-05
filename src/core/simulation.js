@@ -4,6 +4,8 @@ import { createSimulationContext } from "./simulation-context.js";
 import { SimulationRuntime } from "./simulation-runtime.js";
 import { parseISODate, formatISODate } from "./dates.js";
 import { StrategySignalType } from "./strategy-contracts.js";
+import { BalanceProvenance } from "./balance-provenance.js";
+import { daysBetween } from "./dates.js";
 
 /**
  * Apply the one simulation-wide final consolidation sweep.
@@ -14,7 +16,8 @@ import { StrategySignalType } from "./strategy-contracts.js";
  */
 export function finalizeSimulation(result, {
   fee_config = null,
-  consolidation_account_id = null
+  consolidation_account_id = null,
+  skip_final_sweep = false
 } = {}) {
   if (!result || typeof result !== "object" || !result.accounts) {
     throw new TypeError("Finalization requires a simulation result with accounts.");
@@ -47,14 +50,22 @@ export function finalizeSimulation(result, {
   const values = [...accounts.values()];
   const totalBalance = () => values.reduce((sum, account) => sum + account.balance, 0);
   let finalSweepFees = 0;
+  let provenance = null;
+  if (result.provenance) {
+    provenance = new BalanceProvenance(values.map(account => account.id));
+    for (const account of values) provenance.add(account.id, result.provenance[account.id] ?? {});
+    provenance.creditedNetInterest = Number(result.credited_net_interest ?? 0);
+    provenance.adjustments = (result.provenance_adjustments ?? []).map(item => ({ ...item }));
+  }
 
-  for (const account of values) {
+  for (const account of (skip_final_sweep ? [] : values)) {
     if (account.id === target.id || account.balance <= 0.001) continue;
     const fee = fees.getFee(account.bank_identity, target.bank_identity);
     if (account.balance <= fee) continue;
 
     const amount = account.balance;
     const net = amount - fee;
+    provenance?.transfer(account.id, target.id, amount, fee);
     account.balance = 0;
     finalSweepFees += fee;
     const channel = account.bank_identity.trim().toUpperCase() ===
@@ -90,6 +101,30 @@ export function finalizeSimulation(result, {
   }
 
   result.total_transfer_fees = Number(result.total_transfer_fees || 0) + finalSweepFees;
+  if (provenance) {
+    if (result.goal_outcome && !result.goal_outcome.achieved && !skip_final_sweep) {
+      provenance.recognizeConsolidationCredit(target.id);
+      const actual = provenance.creditedNetInterest;
+      const targetAmount = result.goal_outcome.target;
+      if (actual + 0.001 >= targetAmount) {
+        result.goal_outcome = {
+          achieved: true, target: targetAmount, actual,
+          achievement_date: formatISODate(endDate),
+          elapsed_days: daysBetween(result.start_date ?? endDate, endDate),
+          overshoot: Math.round((actual - targetAmount + Number.EPSILON) * 100) / 100,
+          stopping_reason: "goal_achieved_on_final_consolidation"
+        };
+      } else {
+        result.goal_outcome = {
+          ...result.goal_outcome, actual,
+          shortfall: Math.round((targetAmount - actual + Number.EPSILON) * 100) / 100
+        };
+      }
+    }
+    result.credited_net_interest = provenance.creditedNetInterest;
+    result.provenance = Object.fromEntries([...provenance.accounts].map(([id, value]) => [id, { ...value }]));
+    result.provenance_adjustments = provenance.adjustments.map(item => ({ ...item }));
+  }
   for (const account of values) {
     if (account.balance <= 0.01) continue;
     addEvent(new Event({
@@ -210,7 +245,8 @@ export class SimulationEngine {
     result.timeline = timeline;
     return finalizeSimulation(result, {
       fee_config: context.fee_config,
-      consolidation_account_id: context.consolidation_account_id
+      consolidation_account_id: context.consolidation_account_id,
+      skip_final_sweep: result.goal_outcome?.achieved === true
     });
   }
 }
