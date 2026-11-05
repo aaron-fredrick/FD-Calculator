@@ -1,6 +1,7 @@
 name: Strategy sensitivity study
 on:
-  pull_request:
+  push:
+    branches: ["feature/**"]
     paths:
       - "scripts/strategy-sensitivity.js"
       - "scripts/gaml-sensitivity.js"
@@ -11,6 +12,9 @@ on:
       - "data/fd_options/**"
       - ".github/workflows/strategy-sensitivity.yml"
   workflow_dispatch:
+concurrency:
+  group: strategy-sensitivity-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
