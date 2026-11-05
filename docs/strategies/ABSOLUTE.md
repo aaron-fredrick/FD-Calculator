@@ -17,9 +17,20 @@ Absolute is the exhaustive branch-and-bound portfolio optimiser. It explores the
 
 Unlike GAML, Absolute does not retain only a fixed-width beam. Its local booking combinations are exhaustive, and its search is not stopped by a GAML beam-width limit.
 
+## Scope-specific objective
+
+Absolute supports both simulation scopes without changing its search identity.
+
+- **Scoped mode** retains the finite-range terminal-portfolio objective, its admissible upper bound, memoisation/dominance behaviour and existing local combination ordering.
+- **Goal mode** optimises the earliest event boundary at which the configured net-interest target is actually credited to the consolidation account. Candidate paths are replayed through the authoritative `SimulationEngine`; projected tenor interest is never treated as achieved credit.
+
+Goal mode deliberately does not reuse scoped terminal-value pruning or memoisation. It keeps the full account-compatible product set rather than applying the scoped product-dominance reduction, and it retains executable consolidation paths even when projected FD interest less transfer fees is negative. This is necessary because transfer fees are allocated proportionally across principal and interest provenance: a transfer can still credit enough previously uncredited interest to reach the target.
+
+The exhaustive goal search compares achieved paths by earliest achievement date, then the established same-date higher-credited-interest, lower-fee and lower-operation tie-breaks. Once an achieved incumbent exists, states strictly later than its achievement date are pruned; same-date states remain eligible for tie-breaking. This date pruning cannot remove a path that could achieve at the incumbent's earlier boundary.
+
 ## Optimality guarantee
 
-Absolute can report `optimality_proven: true` when its exhaustive branch-and-bound search completes under the configured model. This is a proof relative to the supplied FD catalogue, account capabilities, cash-flow schedules, fees, tax and interest assumptions—not a guarantee about future bank rates or real-world outcomes outside the model.
+Absolute can report `optimality_proven: true` when its scoped branch-and-bound search completes under the configured model, or when its goal-mode exhaustive search completes without any local, bound or memo pruning that could invalidate the active objective. This is a proof relative to the supplied FD catalogue, account capabilities, cash-flow schedules, fees, tax and interest assumptions—not a guarantee about future bank rates or real-world outcomes outside the model.
 
 If execution is interrupted externally or the implementation reports an incomplete search, the best feasible result must not be described as proven optimal.
 
