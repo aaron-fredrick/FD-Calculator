@@ -264,7 +264,7 @@ outflow accounting is verified.
 - [x] Greedy and GSS use shared stop semantics (goal lifecycle integration tests added).
 - [x] Absolute+ ranks achievers by earliest achievement within its bounded search; comparator, candidate replay, and bounded-search diagnostics are tested.
 - [x] CLI, browser UI, schema, validation, and reports use the same mode contract; configuration normalization and browser-module syntax are covered.
-- [ ] Corrected goal sensitivity results are reproducible and separate from fixed-horizon tests; publish the refreshed 72-run artifact and charts after candidate replay settings verification.
+- [ ] Corrected goal sensitivity results are reproducible and separate from fixed-horizon tests; publish the refreshed 72-run artifact and charts after candidate replay settings and invalid-path handling are verified.
 - [x] Outflow policy/provenance paths are covered by regression tests; outflows remain explicitly excluded from the primary sensitivity matrix.
 - [x] Documentation, measured benchmark summary, and sensitivity charts describe the implemented behaviour.
 - [ ] Full regression suite and all CI checks pass on the latest feature-branch commit.
@@ -278,7 +278,7 @@ outflow accounting is verified.
 - Added provenance buckets for principal, uncredited net interest, and previously counted interest.
 - Added proportional transfer/fee allocation, proportional outflow consumption, and provenance propagation through FD booking and maturity.
 - Added shared-runtime consolidation-credit recognition, first-crossing stop metadata, maximum-boundary shortfall, and goal-aware final-sweep handling.
-- Added Greedy/GSS shared-runtime goal stopping and an Absolute+ goal candidate replay evaluator with lexicographic scoring and bounded-search diagnostics.
+- Added Greedy/GSS shared-runtime goal stopping and an Absolute+ goal candidate replay evaluator with lexicographic scoring, inherited runtime financial settings, invalid-candidate rejection, and bounded-search diagnostics.
 - Migrated CLI and browser configuration inputs; added mode controls, export/import normalization, and goal summaries.
 - Added goal outcome and event-boundary progression to HTML and CLI reports.
 - Added a dedicated goal sensitivity runner and GitHub Actions workflow.
@@ -290,12 +290,12 @@ outflow accounting is verified.
 - The general Node test workflow passed on commit `7b44a006433dc29db4b1d2ddd3300c63636505f9`, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
 - The documentation build passed on commit `7b44a006433dc29db4b1d2ddd3300c63636505f9`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
-- The initial 72-run goal sensitivity workflow completed, but review found the Absolute+ candidate replay had not inherited AIT/compounding/runtime settings. Its Absolute+ values and charts are superseded. Candidate replay now inherits those settings, and a corrected 72-run study is running. The earlier artifact [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) is retained for audit only.
+- The initial 72-run goal sensitivity workflow completed, but review found the Absolute+ candidate replay had not inherited AIT/compounding/runtime settings. Its Absolute+ values and charts are superseded. After fixing setting inheritance, the corrected run exposed infeasible hypothetical paths; candidate replay now rejects and counts those paths instead of aborting the study. A new corrected 72-run study is queued. The earlier artifact [42096425770](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) is retained for audit only.
 - A clean pre-change baseline was not captured. Existing regression tests are being used as compatibility gates instead.
 
 ### Remaining work
 
-- Verify the latest replay-settings fix and its tests, CodeQL, documentation build, corrected goal sensitivity run, and existing fixed-horizon sensitivity workflow.
+- Verify the latest candidate replay rejection/counting tests, CodeQL, documentation build, corrected goal sensitivity run, and existing fixed-horizon sensitivity workflow.
 - Greedy/GSS benchmark results are validated. Refresh Absolute+ results, charts, and the machine-readable artifact after the corrected goal sensitivity run passes.
 - Greedy/GSS shared-lifecycle tests and Absolute+ lexicographic ranking/tie-breaker tests have been added.
 - Browser configuration mode controls and CLI input migration are implemented; browser module syntax-check and configuration regression tests have passed.
