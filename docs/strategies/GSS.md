@@ -53,6 +53,10 @@ The setting gss_settings.small_period_days defaults to 30 and must be a positive
 
 GSS returns an unfinished SimResult. The shared SimulationEngine performs the one final consolidation sweep after the overall horizon. Recursive planning windows never trigger finalization.
 
+## Observed performance
+
+The [strategy sensitivity benchmark](/strategies/benchmarks) compares GSS against Greedy and GAML across horizon, capital, bank/account diversity, inflows and eFD eligibility. The measured results are scenario-specific and should be read alongside the benchmark assumptions.
+
 ## Diagnostics
 
 The result exposes gss_diagnostics with candidate count, SPLIT/CONSOLIDATE plan evaluations, future goals, recursive waits, early parent-goal rechecks/executions, forecast rechecks/contractions, maximum recursion depth and the configured threshold. The decision log records each contraction with its previous and revised target dates, reduction in days and owning recursion depth. The decision log records waits, selected plans and candidate exhaustion.
