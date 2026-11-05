@@ -69,5 +69,5 @@ The web frontend configures scenarios, invokes the shared engine and presents th
 - [Strategy guide](../STRATEGIES.md)
 - [GSS technical reference](../strategies/GSS.md)
 - [Migration plan](../MIGRATION_PLAN.md)
-- [Contributing guide](../../CONTRIBUTING.md)
-- [Repository README](../../README.md)
+- [Contributing guide](/guide/contributing)
+- [Repository README](https://github.com/aaron-fredrick/FD-Calculator/blob/main/README.md)
