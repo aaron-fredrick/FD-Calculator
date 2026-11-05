@@ -247,6 +247,29 @@ test("Greedy and GSS use the same shared goal outcome and stopping contract", ()
   }
 });
 
+test("Absolute retains a fee-heavy consolidation path when it credits the goal sooner", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 500 } },
+    options: [
+      new FDOption({ label: "Reserve high-yield", period_str: "30d", annual_rate: 36.5, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Main low-yield", period_str: "30d", annual_rate: 1, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0 }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000 })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 1000, same_bank_fee: 0 })
+  };
+  const result = new SimulationEngine().run(new AbsoluteStrategy({ ait_enabled: false }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.ok(result.credited_net_interest >= 500);
+  assert.ok(result.total_transfer_fees >= 1000);
+  assert.equal(result.optimality_proven, true);
+});
+
 test("Absolute+ goal ranking keeps the faster lower-interest payout under local truncation", () => {
   const scenario = {
     start: "2026-01-01", end: "2026-03-10",
