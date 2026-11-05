@@ -66,7 +66,9 @@ When a goal is achieved before the maximum horizon, later events are not process
 
 Goal reports lead with the target, credited amount, status, achievement date, elapsed days, and overshoot or shortfall. The event timeline includes cumulative credited net interest at each processed boundary. Existing fixed-horizon report sections remain available.
 
-## Sensitivity study
+## Goal-mode strategy sensitivity study
+
+The goal-mode benchmark is separate from the fixed-horizon study. It compares the three web strategies—**Greedy, Absolute+ and GSS**—using the same goal contract and financial inputs at every test point. The exhaustive **Absolute** strategy is deliberately excluded from this web-strategy performance comparison.
 
 Run the reproducible one-factor-at-a-time matrix with:
 
@@ -74,7 +76,7 @@ Run the reproducible one-factor-at-a-time matrix with:
 node scripts/goal-achievement-sensitivity.js
 ```
 
-The study compares Greedy, Absolute+, and GSS with the same financial inputs per test point. It varies:
+The 63 scenario points vary one factor at a time:
 
 - Goal target: LKR 10k, 25k, 50k, 75k, 100k.
 - Starting capital: LKR 25k, 100k, 300k, 1m.
@@ -82,15 +84,46 @@ The study compares Greedy, Absolute+, and GSS with the same financial inputs per
 - Bank count: 1, 2, 3.
 - Inflows: none, monthly LKR 10k, quarterly LKR 30k, lump LKR 100k.
 - eFD eligibility: standard-only or eligible.
-- Internal safety horizon: fixed at 30 years across every strategy and test point; it is not a user-configurable investment range.
 
-The bank suite is DFCC, Commercial Bank, and NDB. AIT is enabled, compounding is disabled, and the same catalogue and transfer-fee configuration are used across strategies. The Absolute+ benchmark uses a recorded bounded budget (beam width 96, local branches 48, 5,000 expanded decisions). The output records achievement date/days, credited interest at stop, shortfall, fees, bookings, runtime, search expansions, and proof status.
+The bank suite is DFCC, Commercial Bank and NDB. AIT is enabled, compounding is disabled, and the same catalogue and transfer-fee configuration are used across strategies. The internal safety horizon is fixed at 30 years; it is a final guard, not a user-selected investment range. Outflows are excluded pending a separate performance study.
 
-Outflows are excluded from the primary sensitivity matrix even though the shared runtime has policy and provenance regression coverage; performance conclusions with outflows require a separate study. The benchmark output is uploaded as a GitHub Actions artifact by the strategy sensitivity workflow. Results must be interpreted as measurements under the stated budget, not as proof that Absolute+ globally optimises every case.
+### Performance indexes
 
-## Benchmark results
+Each scenario records the following comparable metrics:
 
-The previously published 72-run matrix used explicit 6-, 12-, and 24-month horizons. Those runs do not represent the current date-independent goal contract and are superseded. A refreshed 63-run matrix holds the internal 30-year safety horizon constant across all strategies and test points; its results will replace the superseded charts and tables after the workflow completes.
+| Index | Definition |
+|---|---|
+| Goal outcome | Achieved / not achieved, plus stopping reason |
+| Actual duration | Elapsed simulation days until achievement or valid stopping boundary |
+| Time to goal | Elapsed days for achieved cases; null for unachieved cases |
+| Credited net interest | First-time interest credited to consolidation at the stopping boundary, after AIT and attributable fees |
+| Target attainment | Credited net interest ÷ target × 100; below 100% means the goal was not reached |
+| Computation time | Wall-clock strategy execution time measured with `performance.now()` |
+| Fees | Actual transfer fees, plus fees as a percentage of credited net interest |
+| Interest per day | Credited net interest ÷ actual elapsed simulation days; descriptive throughput, not an investment yield |
+| Search/operation diagnostics | Booking count, search expansions, pruning, invalid candidates and optimality status where applicable |
+
+Computation time is a single measured execution per point on the CI runner. It is useful for broad relative comparisons, not as a hardware-independent latency guarantee. The raw JSON retains all scenario inputs and metrics; unavailable values remain null rather than being coerced to zero.
+
+### Goal-mode sensitivity dashboards
+
+Each dashboard contains six aligned panels: actual elapsed days, credited net interest, computation time, transfer fees, credited interest per day and target attainment. All three strategies are overlaid on identical scenario points. A missing duration or achievement-only metric is not plotted as zero.
+
+![Goal target sensitivity](./assets/goal-achievement/goal-target.svg)
+
+![Starting capital sensitivity](./assets/goal-achievement/starting-capital.svg)
+
+![Account count sensitivity](./assets/goal-achievement/account-count.svg)
+
+![Bank count sensitivity](./assets/goal-achievement/bank-count.svg)
+
+![Inflow pattern sensitivity](./assets/goal-achievement/inflow-pattern.svg)
+
+![eFD eligibility sensitivity](./assets/goal-achievement/efd-eligibility.svg)
+
+Machine-readable measurements: [goal-mode benchmark results](./assets/goal-achievement/results.json). The workflow regenerates the JSON and SVG dashboards from the same simulation run and publishes them to the feature branch; its Actions artifact also retains the raw run output.
+
+Absolute+ uses a recorded bounded budget (beam width 96, local branches 48, 5,000 expanded decisions). Its results are approximate unless the result explicitly proves otherwise. These are scenario measurements, not universal strategy rankings. Outflows and their interaction with goal provenance are excluded from this matrix.
 
 ## Implementation plan and acceptance
 
