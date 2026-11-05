@@ -61,3 +61,22 @@ test("decision, wait and completion signals are revision-bound and validated", (
     revision: 2, current_date: "2026-01-01", end_date: "2026-12-31"
   }), complete);
 });
+
+test("planning views reject malformed dates and invalid pending obligations", () => {
+  const state = new SimulationState(accounts);
+  assert.throws(() => state.planningView({
+    date: "2026-02-30", end_date: "2026-12-31"
+  }), /valid YYYY-MM-DD/);
+  assert.throws(() => state.planningView({
+    date: "2026-01-01", end_date: "2026-12-31",
+    pending_outflows: [{ account_id: "unknown", remaining: 10 }]
+  }), /unknown account/);
+  assert.throws(() => state.planningView({
+    date: "2026-01-01", end_date: "2026-12-31",
+    pending_outflows: [{ account_id: "main", remaining: Number.NaN }]
+  }), /finite and positive/);
+  assert.throws(() => state.planningView({
+    date: "2026-01-01", end_date: "2026-12-31",
+    scheduled_dates: ["not-a-date"]
+  }), /valid YYYY-MM-DD/);
+});
