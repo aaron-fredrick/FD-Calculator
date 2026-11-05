@@ -104,15 +104,9 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   const start = resolveDate(investment.start_date, { today });
   let end;
   let goal = null;
-  if (simulationMode === "time_based") {
-    end = addPeriod(start, simulation.duration);
-  } else if (simulationMode === "goal") {
-    goal = {
-      metric: simulation.goal.metric,
-      target: simulation.goal.target,
-      maximum_end_date: formatISODate(resolveDate(simulation.goal.maximum_end_date, { investmentStart: start, today }))
-    };
-    end = parseISODate(goal.maximum_end_date);
+  if (simulationMode === "goal") {
+    goal = { metric: simulation.goal.metric, target: simulation.goal.target };
+    end = addPeriod(start, "30y");
   } else {
     end = resolveDate(investment.end_date, { investmentStart: start, today });
   }
