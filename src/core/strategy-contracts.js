@@ -170,6 +170,10 @@ export class SimulationState {
 
   get revision() { return this.#revision; }
 
+  snapshot() {
+    return [...this.#accounts.values()].map(account => ({ ...account }));
+  }
+
   planningView({ date, end_date, pending_outflows = [], scheduled_dates = [] }) {
     return createPlanningView({
       revision: this.#revision, date, end_date,
