@@ -447,6 +447,44 @@ function makePriority(state, context) {
   return estimate + 0.05 * Math.max(0, upper - estimate);
 }
 
+function makeGoalPriority(state, context) {
+  const goal = context.simulation?.goal;
+  const provenance = state.goalProvenance;
+  if (!goal || !provenance) return -Infinity;
+  const target = Number(goal.target);
+  const credited = provenance.creditedNetInterest;
+  const pending = (state.goalFlows ?? []).map(([date, accountId, components]) => ({
+    date, accountId,
+    interest: Number(components?.principal_components?.uncredited_interest || 0) +
+      Number(components?.interest || 0)
+  })).filter(item => item.interest > EPS);
+  const direct = pending.filter(item => item.accountId === context.consolidationId)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  let running = credited;
+  for (const flow of direct) {
+    running = round2(running + flow.interest);
+    if (running + EPS >= target) {
+      const days = daysBetween(parseISODate(context.start), parseISODate(flow.date));
+      return 1e14 - days * 1e9 + running;
+    }
+  }
+  if (credited + EPS >= target) {
+    const days = daysBetween(parseISODate(context.start), parseISODate(state.date));
+    return 1e15 - days * 1e9 + credited;
+  }
+
+  const liquidUncredited = sum([...provenance.accounts.values()].map(item => item.uncredited_interest));
+  const pendingPotential = sum(pending.map(item => item.interest));
+  const potential = credited + liquidUncredited + pendingPotential;
+  const earliestPotentialDate = liquidUncredited > EPS
+    ? state.date
+    : pending.reduce((earliest, item) => !earliest || item.date < earliest ? item.date : earliest, null) ?? state.date;
+  const days = daysBetween(parseISODate(context.start), parseISODate(earliestPotentialDate));
+  if (potential + EPS >= target) return 1e12 - days * 1e6 + potential;
+  const elapsed = daysBetween(parseISODate(context.start), parseISODate(state.date));
+  return 1e9 * Math.min(1, potential / target) + credited * 100 - elapsed * 1e4;
+}
+
 function createContext({ options, start, end, simulation, inflow_schedule, accounts, inflow_account_id, fee_config, consolidation_account_id, outflow_schedule }, strategy) {
   const startDate = parseISODate(start), endDate = parseISODate(end);
   if (!Array.isArray(options) || !options.length) throw new TypeError(strategy.name + " simulation requires FD options.");
