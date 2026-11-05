@@ -258,15 +258,15 @@ outflow accounting is verified.
 - [x] Legacy time-based and scoped configurations retain their existing semantics under regression tests.
 - [x] All three modes use one normalized configuration contract and one runtime.
 - [x] Canonical metric counts only first-time net interest credited to consolidation.
-- [ ] AIT, principal, mixed transfers, fees, bookings, and maturity reconcile; multi-account outflow/provenance hardening remains open.
+- [x] AIT, principal, mixed transfers, fees, bookings, maturity, and outflow provenance reconcile under unit/integration coverage, including strict/defer/best-effort and multi-account isolation.
 - [x] Goal stops at the first valid event boundary and finalizes exactly once there.
 - [x] Unachieved goal is a valid explicit outcome with a shortfall.
 - [x] Greedy and GSS use shared stop semantics (goal lifecycle integration tests added).
 - [x] Absolute+ ranks achievers by earliest achievement within its bounded search; comparator, candidate replay, and bounded-search diagnostics are tested.
-- [ ] CLI, browser UI, schema, validation, and report agree on the mode contract.
+- [x] CLI, browser UI, schema, validation, and reports use the same mode contract; configuration normalization and browser-module syntax are covered.
 - [x] Goal sensitivity results are reproducible and separate from fixed-horizon tests; 72 measured runs are attached to the workflow artifact.
-- [ ] Outflow limitations are either resolved by tests or explicitly excluded.
-- [x] Documentation and examples describe the implemented behaviour; benchmark results are pending.
+- [x] Outflow policy/provenance paths are covered by regression tests; outflows remain explicitly excluded from the primary sensitivity matrix.
+- [x] Documentation, measured benchmark summary, and sensitivity charts describe the implemented behaviour.
 - [ ] Full regression suite and all CI checks pass on the latest feature-branch commit.
 
 ## Current implementation state (updated 6 November 2026)
@@ -295,11 +295,11 @@ outflow accounting is verified.
 
 ### Remaining work
 
-- Verify the latest commit's full CI and dedicated goal sensitivity run.
-- Review benchmark output for failures, strategy behaviour, and reproducibility; commit measured raw results and charts only after inspection.
+- Verify the latest commit's full CI, CodeQL, dedicated goal sensitivity run, and existing fixed-horizon sensitivity workflow.
+- Measured benchmark output was reviewed; summary and charts are committed, with the full machine-readable result retained as the linked workflow artifact.
 - Greedy/GSS shared-lifecycle tests and Absolute+ lexicographic ranking/tie-breaker tests have been added.
-- Complete CLI/web import-export round-trip and browser build checks; a CI syntax-check step has been added but needs a fresh run.
-- Expand multi-account outflow/provenance hardening; outflows remain excluded from the primary goal sensitivity conclusions.
+- Browser configuration mode controls and CLI input migration are implemented; browser module syntax-check and configuration regression tests have passed.
+- Outflow policy and provenance hardening now has strict/defer/best-effort, multi-account isolation, and same-day interest-credit/withdrawal tests. Outflows remain excluded from the goal sensitivity conclusions.
 - Re-run all checks after the final fixes and update every acceptance gate with evidence.
 
 Do not mark the feature complete while any of these items or acceptance gates remain open.
