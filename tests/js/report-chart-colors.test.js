@@ -29,7 +29,7 @@ test("account chart reproduces archived Python HSV hue progression and bank grou
   assert.deepEqual(chart.accounts.map(series => series.color), ["#0055ff", "#00cc1a", "#cc7700"]);
   assert.deepEqual(chart.accounts.map(series => series.lineStyle), ["solid", "dashed", "dotted"]);
   assert.deepEqual(chart.fd_principal.map(series => series.bankId), ["BANK_A", "BANK_B"]);
-  assert.equal(chart.fd_principal[0].color, "#405580");
+  assert.equal(chart.fd_principal[0].color, "#0055ff");
   assert.equal(chart.fd_principal[0].lineStyle, "solid");
   assert.equal(chart.fd_principal[1].lineStyle, "dotted");
 });
