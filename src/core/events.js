@@ -17,7 +17,7 @@ export class Event {
     event_type, on_date, amount, label = "", booking_ref = "", account_id = "",
     payment_policy = "", bank_key = "", bank_id = "", fee = 0,
     transfer_channel = "", balance_after = -1, total_balance_after = -1,
-    decision_context = {}
+    decision_context = {}, cash_components = null
   }) {
     if (!Object.values(EventType).includes(event_type)) throw new RangeError(`Unknown event type: ${event_type}`);
     if (!Number.isFinite(amount)) throw new TypeError("Event amount must be finite.");
@@ -35,7 +35,8 @@ export class Event {
     this.transfer_channel = String(transfer_channel);
     this.balance_after = balance_after;
     this.total_balance_after = total_balance_after;
-    this.decision_context = decision_context;\n    this.cash_components = cash_components ? structuredClone(cash_components) : null;
+    this.decision_context = decision_context;
+    this.cash_components = cash_components ? structuredClone(cash_components) : null;
   }
   get date_key() { return Number(formatISODate(this.on_date).replaceAll("-", "")); }
 }
