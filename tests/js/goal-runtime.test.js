@@ -82,7 +82,9 @@ test("Absolute+ evaluates goal candidates against the Greedy baseline with bound
     ait_enabled: true
   }), scenario);
   assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
   assert.ok(result.search_diagnostics.goal_candidates_evaluated >= 1);
+  assert.equal(result.search_diagnostics.goal_search_budget, 80);
   assert.equal(result.search_diagnostics.goal_objective, "earliest consolidation net-interest achievement");
   assert.ok(result.search_diagnostics.selected_goal_score);
 });
@@ -201,9 +203,22 @@ test("Greedy and GSS use the same shared goal outcome and stopping contract", ()
     assert.equal(result.valid, true);
     assert.equal(result.simulation_mode, "goal");
     assert.ok(result.goal_outcome);
-    assert.ok(["goal_achieved", "safety_horizon_reached"].includes(result.goal_outcome.stopping_reason));
+    assert.equal(result.goal_outcome.achieved, true);
+    assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+    assert.equal(result.goal_outcome.elapsed_days, 30);
     assert.equal(result.finalized, true);
   }
+});
+
+test("Absolute+ applies a finite default decision budget in goal mode", () => {
+  const result = new SimulationEngine().run(new AbsolutePlusStrategy({
+    beam_width: 8, max_local_branches: 4, ait_enabled: true
+  }), input(1));
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(result.search_diagnostics.goal_search_budget, 5000);
+  assert.ok(result.search_diagnostics.goal_candidates_evaluated >= 2);
+  assert.ok(result.total_decisions_evaluated < 5000);
 });
 
 test("goal termination excludes scheduled inflows after the achievement boundary", () => {
