@@ -66,7 +66,7 @@ All strategies return an unfinished simulation result. The shared SimulationEngi
 
 ## Strategy performance and sensitivity
 
-See the [strategy sensitivity benchmark](strategies/benchmarks) for reproducible net-interest comparisons across investment horizon, capital, account and bank diversity, inflows and eFD eligibility. It uses the same SimulationEngine and the three web-selectable strategies.
+See the [strategy sensitivity benchmark](/strategies/benchmarks) for reproducible net-interest comparisons across investment horizon, capital, account and bank diversity, inflows and eFD eligibility. It uses the same SimulationEngine and the three web-selectable strategies.
 
 ## Choosing a strategy
 
