@@ -38,7 +38,23 @@ export function compareGreedyPlans(a, b, tenorTieBreaker = "shortest") {
     Number(a.fees_today) - Number(b.fees_today);
 }
 
-export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker) {
+function firstCreditedInterest(option, principal, date, aitRate, compound, actualLeapYear) {
+  const flow = option.generateCashFlowComponentsAfterAIT(
+    principal, date, aitRate, compound, actualLeapYear
+  ).find(item => item.interest > EPS);
+  return flow ? { date: flow.date, interest: flow.interest } : null;
+}
+
+function compareGoalPlans(a, b) {
+  if (a.credit.date.getTime() !== b.credit.date.getTime()) {
+    return a.credit.date - b.credit.date;
+  }
+  return Number(b.credit.interest) - Number(a.credit.interest) ||
+    Number(a.fees_today) - Number(b.fees_today) ||
+    Number(b.net_interest) - Number(a.net_interest);
+}
+
+export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker, goalMode = false) {
   const active = Object.values(accounts).filter(account => account.balance > EPS);
   if (!active.length) return { type: "CARRY", carries: [] };
   const splitBookings = [], splitCarries = [];
@@ -92,6 +108,32 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
     });
   }
 
+  if (goalMode) {
+    // Goal mode optimizes the first interest-credit boundary, not annual yield
+    // over the entire 30-year safety horizon. Only interest reaching the
+    // configured consolidation account advances this objective.
+    const goalCandidates = [];
+    const consolidationBooking = (split?.bookings || []).find(item => item.account.id === consolidationId);
+    if (consolidationBooking) {
+      const credit = firstCreditedInterest(
+        consolidationBooking.option, consolidationBooking.principal, today,
+        aitRate, compound, actualLeapYear
+      );
+      if (credit) goalCandidates.push({ ...split, credit });
+    }
+    for (const plan of consolidationPlans) {
+      if (plan.target_account.id !== consolidationId) continue;
+      const credit = firstCreditedInterest(
+        plan.option, plan.booking.principal, today, aitRate, compound, actualLeapYear
+      );
+      if (credit) goalCandidates.push({ ...plan, credit });
+    }
+    if (goalCandidates.length) {
+      goalCandidates.sort(compareGoalPlans);
+      return goalCandidates[0];
+    }
+  }
+
   const candidates = split ? [split] : [];
   for (const plan of consolidationPlans) {
     if (split) {
@@ -141,7 +183,8 @@ export class GreedyStrategy {
           accounts, context.options, optionManager, parseISODate(view.date), context.end,
           context.fee_config, context.consolidation_account_id,
           this.compound, this.actual_leap_year, this.effective_ait_rate,
-          this.tenor_tiebreaker, this.plan_tenor_tiebreaker
+          this.tenor_tiebreaker, this.plan_tenor_tiebreaker,
+          context.simulation?.mode === "goal"
         );
         const carries = (plan.carries || []).map(account => account.id);
         if (plan.type === "SPLIT") {
