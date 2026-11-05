@@ -227,9 +227,54 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       !candidate.is_efd && candidate.economic_terms_key === option.economic_terms_key
     ) ? 1 : 0);
   }, 0);
+  const goalOptionScores = new Map();
+  const goalOptionScore = (id, option) => {
+    const key = id + "|" + option.economic_terms_key;
+    if (goalOptionScores.has(key)) return goalOptionScores.get(key);
+    const amount = balances.get(id);
+    const ledger = settings.goalProvenance.clone();
+    const booked = ledger.debit(id, amount);
+    const flows = option.generateCashFlowComponentsAfterAIT(
+      amount, today, settings.aitRate, settings.compound, settings.actualLeapYear
+    ).map(flow => {
+      const returned = ledger.allocateBookedPrincipal(booked, flow.principal, amount);
+      return {
+        date: formatISODate(flow.date),
+        amount: returned.uncredited_interest + flow.interest
+      };
+    }).filter(flow => flow.amount > EPS);
+    const existing = (settings.goalFlows ?? []).map(([date, accountId, components]) => ({
+      date, accountId,
+      amount: Number(components?.principal_components?.uncredited_interest || 0) +
+        Number(components?.interest || 0)
+    })).filter(flow => flow.amount > EPS);
+    const direct = id === settings.consolidationId;
+    const directSchedule = [
+      ...existing.filter(flow => flow.accountId === settings.consolidationId),
+      ...(direct ? flows : [])
+    ].sort((a, b) => a.date.localeCompare(b.date));
+    let credited = settings.goalProvenance.creditedNetInterest;
+    for (const flow of directSchedule) {
+      credited = round2(credited + flow.amount);
+      if (credited + EPS >= settings.goalTarget) {
+        const days = daysBetween(formatISODate(today), flow.date);
+        const score = 1e12 - days * 1e6 + credited;
+        goalOptionScores.set(key, score);
+        return score;
+      }
+    }
+    const firstDate = flows[0]?.date ?? formatISODate(today);
+    const days = daysBetween(formatISODate(today), firstDate);
+    const interest = sum(flows.map(flow => flow.amount));
+    const score = (direct ? 1e9 : 0) - days * 1e5 + interest;
+    goalOptionScores.set(key, score);
+    return score;
+  };
   const profitFor = choices => sum(choices.filter(([, option]) => option).map(([id, option]) =>
-    option.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) *
-    (1 - settings.aitRate)
+    settings.goalMode
+      ? goalOptionScore(id, option)
+      : option.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) *
+        (1 - settings.aitRate)
   ));
   const branches = [];
   let pruned = 0;
@@ -252,8 +297,10 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       const accountOptions = slots[index].slice(1);
       const standardTerms = new Set(accountOptions.filter(option => !option.is_efd).map(option => option.economic_terms_key));
       const choices = accountOptions.sort((a, b) => {
-        const profit = b.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) -
-          a.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear);
+        const profit = settings.goalMode
+          ? goalOptionScore(id, b) - goalOptionScore(id, a)
+          : b.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) -
+            a.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear);
         if (Math.abs(profit) > 1e-9) return profit;
         return Number(b.is_efd && standardTerms.has(b.economic_terms_key)) -
           Number(a.is_efd && standardTerms.has(a.economic_terms_key));
