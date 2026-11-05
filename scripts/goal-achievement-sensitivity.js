@@ -70,7 +70,7 @@ function makeInflows(kind, accountId, end) {
 const strategies = [
   ["Greedy", () => new GreedyStrategy({ ait_enabled: true })],
   ["Absolute+", () => new AbsolutePlusStrategy({
-    ait_enabled: true, beam_width: 16, max_local_branches: 8, max_decisions: 48
+    ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000
   })],
   ["GSS", () => new GSSStrategy({ ait_enabled: true, small_period_days: 30 })]
 ];
@@ -111,6 +111,16 @@ function runPoint(category, value, {
       booking_count: result.bookings.length,
       runtime_ms: runtimeMs,
       absolute_plus_expanded_states: result.search_diagnostics?.expanded_states ?? null,
+      goal_candidates_evaluated: result.search_diagnostics?.goal_candidates_evaluated ?? null,
+      goal_search_score: result.search_diagnostics?.selected_goal_score ? {
+        achieved: result.search_diagnostics.selected_goal_score.achieved,
+        elapsed_days: Number.isFinite(result.search_diagnostics.selected_goal_score.elapsed_days) ? result.search_diagnostics.selected_goal_score.elapsed_days : null,
+        actual: result.search_diagnostics.selected_goal_score.actual,
+        fees: result.search_diagnostics.selected_goal_score.fees,
+        operations: result.search_diagnostics.selected_goal_score.operations
+      } : null,
+      beam_pruned: result.search_diagnostics?.beam_pruned ?? null,
+      local_combination_pruned: result.search_diagnostics?.local_combination_pruned ?? null,
       optimality_proven: result.search_diagnostics?.optimality_proven ?? null,
       stopping_reason: goal.stopping_reason
     };
@@ -154,6 +164,6 @@ process.stdout.write("GOAL_ACHIEVEMENT_SENSITIVITY_JSON=" + JSON.stringify({
   })),
   objective: "First-time net interest credited to consolidation account after AIT and attributable transfer fees.",
   ait_enabled: true, compound: false, outflows_included: false,
-  absolute_plus_budget: { beam_width: 16, max_local_branches: 8, max_decisions: 48 },
+  absolute_plus_budget: { beam_width: 96, max_local_branches: 48, max_decisions: 5000 },
   results
 }) + "\n");
