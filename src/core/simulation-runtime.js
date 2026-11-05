@@ -516,6 +516,7 @@ export class SimulationRuntime {
       valid: this.valid, ait_enabled: this.aitEnabled, ait_rate: this.aitRate,
       decision_log: this.decisionLog
     });
+    result.start_date = this.context.start_iso;
     result.credited_net_interest = this.provenance.creditedNetInterest;
     result.simulation_mode = this.context.simulation?.mode ?? "scoped";
     if (this.context.simulation?.goal) result.goal_outcome = this.goalOutcome ?? this.completeGoalOutcome();
