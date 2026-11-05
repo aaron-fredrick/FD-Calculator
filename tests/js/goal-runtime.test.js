@@ -87,7 +87,7 @@ test("Absolute+ evaluates goal candidates against the Greedy baseline with bound
   assert.ok(result.search_diagnostics.selected_goal_score);
 });
 
-test("maximum-date final consolidation can be the first goal-credit boundary", () => {
+test("safety-horizon final consolidation can be the first goal-credit boundary", () => {
   let booked = false;
   const strategy = {
     name: "Reserve maturity",
@@ -118,7 +118,6 @@ test("maximum-date final consolidation can be the first goal-credit boundary", (
   assert.equal(result.goal_outcome.achieved, true);
   assert.equal(result.goal_outcome.achievement_date, "2056-01-01");
   assert.equal(result.goal_outcome.stopping_reason, "goal_achieved_on_final_consolidation");
-  assert.equal(result.goal_outcome.achievement_date, "2056-01-01");
   assert.equal(result.accounts.reserve.balance, 0);
   assert.ok(result.accounts.main.balance > 100000);
 });
