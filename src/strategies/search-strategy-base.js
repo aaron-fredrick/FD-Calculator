@@ -447,6 +447,65 @@ function makePriority(state, context) {
   return estimate + 0.05 * Math.max(0, upper - estimate);
 }
 
+function estimateGoalOpportunity(state, context) {
+  const goal = context.simulation?.goal;
+  if (!goal || !state.goalProvenance) return null;
+  const targetId = context.consolidationId;
+  const targetAccount = context.accounts.get(targetId);
+  const ledger = state.goalProvenance.clone();
+  const balances = mapOf(state.balances);
+  for (const [sourceId, amount] of state.balances) {
+    if (sourceId === targetId || amount <= EPS) continue;
+    const source = context.accounts.get(sourceId);
+    const fee = context.feeConfig.getFee(source.bank_identity, targetAccount.bank_identity);
+    if (amount <= fee) continue;
+    ledger.transfer(sourceId, targetId, amount, fee);
+    balances.set(sourceId, 0);
+    balances.set(targetId, round2((balances.get(targetId) || 0) + amount - fee));
+  }
+  ledger.recognizeConsolidationCredit(targetId);
+  if (ledger.creditedNetInterest + EPS >= goal.target) return state.date;
+
+  const existingCredits = (state.goalFlows ?? [])
+    .filter(([, accountId]) => accountId === targetId)
+    .map(([date, , components]) => ({
+      date,
+      amount: Number(components?.principal_components?.uncredited_interest || 0) +
+        Number(components?.interest || 0)
+    })).filter(item => item.amount > EPS);
+  const principal = balances.get(targetId) || 0;
+  const options = context.fdOptionManager.getEligibleOptions({
+    account: targetAccount, amount: principal,
+    investmentDate: parseISODate(state.date), simulationEndDate: context.endDate
+  });
+  let bestDate = null;
+  const evaluate = additions => {
+    let actual = ledger.creditedNetInterest;
+    for (const flow of [...existingCredits, ...additions].sort((a, b) => a.date.localeCompare(b.date))) {
+      actual = round2(actual + flow.amount);
+      if (actual + EPS >= goal.target) return flow.date;
+    }
+    return null;
+  };
+  bestDate = evaluate([]);
+  for (const option of options) {
+    const trial = ledger.clone();
+    const booked = trial.debit(targetId, principal);
+    const additions = option.generateCashFlowComponentsAfterAIT(
+      principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear
+    ).map(flow => {
+      const returned = trial.allocateBookedPrincipal(booked, flow.principal, principal);
+      return {
+        date: formatISODate(flow.date),
+        amount: returned.uncredited_interest + flow.interest
+      };
+    }).filter(item => item.amount > EPS);
+    const date = evaluate(additions);
+    if (date && (!bestDate || date < bestDate)) bestDate = date;
+  }
+  return bestDate;
+}
+
 function makeGoalPriority(state, context) {
   const goal = context.simulation?.goal;
   const provenance = state.goalProvenance;
