@@ -92,45 +92,24 @@ test("published JSON schema declares GSS and all strategy settings", () => {
   assert.ok(schema.properties.strategy_settings.properties.gss);
   assert.equal(schema.$defs.gssSettings.properties.small_period_days.minimum, 1);
   assert.equal(schema.$defs.gssSettings.properties.small_period_days.default, 30);
+  assert.deepEqual(schema.$defs.simulation.properties.mode.enum, ["scoped", "goal"]);
+  assert.deepEqual(schema.$defs.goal.required, ["metric", "target"]);
 });
 
-test("validates time-based, scoped and goal simulation mode shapes", () => {
-  const time = valid();
-  time.simulation = { mode: "time_based", duration: "6m" };
-  delete time.investment.end_date;
-  assert.doesNotThrow(() => validateConfigurationShape(time));
-
-  const scoped = valid();
-  scoped.simulation = { mode: "scoped" };
+test("validates scoped and date-independent goal simulation mode shapes", () => {
+  const scoped = valid(); scoped.simulation = { mode: "scoped" };
   assert.doesNotThrow(() => validateConfigurationShape(scoped));
-
-  const goal = valid();
-  goal.simulation = { mode: "goal", goal: {
-    metric: "consolidation_net_interest", target: 50000, maximum_end_date: "2028-11-05"
-  }};
+  const goal = valid(); goal.simulation = { mode: "goal", goal: { metric: "consolidation_net_interest", target: 50000 } };
   delete goal.investment.end_date;
   assert.doesNotThrow(() => validateConfigurationShape(goal));
 });
 
-test("rejects incomplete or contradictory simulation mode settings", () => {
-  const time = valid();
-  time.simulation = { mode: "time_based" };
-  delete time.investment.end_date;
-  assert.throws(() => validateConfigurationShape(time), /simulation.duration/);
-  const conflictingTime = valid();
-  conflictingTime.simulation = { mode: "time_based", duration: "6m" };
-  assert.throws(() => validateConfigurationShape(conflictingTime), /omit for time_based mode/);
-
-  const goal = valid();
-  goal.simulation = { mode: "goal", goal: {
-    metric: "portfolio_value", target: 0, maximum_end_date: "2028-11-05"
-  }};
+test("rejects unsupported time-based mode and invalid goal settings", () => {
+  const time = valid(); time.simulation = { mode: "time_based", duration: "6m" };
+  assert.throws(() => validateConfigurationShape(time), /must be scoped or goal/);
+  const goal = valid(); goal.simulation = { mode: "goal", goal: { metric: "portfolio_value", target: 0 } };
   delete goal.investment.end_date;
   assert.throws(() => validateConfigurationShape(goal), /simulation.goal.metric/);
-
-  const mixed = valid();
-  mixed.simulation = { mode: "goal", goal: {
-    metric: "consolidation_net_interest", target: 1, maximum_end_date: "2028-11-05"
-  }};
-  assert.throws(() => validateConfigurationShape(mixed), /omit when simulation.mode is goal/);
+  const datedGoal = valid(); datedGoal.simulation = { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1 } };
+  assert.throws(() => validateConfigurationShape(datedGoal), /omit when simulation.mode is goal/);
 });
