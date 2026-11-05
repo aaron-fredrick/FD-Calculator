@@ -631,7 +631,17 @@ function expandState(rawState, context, settings, mode, counters) {
   if (mode === "gaml") {
     const futureInflows = Object.keys(context.inflows).filter(date => date > state.date).sort();
     const nextInflow = futureInflows[0];
-    if (nextInflow && daysBetween(parseISODate(state.date), parseISODate(nextInflow)) <= 30) {
+    if (goalMode) {
+      if (nextInflow && nextInflow === nextDate &&
+          daysBetween(parseISODate(state.date), parseISODate(nextInflow)) <= 30) {
+        const projected = advanceState({ ...state, date: nextInflow }, context);
+        if (projected) {
+          const currentGoalDate = estimateGoalOpportunity(state, context);
+          const futureGoalDate = estimateGoalOpportunity(projected, context);
+          waitFirst = Boolean(futureGoalDate && (!currentGoalDate || futureGoalDate < currentGoalDate));
+        }
+      }
+    } else if (nextInflow && daysBetween(parseISODate(state.date), parseISODate(nextInflow)) <= 30) {
       const projected = new Map(balances);
       for (const [id, amount] of Object.entries(context.inflows[nextInflow] || {})) projected.set(id, round2((projected.get(id) || 0) + amount));
       const bestRate = map => {
