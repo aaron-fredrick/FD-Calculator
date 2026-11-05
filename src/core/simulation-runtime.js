@@ -20,7 +20,7 @@ const keyDate = key => String(key).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"
 export class SimulationRuntime {
   constructor(context, {
     strategy_name = "Strategy", compound = false, actual_leap_year = true,
-    ait_enabled = false, ait_rate = 0.10
+    ait_enabled = false, ait_rate = 0.10, outflow_account_tiebreak = false
   } = {}) {
     if (!context?.accounts?.length || !context?.options?.length) {
       throw new TypeError("SimulationRuntime requires a normalized simulation context.");
@@ -32,6 +32,7 @@ export class SimulationRuntime {
     this.aitEnabled = Boolean(ait_enabled);
     this.aitRate = Number(ait_rate);
     this.effectiveAitRate = ait_enabled ? this.aitRate : 0;
+    this.outflowAccountTiebreak = Boolean(outflow_account_tiebreak);
     this.accounts = new Map(context.accounts.map(account => [account.id, new Account({
       id: account.id, bank_id: account.bank_id, bank_key: account.bank_key,
       label: account.label, balance: account.balance, supports_efd: account.supports_efd
@@ -157,7 +158,8 @@ export class SimulationRuntime {
     const remaining = [];
     this.pending.sort((a, b) =>
       (POLICY_ORDER[a.payment_policy] ?? 3) - (POLICY_ORDER[b.payment_policy] ?? 3) ||
-      formatISODate(a.due_date).localeCompare(formatISODate(b.due_date)));
+      formatISODate(a.due_date).localeCompare(formatISODate(b.due_date)) ||
+      (this.outflowAccountTiebreak ? a.account_id.localeCompare(b.account_id) : 0));
     for (const obligation of this.pending) {
       const account = this.accounts.get(obligation.account_id);
       if (!account) throw new RangeError("Pending outflow targets an unknown account.");
@@ -336,10 +338,13 @@ export class SimulationRuntime {
         const target = account(id);
         const amount = balances.get(target.id) ?? 0;
         if (amount <= EPS) continue;
-        const balancesBeforeCarry = Object.fromEntries(balances);
+        const balancesBeforeCarry = signal.plan.carry_snapshot === "decision_start"
+          ? balancesAtDecisionStart : Object.fromEntries(balances);
         pendingEvents.push(new Event({
           event_type: EventType.CARRY_FORWARD, on_date: this.currentDate, amount,
-          label: "Below min / no option fits; balance " + amount.toFixed(2) + " carries forward",
+          label: signal.plan.carry_label
+            ? signal.plan.carry_label + "; balance " + amount.toFixed(2) + " carries forward"
+            : "Below min / no option fits; balance " + amount.toFixed(2) + " carries forward",
           account_id: target.id, bank_key: target.bank_key, bank_id: target.bank_id,
           balance_after: amount, total_balance_after: this.#totalBalance(balances),
           decision_context: { action: "carry", balances_before: balancesBeforeCarry }
