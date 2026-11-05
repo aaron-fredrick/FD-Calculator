@@ -8,6 +8,8 @@ import { AbsolutePlusStrategy } from "../src/strategies/absolute-plus.js";
 import { GSSStrategy } from "../src/strategies/gss.js";
 
 const START = "2026-11-05";
+const SAFETY_HORIZON_YEARS = 30;
+const END = formatISODate(addPeriod(START, SAFETY_HORIZON_YEARS + "y"));
 const BANK_IDS = ["LK_DFCC_BANK", "LK_COMMERCIAL_BANK_OF_CEYLON", "LK_NATIONAL_DEVELOPMENT_BANK"];
 const root = new URL("../", import.meta.url);
 const read = path => readFileSync(new URL(path, root), "utf8");
@@ -77,10 +79,10 @@ const strategies = [
 const results = [];
 
 function runPoint(category, value, {
-  target = 50000, months = 12, capital = 300000, accountCount = 3,
+  target = 50000, capital = 300000, accountCount = 3,
   bankCount = 3, inflow = "none", efd = true
 } = {}) {
-  const end = formatISODate(addPeriod(START, months + "m"));
+  const end = END;
   const accounts = makeAccounts(accountCount, capital, bankCount, efd);
   const input = {
     options, start: START, end,
@@ -98,7 +100,7 @@ function runPoint(category, value, {
     }
     const goal = result.goal_outcome;
     const row = {
-      category, value, strategy: name, target_lkr: target, maximum_months: months,
+      category, value, strategy: name, target_lkr: target, safety_horizon_years: SAFETY_HORIZON_YEARS,
       starting_capital_lkr: capital, account_count: accountCount, bank_count: bankCount,
       inflow, efd: efd ? "eligible" : "standard_only",
       achieved: goal.achieved, achievement_date: goal.achievement_date,
@@ -143,7 +145,6 @@ for (const accountCount of [1, 2, 3]) runPoint("account_count", accountCount, { 
 for (const bankCount of [1, 2, 3]) runPoint("bank_count", bankCount, { bankCount, accountCount: 3 });
 for (const inflow of ["none", "monthly_10k", "quarterly_30k", "lump_100k"]) runPoint("inflow_pattern", inflow, { inflow });
 for (const efd of [false, true]) runPoint("efd_eligibility", efd ? "eligible" : "standard_only", { efd });
-for (const months of [6, 12, 24]) runPoint("maximum_scope_months", months, { months });
 
 const groups = new Map();
 for (const row of results) {
@@ -166,6 +167,7 @@ process.stdout.write("GOAL_ACHIEVEMENT_SENSITIVITY_JSON=" + JSON.stringify({
   })),
   objective: "First-time net interest credited to consolidation account after AIT and attributable transfer fees.",
   ait_enabled: true, compound: false, outflows_included: false,
+  safety_horizon_years: SAFETY_HORIZON_YEARS,
   absolute_plus_budget: { beam_width: 96, max_local_branches: 48, max_decisions: 5000 },
   results
 }) + "\n");
