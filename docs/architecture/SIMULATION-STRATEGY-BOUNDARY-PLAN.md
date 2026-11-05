@@ -214,8 +214,8 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 | 0 — Baseline | Complete with a fixture gap carried into Phase 1 | Existing CI suite passes; call paths and regression coverage mapped. Add explicit canonical cross-strategy event-ledger snapshots before the first strategy migration. |
 | 1 — Foundation | Complete | Added normalized context, revision-bound planning contracts, shared chronological runtime, transactional decision execution, session runner, and legacy strategy adapter. Greedy now consumes the session contract. |
 | 2 — Greedy | Complete | Greedy planning is session-based; actual execution moved to SimulationRuntime. A frozen pre-refactor oracle verifies the normalized financial/event ledger, and CI passes. |
-| 3 — Search | Not started | Preserve hypothetical search and actual replay parity. |
-| 4 — GSS | Not started | Preserve recursive forecast semantics. |
+| 3 — Search | Complete | GAML/Absolute retain their search algorithms and diagnostics while selected paths execute through SimulationRuntime. Frozen legacy replay parity tests pass. |
+| 4 — GSS | In progress | Recursive GSS planning now produces a hypothetical decision path; SimulationRuntime replays it, including same-date action batches. Frozen legacy parity coverage is in place; latest batch and encapsulation changes need CI validation. |
 | 5 — Enforcement | Not started | Remove adapters and enforce ownership. |
 | 6 — Documentation | Not started | Align docs after implementation. |
 
@@ -407,3 +407,21 @@ The current test suite and docs build are green, and the execution paths are suf
 - Search diagnostics, optimality status, alternative leaf values, and search settings are carried into the runtime-built result.
 - Added frozen pre-refactor search replay tests for GAML and Absolute. The JavaScript test workflow passed on commit `f239d2db8bbb555f80c0295c348dd7c463f4590d`; full CI and sensitivity validation remain in progress.
 - Phase 3 is not complete until the full test workflow and differential replay tests pass.
+
+
+### Phase 3 completion — GAML and Absolute
+
+- SearchStrategyBase now computes the same search path and diagnostics as before, then emits revision-bound decisions for the shared runtime.
+- The separate actual replay loop and result construction have been removed from SearchStrategyBase. Its direct `simulate()` method is a compatibility adapter over the session runner.
+- Frozen pre-refactor replay oracles compare GAML and Absolute financial totals, bookings, account balances, obligations, event ledgers, and search diagnostics.
+- JavaScript and full Node test workflows passed on the search migration validation. The strategy sensitivity workflow also completed successfully during this phase.
+- Phase 3 is complete.
+
+### Phase 4 progress — GSS
+
+- GSS recursive goal planning and forecast reassessment remain in GSS as hypothetical planning. The planner now records a structured decision path rather than returning its internally simulated ledger as the actual result.
+- GSS sessions translate SPLIT, CONSOLIDATE, and CARRY actions into revision-bound signals. The shared runtime performs actual event progression, outflow settlement, transfers, bookings, cash-flow scheduling, and result construction.
+- Added same-date BATCH decisions so multiple GSS actions at one boundary can be validated and committed as one atomic execution transaction.
+- Runtime options preserve GSS-specific legacy semantics: cent rounding, opening-balance trigger behaviour, and outflow ordering.
+- Added a frozen legacy GSS oracle covering future inflows, recursive parent contraction, consolidation, and strict outflows. Full-ledger parity and existing GSS tests passed on the initial migration validation.
+- The latest changes encapsulating the hypothetical planner and adding explicit atomic-batch tests still require CI validation. Phase 4 remains in progress.
