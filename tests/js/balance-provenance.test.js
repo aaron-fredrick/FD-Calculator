@@ -51,3 +51,14 @@ test("invalid debits and transfers are rejected without silent negative balances
   assert.equal(ledger.total("a"), 100);
   assert.equal(ledger.total("b"), 0);
 });
+
+test("outflows consume mixed provenance proportionally without reversing historical goal credit", () => {
+  const ledger = new BalanceProvenance(["consolidation"]);
+  ledger.add("consolidation", { principal: 600, uncredited_interest: 400 });
+  assert.equal(ledger.recognizeConsolidationCredit("consolidation"), 400);
+  const paid = ledger.debit("consolidation", 500);
+  assert.equal(paid.principal, 300);
+  assert.equal(paid.counted_interest, 200);
+  assert.equal(ledger.total("consolidation"), 500);
+  assert.equal(ledger.creditedNetInterest, 400);
+});
