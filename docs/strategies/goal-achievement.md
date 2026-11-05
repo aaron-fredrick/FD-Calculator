@@ -106,6 +106,12 @@ The base case is LKR 300,000 across three accounts and three banks, with eFD eli
 
 *For achieved cases, the value is net interest credited at the first achievement boundary. For unachieved cases, it is credited net interest at the maximum boundary.*
 
+![Goal target sensitivity: days to achievement](assets/goal-achievement/goal-target.svg)
+
+![Starting capital sensitivity: credited net interest](assets/goal-achievement/starting-capital.svg)
+
+![Maximum horizon sensitivity: credited net interest](assets/goal-achievement/maximum-horizon.svg)
+
 Key observations:
 
 - Absolute+ reached the LKR 10,000 target in 151 days, compared with 300 days for GSS and 365 days for Greedy. This is the clearest measured case where its goal-aware candidate ranking improved time-to-goal.
