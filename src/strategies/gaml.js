@@ -8,11 +8,11 @@ import { SearchStrategyBase } from "./search-strategy-base.js";
  * - max_local_branches: top partial local-booking combinations (default 128; null = exhaustive)
  * - max_decisions: optional hard expanded-state budget (default unlimited)
  */
-export class GAMLStrategy extends SearchStrategyBase {
+export class AbsolutePlusStrategy extends SearchStrategyBase {
   constructor(settings = {}) {
     super(settings, "gaml");
   }
 }
 
 // Keep the historical export name for existing imports; the public strategy name is Absolute+.
-export const AbsolutePlusStrategy = GAMLStrategy;
+export const GAMLStrategy = AbsolutePlusStrategy;
