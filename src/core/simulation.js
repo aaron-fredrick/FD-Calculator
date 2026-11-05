@@ -111,6 +111,14 @@ export function finalizeSimulation(result, {
   return result;
 }
 
+function createStrategyContextView(context) {
+  return Object.freeze({
+    ...context,
+    start: new Date(context.start),
+    end: new Date(context.end)
+  });
+}
+
 function runStrategySession(strategy, context) {
     const runtime = new SimulationRuntime(context, {
       strategy_name: strategy.name ?? strategy.constructor?.name ?? "Strategy",
@@ -123,7 +131,7 @@ function runStrategySession(strategy, context) {
       round_balances: strategy.round_balances,
       opening_trigger_always: strategy.opening_trigger_always
     });
-    const session = strategy.createSession(context);
+    const session = strategy.createSession(createStrategyContextView(context));
     if (!session || typeof session.nextSignal !== "function") {
       throw new TypeError("Strategy createSession(context) must return a session with nextSignal(view).");
     }
