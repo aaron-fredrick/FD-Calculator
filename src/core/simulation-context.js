@@ -20,6 +20,17 @@ export function createSimulationContext(input = {}) {
   }
   const startDate = parseISODate(input.start);
   const endDate = parseISODate(input.end);
+  const simulation = input.simulation ?? { mode: "scoped" };
+  if (!simulation || typeof simulation !== "object" || Array.isArray(simulation)) throw new TypeError("Simulation mode must be an object.");
+  const mode = simulation.mode ?? "scoped";
+  if (!["time_based", "scoped", "goal"].includes(mode)) throw new RangeError("Unsupported simulation mode: " + mode);
+  let goal = null;
+  if (mode === "goal") {
+    if (simulation.goal?.metric !== "consolidation_net_interest") throw new RangeError("Goal metric must be consolidation_net_interest.");
+    const target = Number(simulation.goal?.target);
+    if (!Number.isFinite(target) || target <= 0) throw new RangeError("Goal target must be finite and positive.");
+    goal = Object.freeze({ metric: "consolidation_net_interest", target });
+  }
   if (startDate > endDate) throw new RangeError("Simulation start must not be after its end.");
 
   const sourceOptions = input.options;
@@ -87,7 +98,7 @@ export function createSimulationContext(input = {}) {
     start: startDate,
     end: endDate,
     start_iso: formatISODate(startDate),
-    end_iso: formatISODate(endDate),
+    end_iso: formatISODate(endDate),\n    simulation: Object.freeze({ mode, goal }),
     options: Object.freeze([...options]),
     accounts: Object.freeze(accounts),
     account_ids: Object.freeze([...ids]),
