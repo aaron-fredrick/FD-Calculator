@@ -1,4 +1,4 @@
-import { Account, FDOption, TransferFeeConfig } from "../core/models.js";
+import { Account, TransferFeeConfig } from "../core/models.js";
 import { normalizeInflowSchedule } from "../core/events.js";
 import { formatISODate, parseISODate, daysBetween } from "../core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../core/cashflows.js";
