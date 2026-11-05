@@ -1,7 +1,5 @@
 import { Account } from "../core/models.js";
 import { parseISODate } from "../core/dates.js";
-import { createSimulationContext } from "../core/simulation-context.js";
-import { runStrategySession } from "../core/simulation.js";
 import { createStrategyDecision, StrategyDecisionType } from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
 
@@ -187,10 +185,5 @@ export class GreedyStrategy {
     };
   }
 
-  // Compatibility adapter for SearchStrategyBase and callers that require an
-  // unfinished strategy result. Actual progression and execution remain in
-  // SimulationRuntime; SimulationEngine adds the lifecycle marker/final sweep.
-  simulate(input) {
-    return runStrategySession(this, createSimulationContext(input));
-  }
+
 }
