@@ -61,7 +61,7 @@ export function compareGoalScores(a, b) {
   return String(b.signature).localeCompare(String(a.signature));
 }
 
-function createPathReplayStrategy(path, engineContext) {
+function createPathReplayStrategy(path, engineContext, runtimeSettings = {}) {
   const actions = new Map(path.map(item => [item.date, item.action]));
   const optionIndex = option => {
     const exact = engineContext.options.indexOf(option);
@@ -104,6 +104,14 @@ function createPathReplayStrategy(path, engineContext) {
   };
   return {
     name: "Absolute+ goal candidate replay",
+    compound: runtimeSettings.compound,
+    actual_leap_year: runtimeSettings.actual_leap_year,
+    ait_enabled: runtimeSettings.ait_enabled,
+    ait_rate: runtimeSettings.ait_rate,
+    outflow_account_tiebreak: runtimeSettings.outflow_account_tiebreak,
+    outflow_due_date_sort: runtimeSettings.outflow_due_date_sort,
+    round_balances: runtimeSettings.round_balances,
+    opening_trigger_always: runtimeSettings.opening_trigger_always,
     createSession() {
       return {
         nextSignal(view) {
@@ -137,8 +145,8 @@ function scoreGoalResult(result, terminalValue, signature = "") {
   };
 }
 
-function evaluateGoalPath(path, engineContext, terminalValue) {
-  const strategy = createPathReplayStrategy(path, engineContext);
+function evaluateGoalPath(path, engineContext, terminalValue, runtimeSettings) {
+  const strategy = createPathReplayStrategy(path, engineContext, runtimeSettings);
   const result = new SimulationEngine().run(strategy, {
     options: engineContext.options, start: engineContext.start, end: engineContext.end,
     simulation: engineContext.simulation, inflow_schedule: engineContext.inflows,
@@ -679,7 +687,7 @@ export class SearchStrategyBase {
     let goalCandidatesEvaluated = greedyGoal ? 1 : 0;
     const evaluateGoal = goalMode ? (path, value) => {
       goalCandidatesEvaluated++;
-      return evaluateGoalPath(path, engineContext, value);
+      return evaluateGoalPath(path, engineContext, value, this);
     } : null;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
