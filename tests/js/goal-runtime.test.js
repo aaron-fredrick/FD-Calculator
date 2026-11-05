@@ -164,6 +164,34 @@ test("interest transferred to consolidation is counted before a same-signal rein
   assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
 });
 
+test("Greedy goal mode chooses the earliest credited-interest payout and responds to target size", () => {
+  const scenario = input(1);
+  scenario.options = [
+    new FDOption({
+      label: "High-rate annual cumulative", period_str: "1y", annual_rate: 15,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    }),
+    new FDOption({
+      label: "Lower-rate monthly cumulative", period_str: "30d", annual_rate: 5,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    })
+  ];
+
+  const smallTarget = new SimulationEngine().run(new GreedyStrategy({ ait_enabled: true }), scenario);
+  assert.equal(smallTarget.goal_outcome.achieved, true);
+  assert.equal(smallTarget.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(smallTarget.bookings[0].option.label, "Lower-rate monthly cumulative");
+  assert.equal(smallTarget.end_date.toISOString().slice(0, 10), smallTarget.goal_outcome.achievement_date);
+
+  const largerTarget = new SimulationEngine().run(
+    new GreedyStrategy({ ait_enabled: true }),
+    { ...scenario, simulation: { ...scenario.simulation, goal: { ...scenario.simulation.goal, target: 1000 } } }
+  );
+  assert.equal(largerTarget.goal_outcome.achieved, true);
+  assert.ok(largerTarget.goal_outcome.elapsed_days > smallTarget.goal_outcome.elapsed_days);
+  assert.equal(largerTarget.end_date.toISOString().slice(0, 10), largerTarget.goal_outcome.achievement_date);
+});
+
 test("Greedy and GSS use the same shared goal outcome and stopping contract", () => {
   for (const strategy of [
     new GreedyStrategy({ ait_enabled: true }),
