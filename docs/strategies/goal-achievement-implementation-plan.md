@@ -9,10 +9,10 @@ all acceptance criteria below are implemented and verified.
 
 ## Objective
 
-Add a third simulation mode alongside the existing time-based and scoped modes.
-Goal mode terminates at the first event boundary where the configured amount of
-net interest credited to the consolidation account reaches its target, or at a
-configured maximum end date when the target is not reached.
+Use two simulation modes: scoped date range and goal-driven execution. Goal mode
+terminates at the first event boundary where the configured amount of net interest
+credited to the consolidation account reaches its target. It has no user-configured
+end date; a 30-year internal safety horizon prevents non-terminating simulations.
 
 The goal is not portfolio value, gross interest, unrealised FD interest, or total
 interest earned across all accounts. It is cumulative net interest actually
@@ -28,8 +28,7 @@ Canonical shape:
     "mode": "goal",
     "goal": {
       "metric": "consolidation_net_interest",
-      "target": 50000,
-      "maximum_end_date": "2028-11-05"
+      "target": 50000
     }
   }
 }
@@ -37,16 +36,15 @@ Canonical shape:
 
 Modes:
 
-- `time_based`: start date plus configured duration.
 - `scoped`: explicit start and end dates.
-- `goal`: start date, positive target, and maximum end date safety boundary.
+- `goal`: start date and positive target; no user-defined end date. The engine applies a 30-year internal safety horizon.
 
 Legacy configurations remain valid through a single normalization layer. The CLI,
 browser configuration loader, and runtime must consume the same normalized contract.
 Existing investment date fields and strategy settings must remain backward compatible.
 
 Validation must reject unsupported modes/metrics, non-positive or non-finite targets,
-invalid dates, maximum end dates before the start date, missing mode-specific fields,
+invalid dates, internal safety horizons before the start date, missing mode-specific fields,
 and contradictory mode fields. Do not silently reinterpret malformed configurations.
 
 ## Accounting contract
@@ -108,13 +106,13 @@ not principal.
   boundary and records the first crossing.
 - The achieved run stops at that boundary; it must not process later events or run
   the final consolidation sweep at the configured maximum date.
-- An unachieved run continues to the maximum end date and returns a valid
+- An unachieved run continues to the internal safety horizon and returns a valid
   `goal_not_reached` outcome, distinct from invalid simulation or execution failure.
 - Finalization runs exactly once at the actual stopping boundary. Final sweep
   transfers must preserve provenance and must not retroactively change whether the
   goal was achieved.
 - Result metadata includes target, actual credited interest, achievement status,
-  achievement date, elapsed days, overshoot or shortfall, maximum boundary, and
+  achievement date, elapsed days, overshoot or shortfall, safety-horizon boundary, and
   stopping reason.
 
 ## Strategy compatibility
@@ -129,7 +127,7 @@ not principal.
   3. On the same date, higher net interest at achievement wins.
   4. Then lower transfer fees and fewer unnecessary operations.
   5. Then existing deterministic tie-breakers.
-- Non-achieving candidates are ranked by net interest at the maximum boundary,
+- Non-achieving candidates are ranked by net interest at the safety-horizon boundary,
   followed by existing tie-breakers.
 - Do not stop search at the first hypothetical crossing; compare candidates within
   the existing bounded search budget.
@@ -161,7 +159,7 @@ Goal-mode report sections, in this order:
    realised net interest, AIT, transfer fees.
 4. **Decision and performance analysis** — decisions, transfers, bookings, strategy
    diagnostics, and Absolute+ search/pruning details.
-5. **Scope status** — achieved or maximum boundary reached, with remaining shortfall.
+5. **Scope status** — achieved or safety-horizon boundary reached, with remaining shortfall.
 
 Do not present a fabricated achievement duration for an unachieved goal.
 
@@ -187,7 +185,7 @@ One-factor-at-a-time dimensions:
 Use DFCC, Commercial Bank, and NDB as the bank suite. Include achievable and
 deliberately difficult targets. Record achievement date, days to achievement,
 actual interest at achievement, target attainment, final net interest at the
-maximum boundary, fees, bookings, runtime, Absolute+ expanded states, and proof
+safety-horizon boundary, fees, bookings, runtime, Absolute+ expanded states, and proof
 status. For unachieved runs, report final net interest and shortfall, not an
 achievement duration. Exclude outflow scenarios from primary conclusions until
 outflow accounting is verified.
@@ -249,13 +247,13 @@ outflow accounting is verified.
    - Exercise target crossing, overshoot, unreachable goals, maturity boundaries,
      same-day events, inflows, multiple accounts/banks, final consolidation, and
      search-budget exhaustion.
-   - Verify existing time-based/scoped output and settings remain unchanged.
+   - Verify existing scoped output and settings remain unchanged.
    - Run browser build/deployment checks and inspect CI.
    - Fix every regression found and repeat the full suite before marking complete.
 
 ## Acceptance gates
 
-- [x] Legacy time-based and scoped configurations retain their existing semantics under regression tests.
+- [x] Legacy scoped configurations retain their existing semantics under regression tests.
 - [x] All three modes use one normalized configuration contract and one runtime.
 - [x] Canonical metric counts only first-time net interest credited to consolidation.
 - [x] AIT, principal, mixed transfers, fees, bookings, maturity, and outflow provenance reconcile under unit/integration coverage, including strict/defer/best-effort and multi-account isolation.
@@ -273,7 +271,7 @@ outflow accounting is verified.
 
 ### Implemented on this branch
 
-- Added `simulation.mode` validation and normalization for scoped, time-based, and goal-based horizons. Legacy configs without a mode remain scoped.
+- Added `simulation.mode` validation and normalization for scoped and goal-based horizons. Legacy configs without a mode remain scoped.
 - Added post-AIT cash-flow component generation for cumulative, periodic-interest, and installment products.
 - Added provenance buckets for principal, uncredited net interest, and previously counted interest.
 - Added proportional transfer/fee allocation, proportional outflow consumption, and provenance propagation through FD booking and maturity.
