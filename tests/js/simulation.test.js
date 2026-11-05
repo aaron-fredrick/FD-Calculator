@@ -61,3 +61,63 @@ test("shared finalization rejects a second final sweep", () => {
   const result = engine.run(new GreedyStrategy(), input);
   assert.throws(() => engine.run({ simulate: () => result }, input), /already been finalized/);
 });
+
+test("SimulationEngine drives a decision session through shared event execution", () => {
+  const input = {
+    options: [new FDOption({
+      label: "Session 30d", period_str: "30d", annual_rate: 12,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    })],
+    start: "2026-01-01", end: "2026-03-01",
+    accounts: [new Account({
+      id: "main", bank_id: "BANK_A", bank_key: "a", balance: 30000
+    })],
+    inflow_account_id: "main", consolidation_account_id: "main"
+  };
+  let calls = 0;
+  const strategy = {
+    name: "Session test", compound: false, actual_leap_year: true,
+    ait_enabled: false, ait_rate: 0.10,
+    createSession() {
+      return {
+        nextSignal(view) {
+          calls++;
+          if (calls === 1) {
+            return {
+              signal_type: "decision", revision: view.revision,
+              date: view.date, action: "SPLIT",
+              plan: { bookings: [{ account_id: "main", option_index: 0, principal: 30000 }], carries: [] }
+            };
+          }
+          return { signal_type: "complete", revision: view.revision };
+        }
+      };
+    }
+  };
+  const result = new SimulationEngine().run(strategy, input);
+  const events = Object.values(result.timeline).flat();
+  assert.equal(result.finalized, true);
+  assert.equal(result.bookings.length, 1);
+  assert.equal(result.bookings[0].principal, 30000);
+  assert.equal(events.filter(event => event.event_type === EventType.SIMULATION_START).length, 1);
+  assert.equal(events.filter(event => event.event_type === EventType.BOOKING).length, 1);
+  assert.equal(calls, 2);
+});
+
+test("SimulationEngine rejects invalid session decisions without accepting legacy simulate", () => {
+  const input = scenario();
+  const strategy = {
+    createSession() {
+      return {
+        nextSignal(view) {
+          return {
+            signal_type: "decision", revision: view.revision + 1,
+            date: view.date, action: "SPLIT",
+            plan: { bookings: [], carries: [] }
+          };
+        }
+      };
+    }
+  };
+  assert.throws(() => new SimulationEngine().run(strategy, input), /Stale strategy signal/);
+});
