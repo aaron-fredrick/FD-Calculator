@@ -6,6 +6,7 @@ import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { GAMLStrategy } from "../../src/strategies/gaml.js";
 import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
 import { SimulationEngine, finalizeSimulation } from "../../src/core/simulation.js";
+import { createStrategyDecision, createStrategyComplete, StrategyDecisionType } from "../../src/core/strategy-contracts.js";
 
 function scenario() {
   const accounts = [
@@ -83,13 +84,12 @@ test("SimulationEngine drives a decision session through shared event execution"
         nextSignal(view) {
           calls++;
           if (calls === 1) {
-            return {
-              signal_type: "decision", revision: view.revision,
-              date: view.date, action: "SPLIT",
+            return createStrategyDecision({
+              revision: view.revision, date: view.date, action: StrategyDecisionType.SPLIT,
               plan: { bookings: [{ account_id: "main", option_index: 0, principal: 30000 }], carries: [] }
-            };
+            });
           }
-          return { signal_type: "complete", revision: view.revision };
+          return createStrategyComplete({ revision: view.revision });
         }
       };
     }
@@ -110,11 +110,10 @@ test("SimulationEngine rejects invalid session decisions without accepting legac
     createSession() {
       return {
         nextSignal(view) {
-          return {
-            signal_type: "decision", revision: view.revision + 1,
-            date: view.date, action: "SPLIT",
-            plan: { bookings: [], carries: [] }
-          };
+          return createStrategyDecision({
+            revision: view.revision + 1, date: view.date,
+            action: StrategyDecisionType.SPLIT, plan: { bookings: [], carries: [] }
+          });
         }
       };
     }
