@@ -173,49 +173,6 @@
           "simulation": {
             "properties": {
               "mode": {
-                "const": "time_based"
-              }
-            },
-            "required": [
-              "mode"
-            ]
-          }
-        },
-        "required": [
-          "simulation"
-        ]
-      },
-      "then": {
-        "properties": {
-          "simulation": {
-            "required": [
-              "duration"
-            ],
-            "not": {
-              "required": [
-                "goal"
-              ]
-            }
-          },
-          "investment": {
-            "required": [
-              "start_date"
-            ],
-            "not": {
-              "required": [
-                "end_date"
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "simulation": {
-            "properties": {
-              "mode": {
                 "const": "scoped"
               }
             },
@@ -288,12 +245,7 @@
           "simulation": {
             "required": [
               "goal"
-            ],
-            "not": {
-              "required": [
-                "duration"
-              ]
-            }
+            ]
           }
         }
       }
@@ -651,15 +603,9 @@
         "mode": {
           "type": "string",
           "enum": [
-            "time_based",
             "scoped",
             "goal"
           ]
-        },
-        "duration": {
-          "type": "string",
-          "pattern": "^[1-9][0-9]*[dmy]$",
-          "description": "Time-based horizon relative to investment.start_date."
         },
         "goal": {
           "$ref": "#/$defs/goal"
@@ -671,8 +617,7 @@
       "additionalProperties": false,
       "required": [
         "metric",
-        "target",
-        "maximum_end_date"
+        "target"
       ],
       "properties": {
         "metric": {
@@ -683,9 +628,6 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "description": "LKR of first-time net interest credited to the consolidation account."
-        },
-        "maximum_end_date": {
-          "$ref": "#/$defs/date"
         }
       }
     }
