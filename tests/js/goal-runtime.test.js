@@ -311,6 +311,31 @@ test("Absolute+ goal ranking keeps the faster lower-interest payout under local 
   assert.equal(result.optimality_proven, false);
 });
 
+test("GSS goal planning reserves source liquidity for outflows due before the next maturity", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 5000 } },
+    options: [
+      new FDOption({ label: "Reserve high-yield", period_str: "30d", annual_rate: 36.5, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Main standard", period_str: "30d", annual_rate: 1, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0 }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000 })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    outflow_schedule: {
+      "2026-02-15": [{ account_id: "reserve", amount: 50000, payment_policy: "strict" }]
+    },
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const result = new SimulationEngine().run(new GSSStrategy({ ait_enabled: false }), scenario);
+  assert.equal(result.valid, true);
+  assert.equal(result.total_outflows_paid, 50000);
+  assert.equal(result.outstanding_outflows.length, 0);
+  assert.ok(result.timeline[20260215].some(event => event.event_type === "outflow" && event.amount === 50000));
+});
+
 test("GSS waits for an earlier consolidation opportunity instead of rebooking interest elsewhere", () => {
   const scenario = {
     start: "2026-01-01", end: "2026-03-10",
