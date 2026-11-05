@@ -370,6 +370,13 @@ export class GSSStrategy {
 
     const recordCarry = (date, context) => {
       const balances = balanceSnapshot();
+      if (context?.action === "candidate_exhaustion") {
+        decisionPath.push({
+          date: formatISODate(date), type: "CARRY",
+          carries: accountList().map(account => account.id),
+          carry_label: "GSS holding liquidity", carry_context: context
+        });
+      }
       for (const account of accountList()) {
         const amount = balances.get(account.id) ?? 0;
         if (amount <= EPS) continue;
@@ -385,6 +392,38 @@ export class GSSStrategy {
 
     const executePlan = (plan, date, decisionDate, candidate) => {
       const before = Object.fromEntries(balanceSnapshot());
+      const bookingDecisionContext = {
+        strategy: "GSS", goal_account_id: candidate.account.id,
+        goal_option: candidate.option.label, plan: plan.type,
+        balances_before: before, considered_from: formatISODate(decisionDate)
+      };
+      const decisionLogEntry = {
+        date: formatISODate(date), goal_account_id: candidate.account.id,
+        goal_option: candidate.option.label, plan: plan.type,
+        net_interest: round2(plan.net_interest), transfer_fees: round2(plan.fees)
+      };
+      decisionPath.push({
+        date: formatISODate(date), type: plan.type,
+        goal_account_id: candidate.account.id, goal_option: candidate.option,
+        target_account_id: plan.target_account?.id,
+        principal: plan.bookings[0]?.principal,
+        transfers: plan.transfers.map(item => ({
+          source_account_id: item.source.id,
+          target_account_id: plan.target_account.id,
+          amount: item.amount, fee: item.fee
+        })),
+        bookings: plan.bookings.map(item => ({
+          account_id: item.account.id, option: item.option, principal: item.principal,
+          decision_context: bookingDecisionContext
+        })),
+        carries: accountList().map(account => account.id),
+        carry_label: "GSS holding liquidity",
+        carry_context: {
+          strategy: "GSS", action: "liquidity_carry",
+          goal_account_id: candidate.account.id, goal_option: candidate.option.label
+        },
+        decision_log_entry: decisionLogEntry
+      });
       if (plan.type === "CONSOLIDATE") {
         for (const transfer of plan.transfers) {
           const { source, amount, fee, net } = transfer;
@@ -433,11 +472,7 @@ export class GSSStrategy {
           booking_ref: reference, account_id: account.id, bank_key: account.bank_key,
           bank_id: account.bank_id, balance_after: account.balance,
           total_balance_after: sumBalances(balanceSnapshot()),
-          decision_context: {
-            strategy: "GSS", goal_account_id: candidate.account.id,
-            goal_option: candidate.option.label, plan: plan.type,
-            balances_before: before, considered_from: formatISODate(decisionDate)
-          }
+          decision_context: bookingDecisionContext
         }));
         netFlows.forEach((flow, index) => {
           const isMaturity = flow.date.getTime() === booking.end.getTime() &&
@@ -451,11 +486,7 @@ export class GSSStrategy {
           }));
         });
       }
-      decisionLog.push({
-        date: formatISODate(date), goal_account_id: candidate.account.id,
-        goal_option: candidate.option.label, plan: plan.type,
-        net_interest: round2(plan.net_interest), transfer_fees: round2(plan.fees)
-      });
+      decisionLog.push(decisionLogEntry);
       recordCarry(date, {
         strategy: "GSS", action: "liquidity_carry",
         goal_account_id: candidate.account.id, goal_option: candidate.option.label
