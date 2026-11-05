@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
-import { Absolute+Strategy } from "../../src/strategies/gaml.js";
+import { GAMLStrategy } from "../../src/strategies/gaml.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { SimulationEngine } from "../../src/core/simulation.js";
 
@@ -47,7 +47,7 @@ test("Absolute runs exhaustive portfolio search and returns a replayed SimResult
 });
 
 test("Absolute+ runs bounded search and honours its three Python-compatible settings", () => {
-  const strategy = new Absolute+Strategy({
+  const strategy = new GAMLStrategy({
     ait_enabled: true, beam_width: 8, max_local_branches: 4, max_decisions: 100
   });
   const result = run(strategy, scenario());
@@ -65,14 +65,14 @@ test("Absolute+ runs bounded search and honours its three Python-compatible sett
 test("Absolute+ never returns a worse objective than Greedy for the same small scenario", () => {
   const input = scenario();
   const greedy = run(new GreedyStrategy({ ait_enabled: true }), input);
-  const gaml = run(new Absolute+Strategy({ ait_enabled: true, beam_width: 8, max_local_branches: 8 }), input);
+  const gaml = run(new GAMLStrategy({ ait_enabled: true, beam_width: 8, max_local_branches: 8 }), input);
   assert.ok(gaml.final_value >= greedy.final_value - 0.01);
 });
 
 test("Absolute+ rejects invalid search settings", () => {
-  assert.throws(() => new Absolute+Strategy({ beam_width: 0 }), /beam_width/);
-  assert.throws(() => new Absolute+Strategy({ max_local_branches: 0 }), /max_local_branches/);
-  assert.throws(() => new Absolute+Strategy({ max_decisions: 0 }), /max_decisions/);
+  assert.throws(() => new GAMLStrategy({ beam_width: 0 }), /beam_width/);
+  assert.throws(() => new GAMLStrategy({ max_local_branches: 0 }), /max_local_branches/);
+  assert.throws(() => new GAMLStrategy({ max_decisions: 0 }), /max_decisions/);
 });
 
 test("search strategies never place an eFD in an account without eFD capability", () => {
@@ -86,7 +86,7 @@ test("search strategies never place an eFD in an account without eFD capability"
     new FDOption({ label: "A eFD", bank_id: "BANK_A", bank_key: "bank_a", period_str: "30d", annual_rate: 9, min_amount: 25000, is_efd: true }),
     new FDOption({ label: "B standard", bank_id: "BANK_B", bank_key: "bank_b", period_str: "30d", annual_rate: 7, min_amount: 25000 })
   ];
-  const result = run(new Absolute+Strategy({ beam_width: 16, max_local_branches: 16, ait_enabled: true }), {
+  const result = run(new GAMLStrategy({ beam_width: 16, max_local_branches: 16, ait_enabled: true }), {
     options, start: "2026-01-01", end: "2026-02-01", inflow_schedule: {},
     accounts, inflow_account_id: "a-main", fee_config: new TransferFeeConfig(),
     consolidation_account_id: "a-main", outflow_schedule: {}
@@ -97,7 +97,7 @@ test("search strategies never place an eFD in an account without eFD capability"
 });
 
 test("Absolute+ marks a search that reaches its configured state cap as unproven", () => {
-  const result = run(new Absolute+Strategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }), scenario());
+  const result = run(new GAMLStrategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }), scenario());
   assert.equal(result.search_diagnostics.expanded_states, 1);
   assert.equal(result.optimality_proven, false);
 });
