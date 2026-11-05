@@ -226,6 +226,7 @@ export class SimulationRuntime {
         signal.signal_type === StrategySignalType.COMPLETE) return signal;
 
     const balances = this.#balanceMap();
+    const balancesAtDecisionStart = Object.fromEntries(balances);
     const account = id => {
       const value = this.accounts.get(String(id));
       if (!value) throw new RangeError("Decision references unknown account " + id + ".");
@@ -266,7 +267,7 @@ export class SimulationRuntime {
         total_balance_after: this.#totalBalance(balances)
       }));
     };
-    const book = item => {
+    const book = (item, balancesBeforeOverride = null) => {
       const target = account(item.account_id);
       const optionIndex = Number(item.option_index);
       if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= this.context.options.length) {
@@ -281,7 +282,7 @@ export class SimulationRuntime {
           !option.fitsBefore(this.currentDate, this.context.end)) {
         throw new RangeError("Booking is not eligible for the current account balance, account capability, or horizon.");
       }
-      const balancesBeforeBooking = Object.fromEntries(balances);
+      const balancesBeforeBooking = balancesBeforeOverride ?? Object.fromEntries(balances);
       balances.set(target.id, (balances.get(target.id) ?? 0) - principal);
       const grossFlows = option.generateCashFlows(principal, this.currentDate, this.compound, this.actualLeapYear);
       const netFlows = option.generateCashFlowsAfterAIT(principal, this.currentDate, this.effectiveAitRate, this.compound, this.actualLeapYear);
@@ -325,7 +326,7 @@ export class SimulationRuntime {
           account_id: signal.plan.target_account_id,
           option_index: signal.plan.option_index,
           principal: signal.plan.principal
-        });
+        }, balancesAtDecisionStart);
       } else if (signal.action === "SPLIT") {
         for (const item of signal.plan.bookings ?? []) book(item);
       } else if (signal.action === "CARRY") {
