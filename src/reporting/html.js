@@ -162,6 +162,23 @@ function buildLedger(result) {
   }
   return rows;
 }
+function decisionAccent(events) {
+  const colors = {
+    inflow:"#82aaff", outflow:"#ff7777", booking:"#d78bfa",
+    cash_flow:"#55c99a", maturity:"#32b65b", carry_forward:"#e9d15b",
+    idle:"#9ba8b8", simulation_start:"#56b4e9"
+  };
+  const parse = hex => [1,3,5].map(i => parseInt(hex.slice(i,i+2),16));
+  const channels = events.map(event => {
+    if (event.event_type === "transfer") {
+      return parse(event.label?.startsWith("Transfer to ") || event.label?.startsWith("Final sweep to ") ? "#ef7777" : "#56d8e8");
+    }
+    return parse(colors[event.event_type] || "#56b4e9");
+  });
+  if (!channels.length) return "#56b4e9";
+  const rgb = [0,1,2].map(i => Math.round(channels.reduce((sum, color) => sum + color[i], 0) / channels.length));
+  return "rgb(" + rgb.join(",") + ")";
+}
 function buildExecution(result,accountDisplay) {
   const events=Object.values(result.timeline||{}).flat(),bookingEvents=events.filter(e=>e.event_type==="booking");
   const byDay=new Map();
@@ -209,7 +226,7 @@ function buildExecution(result,accountDisplay) {
     const balances=dayBookings[0]?.decision_context?.balances_before||carries[0]?.decision_context?.balances_before||{};
     const chips=Object.entries(balances).map(([id,v])=>'<span class="chip">'+esc(result.accounts?.[id]?.label||id)+': '+money(v)+'</span>').join("");
     const checkpoint=dayEvents.find(e=>e.event_type==="maturity"||e.event_type==="cash_flow"||e.event_type==="inflow"||e.event_type==="outflow");
-    cards.push('<details class="decision"><summary class="decision-head"><span class="step">DECISION '+String(cards.length+1).padStart(2,"0")+'</span><span class="date">'+date+'</span><h3>'+esc(title)+'</h3><span class="decision-toggle" aria-hidden="true"></span></summary><div class="decision-body"><h4>Action required</h4>'+(!dayBookings.length&&carries.length?'<p class="muted">Strategy classification: Carry cash forward.</p>':"")+(actionParts.join("")||carryHtml||'<p class="muted">No external bank action is required at this point.</p>')+(reasons.length?'<h4>Why this decision</h4><ul class="compact">'+reasons.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>":"")+expected+(chips?'<h4>Balances before decision</h4><div class="chips">'+chips+'</div>':"")+'<p class="checkpoint"><b>Next checkpoint:</b> '+esc(checkpoint?iso(checkpoint.on_date)+" · "+checkpoint.label:"Investment horizon ends "+iso(result.end_date))+'</p></div></details>');
+    cards.push('<details class="decision" style="--decision-color:'+decisionAccent(dayEvents)+'"><summary class="decision-head"><span class="step">DECISION '+String(cards.length+1).padStart(2,"0")+'</span><span class="date">'+date+'</span><h3>'+esc(title)+'</h3><span class="decision-toggle" aria-hidden="true"></span></summary><div class="decision-body"><h4>Action required</h4>'+(!dayBookings.length&&carries.length?'<p class="muted">Strategy classification: Carry cash forward.</p>':"")+(actionParts.join("")||carryHtml||'<p class="muted">No external bank action is required at this point.</p>')+(reasons.length?'<h4>Why this decision</h4><ul class="compact">'+reasons.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>":"")+expected+(chips?'<h4>Balances before decision</h4><div class="chips">'+chips+'</div>':"")+'<p class="checkpoint"><b>Next checkpoint:</b> '+esc(checkpoint?iso(checkpoint.on_date)+" · "+checkpoint.label:"Investment horizon ends "+iso(result.end_date))+'</p></div></details>');
   }
   return {html:cards.join("")||'<div class="panel">No FD bookings or actionable transfers were selected.</div>',investmentRows};
 }
@@ -307,8 +324,12 @@ export function generateHtmlReport(result,config) {
     else if(e.event_type==="maturity")addFlow("FD Maturity (Principal)",date,value);
   }
   const cashflows=[...flowTotals].map(([name,values])=>({name,color:flowStyles[name]||"#9ba8b8",points:[...values].sort((a,b)=>a[0].localeCompare(b[0])).map(([x,y])=>({x,y}))}));
-  const maturities=(result.bookings||[]).map(b=>({name:b.option.label+" · "+b.account_id,start:iso(b.start),end:iso(b.end),principal:b.principal,interest:b.total_interest,rate:b.option.annual_rate}));
   const accountChart=buildAccountChart(result,config,start,end,openingBalances);
+  const maturityColorByBank=new Map(accountChart.fd_principal.map(series=>[series.bankId,series.color]));
+  const maturities=(result.bookings||[]).map(b=>{
+    const bank=identity(b.bank_id||b.option?.bank_identity||b.bank_key);
+    return {name:b.option.label+" · "+b.account_id,start:iso(b.start),end:iso(b.end),principal:b.principal,interest:b.total_interest,rate:b.option.annual_rate,color:maturityColorByBank.get(bank)||"#56b4e9"};
+  });
   const chartData={...accountChart,cashflows,maturities,grossInterest:gross,returns:[{name:"Net interest",value:net,color:"#55c99a"},{name:"Transfer fees",value:fees,color:"#ef7777"},{name:"AIT withheld",value:ait,color:"#e9ad58"}]};
   const chartJson=JSON.stringify(chartData).replace(/<\//g,"<\\/");
   const ledger='<details class="collapsible-table"><summary>Ledger entries <span>'+ledgerRows.length+' rows · expand</span></summary><div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount (LKR)</th><th>Description</th><th class="num">Balance after (LKR)</th></tr></thead><tbody>'+(ledgerRows.join("")||'<tr><td colspan="6" class="empty">No events</td></tr>')+'</tbody></table></div></details>';
