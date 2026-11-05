@@ -83,7 +83,7 @@ function results(r,c,html){
  const goal=r.goal_outcome??null;
  const start=c.start.toISOString().slice(0,10),end=r.end_date.toISOString().slice(0,10);
  $("result-period").textContent=goal
-  ? start+" — "+end+" · goal · "+r.strategy_name+" · "+(goal.achieved?"achieved "+goal.achievement_date+" ("+goal.elapsed_days+" days)":"not reached · "+goal.stopping_reason)
+  ? start+" — "+end+" · goal · "+r.strategy_name+" · "+(goal.achieved?(goal.stopping_reason==="goal_achieved_on_final_consolidation"?"reached only on final sweep ":"achieved ")+goal.achievement_date+" ("+goal.elapsed_days+" days)":"not reached · "+goal.stopping_reason)
   : start+" — "+end+" · scoped · "+r.strategy_name;
  const moneyValue=value=>"LKR "+Number(value??0).toLocaleString("en-LK",{minimumFractionDigits:2,maximumFractionDigits:2});
  const vals=goal?[
