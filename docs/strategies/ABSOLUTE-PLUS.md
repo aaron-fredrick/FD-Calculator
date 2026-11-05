@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Absolute+ builds on the Absolute portfolio-optimisation approach and applies bounded, layered search to explore multiple candidate investment paths. It uses the beam-search techniques previously associated with GAML, but its purpose is to improve the Absolute search approach rather than represent a separate GAML strategy. It is heuristic while any search states, local combinations or frontier candidates are pruned.
+Absolute+ builds on the Absolute portfolio-optimisation approach and applies bounded, layered search to explore multiple candidate investment paths. It uses the beam-search techniques previously associated with Absolute+, but its purpose is to improve the Absolute search approach rather than represent a separate Absolute+ strategy. It is heuristic while any search states, local combinations or frontier candidates are pruned.
 
 **Implementation:** `src/strategies/gaml.js (legacy module path; retained for configuration compatibility)` and `src/strategies/search-strategy-base.js`.
 
