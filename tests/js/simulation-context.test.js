@@ -22,7 +22,8 @@ function fixture() {
 }
 
 test("simulation context normalizes dates, account ids and cash-flow schedules", () => {
-  const context = createSimulationContext(fixture());
+  const input = fixture();
+  const context = createSimulationContext(input);
   assert.equal(context.start_iso, "2026-01-01");
   assert.equal(context.end_iso, "2026-12-31");
   assert.equal(context.inflow_account_id, "main");
@@ -37,7 +38,7 @@ test("simulation context normalizes dates, account ids and cash-flow schedules",
   assert.equal(Object.isFrozen(context.fee_config), true);
   assert.equal(Object.isFrozen(context.inflows["2026-03-01"]), true);
   assert.equal(Object.isFrozen(context.outflows["2026-04-01"][0]), true);
-  assert.notEqual(context.options[0], fixture().options[0]);
+  assert.notEqual(context.options[0], input.options[0]);
 });
 
 test("simulation context rejects invalid periods and unknown flow destinations", () => {
