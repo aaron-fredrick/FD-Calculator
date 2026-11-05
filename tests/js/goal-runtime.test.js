@@ -188,3 +188,13 @@ test("goal termination excludes scheduled inflows after the achievement boundary
   assert.equal(result.total_principal, 100000);
   assert.equal(result.accounts.main.balance, 100000 + result.goal_outcome.actual);
 });
+
+test("invalid strict outflow execution is distinct from an unachieved goal", () => {
+  const scenario = input(100);
+  scenario.outflow_schedule = { "2026-01-01": [{ account_id: "main", amount: 150000, payment_policy: "strict" }] };
+  const result = new SimulationEngine().run(makeGoalStrategy(), scenario);
+  assert.equal(result.valid, false);
+  assert.equal(result.goal_outcome.achieved, false);
+  assert.equal(result.goal_outcome.stopping_reason, "simulation_invalid");
+  assert.equal(result.goal_outcome.achievement_date, null);
+});
