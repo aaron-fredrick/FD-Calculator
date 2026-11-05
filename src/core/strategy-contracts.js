@@ -149,7 +149,12 @@ export function validateStrategySignal(signal, {
     }
     return signal;
   }
-  if (signal.signal_type === StrategySignalType.COMPLETE) return signal;
+  if (signal.signal_type === StrategySignalType.COMPLETE) {
+    if (current_date !== end_date) {
+      throw new RangeError("Strategy cannot complete before the simulation horizon ends.");
+    }
+    return signal;
+  }
   throw new RangeError("Unknown strategy signal type: " + signal.signal_type);
 }
 
