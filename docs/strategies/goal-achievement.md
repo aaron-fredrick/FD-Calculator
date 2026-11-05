@@ -62,6 +62,12 @@ The shared `SimulationRuntime` owns cash-flow execution, AIT, transfers, provena
 
 When a goal is achieved before the maximum horizon, later events are not processed and the final consolidation sweep is skipped so it cannot alter the recorded achievement amount. When the maximum horizon is reached without achievement, the final consolidation sweep is processed with provenance; interest first credited by that sweep is recognised at the maximum-date boundary.
 
+## Strategy diagnostics and proof status
+
+- **GSS** reports its goal target, hypothetical credited net interest, whether its planner stopped at the goal, and the number of goal-plan evaluations in `gss_diagnostics`. These values describe the private planning projection; the runtime's goal outcome remains authoritative.
+- **Absolute** reports `optimality_proven` only when its exhaustive goal search completes without local, bound or memo pruning that could invalidate the objective.
+- **Absolute+** reports the goal decision budget, expanded states, candidate replay count, invalid replay count/reasons, beam pruning, local-combination pruning and `optimality_proven`. Invalid candidate paths are rejected rather than allowed to affect the selected result. Any bounded-search truncation prevents a global optimality claim.
+
 ## Reports
 
 Goal reports lead with the target, actual credited net interest, achievement date, elapsed days, and overshoot or shortfall. Portfolio-wide gross interest, AIT, transfer fees and net interest are shown as supporting totals and explicitly distinguished from the consolidation-credit goal metric. The event timeline includes cumulative credited net interest at each processed boundary. The web summary presents goal timing and credited interest before supporting portfolio figures.
