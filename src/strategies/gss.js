@@ -700,17 +700,46 @@ export class GSSStrategy {
       let today = initialDate;
       maximumDepth = Math.max(maximumDepth, depth);
       while (!strictFailed && !goalAchieved()) {
-        const candidates = candidateList(today, horizon);
+        let candidates = candidateList(today, horizon);
+        const futureDates = new Map();
+        if (goalMode) {
+          const viable = [];
+          for (const candidate of candidates) {
+            candidatesConsidered++;
+            const plans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
+            for (const plan of plans) {
+              viable.push({ candidate, plan, estimate: estimateGoalPlan(plan, today) });
+            }
+          }
+          if (viable.length) {
+            viable.sort(compareGoalPlans);
+            executePlan(viable[0].plan, today, initialDate, viable[0].candidate);
+            return today;
+          }
+          if (!allowFuture) return today;
+          const future = [];
+          for (const candidate of candidates) {
+            const targetDate = findFutureDate(candidate, today, horizon, parentGoals);
+            if (targetDate && targetDate > today) {
+              futureDates.set(candidate, targetDate);
+              future.push({ candidate, targetDate });
+            }
+          }
+          future.sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime());
+          candidates = future.map(item => item.candidate);
+        }
         let advanced = false;
         for (const candidate of candidates) {
-          candidatesConsidered++;
+          if (!goalMode) candidatesConsidered++;
           const plans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
           if (plans.length) {
-            executePlan(plans[0], today, initialDate, candidate);
+            executePlan(selectPlan(plans, today), today, initialDate, candidate);
             return today;
           }
           if (!allowFuture) continue;
-          const targetDate = findFutureDate(candidate, today, horizon, parentGoals);
+          const targetDate = goalMode
+            ? futureDates.get(candidate)
+            : findFutureDate(candidate, today, horizon, parentGoals);
           if (!targetDate || targetDate <= today) continue;
 
           futureGoals++;
@@ -739,7 +768,7 @@ export class GSSStrategy {
             if (earlyGoal.candidate !== candidate) return today;
             const earlyPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
             if (earlyPlans.length) {
-              executePlan(earlyPlans[0], today, initialDate, candidate);
+              executePlan(selectPlan(earlyPlans, today), today, initialDate, candidate);
               if (today < targetDate) earlyGoalExecutions++;
               goalFrame.status = "completed";
               if (forecastInterrupt?.frame === goalFrame) forecastInterrupt = null;
@@ -754,7 +783,7 @@ export class GSSStrategy {
             processDate(today);
             const contractedPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
             if (contractedPlans.length) {
-              executePlan(contractedPlans[0], today, initialDate, candidate);
+              executePlan(selectPlan(contractedPlans, today), today, initialDate, candidate);
               goalFrame.status = "completed";
               forecastInterrupt = null;
               return today;
@@ -773,7 +802,7 @@ export class GSSStrategy {
           // window has processed its cash flows, outflows and interim bookings.
           const actualPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
           if (actualPlans.length) {
-            executePlan(actualPlans[0], today, initialDate, candidate);
+            executePlan(selectPlan(actualPlans, today), today, initialDate, candidate);
             return today;
           }
           advanced = true;
@@ -811,7 +840,8 @@ export class GSSStrategy {
         ...(goalMode ? {
           goal_target: goal.target,
           goal_credited_net_interest: provenance.creditedNetInterest,
-          planner_stopped_on_goal: goalAchieved()
+          planner_stopped_on_goal: goalAchieved(),
+          goal_plan_evaluations: goalPlanEvaluations
         } : {})
       }
     };
