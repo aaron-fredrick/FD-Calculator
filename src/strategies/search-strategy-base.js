@@ -776,7 +776,12 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
 function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
   let bestNode = null, bestGoalScore = initialGoalScore, sequence = 0;
   let goalPrunedByAchievement = 0;
-  let beam = [{ state: initial, node: null, priority: makeUpperBound(initial, context, true), sequence: sequence++ }];
+  const goalMode = context.simulation?.mode === "goal";
+  let beam = [{
+    state: initial, node: null,
+    priority: goalMode ? makeGoalPriority(initial, context) : makeUpperBound(initial, context, true),
+    sequence: sequence++
+  }];
   let budgetStopped = false, beamPruned = 0, rootPeak = 0;
   while (beam.length) {
     const candidates = [], rootBest = new Map();
@@ -819,7 +824,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         generated++;
         sequence++;
         const node = child.action ? makeNode(entry.node, child.action, child.date, entry.node?.root_signature ? null : child.root_signature) : entry.node;
-        const priority = makePriority(child.state, context);
+        const priority = goalMode ? makeGoalPriority(child.state, context) : makePriority(child.state, context);
         const candidate = { state: child.state, node, priority, sequence };
         const signature = node?.root_signature || ["unclassified"];
         const rootKey = JSON.stringify(signature);
@@ -829,7 +834,6 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
       }
     }
     if (budgetStopped) break;
-    const goalMode = context.simulation?.mode === "goal";
     const candidateKey = candidate => goalMode
       ? goalSearchStateKey(candidate.state, candidate.node ? nodePath(candidate.node) : [])
       : stateKey(candidate.state);
