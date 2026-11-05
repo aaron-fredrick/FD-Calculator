@@ -168,11 +168,11 @@ test("report layout, decision accents, maturity colors and chart hover controls 
     inflow_summaries: [], outflow_summaries: [], bank_registry: { BANK_A: { name: "Bank A" } }
   };
   const html = generateHtmlReport(result, config);
-  const json = html.match(/<script id="fd-report-data" type="application\\/json">([\\s\\S]*?)<\\/script>/)?.[1];
+  const json = html.match(/<script id="fd-report-data" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
   assert.ok(json, "report should embed chart data");
   const charts = JSON.parse(json);
   assert.equal(charts.maturities[0].color, charts.fd_principal[0].color);
-  assert.match(html, /style="--decision-color:rgb\\(130,170,255\\)"/);
+  assert.match(html, /style="--decision-color:rgb\(130,170,255\)"/);
   assert.ok(html.includes("min(100%,150px)"), "overview tiles should use a compact responsive minimum width");
   assert.ok(html.includes("var(--decision-color,var(--blue))"), "decision accent should use event-derived color");
   assert.ok(html.includes("const candidates=[[8,8],[maxX,8],[8,maxY],[maxX,maxY]]"), "hover detail should choose a corner away from the pointer");
