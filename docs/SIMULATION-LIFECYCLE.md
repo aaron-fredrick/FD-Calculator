@@ -22,7 +22,7 @@ The simulation layer owns actual execution and finalization. Strategies own inve
 7. The runtime builds the unfinished result. The engine adds the one simulation-start marker and invokes the finalizer once.
 8. Finalization performs the single simulation-wide consolidation sweep, records remaining idle balances, and marks the result finalized.
 
-A stale signal, malformed plan, invalid account reference, invalid transfer, or ineligible booking is rejected before the decision's staged mutations are committed. Same-date GSS decisions use an atomic batch so a later invalid sub-action cannot leave earlier sub-actions partially executed.
+A stale signal, malformed plan, invalid account reference, invalid transfer, or ineligible booking is rejected before the decision's staged mutations are committed. A session cannot signal completion before the overall horizon has been processed. Same-date GSS decisions use an atomic batch so a later invalid sub-action cannot leave earlier sub-actions partially executed.
 
 ## Strategy planning boundaries
 
