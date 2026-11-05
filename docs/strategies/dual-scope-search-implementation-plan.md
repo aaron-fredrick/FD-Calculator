@@ -71,6 +71,24 @@ Do not treat a heuristic estimate as a proof of feasibility or optimality. If an
 
 ## Phase 0 — Source audit and baseline (must precede strategy changes)
 
+### Source map and verified findings
+
+- **Shared context:** `createSimulationContext()` supplies the 30-year safety horizon in goal mode. `SearchStrategyBase.createContext()` copies the simulation mode and treats that horizon as `endDate`; the search then uses it for FD eligibility and event projection.
+- **Absolute/Absolute+:** `expandState()` still generates local and consolidation branches using total post-AIT tenor interest. `allLocalCombinations()` truncates partial combinations only when a local-branch limit is configured (Absolute uses exhaustive combinations; Absolute+ defaults to 128). `buildConsolidationBranches()` orders by projected tenor interest less fees.
+- **Absolute goal path:** goal mode disables the scoped terminal-value upper-bound and memo pruning. It replays paths that can credit the consolidation account and prunes states strictly after the best achieved date. The search driver currently returns `optimalityProven: true` unconditionally; this requires proof review against option dominance, event coverage, and date pruning before retaining that claim.
+- **Absolute+ goal path:** candidate replay and earliest-achievement comparison already exist, and the goal search defaults to 5,000 expanded states. However, its beam priority still calls the fixed-horizon `makePriority()`/`makeUpperBound()`; local branch truncation still ranks total tenor interest; `waitFirst` compares future annual rates; and beam deduplication uses `stateKey()` containing only date, scalar balances, aggregate pending flows, obligations and paid outflows. Distinct action histories/provenance can therefore collapse into one state before replay.
+- **Search state:** the search engine models pending flows as date/account/amount triples, not principal-versus-interest components. The authoritative `BalanceProvenance` is already implemented in the runtime, but it is not represented in these hypothetical search states. Goal-mode state equivalence must preserve distinct histories unless a safe provenance-aware equivalence is proven.
+- **GSS:** `createSession()` currently passes the simulation start/end and financial inputs into `#planHypothetically()`, but does not pass the mode or goal target. The planner evaluates manager-ordered account/product candidates, sorts each candidate's SPLIT/CONSOLIDATE plans by projected net interest, and executes `plans[0]`. Consolidation reserves source-account liquidity for outflows through the overall `endDate`; in goal mode that is the 30-year safety horizon. Recursive planning advances to that horizon even though the runtime may stop earlier.
+- **Existing compatibility evidence:** `tests/js/search-parity.test.js` compares Absolute and Absolute+ against the legacy search oracle; `tests/js/gss-parity.test.js` compares GSS against its legacy oracle. These are exact scoped-ledger/diagnostic regression gates and must remain intact.
+- **Greedy:** no change is planned. The engine's shared runtime owns goal stopping for Greedy and all strategies.
+
+### Baseline evidence (before strategy source changes)
+
+- Draft PR #55's documentation-only head `8feffdc0456e388e7026fa4c8a0923391b890368` ran the existing Node.js 22 suite: **158 passed, 0 failed, 0 skipped** (reported test duration 993.327965 ms). The JavaScript syntax-check workflow also completed successfully. Dependency review passed. Build and CodeQL were still in progress at the time of this record.
+- Existing fixed-horizon benchmark artifact `docs/strategies/benchmarks/results.json`, generated `2026-11-05T09:00:44.315Z`, provides a 24-month, LKR 300,000, three-account/three-bank, AIT-on/simple-interest reference using DFCC, Commercial Bank and NDB: Greedy LKR 61,886.03 net interest / 10 bookings / 5 ms; Absolute+ LKR 61,886.03 / 10 bookings / 2,791 expanded states / 6,468 ms / not proven optimal; GSS LKR 59,421.46 / 1 booking / 2 ms. Timings are historical runner-specific measurements, not portable performance guarantees.
+- The existing Absolute+ search sensitivity artifact records the same LKR 61,886.03 net interest across its 15 scoped parameter points; at the baseline setting (beam 96, local limit 48, cap 5,000) it expanded 2,791 states, pruned 72,870 beam candidates and 12,912 local combinations, and did not prove optimality.
+- No clean, dedicated pre-change benchmark was captured for this new strategy-scope work. The existing benchmark artifacts and legacy parity tests are the available baseline. In particular, the archived fixed-horizon matrix does not include Absolute. A dedicated Absolute performance comparison must therefore be added or explicitly marked unavailable; do not fabricate one.
+
 ### Work
 - Re-read the current branch source and this plan before each new phase; record the actual branch head and changed-file set.
 - Map the full strategy flow from context construction through candidate generation, search expansion, state equivalence/dominance, candidate replay, session output, runtime execution and reporting.
@@ -201,7 +219,7 @@ For every phase and meaningful sub-step:
 
 - [x] Starting main commit identified: `1f57da418ae32f2895207a4d262cf4da67ae06be`.
 - [x] Initial audit confirmed existing goal runtime, provenance, candidate replay and goal comparator; these will be reused.
-- [ ] Phase 0 — detailed source audit and scoped baseline.
+- [x] Phase 0 — source audit and available scoped baseline recorded; limitation: no fresh dedicated pre-change Absolute benchmark exists.
 - [ ] Phase 1 — shared goal-search foundations.
 - [ ] Phase 2 — GSS goal-aware recursive planning.
 - [ ] Phase 3 — Absolute goal-aware exhaustive search.
