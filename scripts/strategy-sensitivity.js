@@ -4,7 +4,7 @@ import { Account, FDOption, TransferFeeConfig } from "../src/core/models.js";
 import { addPeriod, formatISODate } from "../src/core/dates.js";
 import { SimulationEngine } from "../src/core/simulation.js";
 import { GreedyStrategy } from "../src/strategies/greedy.js";
-import { GAMLStrategy } from "../src/strategies/gaml.js";
+import { AbsolutePlusStrategy } from "../src/strategies/gaml.js";
 import { GSSStrategy } from "../src/strategies/gss.js";
 
 const START = "2026-11-05";
@@ -91,7 +91,7 @@ function makeInflows(kind, accountId, end) {
 
 const strategies = [
   ["Greedy", () => new GreedyStrategy({ ait_enabled: true })],
-  ["Absolute+", () => new GAMLStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000 })],
+  ["Absolute+", () => new AbsolutePlusStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000 })],
   ["GSS", () => new GSSStrategy({ ait_enabled: true, small_period_days: 30 })]
 ];
 const results = [];
