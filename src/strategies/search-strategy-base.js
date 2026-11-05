@@ -146,16 +146,24 @@ function scoreGoalResult(result, terminalValue, signature = "") {
 }
 
 function evaluateGoalPath(path, engineContext, terminalValue, runtimeSettings) {
-  const strategy = createPathReplayStrategy(path, engineContext, runtimeSettings);
-  const result = new SimulationEngine().run(strategy, {
-    options: engineContext.options, start: engineContext.start, end: engineContext.end,
-    simulation: engineContext.simulation, inflow_schedule: engineContext.inflows,
-    accounts: engineContext.accounts, inflow_account_id: engineContext.inflow_account_id,
-    fee_config: engineContext.fee_config, consolidation_account_id: engineContext.consolidation_account_id,
-    outflow_schedule: engineContext.outflows
-  });
-  return scoreGoalResult(result, terminalValue,
-    JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""])));
+  const signature = JSON.stringify(path.map(item => [item.date, item.action.type, item.action.target_id ?? ""]));
+  try {
+    const strategy = createPathReplayStrategy(path, engineContext, runtimeSettings);
+    const result = new SimulationEngine().run(strategy, {
+      options: engineContext.options, start: engineContext.start, end: engineContext.end,
+      simulation: engineContext.simulation, inflow_schedule: engineContext.inflows,
+      accounts: engineContext.accounts, inflow_account_id: engineContext.inflow_account_id,
+      fee_config: engineContext.fee_config, consolidation_account_id: engineContext.consolidation_account_id,
+      outflow_schedule: engineContext.outflows
+    });
+    return scoreGoalResult(result, terminalValue, signature);
+  } catch (error) {
+    return {
+      achieved: false, elapsed_days: Infinity, actual: -Infinity,
+      fees: Infinity, operations: Infinity, terminal_value: -Infinity,
+      signature, invalid_candidate: true, invalid_reason: String(error?.message ?? error)
+    };
+  }
 }
 
 function equivalentEfdBookings(bookings, optionsByAccount) {
@@ -685,9 +693,12 @@ export class SearchStrategyBase {
     const greedyGoal = goalMode ? new SimulationEngine().run(greedyStrategy, input) : null;
     const initialGoalScore = greedyGoal ? scoreGoalResult(greedyGoal, greedyObjective, "greedy-baseline") : null;
     let goalCandidatesEvaluated = greedyGoal ? 1 : 0;
+    let goalInvalidCandidates = 0;
     const evaluateGoal = goalMode ? (path, value) => {
       goalCandidatesEvaluated++;
-      return evaluateGoalPath(path, engineContext, value, this);
+      const score = evaluateGoalPath(path, engineContext, value, this);
+      if (score.invalid_candidate) goalInvalidCandidates++;
+      return score;
     } : null;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
@@ -713,7 +724,7 @@ export class SearchStrategyBase {
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
-      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_objective: "earliest consolidation net-interest achievement", selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
+      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_objective: "earliest consolidation net-interest achievement", selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
     const resultMetadata = {
       total_decisions_evaluated: diagnostics.expanded_states,
