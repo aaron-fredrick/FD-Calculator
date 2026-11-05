@@ -329,7 +329,10 @@ export class GSSStrategy {
         const interest = netInterest(candidateOption, deployable, date, this.compound,
           this.actual_leap_year, this.effective_ait_rate) - fees;
         consolidatePlansEvaluated++;
-        if (interest > EPS) plans.push({
+        // In goal mode, transfer fees are allocated proportionally across
+        // provenance buckets. A negative whole-portfolio return does not imply
+        // that no previously uncredited interest can reach consolidation.
+        if (interest > EPS || goalMode) plans.push({
           type: "CONSOLIDATE",
           bookings: [{ account: targetAccount, option: candidateOption, principal: deployable }],
           target_account: targetAccount, transfers, carries, fees, net_interest: interest
