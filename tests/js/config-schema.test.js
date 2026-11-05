@@ -117,6 +117,9 @@ test("rejects incomplete or contradictory simulation mode settings", () => {
   time.simulation = { mode: "time_based" };
   delete time.investment.end_date;
   assert.throws(() => validateConfigurationShape(time), /simulation.duration/);
+  const conflictingTime = valid();
+  conflictingTime.simulation = { mode: "time_based", duration: "6m" };
+  assert.throws(() => validateConfigurationShape(conflictingTime), /omit for time_based mode/);
 
   const goal = valid();
   goal.simulation = { mode: "goal", goal: {
