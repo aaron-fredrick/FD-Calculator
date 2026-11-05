@@ -4,6 +4,7 @@ import { formatISODate, parseISODate, daysBetween } from "../core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../core/cashflows.js";
 import { GreedyStrategy } from "./greedy.js";
 import { SimulationEngine } from "../core/simulation.js";
+import { BalanceProvenance } from "../core/balance-provenance.js";
 import {
   createStrategyDecision, createStrategyWait, createStrategyComplete,
   StrategyDecisionType
