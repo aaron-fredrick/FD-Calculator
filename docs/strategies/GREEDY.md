@@ -137,28 +137,25 @@ The first candidate is executed.
 
 **Important consequence:** net interest is not the primary ranking field. The admission rules first constrain which consolidation plans can compete; among admitted candidates, a higher-rate plan can rank ahead of a plan with higher net interest.
 
-## 7. Returning the selected decision
+## 7. Decision contract (planning only)
 
-### SPLIT execution
+Greedy returns a revision-bound decision describing the plan selected for the current planning snapshot. It does not execute any part of that plan.
 
-Each selected booking is created against its source account. The booked principal is removed from that account, and the booking's future net cash-flow and maturity events are inserted into the timeline. Unbooked carries remain in their accounts.
+- **SPLIT:** identifies the account/FD-option/principal tuples the runtime should book independently, plus accounts that remain liquid.
+- **CONSOLIDATE:** identifies the target account, source-to-target transfers, selected FD option and deployable principal. It is a proposed atomic transfer-and-booking plan, not an executed transaction.
+- **CARRY:** asks the runtime to leave the current positive balances unchanged for this decision boundary.
 
-### CONSOLIDATE execution
+The strategy does not debit or credit authoritative balances, charge fees, create actual events, schedule cash flows, settle obligations or construct a simulation result. `SimulationRuntime` validates and executes the selected decision against the authoritative state. Invalid or stale decisions are rejected by the runtime before commit.
 
-For every selected transfer:
+## 8. Runtime-owned execution and finalization
 
-- The source account is debited by its full transfer amount.
-- The actual transfer fee is added once to total transfer fees.
-- The target account receives the net transfer amount.
-- Transfer-out and transfer-in events are recorded.
+After Greedy returns a decision, `SimulationRuntime` owns all actual effects:
 
-The decision contains the target account, option reference and deployable principal. The runtime performs the transfers first, then validates and executes the booking atomically.
-
-### CARRY execution
-
-Balances remain in their accounts. A carry-forward event is recorded for each positive balance.
-
-## 8. Runtime-owned finalization
+- Validates account references, option eligibility, balances, transfer fees and staged events.
+- Executes transfers and bookings atomically, including actual fee deductions.
+- Schedules actual FD cash-flow and maturity events.
+- Records the actual event ledger and updates authoritative balances.
+- Processes later inflows, maturities, cash flows and outflow obligations.
 
 Greedy does not perform a final sweep. After the complete simulation horizon and strategy session finish, `SimulationEngine` invokes the single simulation-wide consolidation sweep. It transfers eligible residual balances to the configured consolidation account, charges each applicable fee once, and records any remaining idle cash. This finalization is strategy-independent.
 
@@ -192,7 +189,7 @@ Booking and carry events include a `decision_context` with the action and balanc
 Use Greedy when you need:
 
 - A quick result for an input scenario.
-- A baseline against which to compare GAML or Absolute.
+- A baseline against which to compare Absolute+ or Absolute.
 - A simple, deterministic strategy without the cost of exploring a large search space.
 
 Use a search-based strategy when future combinations matter and you need broader exploration. Use Absolute when a completed exhaustive search and an optimality proof are required and the scenario is tractable.
