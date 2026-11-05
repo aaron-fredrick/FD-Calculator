@@ -213,7 +213,7 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 | Plan | Complete | Documented and linked in VitePress Architecture navigation. PR #45. |
 | 0 — Baseline | Complete with a fixture gap carried into Phase 1 | Existing CI suite passes; call paths and regression coverage mapped. Add explicit canonical cross-strategy event-ledger snapshots before the first strategy migration. |
 | 1 — Foundation | Complete | Added normalized context, revision-bound planning contracts, shared chronological runtime, transactional decision execution, session runner, and legacy strategy adapter. Greedy now consumes the session contract. |
-| 2 — Greedy | In progress | Greedy now emits revision-bound SPLIT/CONSOLIDATE/CARRY decisions; SimulationRuntime owns actual progression, settlement, transfers, bookings, events, and result construction. CI regression suite passed on the migration commit; continue differential and edge-case validation. |
+| 2 — Greedy | Complete | Greedy planning is session-based; actual execution moved to SimulationRuntime. A frozen pre-refactor oracle verifies the normalized financial/event ledger, and CI passes. |
 | 3 — Search | Not started | Preserve hypothetical search and actual replay parity. |
 | 4 — GSS | Not started | Preserve recursive forecast semantics. |
 | 5 — Enforcement | Not started | Remove adapters and enforce ownership. |
