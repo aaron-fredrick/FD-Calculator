@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { SimulationEngine } from "../../src/core/simulation.js";
 import { AbsolutePlusStrategy } from "../../src/strategies/absolute-plus.js";
+import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { GSSStrategy } from "../../src/strategies/gss.js";
 import {
@@ -68,6 +69,15 @@ test("goal mode returns an explicit shortfall when no future events can advance 
   assert.ok(result.goal_outcome.shortfall > 0);
   assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
   assert.equal(result.finalized, true);
+});
+
+test("Absolute goal search evaluates complete goal paths and reports exhaustive proof status", () => {
+  const result = new SimulationEngine().run(new AbsoluteStrategy({ ait_enabled: true }), input(100));
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(result.optimality_proven, true);
+  assert.ok(result.search_diagnostics.goal_candidates_evaluated >= 1);
+  assert.equal(result.search_diagnostics.goal_objective, "earliest consolidation net-interest achievement");
 });
 
 test("Absolute+ evaluates goal candidates against the Greedy baseline with bounded-search diagnostics", () => {
