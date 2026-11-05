@@ -317,6 +317,7 @@ export class SimulationRuntime {
       const channel = source.bank_identity.trim().toUpperCase() === target.bank_identity.trim().toUpperCase()
         ? "intra_bank" : "domestic_ceft";
       provenance.transfer(source.id, target.id, amount, fee);
+      if (target.id === this.context.consolidation_account_id) provenance.recognizeConsolidationCredit(target.id);
       const sourceBalance = (balances.get(source.id) ?? 0) - amount;
       balances.set(source.id, this.roundBalances ? round2(sourceBalance) : sourceBalance);
       const sourceTotalAfter = this.#totalBalance(balances);
