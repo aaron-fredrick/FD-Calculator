@@ -66,6 +66,10 @@ jobs:
             });
 
             for (const deployment of deployments) {
+              // The environment may already have created the current run's deployment.
+              // Keep that record; only remove deployments superseded by this commit.
+              if (deployment.sha === context.sha) continue;
+
               const statuses = await github.paginate(github.rest.repos.listDeploymentStatuses, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
