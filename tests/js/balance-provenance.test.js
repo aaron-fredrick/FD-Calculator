@@ -62,3 +62,13 @@ test("outflows consume mixed provenance proportionally without reversing histori
   assert.equal(ledger.total("consolidation"), 500);
   assert.equal(ledger.creditedNetInterest, 400);
 });
+
+test("FD cash-flow credit retains uncredited interest reinvested as principal and adds new interest", () => {
+  const ledger = new BalanceProvenance(["fd"]);
+  ledger.addCashFlow("fd", {
+    principal: 100000, uncredited_interest: 2773.97, counted_interest: 0
+  }, 2850.92);
+  assert.deepEqual(ledger.snapshot("fd"), {
+    principal: 100000, uncredited_interest: 5624.89, counted_interest: 0
+  });
+});
