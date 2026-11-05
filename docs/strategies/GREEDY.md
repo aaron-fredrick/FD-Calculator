@@ -186,13 +186,16 @@ Booking and carry events include a `decision_context` with the action and balanc
 
 ## 11. When to use Greedy
 
-Use Greedy when you need:
+Greedy is appropriate when you need a fast, deterministic plan based on the balances and eligible FD options available at each decision boundary.
 
-- A quick result for an input scenario.
-- A baseline against which to compare Absolute+ or Absolute.
-- A simple, deterministic strategy without the cost of exploring a large search space.
+It is particularly useful when:
 
-Use a search-based strategy when future combinations matter and you need broader exploration. Use Absolute when a completed exhaustive search and an optimality proof are required and the scenario is tractable.
+- The scenario needs a quick result with low planning overhead.
+- The decision policy should remain simple and explainable.
+- Immediate rate-first selection is acceptable, even when it may not maximise total return over the full horizon.
+- You want a predictable baseline policy for operational use.
+
+Greedy is not appropriate when the requirement is to evaluate complete alternative future decision paths or to prove that the resulting portfolio is globally optimal. Its decisions are intentionally local, and its result should be interpreted with that limitation in mind.
 
 ## 12. Source map
 
