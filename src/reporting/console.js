@@ -79,6 +79,10 @@ export function formatSimulation(result,config,configPath,optionsPath,{color:use
   out.push(summaryLine("Elapsed Days",g.elapsed_days===null?"—":String(g.elapsed_days),C.date,useColor));
   out.push(summaryLine(g.achieved?"Overshoot":"Remaining Shortfall",money(g.achieved?g.overshoot:g.shortfall)+" LKR",C.transfer,useColor));
   out.push("  Goal accounting counts first-time net interest credited to the consolidation account; principal is excluded.");
+  if(result.search_diagnostics?.goal_candidates_evaluated!==undefined){
+    out.push(summaryLine("Goal Candidates Evaluated",String(result.search_diagnostics.goal_candidates_evaluated),C.date,useColor));
+    out.push(summaryLine("Search Optimality",result.search_diagnostics.optimality_proven?"PROVEN":"NOT PROVEN (bounded search)",result.search_diagnostics.optimality_proven?C.cash:C.outflow,useColor));
+  }
  }
   out.push("",line("="),"  GRAND SUMMARY  ["+result.strategy_name+"]",line("-"));
  const totalRet=result.total_principal>0?result.total_interest/result.total_principal*100:0,netRet=result.total_principal>0?result.net_interest_after_ait/result.total_principal*100:0,annual=xirr(result);
