@@ -194,6 +194,34 @@ test("Greedy goal mode chooses the earliest credited-interest payout and respond
   assert.equal(largerTarget.end_date.toISOString().slice(0, 10), largerTarget.goal_outcome.achievement_date);
 });
 
+test("Greedy goal mode consolidates other accounts into the goal account before earning interest", () => {
+  const scenario = input(1);
+  scenario.accounts = [
+    new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 }),
+    new Account({ id: "reserve", bank_id: "BANK_A", bank_key: "a", balance: 100000 })
+  ];
+  scenario.inflow_account_id = "main";
+  scenario.consolidation_account_id = "main";
+  scenario.options = [
+    new FDOption({
+      label: "30-day cumulative", period_str: "30d", annual_rate: 5,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    }),
+    new FDOption({
+      label: "Annual cumulative", period_str: "1y", annual_rate: 15,
+      min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+    })
+  ];
+
+  const result = new SimulationEngine().run(new GreedyStrategy({ ait_enabled: true }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.ok(Object.values(result.timeline).flat().some(event =>
+    event.event_type === "transfer" && event.label.startsWith("Transfer to Main")
+  ));
+  assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
+});
+
 test("Greedy and GSS use the same shared goal outcome and stopping contract", () => {
   for (const strategy of [
     new GreedyStrategy({ ait_enabled: true }),
