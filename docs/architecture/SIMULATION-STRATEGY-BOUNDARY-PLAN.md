@@ -212,7 +212,7 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 |---|---|---|
 | Plan | Complete | Documented and linked in VitePress Architecture navigation. PR #45. |
 | 0 — Baseline | Complete with a fixture gap carried into Phase 1 | Existing CI suite passes; call paths and regression coverage mapped. Add explicit canonical cross-strategy event-ledger snapshots before the first strategy migration. |
-| 1 — Foundation | Ready to start | Finalize the contract and build the shared execution foundation without changing strategy algorithms. |
+| 1 — Foundation | In progress | Added revision-bound immutable planning/signal contracts and authoritative account-state primitive. Shared chronological executor and adapter are not implemented yet. |
 | 2 — Greedy | Not started | Preserve decision semantics. |
 | 3 — Search | Not started | Preserve hypothetical search and actual replay parity. |
 | 4 — GSS | Not started | Preserve recursive forecast semantics. |
@@ -271,3 +271,25 @@ The current test suite and docs build are green, and the execution paths are suf
 - GAML/Absolute hypothetical search remains strategy-owned; actual replay moves to the simulation layer.
 - Final consolidation remains a single engine-owned operation after the overall horizon.
 - The exact strategy contract and batch-search integration are deliberately finalized in Phase 0/1 using call-path and baseline evidence, rather than assumed in advance.
+
+
+### Phase 1 progress (2026-11-05)
+
+**Contract decision**
+
+- Added `src/core/strategy-contracts.js` with immutable planning-view snapshots, revision-bound decision/wait/completion signals, signal validation, and an authoritative account-state primitive.
+- Decisions are explicit `SPLIT`, `CONSOLIDATE`, or `CARRY` plans. Waits request a future boundary; completion is explicit. Every signal carries the state revision so stale planner output can be rejected before execution.
+- `SimulationState` validates balance updates as a batch before applying any mutation and increments its revision only after a non-empty successful update.
+- The initial planning view deliberately exposes account values, not mutable `Account` instances or the authoritative state object.
+- Added focused tests for frozen snapshots, stale revisions, atomic updates, decision-date validation, wait-boundary validation, and completion signals.
+
+**Baseline ledger coverage**
+
+- Added `tests/js/simulation-ledger.test.js`, which normalizes stable financial, booking, account, and event-ledger fields for Greedy, GAML, Absolute, and GSS and verifies repeat-run determinism.
+- This is an initial deterministic regression baseline, not yet a checked-in golden-output fixture. It must not be treated as proof of cross-version financial equivalence; fixed expected snapshots and broader policy coverage remain open work before strategy migration.
+
+**Current boundary**
+
+- No strategy execution path has been migrated.
+- `SimulationEngine` still uses the legacy `strategy.simulate(input)` adapter. The shared chronological executor, outflow settlement integration, decision execution, and compatibility adapter remain to be implemented and tested.
+- Phase 1 remains in progress; do not begin Phase 2.
