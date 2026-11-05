@@ -168,8 +168,7 @@ function runStrategySession(strategy, context) {
   const result = runtime.buildResult();
   if (session.resultMetadata) Object.assign(result, session.resultMetadata);
   return result;
-  }
-
+}
 
 /** Shared entry point for executing and finalizing any strategy exactly once. */
 export class SimulationEngine {
