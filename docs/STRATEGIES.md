@@ -64,6 +64,10 @@ See [GSS implementation details](strategies/GSS.md).
 
 All strategies return an unfinished simulation result. The shared SimulationEngine processes the selected strategy's complete overall horizon, performs exactly one final consolidation sweep, records remaining idle balances, and returns the finalized result. Recursive strategy windows never finalize or sweep independently.
 
+## Strategy performance and sensitivity
+
+See the [strategy sensitivity benchmark](strategies/benchmarks) for reproducible net-interest comparisons across investment horizon, capital, account and bank diversity, inflows and eFD eligibility. It uses the same SimulationEngine and the three web-selectable strategies.
+
 ## Choosing a strategy
 
 - Use **Greedy** for a quick baseline.
