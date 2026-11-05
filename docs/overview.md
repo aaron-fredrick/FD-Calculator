@@ -13,8 +13,8 @@ Both applications use the same JavaScript calculation engine. The browser and CL
 
 ## Main areas of the repository
 
-- `src/core/` — financial domain, configuration, dates, events, simulation and result models.
-- `src/strategies/` — investment decision strategies and shared search algorithms.
+- `src/core/` — financial domain, immutable simulation context, authoritative runtime/state, event progression and result finalization.
+- `src/strategies/` — session-based investment decisions, hypothetical planning and shared search algorithms.
 - `src/fd-options/` — FD candidate discovery, eligibility and ordering.
 - `src/reporting/` — shared result formatting and standalone HTML reports.
 - `src/io/` — CSV parsing and Node-side data loading.
@@ -25,7 +25,8 @@ Both applications use the same JavaScript calculation engine. The browser and CL
 
 ## Important boundaries
 
-- Strategies make investment decisions; the simulation engine owns the overall event lifecycle and finalisation.
+- Production strategies expose `createSession(context)` and return immutable decisions; they do not execute the authoritative simulation.
+- `SimulationRuntime` owns actual event progression, outflow settlement, transfers, bookings and result construction. `SimulationEngine` owns session driving and exactly-once finalisation.
 - FDOptionManager owns FD candidate eligibility and ordering. Strategies consume its ordered candidates.
 - The final consolidation sweep belongs to the shared simulation lifecycle, not an individual strategy.
 - The `archive/` directory preserves the legacy Python project and should not be changed during normal JavaScript development.
@@ -34,6 +35,7 @@ Both applications use the same JavaScript calculation engine. The browser and CL
 
 - [Getting started](/guide/getting-started)
 - [Strategy comparison](/STRATEGIES)
+- [Simulation lifecycle](/SIMULATION-LIFECYCLE)
 - [Codebase map](/reference/CODEBASE)
 - [Migration plan](/MIGRATION_PLAN)
 - [Contributor guide](/guide/contributing)
