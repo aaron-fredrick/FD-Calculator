@@ -302,3 +302,12 @@ The current test suite and docs build are green, and the execution paths are suf
 - Constraint: keep one common scenario valid for all four strategies; do not weaken search input validation to accommodate a test fixture.
 - Correction: add an equivalent BANK_B product to the fixture, preserving the two-bank consolidation/fee scenario.
 - Regression coverage: the normalized ledger test continues to execute and compare deterministic outputs for all four strategies. CI rerun is pending.
+
+**Issue note — ISO date validator escaping**
+
+- Symptom: code review of the added planning-view validation found the regular expression contained a doubled backslash and would match a literal backslash rather than date digits.
+- Reproduction: inspect `requireISODate()`; the pattern was `/^\\\\d{4}-\\\\d{2}-\\\\d{2}$/` in source.
+- Root cause: escaping was applied twice while generating the source text through the repository API.
+- Constraint: the contract must reject malformed dates without accepting a non-date string.
+- Correction: reduce the regex escaping to the JavaScript regex digit token (`\d`).
+- Regression coverage: malformed date inputs are covered by `strategy-contracts.test.js`; CI rerun is pending.
