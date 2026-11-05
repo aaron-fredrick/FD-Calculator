@@ -6,8 +6,8 @@ FD Cal is a fixed-deposit planning and simulation tool. It models bank FD produc
 
 | Application | Purpose | Available strategies |
 |---|---|---|
-| Web application | Configure scenarios and inspect interactive results | Greedy, GAML, GSS |
-| Node.js CLI | Run scenarios, diagnostics and regression workflows | Greedy, GAML, GSS, Absolute |
+| Web application | Configure scenarios and inspect interactive results | Greedy, Absolute+, GSS |
+| Node.js CLI | Run scenarios, diagnostics and regression workflows | Greedy, Absolute+, GSS, Absolute |
 
 Both applications use the same JavaScript calculation engine. The browser and CLI are runtime adapters; they must not implement separate financial or strategy logic.
 
