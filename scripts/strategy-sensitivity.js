@@ -6,7 +6,6 @@ import { SimulationEngine } from "../src/core/simulation.js";
 import { GreedyStrategy } from "../src/strategies/greedy.js";
 import { GAMLStrategy } from "../src/strategies/gaml.js";
 import { GSSStrategy } from "../src/strategies/gss.js";
-import { AbsoluteStrategy } from "../src/strategies/absolute.js";
 
 const START = "2026-11-05";
 const BANK_IDS = [
@@ -92,13 +91,13 @@ function makeInflows(kind, accountId, end) {
 
 const strategies = [
   ["Greedy", () => new GreedyStrategy({ ait_enabled: true })],
-  ["GAML", () => new GAMLStrategy({ ait_enabled: true, beam_width: 128, max_local_branches: 64 })],
+  ["GAML", () => new GAMLStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48 })],
   ["GSS", () => new GSSStrategy({ ait_enabled: true, small_period_days: 30 })]
 ];
 const results = [];
 function runCase(category, value, {
   months = 24, capital = 300000, accountCount = 3, bankCount = 3,
-  inflow = "none", efd = true, includeAbsolute = false
+  inflow = "none", efd = true
 } = {}) {
   const end = formatISODate(addPeriod(START, months + "m"));
   const accounts = makeAccounts(accountCount, capital, bankCount, efd);
@@ -113,20 +112,14 @@ function runCase(category, value, {
     outflow_schedule: {},
     fee_config: feeConfig
   };
-  const selected = [...strategies];
-  if (includeAbsolute) selected.push(["Absolute", () => new AbsoluteStrategy({
-    ait_enabled: true,
-    max_decisions: 50000,
-    max_local_branches: 64
-  })]);
-  for (const [name, makeStrategy] of selected) {
+  for (const [name, makeStrategy] of strategies) {
     const started = Date.now();
     const result = engine.run(makeStrategy(), input);
     const duration = Date.now() - started;
     if (!result.finalized || !Number.isFinite(result.net_interest_after_ait)) {
       throw new Error(name + " produced an invalid result for " + category + "/" + value);
     }
-    results.push({
+    const row = {
       category, value, strategy: name, months, capital,
       accounts: accountCount, banks: bankCount, inflow, efd,
       net_interest: Number(result.net_interest_after_ait.toFixed(2)),
@@ -140,24 +133,26 @@ function runCase(category, value, {
       duration_ms: duration,
       optimality_proven: result.optimality_proven ?? null,
       search_expanded: result.search_diagnostics?.expanded_states ?? null
-    });
+    };
+    results.push(row);
+    process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify({ category, value, strategy: name, net_interest: row.net_interest, duration_ms: duration }) + "\\n");
   }
 }
 
 // One-factor-at-a-time sweeps. All strategies receive identical inputs per point.
-for (const months of [6, 12, 24, 36]) {
-  runCase("horizon_months", months, { months, includeAbsolute: months === 6 });
+for (const months of [6, 12, 24]) {
+  runCase("horizon_months", months, { months });
 }
-for (const capital of [25000, 50000, 100000, 250000, 500000, 1000000]) {
+for (const capital of [25000, 100000, 300000, 1000000]) {
   runCase("starting_capital_lkr", capital, { capital });
 }
-for (const accountCount of [1, 2, 3, 4]) {
+for (const accountCount of [1, 2, 3]) {
   runCase("account_count", accountCount, { accountCount, capital: 300000, bankCount: 3 });
 }
 for (const bankCount of [1, 2, 3]) {
   runCase("bank_count", bankCount, { accountCount: bankCount, capital: 300000, bankCount });
 }
-for (const inflow of ["none", "monthly_10k", "quarterly_30k", "lump_100k"]) {
+for (const inflow of ["none", "monthly_10k", "lump_100k"]) {
   runCase("inflow_pattern", inflow, { inflow });
 }
 for (const efd of [false, true]) {
