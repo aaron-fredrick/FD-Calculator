@@ -380,3 +380,12 @@ The current test suite and docs build are green, and the execution paths are suf
 - Constraint: decision context is part of the observable event ledger and must preserve the strategy's original snapshot semantics.
 - Correction: capture the decision-start balances before executing the staged transfers and pass that snapshot to the consolidation booking; split bookings continue to snapshot immediately before each booking.
 - Regression coverage: the frozen legacy Greedy oracle compares the normalized full event ledger, including decision context.
+
+**Phase 3 issue note — search projection cent rounding during replay**
+
+- Symptom: GAML and Absolute session replay rejected a local booking although the selected search path considered it eligible.
+- Reproduction: the search projection requested a principal of 40,314.91 while the actual runtime balance was 40,314.9095890411; the 0.0004109589 difference came from search-state cent rounding.
+- Root cause: hypothetical search states use rounded balances, while the legacy replay executor books the authoritative actual account balance. The first shared runtime required near-exact principal equality and therefore rejected a valid whole-account booking.
+- Constraint: preserve search's rounded projection model while replaying against actual balances; do not round or alter authoritative balances merely to satisfy the hypothetical plan.
+- Correction: when requested principal and actual available balance differ by no more than the existing 0.001 financial epsilon, execute the full authoritative balance. Larger mismatches remain invalid.
+- Regression coverage: cross-strategy ledger tests and the frozen GAML/Absolute replay oracle verify financial and event-ledger parity.
