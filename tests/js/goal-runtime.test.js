@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { SimulationEngine } from "../../src/core/simulation.js";
 import { AbsolutePlusStrategy } from "../../src/strategies/absolute-plus.js";
+import { GreedyStrategy } from "../../src/strategies/greedy.js";
+import { GSSStrategy } from "../../src/strategies/gss.js";
 import {
   createStrategyDecision, createStrategyComplete, StrategyDecisionType
 } from "../../src/core/strategy-contracts.js";
@@ -160,4 +162,18 @@ test("interest transferred to consolidation is counted before a same-signal rein
   assert.ok(result.credited_net_interest >= 100);
   assert.ok(result.provenance.main.counted_interest > 0);
   assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
+});
+
+test("Greedy and GSS use the same shared goal outcome and stopping contract", () => {
+  for (const strategy of [
+    new GreedyStrategy({ ait_enabled: true }),
+    new GSSStrategy({ ait_enabled: true, small_period_days: 30 })
+  ]) {
+    const result = new SimulationEngine().run(strategy, input(1));
+    assert.equal(result.valid, true);
+    assert.equal(result.simulation_mode, "goal");
+    assert.ok(result.goal_outcome);
+    assert.ok(["goal_achieved", "maximum_end_date_reached"].includes(result.goal_outcome.stopping_reason));
+    assert.equal(result.finalized, true);
+  }
 });
