@@ -36,7 +36,7 @@ async function main() {
   const cli = parseArgs(process.argv.slice(2));
   if (cli.help) {
     console.log([
-      "Usage: npm run cli -- [--config config.json] [--strategy greedy|gaml|absolute|gss]",
+      "Usage: npm run cli -- [--config config.json] [--strategy greedy|absolute-plus|absolute|gss]",
       "Absolute+ settings: --beam-width N --max-local-branches N|none --max-decisions N|none",
       "GSS setting: --small-period-days N (default: 30)"
     ].join("\n"));
@@ -44,8 +44,9 @@ async function main() {
   }
 
   const loaded = await loadConfigurationFromFile(cli.config);
-  const selected = String(cli.strategy || loaded.raw.strategy || "absolute").trim().toLowerCase();
-  if (!["greedy", "gaml", "absolute", "gss"].includes(selected)) throw new Error("Unsupported strategy " + selected + "; use greedy, gaml, absolute or gss.");
+  const requestedStrategy = String(cli.strategy || loaded.raw.strategy || "absolute").trim().toLowerCase();
+  const selected = requestedStrategy === "absolute-plus" ? "gaml" : requestedStrategy;
+  if (!["greedy", "gaml", "absolute", "gss"].includes(selected)) throw new Error("Unsupported strategy " + selected + "; use greedy, absolute-plus, absolute or gss.");
 
   const config = validateConfiguration(loaded.raw, {
     bankRegistry: loaded.bankRegistry, bankKeyById: loaded.bankKeyById,
