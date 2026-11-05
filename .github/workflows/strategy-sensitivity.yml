@@ -4,7 +4,6 @@ on:
     paths:
       - "scripts/strategy-sensitivity.js"
       - "scripts/gaml-sensitivity.js"
-      - "scripts/goal-achievement-sensitivity.js"
       - "src/core/**"
       - "src/strategies/**"
       - "src/fd-options/**"
@@ -28,8 +27,6 @@ jobs:
         run: node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
       - name: Run GAML search sensitivity study
         run: node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
-      - name: Run goal achievement sensitivity study
-        run: node scripts/goal-achievement-sensitivity.js | tee goal-achievement-sensitivity-output.txt
       - name: Upload benchmark output
         uses: actions/upload-artifact@v6
         with:
@@ -37,5 +34,4 @@ jobs:
           path: |
             strategy-sensitivity-output.txt
             gaml-sensitivity-output.txt
-            goal-achievement-sensitivity-output.txt
           retention-days: 14
