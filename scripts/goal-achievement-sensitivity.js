@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { parseCSV } from "../src/io/csv.js";
 import { Account, FDOption, TransferFeeConfig } from "../src/core/models.js";
-import { addPeriod, formatISODate } from "../src/core/dates.js";
+import { addPeriod, formatISODate, daysBetween } from "../src/core/dates.js";
 import { SimulationEngine } from "../src/core/simulation.js";
 import { GreedyStrategy } from "../src/strategies/greedy.js";
 import { AbsolutePlusStrategy } from "../src/strategies/absolute-plus.js";
@@ -106,7 +106,8 @@ function runPoint(category, value, {
       inflow, efd: efd ? "eligible" : "standard_only",
       achieved: goal.achieved, achievement_date: goal.achievement_date,
       days_to_achievement: goal.achieved && Number.isFinite(goal.elapsed_days) ? goal.elapsed_days : null,
-      actual_duration_days: Number.isFinite(goal.elapsed_days) ? goal.elapsed_days : null,
+      actual_duration_days: daysBetween(START, formatISODate(result.end_date)),
+      stopping_date: formatISODate(result.end_date),
       actual_net_interest_at_achievement: goal.achieved ? Number(goal.actual.toFixed(2)) : null,
       credited_net_interest_at_stop: Number(result.credited_net_interest.toFixed(2)),
       final_net_interest_after_ait: Number(result.net_interest_after_ait.toFixed(2)),
@@ -130,8 +131,8 @@ function runPoint(category, value, {
       optimality_proven: result.search_diagnostics?.optimality_proven ?? null,
       stopping_reason: goal.stopping_reason,
       target_attainment_pct: Number((result.credited_net_interest / target * 100).toFixed(3)),
-      credited_interest_per_day_lkr: Number.isFinite(goal.elapsed_days) && goal.elapsed_days > 0
-        ? Number((result.credited_net_interest / goal.elapsed_days).toFixed(4)) : null,
+      credited_interest_per_day_lkr: daysBetween(START, formatISODate(result.end_date)) > 0
+        ? Number((result.credited_net_interest / daysBetween(START, formatISODate(result.end_date))).toFixed(4)) : null,
       fees_pct_of_credited_interest: result.credited_net_interest > 0
         ? Number((result.total_transfer_fees / result.credited_net_interest * 100).toFixed(3)) : null,
       target_overshoot_lkr: goal.achieved ? Number((goal.actual - target).toFixed(2)) : 0
