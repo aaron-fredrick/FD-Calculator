@@ -215,8 +215,8 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 | 1 — Foundation | Complete | Added normalized context, revision-bound planning contracts, shared chronological runtime, transactional decision execution, session runner, and legacy strategy adapter. Greedy now consumes the session contract. |
 | 2 — Greedy | Complete | Greedy planning is session-based; actual execution moved to SimulationRuntime. A frozen pre-refactor oracle verifies the normalized financial/event ledger, and CI passes. |
 | 3 — Search | Complete | GAML/Absolute retain their search algorithms and diagnostics while selected paths execute through SimulationRuntime. Frozen legacy replay parity tests pass. |
-| 4 — GSS | In progress | Recursive GSS planning now produces a hypothetical decision path; SimulationRuntime replays it, including same-date action batches. Frozen legacy parity coverage is in place; latest batch and encapsulation changes need CI validation. |
-| 5 — Enforcement | Not started | Remove adapters and enforce ownership. |
+| 4 — GSS | Complete | Recursive planning remains hypothetical and emits decision paths; SimulationRuntime owns actual replay. Legacy GSS ledger/diagnostic parity and atomic batch tests pass. |
+| 5 — Enforcement | In progress | Remove strategy `simulate()` adapters, route the search incumbent through SimulationEngine, and add architecture tests proving strategies expose planning sessions rather than execution entry points. |
 | 6 — Documentation | Not started | Align docs after implementation. |
 
 ### Phase 0 findings (2026-11-05)
@@ -425,3 +425,18 @@ The current test suite and docs build are green, and the execution paths are suf
 - Runtime options preserve GSS-specific legacy semantics: cent rounding, opening-balance trigger behaviour, and outflow ordering.
 - Added a frozen legacy GSS oracle covering future inflows, recursive parent contraction, consolidation, and strict outflows. Full-ledger parity and existing GSS tests passed on the initial migration validation.
 - The latest changes encapsulating the hypothetical planner and adding explicit atomic-batch tests still require CI validation. Phase 4 remains in progress.
+
+
+### Phase 4 completion — GSS
+
+- GSS's recursive goal frames, ancestor reforecasting, contraction, early-goal execution, candidate ordering, and interim-plan selection remain in its private hypothetical planner.
+- The planner records the selected sequence as structured decisions. GSS no longer returns its hypothetical ledger as the actual result; its session replays that path through SimulationRuntime.
+- Same-date GSS decisions are represented as one atomic BATCH signal, preserving order while ensuring all staged balance/event/booking/fee changes commit together or not at all.
+- Runtime configuration preserves GSS's cent rounding, opening-trigger insertion, and outflow ordering. Booking and carry decision contexts and the strategy's decision log/diagnostics are retained.
+- Frozen legacy parity tests cover future inflows, recursive parent contraction, cross-bank consolidation, and strict outflows. Existing GSS tests, full ledger parity tests, atomic batch tests, JavaScript tests, and full Node tests passed on the latest GSS migration validation.
+- Phase 4 is complete.
+
+**Phase 4 issue notes**
+
+- Symptom: the first batch-executor test run raised a ReferenceError while validating the new BATCH action. Root cause: the runtime used `StrategyDecisionType.BATCH` without importing `StrategyDecisionType`. Correction: add the explicit import. Regression coverage: atomic batch tests and GSS parity tests.
+- Symptom: the first GSS parity test reported empty legacy account balances while migrated balances were populated. Root cause: the legacy GSS result stores accounts in a `Map`, while the runtime result stores them in an object; the test normalizer used `Object.entries(Map)`. Correction: normalize both supported account containers. Regression coverage: all four frozen GSS parity scenarios now pass.
