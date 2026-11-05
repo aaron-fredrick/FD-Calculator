@@ -645,7 +645,6 @@ export class SearchStrategyBase {
               option_index: optionIndex(item.option),
               principal: item.principal
             })),
-            booking_snapshot: "decision_start",
             carries: action.carries,
             carry_label: "Holding liquidity"
           }
