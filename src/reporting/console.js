@@ -78,7 +78,7 @@ export function formatSimulation(result,config,configPath,optionsPath,{color:use
   out.push(summaryLine("Achievement Date",g.achievement_date??"—",C.date,useColor));
   out.push(summaryLine("Elapsed Days",g.elapsed_days===null?"—":String(g.elapsed_days),C.date,useColor));
   out.push(summaryLine(g.achieved?"Overshoot":"Remaining Shortfall",money(g.achieved?g.overshoot:g.shortfall)+" LKR",C.transfer,useColor));
-  out.push("  Goal accounting counts first-time net interest credited to the consolidation account; principal is excluded.");
+  out.push("  Goal accounting counts first-time net interest credited to consolidation after AIT and its proportional transfer-fee share; principal is excluded. Portfolio-wide net interest subtracts all transfer fees, including fees allocated to principal, so the two totals can differ.");
   if(result.search_diagnostics?.goal_candidates_evaluated!==undefined){
     out.push(summaryLine("Goal Candidates Evaluated",String(result.search_diagnostics.goal_candidates_evaluated),C.date,useColor));
     out.push(summaryLine("Invalid Goal Candidates",String(result.search_diagnostics.goal_invalid_candidates??0),C.outflow,useColor));
