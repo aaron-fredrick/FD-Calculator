@@ -764,6 +764,7 @@ export class GSSStrategy {
             today, targetDate, depth + 1, recurseFurther,
             [...parentGoals, goalFrame]
           );
+          if (goalAchieved()) return today;
 
           // An ancestor may become viable or receive a contracted forecast
           // while this frame is nested. Only its owning frame may execute it.
@@ -784,6 +785,7 @@ export class GSSStrategy {
           if (forecastInterrupt?.frame === goalFrame) {
             today = forecastInterrupt.targetDate;
             processDate(today);
+            if (goalAchieved()) return today;
             const contractedPlans = buildPlans(candidate, today, balanceSnapshot(), horizon, pending, parentGoals);
             if (contractedPlans.length) {
               executePlan(selectPlan(contractedPlans, today), today, initialDate, candidate);
