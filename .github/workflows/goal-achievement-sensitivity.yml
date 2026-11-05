@@ -31,5 +31,5 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: goal-achievement-sensitivity-results
-          path: goal-achievement-sensitivity-output.txt
+          path: |\n            goal-achievement-sensitivity-output.txt\n            docs/strategies/assets/goal-achievement/
           retention-days: 30
