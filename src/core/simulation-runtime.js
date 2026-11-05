@@ -20,7 +20,8 @@ const keyDate = key => String(key).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"
 export class SimulationRuntime {
   constructor(context, {
     strategy_name = "Strategy", compound = false, actual_leap_year = true,
-    ait_enabled = false, ait_rate = 0.10, outflow_account_tiebreak = false
+    ait_enabled = false, ait_rate = 0.10, outflow_account_tiebreak = false,
+    outflow_due_date_sort = "iso", round_balances = false, opening_trigger_always = false
   } = {}) {
     if (!context?.accounts?.length || !context?.options?.length) {
       throw new TypeError("SimulationRuntime requires a normalized simulation context.");
@@ -33,6 +34,9 @@ export class SimulationRuntime {
     this.aitRate = Number(ait_rate);
     this.effectiveAitRate = ait_enabled ? this.aitRate : 0;
     this.outflowAccountTiebreak = Boolean(outflow_account_tiebreak);
+    this.outflowDueDateSort = outflow_due_date_sort;
+    this.roundBalances = Boolean(round_balances);
+    this.openingTriggerAlways = Boolean(opening_trigger_always);
     this.accounts = new Map(context.accounts.map(account => [account.id, new Account({
       id: account.id, bank_id: account.bank_id, bank_key: account.bank_key,
       label: account.label, balance: account.balance, supports_efd: account.supports_efd
@@ -82,7 +86,8 @@ export class SimulationRuntime {
       }
     }
     const startKey = dateKey(this.context.start);
-    if (!this.timeline[startKey] && [...this.accounts.values()].some(account => account.balance > EPS)) {
+    if ((this.openingTriggerAlways || !this.timeline[startKey]) &&
+        [...this.accounts.values()].some(account => account.balance > EPS)) {
       const account = this.accounts.get(this.context.inflow_account_id);
       this.schedule(new Event({
         event_type: EventType.INFLOW, on_date: this.context.start, amount: 0,
@@ -138,7 +143,8 @@ export class SimulationRuntime {
       if (![EventType.INFLOW, EventType.CASH_FLOW, EventType.MATURITY].includes(event.event_type)) continue;
       const account = this.accounts.get(event.account_id) ?? this.accounts.get(this.context.inflow_account_id);
       if (!account) throw new RangeError("Event references an unknown account.");
-      balances.set(account.id, (balances.get(account.id) ?? 0) + event.amount);
+      const nextBalance = (balances.get(account.id) ?? 0) + event.amount;
+      balances.set(account.id, this.roundBalances ? round2(nextBalance) : nextBalance);
       event.account_id = account.id;
       event.bank_key = account.bank_key;
       event.bank_id = account.bank_id;
@@ -158,7 +164,9 @@ export class SimulationRuntime {
     const remaining = [];
     this.pending.sort((a, b) =>
       (POLICY_ORDER[a.payment_policy] ?? 3) - (POLICY_ORDER[b.payment_policy] ?? 3) ||
-      formatISODate(a.due_date).localeCompare(formatISODate(b.due_date)) ||
+      (this.outflowDueDateSort === "string"
+        ? String(a.due_date).localeCompare(String(b.due_date))
+        : formatISODate(a.due_date).localeCompare(formatISODate(b.due_date))) ||
       (this.outflowAccountTiebreak ? a.account_id.localeCompare(b.account_id) : 0));
     for (const obligation of this.pending) {
       const account = this.accounts.get(obligation.account_id);
