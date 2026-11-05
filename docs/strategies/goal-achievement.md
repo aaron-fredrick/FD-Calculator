@@ -94,35 +94,30 @@ Outflows are excluded from the primary sensitivity matrix even though the shared
 
 <text color="secondary" size="xs">Run: 5 November 2026 · 72 strategy runs · 24 one-factor test points · AIT enabled · simple interest · no outflows</text>
 
-The base case is LKR 300,000 across three accounts and three banks, with eFD eligibility enabled and a 12-month maximum horizon. The following table reports the goal-target sweep from the measured run.
+> **Benchmark refresh in progress:** the first sensitivity run replayed Absolute+ candidates without inheriting the strategy's AIT settings. The candidate replay now preserves AIT, compounding, and runtime settings. Absolute+ results and charts from the earlier artifact are superseded; the new 72-run study is running before refreshed values are published. Greedy and GSS rows below remain valid.
+
+The base case is LKR 300,000 across three accounts and three banks, with eFD eligibility enabled and a 12-month maximum horizon. The following table reports the valid Greedy/GSS goal-target results; Absolute+ is pending the corrected replay benchmark.
 
 | Goal target | Greedy | Absolute+ | GSS |
 |---:|---:|---:|---:|
-| LKR 10,000 | 365 days · LKR 28,824 | **151 days · LKR 10,473** | 300 days · LKR 23,297 |
-| LKR 25,000 | 365 days · LKR 28,824 | 365 days · LKR 27,320 | 330 days · LKR 25,151 |
-| LKR 50,000 | Not reached · LKR 28,824 | Not reached · LKR 29,692 | Not reached · LKR 27,077 |
-| LKR 75,000 | Not reached · LKR 28,824 | Not reached · LKR 29,692 | Not reached · LKR 27,077 |
-| LKR 100,000 | Not reached · LKR 28,824 | Not reached · LKR 29,692 | Not reached · LKR 27,077 |
+| LKR 10,000 | 365 days · LKR 28,824 | Rerun pending | 300 days · LKR 23,297 |
+| LKR 25,000 | 365 days · LKR 28,824 | Rerun pending | 330 days · LKR 25,151 |
+| LKR 50,000 | Not reached · LKR 28,824 | Rerun pending | Not reached · LKR 27,077 |
+| LKR 75,000 | Not reached · LKR 28,824 | Rerun pending | Not reached · LKR 27,077 |
+| LKR 100,000 | Not reached · LKR 28,824 | Rerun pending | Not reached · LKR 27,077 |
 
 *For achieved cases, the value is net interest credited at the first achievement boundary. For unachieved cases, it is credited net interest at the maximum boundary.*
 
-![Goal target sensitivity: days to achievement](assets/goal-achievement/goal-target.svg)
-
-![Starting capital sensitivity: credited net interest](assets/goal-achievement/starting-capital.svg)
-
-![Maximum horizon sensitivity: credited net interest](assets/goal-achievement/maximum-horizon.svg)
-
 Key observations:
 
-- Absolute+ reached the LKR 10,000 target in 151 days, compared with 300 days for GSS and 365 days for Greedy. This is the clearest measured case where its goal-aware candidate ranking improved time-to-goal.
-- At LKR 25,000, GSS reached the target in 330 days; Greedy and Absolute+ reached it at the 365-day final-consolidation boundary.
-- LKR 50,000 and higher were not reached within 12 months from the LKR 300,000 base case. Absolute+ ended with the highest credited amount in this group, but still had a LKR 20,307.70 shortfall at LKR 50,000.
-- With LKR 1,000,000 starting capital and a LKR 50,000 target, GSS achieved in 300 days; Greedy and Absolute+ achieved at the 365-day boundary.
-- Extending the base case to 24 months allowed all three strategies to reach LKR 50,000 only at the 731-day boundary. Absolute+ credited LKR 55,699.46, Greedy LKR 61,927.33, and GSS LKR 59,471.46.
+- GSS reached the LKR 10,000 target in 300 days and LKR 25,000 in 330 days; Greedy reached both at the 365-day final-consolidation boundary.
+- LKR 50,000 and higher were not reached within 12 months from the LKR 300,000 base case by Greedy or GSS.
+- With LKR 1,000,000 starting capital and a LKR 50,000 target, GSS achieved in 300 days and Greedy achieved at the 365-day boundary.
+- Extending the base case to 24 months allowed Greedy and GSS to reach LKR 50,000 at the 731-day boundary.
 
-Absolute+ used a beam width of 96, local branch limit of 48, and a 5,000-decision cap. In the base goal-target sweep it evaluated 1,113 search states and 172 goal candidates. Its `optimality_proven` flag was false, so the observed 151-day result is the earliest candidate found within the bounded search, not a global-optimality proof.
+Absolute+ uses a beam width of 96, local branch limit of 48, and a 5,000-decision cap in the study. Corrected candidate replay now inherits the same AIT, compounding, and runtime settings as the strategy being evaluated. Search counts, proof status, and Absolute+ outcome values will be published from the corrected run.
 
-The full 72-row machine-readable output, including per-run fees, booking counts, runtime, search expansions, candidate counts, and proof status, is attached to the [Goal Achievement Sensitivity workflow run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) as the `goal-achievement-sensitivity-results` artifact. The artifact is retained for 30 days.
+The superseded 72-row output remains available in [the earlier workflow run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096425770) for audit only. The corrected run will publish a replacement machine-readable artifact with per-run fees, booking counts, runtime, search expansions, candidate counts, and proof status.
 
 These results are a measured baseline, not a universal ranking. GSS can reach some targets earlier despite lower final credited interest; Absolute+ can improve early achievement in some cases but remains bounded by its search budget. Outflows were excluded from this sensitivity matrix. The shared runtime now has regression coverage for strict, defer, and best-effort policies, multi-account isolation, same-day credited-interest withdrawals, and provenance consumption; a separate outflow sensitivity matrix is still required before drawing performance conclusions for cash-outflow scenarios.
 
