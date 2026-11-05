@@ -256,22 +256,50 @@ outflow accounting is verified.
 ## Acceptance gates
 
 - [ ] Legacy time-based and scoped configurations behave identically.
-- [ ] All three modes use one normalized configuration contract and one runtime.
-- [ ] Canonical metric counts only first-time net interest credited to consolidation.
+- [x] All three modes use one normalized configuration contract and one runtime.
+- [x] Canonical metric counts only first-time net interest credited to consolidation.
 - [ ] AIT, principal, mixed transfers, fees, bookings, maturity, and outflows reconcile.
-- [ ] Goal stops at the first valid event boundary and finalizes exactly once there.
-- [ ] Unachieved goal is a valid explicit outcome with a shortfall.
+- [x] Goal stops at the first valid event boundary and finalizes exactly once there.
+- [x] Unachieved goal is a valid explicit outcome with a shortfall.
 - [ ] Greedy and GSS use shared stop semantics.
-- [ ] Absolute+ ranks achievers by earliest achievement within its bounded search.
+- [ ] Absolute+ ranks achievers by earliest achievement within its bounded search (candidate replay is implemented; ranking/tie-breaker regression coverage remains).
 - [ ] CLI, browser UI, schema, validation, and report agree on the mode contract.
 - [ ] Goal sensitivity results are reproducible and do not replace fixed-horizon tests.
 - [ ] Outflow limitations are either resolved by tests or explicitly excluded.
-- [ ] Documentation and examples match shipped behaviour.
+- [x] Documentation and examples describe the implemented behaviour; benchmark results are pending.
 - [ ] Full regression suite and CI pass.
 
-## Current implementation state
+## Current implementation state (updated 6 November 2026)
 
-At the time this plan was added, the branch contained no implementation commits for
-goal-based simulation. The runtime and strategy architecture had been inspected,
-but no baseline test run or code changes had been completed. Do not mark any gate
-complete without a corresponding code change and test evidence.
+### Implemented on this branch
+
+- Added `simulation.mode` validation and normalization for scoped, time-based, and goal-based horizons. Legacy configs without a mode remain scoped.
+- Added post-AIT cash-flow component generation for cumulative, periodic-interest, and installment products.
+- Added provenance buckets for principal, uncredited net interest, and previously counted interest.
+- Added proportional transfer/fee allocation, proportional outflow consumption, and provenance propagation through FD booking and maturity.
+- Added shared-runtime consolidation-credit recognition, first-crossing stop metadata, maximum-boundary shortfall, and goal-aware final-sweep handling.
+- Added Greedy/GSS shared-runtime goal stopping and an Absolute+ goal candidate replay evaluator with lexicographic scoring and bounded-search diagnostics.
+- Migrated CLI and browser configuration inputs; added mode controls, export/import normalization, and goal summaries.
+- Added goal outcome and event-boundary progression to HTML and CLI reports.
+- Added a dedicated goal sensitivity runner and GitHub Actions workflow.
+- Added unit/integration tests for provenance, mixed transfers and fees, AIT component reconciliation, outflows, goal achievement, unreachable goals, final-sweep recognition, same-signal transfer/reinvestment, search evaluation, and report output.
+
+### Verification evidence
+
+- The JavaScript test workflow passed on commit `1ba5cff9df5e840614524599a08ae31d4003c796`.
+- The general test workflow passed on the same commit.
+- The documentation build passed on commit `7afec62fd12f502a762d73f546621565f28eeab1`.
+- A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
+- Dedicated goal sensitivity workflow is running; measured results have not yet been reviewed or committed.
+- A clean pre-change baseline was not captured. Existing regression tests are being used as compatibility gates instead.
+
+### Remaining work
+
+- Verify the latest commit's full CI and dedicated goal sensitivity run.
+- Review benchmark output for failures, strategy behaviour, and reproducibility; commit measured raw results and charts only after inspection.
+- Add explicit Greedy/GSS goal-mode integration coverage and search ranking/tie-breaker coverage.
+- Complete CLI/web import-export round-trip and browser build checks.
+- Expand multi-account outflow/provenance hardening; outflows remain excluded from the primary goal sensitivity conclusions.
+- Re-run all checks after the final fixes and update every acceptance gate with evidence.
+
+Do not mark the feature complete while any of these items or acceptance gates remain open.
