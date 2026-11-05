@@ -1,4 +1,4 @@
-name: Deploy FD Cal web app
+name: Deploy FD Cal web app and documentation
 on:
   push:
     branches: [main]
@@ -12,12 +12,15 @@ on:
       - "schema/**"
       - "data/**"
       - "docs/**"
+      - "README.md"
+      - "CONTRIBUTING.md"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: write
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -39,6 +42,7 @@ jobs:
           cp -R data site/data
           cp -R schema site/schema
           cp -R docs/. site/docs/
+          cp README.md CONTRIBUTING.md site/
           cat > site/index.html <<'EOF'
           <!doctype html>
           <html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./web/"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FD Cal</title></head><body><p>Opening <a href="./web/">FD Cal</a>…</p></body></html>
@@ -53,6 +57,47 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Remove superseded GitHub Pages deployment records
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: "github-pages",
+              per_page: 100
+            });
+
+            for (const deployment of deployments) {
+              // The environment may already have created the current run's deployment.
+              // Keep that record; only remove deployments superseded by this commit.
+              if (deployment.sha === context.sha) continue;
+
+              const statuses = await github.paginate(github.rest.repos.listDeploymentStatuses, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id,
+                per_page: 100
+              });
+              const latest = statuses[0];
+
+              if (!latest || latest.state !== "inactive") {
+                await github.rest.repos.createDeploymentStatus({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  deployment_id: deployment.id,
+                  state: "inactive",
+                  environment_url: latest && latest.environment_url,
+                  description: "Superseded Pages deployment removed before publishing the current site."
+                });
+              }
+
+              await github.rest.repos.deleteDeployment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id
+              });
+            }
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
