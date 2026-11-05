@@ -153,10 +153,11 @@ function runStrategySession(strategy, context) {
     }
 
     runtime.processDate(nextDate);
-    if (!runtime.valid) break;
+    if (!runtime.valid || runtime.isGoalAchieved()) break;
     const signal = session.nextSignal(runtime.planningView());
     runtime.executeSignal(signal);
-    if (signal.signal_type === StrategySignalType.COMPLETE) break;
+    if (runtime.isGoalAchieved()) break;
+    if (signal.signal_type === StrategySignalType.COMPLETE && context.simulation?.mode !== "goal") break;
     waitUntil = signal.signal_type === StrategySignalType.WAIT ? signal.until : null;
 
     if (runtime.currentDate.getTime() === context.end.getTime() &&
@@ -165,6 +166,7 @@ function runStrategySession(strategy, context) {
     }
   }
 
+  runtime.completeGoalOutcome();
   const result = runtime.buildResult();
   if (session.resultMetadata) Object.assign(result, session.resultMetadata);
   return result;
