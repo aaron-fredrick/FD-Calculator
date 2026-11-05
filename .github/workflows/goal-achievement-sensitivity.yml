@@ -15,7 +15,7 @@ concurrency:
   group: goal-sensitivity-${{ github.ref }}
   cancel-in-progress: true
 permissions:
-  contents: read
+  contents: write
 jobs:
   goal-sensitivity:
     runs-on: ubuntu-latest
@@ -27,9 +27,22 @@ jobs:
           node-version: 22
       - name: Run goal achievement sensitivity study
         run: set -o pipefail && node scripts/goal-achievement-sensitivity.js | tee goal-achievement-sensitivity-output.txt
+      - name: Publish generated goal benchmark charts and data to the feature branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/strategies/assets/goal-achievement/
+            if ! git diff --cached --quiet; then
+              git commit -m "docs: publish goal-mode strategy sensitivity results"
+              git push
+            fi
+          fi
       - name: Upload goal benchmark output
         uses: actions/upload-artifact@v6
         with:
           name: goal-achievement-sensitivity-results
-          path: |\n            goal-achievement-sensitivity-output.txt\n            docs/strategies/assets/goal-achievement/
+          path: |
+            goal-achievement-sensitivity-output.txt
+            docs/strategies/assets/goal-achievement/
           retention-days: 30
