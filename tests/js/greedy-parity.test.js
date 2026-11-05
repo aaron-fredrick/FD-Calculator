@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
+import { SimulationEngine } from "../../src/core/simulation.js";
 import { LegacyGreedyStrategy } from "../fixtures/legacy-greedy-oracle.js";
 
 const date = value => new Date(value).toISOString().slice(0, 10);
@@ -74,6 +75,6 @@ function normalize(result) {
 test("Greedy session migration matches the pre-refactor execution ledger", () => {
   const input = scenario();
   const legacy = new LegacyGreedyStrategy({ ait_enabled: true }).simulate(input);
-  const migrated = new GreedyStrategy({ ait_enabled: true }).simulate(input);
+  const migrated = new SimulationEngine().runUnfinalized(new GreedyStrategy({ ait_enabled: true }), input);
   assert.deepEqual(normalize(migrated), normalize(legacy));
 });
