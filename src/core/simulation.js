@@ -102,7 +102,7 @@ export function finalizeSimulation(result, {
 
   result.total_transfer_fees = Number(result.total_transfer_fees || 0) + finalSweepFees;
   if (provenance) {
-    if (result.goal_outcome && !result.goal_outcome.achieved && !skip_final_sweep) {
+    if (result.valid && result.goal_outcome && !result.goal_outcome.achieved && !skip_final_sweep) {
       provenance.recognizeConsolidationCredit(target.id);
       const actual = provenance.creditedNetInterest;
       const targetAmount = result.goal_outcome.target;
