@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - "src/web/**"
+      - "src/brand/**"
       - "src/core/**"
       - "src/fd-options/**"
       - "src/strategies/**"
@@ -34,8 +35,9 @@ jobs:
         run: npm install --no-save --package-lock=false vitepress@2.0.0-alpha.21
       - name: Assemble static site
         run: |
-          mkdir -p site/web site/docs site/core site/fd-options site/strategies site/io site/reporting
+          mkdir -p site/web site/docs site/brand site/core site/fd-options site/strategies site/io site/reporting
           cp -R src/web/. site/web/
+          cp -R src/brand/. site/brand/
           cp -R src/core/. site/core/
           cp -R src/fd-options/. site/fd-options/
           cp -R src/strategies/. site/strategies/

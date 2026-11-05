@@ -7,6 +7,7 @@ export default defineConfig({
   outDir: '../site/docs',
   lastUpdated: true,
   cleanUrls: false,
+  appearance: 'dark',
 
   themeConfig: {
     siteTitle: 'FD Cal',

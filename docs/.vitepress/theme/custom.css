@@ -1,22 +1,27 @@
+@import "../../../src/brand/tokens.css";
+
 :root {
-  --vp-c-brand-1: #3b82f6;
-  --vp-c-brand-2: #2563eb;
-  --vp-c-brand-3: #1d4ed8;
-  --vp-c-brand-soft: rgba(59, 130, 246, 0.14);
-  --vp-font-family-base: Inter, ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --vp-font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  color-scheme: dark;
+  --vp-c-brand-1: var(--fd-color-accent);
+  --vp-c-brand-2: var(--fd-color-accent-hover);
+  --vp-c-brand-3: var(--fd-color-accent-strong);
+  --vp-c-brand-soft: rgba(86, 180, 233, 0.14);
+  --vp-font-family-base: var(--fd-font-sans);
+  --vp-font-family-mono: var(--fd-font-mono);
   --vp-layout-max-width: 1440px;
 }
 
 .dark {
-  --vp-c-bg: #0b1018;
-  --vp-c-bg-alt: #0e1520;
-  --vp-c-bg-elv: #111b29;
-  --vp-c-bg-soft: #111b29;
-  --vp-c-border: rgba(148, 163, 184, 0.14);
-  --vp-c-divider: rgba(148, 163, 184, 0.12);
-  --vp-c-gutter: #0b1018;
+  --vp-c-bg: var(--fd-color-bg);
+  --vp-c-bg-alt: var(--fd-color-panel);
+  --vp-c-bg-elv: var(--fd-color-panel-raised);
+  --vp-c-bg-soft: var(--fd-color-panel);
+  --vp-c-text-1: var(--fd-color-text);
+  --vp-c-text-2: var(--fd-color-text-muted);
+  --vp-c-text-3: var(--fd-color-text-subtle);
+  --vp-c-border: var(--fd-color-border);
+  --vp-c-divider: var(--fd-color-border);
+  --vp-c-gutter: var(--fd-color-bg);
 }
 
 .VPNavBar {
