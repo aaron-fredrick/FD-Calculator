@@ -3,7 +3,7 @@ import {FDOption} from "../core/models.js";
 import {validateConfiguration,resolveDate} from "../core/configuration.js?v=gss-settings-2";
 import {validateConfigurationShape} from "../core/config-schema.js?v=gss-settings-2";
 import {GreedyStrategy} from "../strategies/greedy.js";
-import {AbsolutePlusStrategy} from "../strategies/gaml.js";
+import {AbsolutePlusStrategy} from "../strategies/absolute-plus.js";
 import {GSSStrategy} from "../strategies/gss.js";
 import {SimulationEngine} from "../core/simulation.js";
 import {generateHtmlReport} from "../reporting/html.js";
