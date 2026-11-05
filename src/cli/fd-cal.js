@@ -5,7 +5,7 @@ import { loadConfigurationFromFile } from "../io/data-loader.js";
 import { validateConfiguration } from "../core/configuration.js";
 import { GreedyStrategy } from "../strategies/greedy.js";
 import { AbsoluteStrategy } from "../strategies/absolute.js";
-import { AbsolutePlusStrategy } from "../strategies/gaml.js";
+import { AbsolutePlusStrategy } from "../strategies/absolute-plus.js";
 import { GSSStrategy } from "../strategies/gss.js";
 import { SimulationEngine } from "../core/simulation.js";
 import { formatSimulation } from "../reporting/console.js";
