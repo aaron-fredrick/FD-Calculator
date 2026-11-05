@@ -216,8 +216,8 @@ Do not hide, bypass, or weaken failing tests to advance a phase. Distinguish pre
 | 2 — Greedy | Complete | Greedy planning is session-based; actual execution moved to SimulationRuntime. A frozen pre-refactor oracle verifies the normalized financial/event ledger, and CI passes. |
 | 3 — Search | Complete | GAML/Absolute retain their search algorithms and diagnostics while selected paths execute through SimulationRuntime. Frozen legacy replay parity tests pass. |
 | 4 — GSS | Complete | Recursive planning remains hypothetical and emits decision paths; SimulationRuntime owns actual replay. Legacy GSS ledger/diagnostic parity and atomic batch tests pass. |
-| 5 — Enforcement | In progress | Remove strategy `simulate()` adapters, route the search incumbent through SimulationEngine, and add architecture tests proving strategies expose planning sessions rather than execution entry points. |
-| 6 — Documentation | Not started | Align docs after implementation. |
+| 5 — Enforcement | Complete | Removed production strategy adapters and legacy engine fallback; immutable contexts/signals and architecture tests enforce the session boundary. CLI/browser remain engine-driven. |
+| 6 — Documentation | In progress | Align lifecycle, architecture, strategy guides, and codebase map with the implemented session/runtime boundary; run the final docs build and full validation. |
 
 ### Phase 0 findings (2026-11-05)
 
@@ -478,3 +478,15 @@ The current test suite and docs build are green, and the execution paths are suf
 - Strategy contexts contain cloned, deeply frozen account, FD option, fee, and cash-flow values. Strategies receive isolated Date copies, not the runtime's authoritative Date objects.
 - Decision, wait, completion, and batch signals are factory-created and deeply immutable; runtime validates the signal revision/date before execution.
 - Added architecture tests for strategy entry points, legacy adapter rejection, runtime/finalization ownership, and CLI/browser engine usage.
+
+
+### Phase 5 completion — enforce ownership
+
+- All production strategies now expose `createSession(context)`; no production strategy class exposes `simulate(input)`.
+- `SimulationEngine.run()` rejects simulate-only strategies and always executes a session through the shared runtime before adding the start marker and finalizing exactly once.
+- The search incumbent projection uses `SimulationEngine.runUnfinalized()`, so even hypothetical incumbent execution is owned by the simulation layer rather than a strategy adapter.
+- The shared session runner is private to the simulation module. Strategies receive deeply immutable input values and read-only revisioned planning views; they cannot mutate runtime account state, options, fee configuration, or cash-flow schedules through the supplied context.
+- Strategy signals and nested plans must be deeply immutable and revision-bound. Stale, malformed, or mutable signals are rejected before execution.
+- Added architecture tests for the absence of strategy `simulate()` methods, rejection of legacy simulate-only strategies, runtime/finalization ownership, and CLI/browser use of SimulationEngine.
+- JavaScript tests passed on commit `c67f024da95f007017bb8124450b22c96d5ee0f3`. The Node 22 full test step also completed successfully on that commit before the workflow was cancelled during cleanup; the immediately preceding full Tests workflow passed on commit `6ba6c8e6ddc48235efb2ba8855a68a6c72c58fcc`.
+- Phase 5 is complete. Phase 6 documentation alignment is now in progress.
