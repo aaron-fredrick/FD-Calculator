@@ -1,6 +1,7 @@
 name: Goal achievement sensitivity study
 on:
-  pull_request:
+  push:
+    branches: ["feature/**"]
     paths:
       - "scripts/goal-achievement-sensitivity.js"
       - "src/core/**"
@@ -10,6 +11,9 @@ on:
       - "data/fd_options/**"
       - ".github/workflows/goal-achievement-sensitivity.yml"
   workflow_dispatch:
+concurrency:
+  group: goal-sensitivity-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
