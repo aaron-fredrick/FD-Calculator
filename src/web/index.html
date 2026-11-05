@@ -1,5 +1,35 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b0e13"><meta name="description" content="Configure and simulate a multi-bank fixed deposit portfolio with FD Cal."><title>FD Cal — Scenario Builder</title><link rel="stylesheet" href="../brand/tokens.css"><link rel="stylesheet" href="./styles.css?v=brand-tokens-1"></head>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b0e13">
+<meta name="color-scheme" content="dark">
+<meta name="application-name" content="FD Cal">
+<meta name="author" content="FD Cal contributors">
+<meta name="description" content="Plan and compare Sri Lankan bank fixed deposits. Simulate FD portfolios across banks, account balances, cash flows, interest rates, tax withholding and investment strategies.">
+<meta name="keywords" content="fixed deposit calculator, Sri Lanka, FD optimiser, fixed deposit simulator, bank interest rates, portfolio planning">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<link rel="canonical" href="https://aaron-fredrick.github.io/FD-Calculator/web/">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="alternate" type="application/rss+xml" title="FD Cal documentation" href="../docs/feed.xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="FD Cal">
+<meta property="og:locale" content="en_LK">
+<meta property="og:title" content="FD Cal — Fixed Deposit Portfolio Optimiser">
+<meta property="og:description" content="Plan and compare Sri Lankan bank fixed deposits. Simulate portfolio allocations, cash flows, interest and strategy outcomes.">
+<meta property="og:url" content="https://aaron-fredrick.github.io/FD-Calculator/web/">
+<meta property="og:image" content="https://aaron-fredrick.github.io/FD-Calculator/og-image.svg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:type" content="image/svg+xml">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FD Cal — Fixed Deposit Portfolio Optimiser">
+<meta name="twitter:description" content="Plan and compare Sri Lankan bank fixed deposits with a multi-strategy portfolio simulator.">
+<meta name="twitter:image" content="https://aaron-fredrick.github.io/FD-Calculator/og-image.svg">
+<title>FD Cal — Sri Lankan Fixed Deposit Portfolio Optimiser</title>
+<link rel="stylesheet" href="../brand/tokens.css">
+<link rel="stylesheet" href="./styles.css?v=brand-tokens-1">
+</head>
 <body><header class="topbar"><a class="brand" href="./"><b>FD CAL</b><small>Fixed deposit optimiser</small></a><div class="top-actions"><span id="catalog-status">Loading bank catalogue…</span><button id="import-config" class="quiet">Import JSON</button><button id="export-config" class="quiet">Export JSON</button><a class="quiet docs-link" href="../docs/" target="_blank" rel="noopener noreferrer">Documentation ↗</a><a class="quiet support-link" href="https://github.com/aaron-fredrick/FD-Calculator/issues/new?template=support.yml" target="_blank" rel="noopener noreferrer">Get support ↗</a><input id="config-file" type="file" accept=".json,application/json" hidden></div></header>
 <main><section class="intro"><div class="eyebrow">Portfolio planning / Sri Lanka</div><h1>Build your FD strategy.</h1><p>Configure your accounts, cash movements and investment window. The browser runs the same JavaScript calculation engine as the CLI. Scenario data stays in this browser.</p></section>
 <div class="layout"><nav class="rail"><a href="#period">01 <span>Investment window</span></a><a href="#accounts">02 <span>Bank accounts</span></a><a href="#cashflows">03 <span>Cash-flow plans</span></a><a href="#strategy">04 <span>Strategy & settings</span></a><div class="rail-note"><b>Local processing</b><p>No account data is uploaded. Export a JSON config to keep a copy.</p></div></nav>

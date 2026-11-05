@@ -6,6 +6,42 @@ export default defineConfig({
   base: '/FD-Calculator/docs/',
   outDir: '../site/docs',
   lastUpdated: true,
+  sitemap: {
+    hostname: 'https://aaron-fredrick.github.io/FD-Calculator/docs/',
+  },
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    ['meta', { name: 'theme-color', content: '#0b0e13' }],
+    ['meta', { name: 'color-scheme', content: 'dark' }],
+    ['meta', { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' }],
+    ['meta', { name: 'author', content: 'FD Cal contributors' }],
+    ['meta', { property: 'og:type', content: 'website' }],
+    ['meta', { property: 'og:site_name', content: 'FD Cal' }],
+    ['meta', { property: 'og:locale', content: 'en_LK' }],
+    ['meta', { property: 'og:image', content: 'https://aaron-fredrick.github.io/FD-Calculator/og-image.svg' }],
+    ['meta', { property: 'og:image:width', content: '1200' }],
+    ['meta', { property: 'og:image:height', content: '630' }],
+    ['meta', { property: 'og:image:type', content: 'image/svg+xml' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ['meta', { name: 'twitter:image', content: 'https://aaron-fredrick.github.io/FD-Calculator/og-image.svg' }],
+  ],
+  transformPageData(pageData) {
+    const relativePath = pageData.relativePath.replace(/\\/g, '/');
+    const route = relativePath === 'index.md'
+      ? ''
+      : relativePath.replace(/index\\.md$/, '').replace(/\\.md$/, '.html');
+    const canonical = 'https://aaron-fredrick.github.io/FD-Calculator/docs/' + route;
+    const description = pageData.frontmatter.description || 'FD Cal documentation for fixed-deposit planning, investment strategies, bank product data and the shared simulation engine.';
+    pageData.frontmatter.head ??= [];
+    pageData.frontmatter.head.push(
+      ['link', { rel: 'canonical', href: canonical }],
+      ['meta', { property: 'og:title', content: pageData.title + ' | FD Cal Documentation' }],
+      ['meta', { property: 'og:description', content: description }],
+      ['meta', { property: 'og:url', content: canonical }],
+      ['meta', { name: 'twitter:title', content: pageData.title + ' | FD Cal Documentation' }],
+      ['meta', { name: 'twitter:description', content: description }],
+    );
+  },
   cleanUrls: false,
   appearance: 'dark',
 
