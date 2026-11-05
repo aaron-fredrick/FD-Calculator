@@ -286,16 +286,16 @@ outflow accounting is verified.
 
 ### Verification evidence
 
-- The JavaScript test workflow passed on commit `1ba5cff9df5e840614524599a08ae31d4003c796`.
-- The general test workflow passed on the same commit.
-- The documentation build passed on commit `7afec62fd12f502a762d73f546621565f28eeab1`.
+- The JavaScript test workflow, including the browser/CLI syntax-check step, passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`.
+- The general Node test workflow passed on the same commit, including strict/defer/best-effort outflow policy and invalid-goal outcome tests.
+- The documentation build passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`.
 - A reporting assertion exposed a missing CLI goal summary; that was fixed in commit `4aa21ad22d64de9f74784e29a971c52f9857ebbe`, whose JavaScript tests passed.
-- Dedicated goal sensitivity workflow passed on commit `e42b09e3cdacaea5624b5089710b0f77d14fbf29`; all 72 strategy runs completed and the measured summary is published in `goal-achievement.md`. The full machine-readable artifact is attached to workflow run [42094818607](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42094818607).
+- Dedicated goal sensitivity workflow passed on commit `accc384cf91ab31066508444e36cb632d497f9e2`; all 72 strategy runs completed and the measured summary is published in `goal-achievement.md`. The full machine-readable artifact is attached to workflow run [42096161209](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42096161209).
 - A clean pre-change baseline was not captured. Existing regression tests are being used as compatibility gates instead.
 
 ### Remaining work
 
-- Verify the latest commit's full CI, CodeQL, dedicated goal sensitivity run, and existing fixed-horizon sensitivity workflow.
+- Verify the documentation-only artifact-link update, CodeQL, and existing fixed-horizon sensitivity workflow; the goal sensitivity run and full functional test suites have passed on the current implementation.
 - Measured benchmark output was reviewed; summary and charts are committed, with the full machine-readable result retained as the linked workflow artifact.
 - Greedy/GSS shared-lifecycle tests and Absolute+ lexicographic ranking/tie-breaker tests have been added.
 - Browser configuration mode controls and CLI input migration are implemented; browser module syntax-check and configuration regression tests have passed.
