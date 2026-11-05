@@ -389,3 +389,21 @@ The current test suite and docs build are green, and the execution paths are suf
 - Constraint: preserve search's rounded projection model while replaying against actual balances; do not round or alter authoritative balances merely to satisfy the hypothetical plan.
 - Correction: when requested principal and actual available balance differ by no more than the existing 0.001 financial epsilon, execute the full authoritative balance. Larger mismatches remain invalid.
 - Regression coverage: cross-strategy ledger tests and the frozen GAML/Absolute replay oracle verify financial and event-ledger parity.
+
+
+### Phase 2 completion — Greedy
+
+- Greedy no longer owns actual event progression, settlement, booking/transfer execution, cash-flow scheduling, or result construction.
+- The existing planner and its ranking/tie-break policies remain intact. It emits account-ID/option-index decision DTOs through `createSession()`.
+- The unfinished-result `simulate()` compatibility method delegates to the shared session runner for SearchStrategyBase and direct callers.
+- A frozen pre-refactor Greedy oracle verifies financial totals, account balances, obligations, bookings, and normalized event-ledger parity. CI passed this test and the existing Greedy suite.
+- Phase 2 is complete.
+
+### Phase 3 progress — GAML and Absolute
+
+- Search planning and diagnostics remain in SearchStrategyBase. The existing Absolute exhaustive search and GAML beam search generate a selected path, which is converted to revision-bound decisions.
+- The session emits WAIT signals between selected decision dates. Actual chronological event processing and path execution now run through SimulationRuntime.
+- Removed the separate search replay loop and result-construction path. The unfinished-result `simulate()` method is now a compatibility adapter over the shared session runner.
+- Search diagnostics, optimality status, alternative leaf values, and search settings are carried into the runtime-built result.
+- Added frozen pre-refactor search replay tests for GAML and Absolute. The JavaScript test workflow passed on commit `f239d2db8bbb555f80c0295c348dd7c463f4590d`; full CI and sensitivity validation remain in progress.
+- Phase 3 is not complete until the full test workflow and differential replay tests pass.
