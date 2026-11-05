@@ -427,6 +427,14 @@ export class GSSStrategy {
         if (!b.first_credit_date) return -1;
         return a.first_credit_date.localeCompare(b.first_credit_date);
       }
+      // If neither plan can yet credit consolidation, prefer the earliest
+      // relevant payout/maturity boundary so the recursive planner can
+      // re-evaluate and consolidate sooner instead of favouring tenor yield.
+      if (!a.achieved && a.next_event_date !== b.next_event_date) {
+        if (!a.next_event_date) return 1;
+        if (!b.next_event_date) return -1;
+        return a.next_event_date.localeCompare(b.next_event_date);
+      }
       if (Math.abs(a.actual - b.actual) > EPS) return b.actual - a.actual;
       if (Math.abs(left.plan.fees - right.plan.fees) > EPS) return left.plan.fees - right.plan.fees;
       return left.plan.bookings.length - right.plan.bookings.length;

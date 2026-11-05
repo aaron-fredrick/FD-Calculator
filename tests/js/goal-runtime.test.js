@@ -341,6 +341,32 @@ test("Absolute+ local truncation retains an earlier low-interest goal path", () 
 });
 
 
+
+test("GSS prefers an earlier non-consolidation payout over a higher-interest later maturity", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-04-01",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 500 } },
+    options: [
+      new FDOption({ label: "Fast eFD 30d", period_str: "30d", annual_rate: 10, min_amount: 25000, bank_id: "BANK_B", bank_key: "b", is_efd: true }),
+      new FDOption({ label: "Slow standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Consolidation standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0, supports_efd: false }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000, supports_efd: true })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const engine = new SimulationEngine();
+  const greedy = engine.run(new GreedyStrategy({ ait_enabled: false }), scenario);
+  const gss = engine.run(new GSSStrategy({ ait_enabled: false }), scenario);
+  assert.equal(greedy.goal_outcome.achievement_date, "2026-03-02");
+  assert.equal(gss.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(gss.bookings[0].option.label, "Fast eFD 30d");
+});
+
+
 test("GSS goal planning reserves source liquidity for strict outflows beyond the next maturity", () => {
   const scenario = {
     start: "2026-01-01", end: "2026-03-10",
