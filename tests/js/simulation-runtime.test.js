@@ -174,7 +174,7 @@ test("runtime rejects self-directed transfers without mutating state", () => {
   assert.equal(runtime.totalFees, 0);
 });
 
-test("split booking snapshots can consistently represent the pre-decision state", () => {
+test("split booking snapshots are sequential", () => {
   const context = createSimulationContext({
     start: "2026-01-01", end: "2026-03-31",
     options: [
@@ -194,7 +194,6 @@ test("split booking snapshots can consistently represent the pre-decision state"
   runtime.executeSignal(createStrategyDecision({
     revision: view.revision, date: view.date, action: StrategyDecisionType.SPLIT,
     plan: {
-      booking_snapshot: "decision_start",
       bookings: [
         { account_id: "a", option_index: 0, principal: 30000 },
         { account_id: "b", option_index: 1, principal: 30000 }
@@ -204,7 +203,6 @@ test("split booking snapshots can consistently represent the pre-decision state"
   }));
   const bookingEvents = runtime.timeline[20260101].filter(event => event.event_type === "booking");
   assert.equal(bookingEvents.length, 2);
-  for (const event of bookingEvents) {
-    assert.deepEqual(event.decision_context.balances_before, { a: 30000, b: 30000 });
-  }
+  assert.deepEqual(bookingEvents[0].decision_context.balances_before, { a: 30000, b: 30000 });
+  assert.deepEqual(bookingEvents[1].decision_context.balances_before, { a: 0, b: 30000 });
 });
