@@ -49,7 +49,7 @@ See [GSS implementation details](strategies/GSS.md).
 
 ## Simulation lifecycle
 
-All production strategies expose a planning session. `SimulationEngine` and `SimulationRuntime` own actual chronological event processing, outflow settlement, booking/transfer execution, result construction and exactly-once finalization. Strategies return immutable decisions and may perform separate hypothetical future exploration. Scoped mode processes the requested date range and performs one final consolidation sweep. Goal mode stops at the first event boundary where the consolidation net-interest target is actually credited, or at the internal safety horizon if unreachable. An achieved goal skips the final sweep so the first-crossing amount is not changed; an unachieved goal receives one final sweep at its stopping boundary.
+All production strategies expose a planning session. `SimulationEngine` and `SimulationRuntime` own actual chronological event processing, outflow settlement, booking/transfer execution, result construction and exactly-once finalization. Strategies return immutable decisions and may perform separate hypothetical future exploration. Scoped mode processes the requested date range and performs one final consolidation sweep. Goal mode stops at the first event boundary where the consolidation net-interest target is actually credited, or when no future event can change the outcome, with the internal safety horizon as the final guard. An achieved goal skips the final sweep so the first-crossing amount is not changed; an unachieved goal receives one final sweep at its stopping boundary.
 
 ## Performance and sensitivity
 
