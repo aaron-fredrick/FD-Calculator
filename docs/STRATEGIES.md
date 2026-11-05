@@ -6,18 +6,18 @@ FD Cal provides four implemented strategies. They share the same account, FD, ca
 
 | Strategy | How it decides | Typical use | Optimality |
 |---|---|---|---|
-| **Greedy** | Makes the best-looking decision available at each step. | Fast baseline and quick comparisons. | No proof |
-| **Absolute+** | Explores several promising plans in parallel with a bounded beam. | Broader exploration with controllable search cost. | Only when search completes without truncation |
 | **Absolute** | Exhaustively explores the decision space using branch-and-bound. | Optimality proof for tractable scenarios. | Yes, when search completes |
+| **Absolute+** | Builds on the Absolute optimisation approach with bounded search and pruning controls. | Improved practical search when exhaustive exploration is expensive. | Only when search completes without truncation |
+| **Greedy** | Makes the best-looking decision available at each step. | Fast baseline and quick comparisons. | No proof |
 | **GSS** | Selects manager-ordered FD goals, compares SPLIT and CONSOLIDATE, and recursively plans waiting periods. | Goal-oriented plans with liquidity-aware interim investments. | No proof |
 
 ## Technical implementation guides
 
 Detailed implementation references are available for all four strategies:
 
-- [Greedy](strategies/GREEDY.md)
 - [Absolute](strategies/ABSOLUTE.md)
-- [Absolute+](strategies/Absolute+.md)
+- [Absolute+](strategies/ABSOLUTE-PLUS.md)
+- [Greedy](strategies/GREEDY.md)
 - [GSS](strategies/GSS.md)
 
 ## Greedy
