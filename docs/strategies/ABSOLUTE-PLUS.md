@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Absolute+ builds on the Absolute portfolio-optimisation approach and applies bounded, layered search to explore multiple candidate investment paths. It applies bounded frontier and local-branch exploration to the Absolute optimisation approach rather than introducing a separate goal or decision model. It is heuristic while any search states, local combinations or frontier candidates are pruned.
+Absolute+ shares the search transition model with Absolute but uses bounded, layered frontier exploration and local-branch limits. It supports both scoped terminal-value optimisation and goal achievement timing. The search mechanics remain bounded in both scopes; goal mode selects a different objective-specific ranking and state model rather than reusing the scoped terminal-value heuristic.
 
 **Implementation:** `src/strategies/absolute-plus.js (legacy module path; retained for configuration compatibility)` and `src/strategies/search-strategy-base.js`.
 
@@ -15,7 +15,9 @@ Absolute+ builds on the Absolute portfolio-optimisation approach and applies bou
 5. Score resulting states and retain a bounded frontier for the next layer.
 6. Emit the best retained path as revision-bound session decisions. `SimulationRuntime` processes actual events and executes those decisions.
 
-The search state includes the date, account balances, pending FD cash flows, outflow obligations and paid outflows. Memoisation and dominance pruning reduce repeated or inferior states.
+The scoped search state includes the date, account balances, pending FD cash flows, outflow obligations and paid outflows. Scoped memoisation and terminal-value ranking remain unchanged.
+
+Goal-mode states additionally carry principal, uncredited-interest and counted-interest provenance plus component-level pending payout flows. Goal-mode state identity retains the decision-path signature so states with equal scalar balances but different interest provenance or payout history are not merged before authoritative replay.
 
 ## Search controls
 
@@ -35,15 +37,17 @@ Increasing one limit does not remove the other limits. Higher values can improve
 
 ## Goal-mode search
 
-Goal mode ranks replayed candidate paths lexicographically: an achieved goal beats an unachieved path; among achieved paths, the earliest achievement date wins; same-date ties prefer more credited net interest, lower transfer fees and fewer operations. Candidate replay uses the authoritative SimulationEngine, so a candidate is scored against actual AIT, cash-flow, transfer and provenance behaviour.
+Goal mode ranks replayed candidate paths lexicographically: an achieved goal beats an unachieved path; among achieved paths, the earliest achievement date wins; same-date ties prefer more credited net interest, lower transfer fees and fewer operations. Candidate replay uses the authoritative SimulationEngine, so final scoring uses actual AIT, cash-flow, transfer and provenance behaviour.
 
-Unlike the fixed-horizon search, goal mode evaluates candidate paths as soon as they can credit interest to the consolidation account. Once an achieved incumbent exists, states strictly later than its achievement date cannot improve the primary objective and are pruned. States on the same date remain eligible for tie-breaking. If no candidate reaches the goal, the search continues until its finite decision budget or the safety horizon.
+The goal-mode beam priority uses the search state's exact provenance and component-level payout schedule to estimate the earliest potential consolidation credit. Local branch ordering uses payout timing and whether the booking credits consolidation directly, rather than total tenor interest alone. The `waitFirst` decision compares the earliest estimated goal date with and without a near-term inflow; it does not wait merely because a future product has a higher annual rate. Goal mode retains all compatible products and does not discard a consolidation path solely because transfer fees exceed the new FD's projected interest.
+
+Unlike the fixed-horizon search, goal mode evaluates candidate paths as soon as they can credit interest to the consolidation account. The goal-specific priority is an ordering heuristic only; the authoritative replay determines whether and when the target was actually reached. Once an achieved incumbent exists, states strictly later than its achievement date cannot improve the primary objective and are pruned. States on the same date remain eligible for tie-breaking. If no candidate reaches the goal, the search continues until its finite decision budget or the safety horizon.
 
 Goal mode defaults to 5,000 expanded states when max_decisions is omitted or null. The UI exposes this as the effective default. Reaching the cap means the best feasible path found is returned, but global optimality is not proven. The result reports the effective budget, evaluated goal candidates, states pruned after the current best achievement date, and optimality status.
 
 ## Optimality status
 
-Absolute+ reports `optimality_proven` only when the search completes without a decision-budget stop, beam pruning or local-combination pruning. Otherwise, the result is the best feasible path found within the configured bounds, not a proof of global optimality.
+Absolute+ reports `optimality_proven` only when the search completes without a decision-budget stop, beam pruning or local-combination pruning. Goal-mode path-sensitive deduplication is not counted as unsafe pruning because only identical scalar states with the same decision history are merged. Otherwise, the result is the best feasible path found within the configured bounds, not a proof of global optimality.
 
 The diagnostics include expanded states, leaves, bound and memo pruning, beam pruning, local-combination pruning, peak root strategy frontier, alternative leaf returns and the effective settings. Review these alongside net interest and runtime; a higher return obtained with more work should be judged against its additional computational cost.
 
