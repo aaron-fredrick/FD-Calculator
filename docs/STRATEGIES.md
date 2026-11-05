@@ -45,7 +45,7 @@ Absolute uses exhaustive branch-and-bound search, with Greedy as a feasible lowe
 
 ## Goal-Seeking Strategy (GSS)
 
-GSS is independent of Greedy, GAML and Absolute. It obtains the complete account-compatible, horizon-compatible FD candidate list from FDOptionManager and consumes that manager-provided order; GSS does not duplicate rate/tenor ranking.
+GSS is independent of Greedy, GAML and Absolute. It obtains the complete account-compatible, horizon-compatible FD candidate list from FDOptionManager and consumes that manager-provided order; GSS does not duplicate rate/tenor ranking. Its recursive planner explores a private hypothetical projection and emits decisions for the shared runtime to execute.
 
 For each candidate account and FD option, GSS evaluates:
 
@@ -71,7 +71,7 @@ See [GSS implementation details](strategies/GSS.md).
 
 ## Simulation lifecycle
 
-All strategies return an unfinished simulation result. The shared SimulationEngine processes the selected strategy's complete overall horizon, performs exactly one final consolidation sweep, records remaining idle balances, and returns the finalized result. Recursive strategy windows never finalize or sweep independently.
+All production strategies expose a planning session. `SimulationEngine` and `SimulationRuntime` own actual chronological event processing, outflow settlement, booking/transfer execution, result construction and exactly-once finalization. Strategies return immutable decisions and may perform separate hypothetical future exploration. The runtime processes the complete horizon, then the engine performs one final consolidation sweep and records remaining idle balances. Recursive or search-planning windows never finalize or sweep independently.
 
 ## Strategy performance and sensitivity
 
