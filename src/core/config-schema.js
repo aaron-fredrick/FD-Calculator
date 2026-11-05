@@ -12,23 +12,16 @@ export function validateConfigurationShape(x){
  const mode=x.simulation?.mode??"scoped";
  if(x.simulation!==undefined){
   if(!obj(x.simulation))bad("simulation","must be an object");
-  Object.keys(x.simulation).forEach(k=>{if(!["mode","duration","goal"].includes(k))bad("simulation."+k,"unknown property")});
-  if(!["time_based","scoped","goal"].includes(mode))bad("simulation.mode","must be time_based, scoped or goal");
-  if(mode==="time_based"){
-   if(typeof x.simulation.duration!=="string")bad("simulation.duration","required period such as 30d, 6m or 1y");
-   try{if(parsePeriod(x.simulation.duration).amount<1)throw Error()}catch{bad("simulation.duration","must be a positive period such as 30d, 6m or 1y")}
-   if(x.simulation.goal!==undefined)bad("simulation.goal","not valid for time_based mode");
-   if(x.investment?.end_date!==undefined)bad("investment.end_date","omit for time_based mode; use simulation.duration");
-  }else if(mode==="scoped"){
-   if(x.simulation.duration!==undefined||x.simulation.goal!==undefined)bad("simulation","scoped mode accepts only mode");
+  Object.keys(x.simulation).forEach(k=>{if(!["mode","goal"].includes(k))bad("simulation."+k,"unknown property")});
+  if(!["scoped","goal"].includes(mode))bad("simulation.mode","must be scoped or goal");
+  if(mode==="scoped"){
+   if(x.simulation.goal!==undefined)bad("simulation.goal","not valid for scoped mode");
   }else{
-   if(x.simulation.duration!==undefined)bad("simulation.duration","not valid for goal mode");
    const g=x.simulation.goal;
    if(!obj(g))bad("simulation.goal","required object for goal mode");
-   Object.keys(g).forEach(k=>{if(!["metric","target","maximum_end_date"].includes(k))bad("simulation.goal."+k,"unknown property")});
+   Object.keys(g).forEach(k=>{if(!["metric","target"].includes(k))bad("simulation.goal."+k,"unknown property")});
    if(g.metric!=="consolidation_net_interest")bad("simulation.goal.metric","must be consolidation_net_interest");
    if(typeof g.target!=="number"||!Number.isFinite(g.target)||g.target<=0)bad("simulation.goal.target","must be a finite positive number");
-   date(g.maximum_end_date,"simulation.goal.maximum_end_date");
   }
  }
  if(!obj(x.investment))bad("investment","required object");
@@ -36,7 +29,7 @@ export function validateConfigurationShape(x){
  if(x.investment.start_date===undefined)bad("investment.start_date","required");
  date(x.investment.start_date,"investment.start_date");
  if(x.investment.end_date===undefined){if(!x.simulation||mode==="scoped")bad("investment.end_date","required")}else date(x.investment.end_date,"investment.end_date");
- if(mode==="goal"&&x.investment.end_date!==undefined)bad("investment.end_date","omit when simulation.mode is goal; use simulation.goal.maximum_end_date");
+ if(mode==="goal"&&x.investment.end_date!==undefined)bad("investment.end_date","omit when simulation.mode is goal; the goal determines the stopping point");
  if(!obj(x.accounts)||!Object.keys(x.accounts).length)bad("accounts","must be a non-empty object");
  for(const [id,a] of Object.entries(x.accounts)){const p="accounts."+id;if(!id.trim()||!obj(a))bad(p,"invalid account object");Object.keys(a).forEach(k=>{if(!["bank_id","label","balance","supports_efd"].includes(k))bad(p+"."+k,"unknown property")});if(typeof a.bank_id!=="string"||!a.bank_id.trim())bad(p+".bank_id","required non-empty string");if(a.label!==undefined&&typeof a.label!=="string")bad(p+".label","must be a string");if(a.balance!==undefined&&(typeof a.balance!=="number"||!Number.isFinite(a.balance)||a.balance<0))bad(p+".balance","must be finite and non-negative");if(a.supports_efd!==undefined&&typeof a.supports_efd!=="boolean")bad(p+".supports_efd","must be boolean")}
  if(x.consolidation_account_id!==undefined&&typeof x.consolidation_account_id!=="string")bad("consolidation_account_id","must be an account ID");
