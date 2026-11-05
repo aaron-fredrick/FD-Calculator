@@ -1,6 +1,9 @@
 import { Event, EventType } from "./events.js";
 import { TransferFeeConfig } from "./models.js";
 import { createSimulationContext } from "./simulation-context.js";
+import { SimulationRuntime } from "./simulation-runtime.js";
+import { parseISODate, formatISODate } from "./dates.js";
+import { StrategySignalType } from "./strategy-contracts.js";
 
 /**
  * Apply the one simulation-wide final consolidation sweep.
@@ -110,11 +113,68 @@ export function finalizeSimulation(result, {
 
 /** Shared entry point for executing and finalizing any strategy exactly once. */
 export class SimulationEngine {
+  #runSession(strategy, context) {
+    const runtime = new SimulationRuntime(context, {
+      strategy_name: strategy.name ?? strategy.constructor?.name ?? "Strategy",
+      compound: strategy.compound,
+      actual_leap_year: strategy.actual_leap_year,
+      ait_enabled: strategy.ait_enabled,
+      ait_rate: strategy.ait_rate
+    });
+    const session = strategy.createSession(context);
+    if (!session || typeof session.nextSignal !== "function") {
+      throw new TypeError("Strategy createSession(context) must return a session with nextSignal(view).");
+    }
+
+    let waitUntil = null;
+    let iterations = 0;
+    while (true) {
+      if (++iterations > 100000) throw new Error("Strategy session exceeded the simulation progression limit.");
+      const eventDate = runtime.nextEventDate();
+      let nextDate = eventDate;
+      if (waitUntil && (!nextDate || waitUntil < formatISODate(nextDate))) {
+        nextDate = parseISODate(waitUntil);
+      }
+      if (!nextDate) nextDate = new Date(context.end);
+      if (nextDate > context.end) nextDate = new Date(context.end);
+      if (runtime.currentDate && nextDate <= runtime.currentDate) {
+        if (runtime.currentDate < context.end) nextDate = new Date(context.end);
+        else break;
+      }
+
+      runtime.processDate(nextDate);
+      if (!runtime.valid) break;
+      const signal = session.nextSignal(runtime.planningView());
+      runtime.executeSignal(signal);
+      if (signal.signal_type === StrategySignalType.COMPLETE) break;
+      waitUntil = signal.signal_type === StrategySignalType.WAIT ? signal.until : null;
+
+      if (runtime.currentDate.getTime() === context.end.getTime() &&
+          !runtime.nextEventDate() && signal.signal_type !== StrategySignalType.WAIT) {
+        break;
+      }
+    }
+
+    const result = runtime.buildResult();
+    const startEvent = new Event({
+      event_type: EventType.SIMULATION_START, on_date: context.start,
+      amount: 0, label: "Simulation starts", balance_after: 0, total_balance_after: 0
+    });
+    (result.timeline[startEvent.date_key] ??= []).unshift(startEvent);
+    return finalizeSimulation(result, {
+      fee_config: context.fee_config,
+      consolidation_account_id: context.consolidation_account_id
+    });
+  }
+
   run(strategy, input) {
     if (!strategy || typeof strategy.simulate !== "function") {
       throw new TypeError("SimulationEngine requires a strategy with a simulate(input) method.");
     }
     const context = createSimulationContext(input);
+    if (typeof strategy.createSession === "function") {
+      return this.#runSession(strategy, context);
+    }
     const normalizedInput = {
       ...input,
       start: context.start,
