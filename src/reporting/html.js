@@ -275,10 +275,12 @@ export function generateHtmlReport(result,config) {
     '<div class="outcome-metric"><small>Achievement date</small><strong>'+(goal.achievement_date||'Not achieved')+'</strong><p>'+(goal.elapsed_days===null?'No achievement duration':goal.elapsed_days+' elapsed days')+'</p></div>'+
     '<div class="outcome-metric"><small>'+(goal.achieved?'Overshoot (LKR)':'Remaining shortfall (LKR)')+'</small><strong>'+amount(goal.achieved?goal.overshoot:goal.shortfall)+'</strong><p>'+esc(goal.stopping_reason||'')+'</p></div></div>'+
     '<p class="muted">Only net interest credited to the consolidation account is counted. Principal is excluded; AIT is deducted before credit; transfers do not count the same interest twice.</p></div>':'';
+  const goalSearch=result.search_diagnostics?.goal_candidates_evaluated!==undefined
+    ? '<p class="muted">Goal candidates evaluated: '+amount(result.search_diagnostics.goal_candidates_evaluated)+' · Search optimality: '+(result.search_diagnostics.optimality_proven?'proven':'not proven within bounded search')+'</p>' : '';
   const goalTimelineRows=[];
   for(const [dateKey,events] of Object.entries(result.timeline||{}).sort(([a],[b])=>Number(a)-Number(b)))for(const event of events)if(Number.isFinite(event.goal_metric_after))goalTimelineRows.push({date:iso(event.on_date),event:event.label||event.event_type,credited:amount(event.goal_metric_after),status:goal?.achieved&&iso(event.on_date)===goal.achievement_date?'First achievement boundary':'—'});
   const goalTimeline=goal?table('Goal achievement timeline',[['date','Date'],['event','Event boundary'],['credited','Cumulative credited net interest (LKR)'],['status','Status']],goalTimelineRows):'';
-  const outcome=goalPanel+goalTimeline+'<div class="equation-panel"><b>Net interest reconciliation</b><div class="equation">'+
+  const outcome=goalPanel+goalSearch+goalTimeline+'<div class="equation-panel"><b>Net interest reconciliation</b><div class="equation">'+
     '<div><small>Gross interest (LKR)</small><strong class="positive">'+amount(gross)+'</strong></div><span>−</span>'+
     '<div><small>AIT withheld (LKR)</small><strong class="negative">'+amount(ait)+'</strong></div><span>−</span>'+
     '<div><small>Transfer fees (LKR)</small><strong class="negative">'+amount(fees)+'</strong></div><span>=</span>'+
