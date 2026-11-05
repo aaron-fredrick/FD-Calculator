@@ -12,6 +12,7 @@ export class BalanceProvenance {
   constructor(accountIds = []) {
     this.accounts = new Map(accountIds.map(id => [String(id), empty()]));
     this.creditedNetInterest = 0;
+    this.adjustments = [];
   }
 
   #get(id) {
@@ -30,7 +31,19 @@ export class BalanceProvenance {
     return result;
   }
 
-  clone() { const copy = new BalanceProvenance([...this.accounts.keys()]); copy.accounts = new Map([...this.accounts].map(([id, value]) => [id, { ...value }])); copy.creditedNetInterest = this.creditedNetInterest; return copy; }
+  clone() { const copy = new BalanceProvenance([...this.accounts.keys()]); copy.accounts = new Map([...this.accounts].map(([id, value]) => [id, { ...value }])); copy.creditedNetInterest = this.creditedNetInterest; copy.adjustments = this.adjustments.map(item => ({ ...item })); return copy; }
+
+  reconcile(id, actualBalance) {
+    const actual = cents(Number(actualBalance));
+    if (!Number.isFinite(actual) || actual < 0) throw new RangeError("Actual account balance must be finite and non-negative.");
+    const difference = cents(actual - this.total(id));
+    if (Math.abs(difference) < 0.01) return null;
+    if (difference > 0) this.addPrincipal(id, difference);
+    else this.debit(id, -difference);
+    const adjustment = { account_id: String(id), amount: difference, classification: difference > 0 ? "unattributed_principal" : "proportional_reduction" };
+    this.adjustments.push(adjustment);
+    return adjustment;
+  }
 
   total(id) { return cents(totalOf(this.#get(id))); }
 
