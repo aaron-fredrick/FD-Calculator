@@ -233,7 +233,8 @@ export class SimulationRuntime {
       if (unpaid > EPS) remaining.push({ ...obligation, remaining: unpaid });
     }
     this.pending = remaining;
-    this.#assertProvenance(balances);
+    if (this.context.simulation?.mode === "goal") this.#assertProvenance(balances);
+    else for (const [id, balance] of balances) this.provenance.reconcile(id, balance);
     this.#commitBalances(balances);
     return { date: today, valid: this.valid, events: this.timeline[key] ?? [] };
   }
@@ -476,8 +477,12 @@ export class SimulationRuntime {
     if (!Number.isFinite(this.totalFees + pendingFees)) {
       throw new RangeError("Decision would produce a non-finite transfer-fee total.");
     }
-    for (const [id, balance] of balances) {
-      if (Math.abs(round2(balance) - provenance.total(id)) > 0.02) throw new Error("Decision provenance does not reconcile for account " + id + ".");
+    if (this.context.simulation?.mode === "goal") {
+      for (const [id, balance] of balances) {
+        if (Math.abs(round2(balance) - provenance.total(id)) > 0.02) throw new Error("Decision provenance does not reconcile for account " + id + ".");
+      }
+    } else {
+      for (const [id, balance] of balances) provenance.reconcile(id, balance);
     }
     this.#commitBalances(balances);
     this.provenance = provenance;
@@ -515,6 +520,7 @@ export class SimulationRuntime {
     result.simulation_mode = this.context.simulation?.mode ?? "scoped";
     if (this.context.simulation?.goal) result.goal_outcome = this.goalOutcome ?? this.completeGoalOutcome();
     result.provenance = Object.fromEntries([...this.provenance.accounts].map(([id, value]) => [id, { ...value }]));
+    result.provenance_adjustments = this.provenance.adjustments.map(item => ({ ...item }));
     return result;
   }
 }
