@@ -23,7 +23,7 @@ The search state includes the date, account balances, pending FD cash flows, out
 |---|---:|---|
 | `beam_width` | 256 | Maximum number of candidate states retained at each search layer. |
 | `max_local_branches` | 128 | Maximum partial local-booking combinations retained while expanding a state. `null` disables this local limit. |
-| `max_decisions` | Unlimited | Optional cap on expanded search states. Reaching it stops further search. |
+| `max_decisions` | Unlimited in scoped mode; 5,000 in goal mode | Optional cap on expanded search states. Goal mode applies a finite 5,000-state default when the setting is omitted or null; reaching it stops further search. |
 
 These controls limit different parts of the search:
 
@@ -32,6 +32,14 @@ These controls limit different parts of the search:
 - **Decision cap** controls the total number of states expanded.
 
 Increasing one limit does not remove the other limits. Higher values can improve the best result found, but may increase runtime and memory. A larger setting is not guaranteed to improve the result monotonically because the search is heuristic and pruning/order effects remain.
+
+## Goal-mode search
+
+Goal mode ranks replayed candidate paths lexicographically: an achieved goal beats an unachieved path; among achieved paths, the earliest achievement date wins; same-date ties prefer more credited net interest, lower transfer fees and fewer operations. Candidate replay uses the authoritative SimulationEngine, so a candidate is scored against actual AIT, cash-flow, transfer and provenance behaviour.
+
+Unlike the fixed-horizon search, goal mode evaluates candidate paths as soon as they can credit interest to the consolidation account. Once an achieved incumbent exists, states strictly later than its achievement date cannot improve the primary objective and are pruned. States on the same date remain eligible for tie-breaking. If no candidate reaches the goal, the search continues until its finite decision budget or the safety horizon.
+
+Goal mode defaults to 5,000 expanded states when max_decisions is omitted or null. The UI exposes this as the effective default. Reaching the cap means the best feasible path found is returned, but global optimality is not proven. The result reports the effective budget, evaluated goal candidates, states pruned after the current best achievement date, and optimality status.
 
 ## Optimality status
 

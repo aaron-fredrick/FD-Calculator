@@ -206,9 +206,15 @@ test("goal reports show the canonical consolidation-interest outcome and event p
     inflow_summaries: [], outflow_summaries: [], bank_registry: { BANK_A: { name: "Bank A" } }
   };
   const html = generateHtmlReport(result, config);
-  assert.match(html, /Goal outcome · consolidation net interest/);
+  assert.match(html, /Goal achievement · consolidation net interest/);
+  assert.match(html, /Time to goal/);
+  assert.match(html, /Supporting portfolio accounting at the stopping boundary/);
   assert.match(html, /First achievement boundary/);
   assert.match(html, /100\.00/);
+  result.goal_outcome.stopping_reason = "goal_achieved_on_final_consolidation";
+  const finalSweepHtml = generateHtmlReport(result, config);
+  assert.match(finalSweepHtml, /Reached only on final consolidation sweep/);
+  assert.match(finalSweepHtml, /Final consolidation sweep/);
   const consoleText = formatSimulation(result, config, "goal.json", "fd_options.csv", { color: false, showBookingLedger: false });
   assert.match(consoleText, /GOAL OUTCOME/);
   assert.match(consoleText, /ACHIEVED/);
