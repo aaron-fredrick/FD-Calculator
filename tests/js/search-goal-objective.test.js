@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compareGoalScores } from "../../src/strategies/search-strategy-base.js";
+import { compareGoalScores, createPathReplayStrategy } from "../../src/strategies/search-strategy-base.js";
 
 const score = overrides => ({
   achieved: false, elapsed_days: Infinity, actual: 0, fees: 0,
@@ -31,4 +31,14 @@ test("terminal value and stable signature are deterministic final tie-breakers",
   const b = score({ ...a, terminal_value: 900, signature: "b" });
   assert.ok(compareGoalScores(a, b) > 0);
   assert.ok(compareGoalScores(score({ ...a, signature: "a" }), score({ ...a, signature: "b" })) > 0);
+});
+
+test("goal candidate replay inherits the strategy's financial and runtime settings", () => {
+  const settings = {
+    compound: true, actual_leap_year: false, ait_enabled: true, ait_rate: 0.08,
+    outflow_account_tiebreak: true, outflow_due_date_sort: "string",
+    round_balances: true, opening_trigger_always: true
+  };
+  const replay = createPathReplayStrategy([], { options: [] }, settings);
+  for (const [key, value] of Object.entries(settings)) assert.equal(replay[key], value);
 });
