@@ -13,7 +13,7 @@ export class GAMLStrategy extends SearchStrategyBase {
   constructor(settings = {}) {
     super(settings, "gaml");
   }
+}
 
 // Keep the historical export name for existing imports; the public strategy name is Absolute+.
 export const AbsolutePlusStrategy = GAMLStrategy;
-}
