@@ -143,8 +143,8 @@ function toggle(name) {
             <rect
               v-for="point in item.points" :key="String(point[xKey]) + item.name"
               :x="xPos(point[xKey]) - (barWidth * series.length) / 2 + item.index * barWidth"
-              :y="yPos(point[metric.key])" :width="barWidth * .86"
-              :height="Math.max(0, bottom - yPos(point[metric.key]))"
+              :y="Math.min(yPos(point[metric.key]), yPos(0))" :width="barWidth * .86"
+              :height="Math.abs(yPos(point[metric.key]) - yPos(0))"
               :fill="item.color" class="data-bar" :class="{ 'invalid-point': point.valid === false }"
               tabindex="0" role="button"
               @mouseenter="activePoint = { row: point, name: item.name, color: item.color }"
