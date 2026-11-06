@@ -72,7 +72,7 @@ assert.deepEqual(searchResults.baseline, {
   max_decisions: 5000
 });
 const searchSweeps = {
-  beam_width: sequence(5, 1).map((_, index) => [32, 64, 96, 192, 256][index]),
+  beam_width: [32, 64, 96, 192, 256],
   local_branch_limit: [16, 32, 48, 96, 128],
   decision_cap: [500, 1000, 2500, 5000, 10000]
 };
