@@ -38,7 +38,8 @@ const xValues = computed(() => {
   })
 })
 const numericX = computed(() => xValues.value.length > 1 && xValues.value.every(value => Number.isFinite(Number(value))))
-const validValues = computed(() => rows.value.map(row => Number(row[metric.value?.key])).filter(Number.isFinite))
+const validNumber = value => value !== null && value !== undefined && Number.isFinite(Number(value))
+const validValues = computed(() => rows.value.map(row => row[metric.value?.key]).filter(validNumber).map(Number))
 const yMax = computed(() => Math.max(1, ...validValues.value) * 1.12)
 const yMin = computed(() => Math.min(0, ...validValues.value))
 const left = 92, right = 960, top = 38, bottom = 374
@@ -55,11 +56,11 @@ const series = computed(() => seriesNames.value.map((name, index) => ({
   name,
   color: palette[index % palette.length],
   points: rows.value
-    .filter(row => (row[props.seriesKey] ?? props.seriesName) === name && Number.isFinite(Number(row[metric.value?.key])))
+    .filter(row => (row[props.seriesKey] ?? props.seriesName) === name && validNumber(row[metric.value?.key]))
     .sort((a, b) => xValues.value.indexOf(a[props.xKey]) - xValues.value.indexOf(b[props.xKey]))
 })))
 const format = value => {
-  if (!Number.isFinite(Number(value))) return '—'
+  if (!validNumber(value)) return '—'
   if (metric.value?.format === 'currency') return 'LKR ' + Number(value).toLocaleString('en-LK', { maximumFractionDigits: 2 })
   if (metric.value?.format === 'percent') return Number(value).toFixed(2) + '%'
   return Number(value).toLocaleString('en-LK', { maximumFractionDigits: 2 })
