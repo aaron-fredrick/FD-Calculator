@@ -72,45 +72,29 @@ function makeAccounts(count, capital, bankCount = 3, efd = true) {
   });
 }
 
-function makeInflows(accountId, end, amount, intervalMonths) {
+function makeInflows(accountId, end, amount, durationMonths) {
   const schedule = {};
-  if (amount <= 0) return schedule;
-  const addInflow = date => {
-    if (date <= end) schedule[date] = { [accountId]: amount };
-  };
-  if (intervalMonths === 0) {
-    addInflow(START);
-    return schedule;
-  }
-  for (let month = intervalMonths; ; month += intervalMonths) {
+  if (amount <= 0 || durationMonths <= 0) return schedule;
+  for (let month = 1; month <= durationMonths; month += 1) {
     const date = formatISODate(addPeriod(START, month + "m"));
     if (date > end) break;
-    addInflow(date);
+    schedule[date] = { [accountId]: amount };
   }
   return schedule;
 }
 
-function makeOutflows(accountId, end, amount, intervalMonths) {
+function makeOutflows(accountId, end, amount, durationMonths) {
   const schedule = {};
-  if (amount <= 0) return schedule;
-  const addOutflow = date => {
-    if (date <= end) {
-      schedule[date] = [{
-        name: "Scheduled liquidity obligation",
-        account_id: accountId,
-        amount,
-        payment_policy: "strict"
-      }];
-    }
-  };
-  if (intervalMonths === 0) {
-    addOutflow(START);
-    return schedule;
-  }
-  for (let month = intervalMonths; ; month += intervalMonths) {
+  if (amount <= 0 || durationMonths <= 0) return schedule;
+  for (let month = 1; month <= durationMonths; month += 1) {
     const date = formatISODate(addPeriod(START, month + "m"));
     if (date > end) break;
-    addOutflow(date);
+    schedule[date] = [{
+      name: "Scheduled liquidity obligation",
+      account_id: accountId,
+      amount,
+      payment_policy: "strict"
+    }];
   }
   return schedule;
 }
@@ -123,8 +107,8 @@ const strategies = [
 const results = [];
 function runCase(category, value, {
   months = 24, capital = 300000, accountCount = 3, bankCount = 3,
-  inflowAmount = 0, inflowIntervalMonths = 1,
-  outflowAmount = 0, outflowIntervalMonths = 1, efd = true
+  inflowAmount = 0, inflowDurationMonths = months,
+  outflowAmount = 0, outflowDurationMonths = months, efd = true
 } = {}) {
   const end = formatISODate(addPeriod(START, months + "m"));
   const accounts = makeAccounts(accountCount, capital, bankCount, efd);
@@ -135,8 +119,8 @@ function runCase(category, value, {
     accounts,
     inflow_account_id: accounts[0].id,
     consolidation_account_id: accounts[0].id,
-    inflow_schedule: makeInflows(accounts[0].id, end, inflowAmount, inflowIntervalMonths),
-    outflow_schedule: makeOutflows(accounts[0].id, end, outflowAmount, outflowIntervalMonths),
+    inflow_schedule: makeInflows(accounts[0].id, end, inflowAmount, inflowDurationMonths),
+    outflow_schedule: makeOutflows(accounts[0].id, end, outflowAmount, outflowDurationMonths),
     fee_config: feeConfig
   };
   for (const [name, makeStrategy] of strategies) {
@@ -153,8 +137,8 @@ function runCase(category, value, {
       const row = {
         category, value, strategy: name, months, capital,
         accounts: accountCount, banks: bankCount,
-        inflow_amount: inflowAmount, inflow_interval_months: inflowIntervalMonths,
-        outflow_amount: outflowAmount, outflow_interval_months: outflowIntervalMonths,
+        inflow_amount: inflowAmount, inflow_duration_months: inflowDurationMonths,
+        outflow_amount: outflowAmount, outflow_duration_months: outflowDurationMonths,
         efd, valid: false, validity_pct: 0, outflows_paid: null,
         outflow_unpaid: null, outflow_scheduled_total: Number(scheduled.toFixed(2)),
         net_interest: null, gross_interest: null, ait: null,
@@ -178,8 +162,8 @@ function runCase(category, value, {
     const row = {
       category, value, strategy: name, months, capital,
       accounts: accountCount, banks: bankCount,
-      inflow_amount: inflowAmount, inflow_interval_months: inflowIntervalMonths,
-      outflow_amount: outflowAmount, outflow_interval_months: outflowIntervalMonths, efd,
+      inflow_amount: inflowAmount, inflow_duration_months: inflowDurationMonths,
+      outflow_amount: outflowAmount, outflow_duration_months: outflowDurationMonths, efd,
       valid: result.valid === true,
       validity_pct: result.valid === true ? 100 : 0,
       outflows_paid: Number((result.total_outflows_paid ?? 0).toFixed(2)),
@@ -215,30 +199,30 @@ for (const accountCount of [1, 2, 3]) {
 for (const bankCount of [1, 2, 3]) {
   runCase("bank_count", bankCount, { accountCount: 3, capital: 300000, bankCount });
 }
-// Cash inflows: monthly amount sweep and fixed-amount frequency sweep, both over 10 years.
+// Cash inflows: monthly amount sweep and fixed-amount duration sweep, both over 2 years.
 for (let amount = 0; amount <= 200000; amount += 10000) {
   runCase("inflow_monthly_amount_lkr", amount, {
-    months: 120, inflowAmount: amount, inflowIntervalMonths: 1
+    months: 24, inflowAmount: amount
   });
 }
-for (let interval = 0; interval <= 12; interval += 1) {
-  runCase("inflow_interval_months", interval, {
-    months: 120, inflowAmount: 100000, inflowIntervalMonths: interval
+for (let duration = 1; duration <= 12; duration += 1) {
+  runCase("inflow_duration_months", duration, {
+    months: 24, inflowAmount: 100000, inflowDurationMonths: duration
   });
 }
 for (const efd of [false, true]) {
   runCase("efd_eligibility", efd ? "eligible" : "standard_only", { efd });
 }
 
-// Strict outflows mirror the two inflow sweeps: monthly amount and fixed-amount frequency.
+// Strict outflows mirror the two inflow sweeps over the same 2-year horizon.
 for (let amount = 0; amount <= 200000; amount += 10000) {
   runCase("outflow_monthly_amount_lkr", amount, {
-    months: 120, outflowAmount: amount, outflowIntervalMonths: 1
+    months: 24, outflowAmount: amount
   });
 }
-for (let interval = 0; interval <= 12; interval += 1) {
-  runCase("outflow_interval_months", interval, {
-    months: 120, outflowAmount: 100000, outflowIntervalMonths: interval
+for (let duration = 1; duration <= 12; duration += 1) {
+  runCase("outflow_duration_months", duration, {
+    months: 24, outflowAmount: 100000, outflowDurationMonths: duration
   });
 }
 
@@ -283,12 +267,12 @@ const output = {
   design: {
     one_factor_sweeps: ["horizon_months", "starting_capital_lkr", "account_count", "bank_count", "efd_eligibility"],
     cash_inflow_sweeps: {
-      monthly_amount_lkr: { min: 0, max: 200000, step: 10000, interval_months: 1, horizon_months: 120 },
-      interval_months: { min: 0, max: 12, step: 1, amount_lkr: 100000, horizon_months: 120, zero_interval: "one-time at simulation start" }
+      monthly_amount_lkr: { min: 0, max: 200000, step: 10000, duration_months: 24, horizon_months: 24 },
+      duration_months: { min: 1, max: 12, step: 1, amount_lkr: 100000, horizon_months: 24, payment_frequency: "monthly", first_payment_month: 1 }
     },
     strict_outflow_sweeps: {
-      monthly_amount_lkr: { min: 0, max: 200000, step: 10000, interval_months: 1, horizon_months: 120 },
-      interval_months: { min: 0, max: 12, step: 1, amount_lkr: 100000, horizon_months: 120, zero_interval: "one-time at simulation start" }
+      monthly_amount_lkr: { min: 0, max: 200000, step: 10000, duration_months: 24, horizon_months: 24 },
+      duration_months: { min: 1, max: 12, step: 1, amount_lkr: 100000, horizon_months: 24, payment_frequency: "monthly", first_payment_month: 1 }
     },
     interaction_matrices: ["capital_horizon"],
     interaction_points: 9,

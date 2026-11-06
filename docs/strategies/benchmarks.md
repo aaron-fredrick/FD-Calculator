@@ -10,7 +10,7 @@ FD Cal keeps its two simulation objectives separate. **Scoped Range** is the sup
 
 This study runs the repository's `SimulationEngine` with the three web strategies: **Greedy**, **Absolute R+** and **GSS**. Most sweeps vary one factor at a time; a separate capital × horizon matrix tests their interaction. Each strategy receives identical inputs at every scenario point.
 
-The expanded dataset contains **330 strategy observations** across 110 scenario points, evaluated by all three strategies. The default chart metric is **net interest after AIT and transfer fees**, in LKR; interactive selectors also expose the difference vs Greedy, runtime, booking count, simulation validity and unpaid outflows where applicable. Net interest is not gross interest or final portfolio value. This is the scoped date-range study. All strategies receive the same selected start and end dates.
+The expanded dataset contains **324 strategy observations** across 108 scenario points, evaluated by all three strategies. The default chart metric is **net interest after AIT and transfer fees**, in LKR; interactive selectors also expose the difference vs Greedy, runtime, booking count, simulation validity and unpaid outflows where applicable. Net interest is not gross interest or final portfolio value. This is the scoped date-range study. All strategies receive the same selected start and end dates.
 
 ## Benchmark setup
 
@@ -21,14 +21,14 @@ The expanded dataset contains **330 strategy observations** across 110 scenario 
 | Starting capital sweep | LKR 25,000; 100,000; 300,000; 1,000,000 |
 | Account sweep | 1, 2 and 3 accounts, all at DFCC |
 | Bank sweep | 1, 2 and 3 banks across a fixed 3-account portfolio |
-| Cash inflows | 10-year monthly amount sweep (LKR 0–200,000, LKR 10,000 steps) and fixed LKR 100,000 at 0–12-month intervals |
-| Cash outflows | 10-year strict monthly amount sweep (LKR 0–200,000, LKR 10,000 steps) and fixed LKR 100,000 at 0–12-month intervals |
+| Cash inflows | 2-year monthly amount sweep (LKR 0–200,000, LKR 10,000 steps) and fixed LKR 100,000 paid monthly for 1–12 months |
+| Cash outflows | 2-year strict monthly amount sweep (LKR 0–200,000, LKR 10,000 steps) and fixed LKR 100,000 paid monthly for 1–12 months |
 | eFD eligibility | Standard-only vs eFD-eligible accounts |
 | AIT | Enabled at 10% |
 | Interest calculation | Simple interest; actual leap-year day basis |
 | Transfer fees | Bank-specific catalogue fees; applied to transfers and final sweep |
 
-The base portfolio is LKR 300,000 across three accounts and three banks. The horizon sweep runs from 0 to 60 months in 3-month steps. Both cash-flow studies use a 10-year simulation: the first varies a monthly amount while the second fixes the amount at LKR 100,000 and varies its interval. An interval of 0 months represents a single event at the simulation start; 1–12 months represent recurring intervals. Cash flows are applied to the first (DFCC) account. The capital/horizon matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. For the account-count sweep, all accounts use DFCC; for the bank-count sweep, the account count and total capital remain fixed.
+The base portfolio is LKR 300,000 across three accounts and three banks. The horizon sweep runs from 0 to 60 months in 3-month steps. All four cash-flow sweeps use a fixed 24-month simulation horizon. Amount sweeps vary the recurring monthly amount while keeping monthly payments active for the full 24 months. Duration sweeps fix the monthly amount at LKR 100,000 and apply one payment per month for 1–12 consecutive months, beginning one month after the simulation start. Cash flows are applied to the first (DFCC) account. The capital/horizon matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. For the account-count sweep, all accounts use DFCC; for the bank-count sweep, the account count and total capital remain fixed.
 
 ## Bank product catalogues
 
@@ -74,13 +74,13 @@ The Greedy and Absolute R+ lines overlap in this comparison. GSS remains close t
 
 ### Cash inflows
 
-**Monthly amount** — fixed monthly interval, varied from LKR 0 to 200,000 in LKR 10,000 steps. Each run spans 10 years.
+**Monthly amount** — fixed monthly frequency for the full 24-month simulation, varied from LKR 0 to 200,000 in LKR 10,000 steps.
 
 <BenchmarkChart :rows="benchmarkResults.results" category="inflow_monthly_amount_lkr" x-label="Monthly inflow (LKR)" :x-tick-step="20000" />
 
-**Inflow interval** — fixed LKR 100,000, varied from one-time at 0 months to recurring every 1–12 months. Each run spans 10 years.
+**Inflow duration** — fixed LKR 100,000 per month, paid monthly for 1–12 consecutive months within the 24-month simulation.
 
-<BenchmarkChart :rows="benchmarkResults.results" category="inflow_interval_months" x-label="Inflow interval (months)" :x-tick-step="2" />
+<BenchmarkChart :rows="benchmarkResults.results" category="inflow_duration_months" x-label="Inflow duration (months)" :x-tick-step="2" />
 
 ### eFD eligibility
 
@@ -90,13 +90,13 @@ The Greedy and Absolute R+ lines overlap in this comparison. GSS remains close t
 
 Strict outflows use the same two sweeps as inflows. They are due from the designated account and are not covered by balances in other accounts.
 
-**Monthly amount** — fixed monthly interval, varied from LKR 0 to 200,000 in LKR 10,000 steps. Each run spans 10 years.
+**Monthly amount** — fixed monthly frequency for the full 24-month simulation, varied from LKR 0 to 200,000 in LKR 10,000 steps.
 
 <BenchmarkChart :rows="benchmarkResults.results" category="outflow_monthly_amount_lkr" x-label="Monthly outflow (LKR)" :x-tick-step="20000" />
 
-**Outflow interval** — fixed LKR 100,000, varied from one-time at 0 months to recurring every 1–12 months. Each run spans 10 years.
+**Outflow duration** — fixed LKR 100,000 per month, paid monthly for 1–12 consecutive months within the 24-month simulation.
 
-<BenchmarkChart :rows="benchmarkResults.results" category="outflow_interval_months" x-label="Outflow interval (months)" :x-tick-step="2" />
+<BenchmarkChart :rows="benchmarkResults.results" category="outflow_duration_months" x-label="Outflow duration (months)" :x-tick-step="2" />
 
 Outflow charts include validity and unpaid-obligation metrics. If a strategy stops before producing a result, paid and unpaid totals are left unmeasured; the scheduled total is shown separately. Invalid observations are not treated as competitive interest results.
 
@@ -108,7 +108,7 @@ The one-factor sweeps above do not reveal whether a strategy responds differentl
 
 ## Reading the results
 
-Net interest is measured after AIT and transfer fees; it excludes principal. The cash-flow studies use a 10-year horizon and vary either the monthly amount or the interval while holding the other factor fixed. An interval of 0 months is a one-time event at the simulation start.
+Net interest is measured after AIT and transfer fees; it excludes principal. The cash-flow studies use a 24-month horizon. Amount sweeps vary the monthly amount over the full horizon; duration sweeps hold the amount at LKR 100,000 and vary the number of consecutive monthly payments from 1 to 12.
 
 For strict outflows, use validity and unpaid-obligation metrics alongside interest. If a strategy throws before a result is available, payment totals remain unmeasured and the scheduled amount is reported separately. Absolute R+ is bounded by its search budget; a returned result is not an optimality proof.
 
@@ -133,7 +133,7 @@ This is a historical scoped-regression check for the web strategies. The active 
 - The workflow archives the raw output as a GitHub Actions artifact.
 - Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget. Its results are bounded and do not prove optimality.
 - Absolute R is CLI-only and exhaustive; it is not included in this web-strategy comparison.
-- Strict outflows test whether the designated account can meet recurring obligations. They are a liquidity-feasibility study, not a full liquidity-preference model.
+- Strict outflows test whether the designated account can meet recurring obligations over the 24-month horizon. Duration cases schedule one strict payment per month for the selected 1–12-month period. They are a liquidity-feasibility study, not a full liquidity-preference model.
 - Published bank rates are a dated data snapshot, not guaranteed live offers. Confirm minimum balances, account eligibility, payout conditions and current tariffs with each bank before investing.
 
 ## Goal
