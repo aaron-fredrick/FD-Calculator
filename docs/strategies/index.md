@@ -1,26 +1,30 @@
 # Strategy documentation
 
-FD Cal provides four planning strategies. The technical references below are listed alphabetically.
+FD Cal documents strategy behaviour separately for each simulation objective.
 
-## Strategy guide
+## Scoped Range
 
-See the [strategy comparison](/STRATEGIES) for purpose, trade-offs, settings and optimality guarantees.
+The supported strategies optimise the selected start and end dates. Their current objective, trade-offs and optimality limits are summarised in the [strategy guide](/STRATEGIES#scoped-range).
 
-## Technical references
+### Technical references
 
+- [Greedy](/strategies/GREEDY) — local SPLIT/CONSOLIDATE/CARRY decisions and option-selection rules.
+- [GSS](/strategies/GSS) — recursive scoped planning, liquidity-aware waiting and candidate ordering.
 - [Absolute R](/strategies/ABSOLUTE) — exhaustive scoped branch-and-bound search and optimality proof conditions.
-- [Absolute R+](/strategies/ABSOLUTE-PLUS) — bounded scoped search based on the Absolute R optimisation approach.
-- [Greedy](/strategies/GREEDY) — local SPLIT/CONSOLIDATE/CARRY decisions, option selection and tie-breakers.
-- [GSS](/strategies/GSS) — recursive goal planning, forecast contraction and shared-runtime decision replay.
+- [Absolute R+](/strategies/ABSOLUTE-PLUS) — bounded scoped search, controls and search diagnostics.
 
-## Simulation objectives
+### Benchmark
 
-- [Goal-based simulation](/strategies/goal-achievement) — under-development status and the current public availability boundary.
-- [Goal-mode rework plan](/strategies/goal-mode-rework-plan) — future Absolute R-only goal optimisation architecture.
+- [Scoped Range benchmark](/strategies/benchmarks#scoped-range) — measured net-interest response to horizon, capital, account/bank diversity, inflows and eFD eligibility.
 
-## Performance and sensitivity
+## Goal
 
-- [Strategy sensitivity benchmark](/strategies/benchmarks) — measured net-interest response to investment horizon, capital, account/bank diversity, inflows and eFD eligibility.
+**Status: Under development — no benchmark data available yet.**
+
+Goal mode is disabled and is not currently user-selectable. The intended first Goal optimiser is Absolute R; the other three strategies remain Scoped Range only.
+
+- [Goal-mode rework plan](/strategies/goal-mode-rework-plan) — architecture, implementation phases and release gates.
+- [Goal benchmark status](/strategies/benchmarks#goal) — no Goal measurements or graphs are published while work continues.
 
 ## Architecture
 
