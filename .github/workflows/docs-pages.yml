@@ -60,9 +60,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: scoped-range-benchmark-data
-          path: |
-            docs/strategies/benchmarks/results.json
-            scoped-range-benchmark-output.txt
+          path: docs/strategies/benchmarks/results.json
           if-no-files-found: error
           retention-days: 1
 
@@ -111,9 +109,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: absolute-r-plus-benchmark-data
-          path: |
-            docs/strategies/benchmarks/gaml-search-results.json
-            absolute-r-plus-benchmark-output.txt
+          path: docs/strategies/benchmarks/gaml-search-results.json
           if-no-files-found: error
           retention-days: 1
 
