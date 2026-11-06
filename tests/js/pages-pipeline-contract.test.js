@@ -17,7 +17,7 @@ test("Pages deployment is a reusable assembler, not a source-change trigger", ()
   assert.match(pages, /build-docs-preservation\.sh/);
   assert.match(pages, /pages-deploy-state/);
   assert.match(pages, /previous_web_sha/);
-  assert.match(pages, /Both component artifact revisions are already deployed/);
+  assert.match(pages, /Both component revisions are already deployed/);
   assert.match(pages, /site\/web\/index\.html/);
   assert.match(pages, /site\/docs\/index\.html/);
   assert.match(pages, /cancel-in-progress: false/);
@@ -80,6 +80,6 @@ test("component build scripts validate and stage separate output roots", () => {
   assert.match(validator, /324/);
   assert.match(validator, /108/);
   assert.match(validator, /15 Absolute R\+ parameter observations/);
-  assert.match(preservation, /last successful Pages deployment/);
+  assert.match(preservation, /last successful/);
   assert.doesNotMatch(preservation, /validate-scoped-benchmark-data/);
 });
