@@ -14,5 +14,5 @@ export class AbsolutePlusStrategy extends SearchStrategyBase {
   }
 }
 
-// Keep the historical export name for existing imports; the public strategy name is Absolute+.
+// Keep the historical export name for existing imports; the public strategy name is Absolute R+.
 export const GAMLStrategy = AbsolutePlusStrategy;
