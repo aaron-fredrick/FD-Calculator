@@ -30,8 +30,8 @@ The documentation producer owns main-branch Scoped Range benchmark readiness:
 1. It calculates the input fingerprint and validates the published dataset structure and scenario coverage.
 2. If both are current, it skips simulations and builds docs from the committed JSON.
 3. If inputs differ or the dataset is incomplete, it runs the Scoped Range matrix and Absolute R+ parameter sensitivity, validates the results, and updates the fingerprint.
-4. Generated data is published through a timestamped `data-YYYY-MM-DD-HH-MM-SS-LKT` branch and PR. The workflow waits for PR checks and confirms the merge before building documentation.
-5. If benchmark execution, validation, PR checks, or publication fails, the docs artifact branch is not updated and the previously deployed docs remain live.
+4. Generated data is published through a timestamped `data-YYYY-MM-DD-HH-MM-SS-LKT` branch and PR. The workflow requests a normal merge and verifies that the PR actually merged before building documentation; it never bypasses repository rules.
+5. If repository policy requires approval or checks that a token-created PR cannot start automatically, the workflow stops and leaves the PR for normal review. The docs artifact branch is not updated, so the previously deployed docs remain live. After a manual merge, the data-only docs path rebuilds without rerunning simulations.
 
 A data-only benchmark PR merge triggers the docs producer because the result JSON and fingerprint paths are watched. The fingerprint and completeness checks pass, so it rebuilds docs without rerunning simulations. It does not trigger the web producer or a second main-branch benchmark workflow.
 
