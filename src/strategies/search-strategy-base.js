@@ -1005,6 +1005,7 @@ function expandState(rawState, context, settings, mode, counters, operationCount
   const consolidation = buildConsolidationBranches(state.balances, context.accounts, context, context.feeConfig, parseISODate(state.date), {
     ...settings, endDate: context.endDate, compound: context.compound, actualLeapYear: context.actualLeapYear, aitRate: context.aitRate
   });
+  counters.consolidationBranchesGenerated += consolidation.length;
   for (const branch of consolidation) {
     if (mode === "gaml" && settings.maxDecisions != null && counters.expanded >= settings.maxDecisions) break;
     let nextBalances = state.balances;
@@ -1057,6 +1058,7 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     consolidationId: context.consolidationId
   });
   counters.localPruned += local.pruned;
+  counters.localBranchesGenerated += local.branches.length;
   for (const branch of local.branches) {
     if (mode === "gaml" && settings.maxDecisions != null && counters.expanded >= settings.maxDecisions) break;
     const bookings = branch.choices.filter(([, option]) => option).map(([account_id, option]) => ({
@@ -1251,6 +1253,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
           rootBest.set(rootKey, candidate);
         }
         candidates.push(candidate);
+        counters.candidateStatesGenerated++;
       }
     }
     const candidateKey = candidate => goalMode
@@ -1266,6 +1269,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         bestByState.set(key, candidate);
       }
     }
+    counters.candidateStateDuplicates += candidates.length - bestByState.size;
     const unique = [...bestByState.values()].sort((a, b) =>
       b.priority - a.priority ||
       (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0) ||
@@ -1375,6 +1379,8 @@ export class SearchStrategyBase {
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
       stateMemoHits: 0, expansionCacheHits: 0, expansionCacheEvictions: 0,
+      localBranchesGenerated: 0, consolidationBranchesGenerated: 0,
+      candidateStatesGenerated: 0, candidateStateDuplicates: 0,
       bestValue: goalMode ? -Infinity : greedyObjective,
       baselineValue: goalMode ? -Infinity : greedyObjective,
       bestOperationCount: goalMode ? Infinity : resultOperationCount(greedy),
@@ -1406,6 +1412,10 @@ export class SearchStrategyBase {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
       beam_pruned: search.beamPruned || 0, local_combination_pruned: counters.localPruned,
+      local_branches_generated: counters.localBranchesGenerated,
+      consolidation_branches_generated: counters.consolidationBranchesGenerated,
+      candidate_states_generated: counters.candidateStatesGenerated,
+      candidate_state_duplicates: counters.candidateStateDuplicates,
       root_strategy_peak: search.rootPeak || 0,
       budget_stopped: Boolean(search.budgetStopped),
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
