@@ -66,7 +66,8 @@ function fingerprintAtCommit(sha, cache) {
     git(["remote", "add", remote, \`https://github.com/\${repository}.git\`]);
   }
   git(["fetch", "--no-tags", remote, sha]);
-  const worktree = mkdtempSync(join(tmpdir(), "fdcal-benchmark-"));
+  const tempRoot = mkdtempSync(join(tmpdir(), "fdcal-benchmark-"));
+  const worktree = join(tempRoot, "checkout");
   try {
     git(["worktree", "add", "--detach", worktree, sha]);
     let output;
@@ -94,7 +95,7 @@ function fingerprintAtCommit(sha, cache) {
     try {
       git(["worktree", "remove", "--force", worktree]);
     } finally {
-      rmSync(worktree, { recursive: true, force: true });
+      rmSync(tempRoot, { recursive: true, force: true });
     }
   }
 }
