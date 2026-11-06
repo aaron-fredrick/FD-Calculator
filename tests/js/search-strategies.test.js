@@ -37,7 +37,7 @@ function scenario() {
 
 test("Absolute runs exhaustive portfolio search and returns a replayed SimResult", () => {
   const result = run(new AbsoluteStrategy({ ait_enabled: true }), scenario());
-  assert.equal(result.strategy_name, "Absolute");
+  assert.equal(result.strategy_name, "Absolute R");
   assert.equal(result.valid, true);
   assert.ok(result.bookings.length > 0);
   assert.ok(result.bookings.some(booking => booking.start.toISOString().slice(0, 10) === "2026-02-01"));
@@ -51,7 +51,7 @@ test("Absolute+ runs bounded search and honours its three Python-compatible sett
     ait_enabled: true, beam_width: 8, max_local_branches: 4, max_decisions: 100
   });
   const result = run(strategy, scenario());
-  assert.equal(result.strategy_name, "Absolute+");
+  assert.equal(result.strategy_name, "Absolute R+");
   assert.equal(result.valid, true);
   assert.ok(result.bookings.length > 0);
   assert.ok(result.bookings.some(booking => booking.start.toISOString().slice(0, 10) === "2026-02-01"));
