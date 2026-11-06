@@ -58,6 +58,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "${GITHUB_REF_NAME}"
+          remote_fingerprint=""
+          if git show "origin/${GITHUB_REF_NAME}:docs/strategies/assets/goal-achievement/.input-fingerprint.json" > /tmp/remote-benchmark-fingerprint.json 2>/dev/null; then
+            remote_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/remote-benchmark-fingerprint.json', 'utf8')).fingerprint")"
+          fi
+          local_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('docs/strategies/assets/goal-achievement/.input-fingerprint.json', 'utf8')).fingerprint")"
+          if [ -n "$remote_fingerprint" ] && [ "$remote_fingerprint" = "$local_fingerprint" ]; then
+            echo "Matching benchmark inputs were already published by another run; skipping duplicate commit."
+            exit 0
+          fi
           git add docs/strategies/assets/goal-achievement/
           if ! git diff --cached --quiet; then
             git commit -m "benchmarks: refresh Goal development measurements"
