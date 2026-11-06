@@ -1,4 +1,4 @@
-# Greedy Strategy
+# Greedy
 
 ## 1. Overview
 
@@ -137,17 +137,9 @@ The first candidate is executed.
 
 **Important consequence:** net interest is not the primary ranking field. The admission rules first constrain which consolidation plans can compete; among admitted candidates, a higher-rate plan can rank ahead of a plan with higher net interest.
 
-### 6.1 Goal-mode policy
+### Goal mode status
 
-Goal mode uses a different local objective because the simulation is trying to reach a consolidation net-interest threshold as early as possible, not maximise interest over the full 30-year safety horizon.
-
-- Only an FD cash flow that credits net interest to the configured consolidation account advances the goal metric.
-- SPLIT therefore books only the consolidation account's balance; balances in other accounts remain liquid unless they can be transferred into consolidation.
-- CONSOLIDATE candidates are considered for the configured consolidation account, not arbitrary target accounts.
-- Eligible products are ranked by the date of their first positive net-interest payout after AIT. If multiple products pay on the same date, the larger first payout is preferred, followed by higher annual rate and shorter tenor.
-- The selected plan is re-evaluated at each subsequent event boundary. The shared runtime stops the simulation at the first boundary where cumulative credited net interest reaches the target.
-
-This is still a greedy heuristic. It selects the earliest available first-credit option for the current balances; it does not globally prove that a sequence of later bookings, inflows or account transfers will achieve the target in the minimum possible time. The 30-year horizon is a safety guard, not the planned investment duration.
+Greedy is a Scoped Range strategy only. It does not implement the earliest-achievement Goal objective. Goal mode is disabled while the project develops a dedicated Absolute R planner; Greedy's scoped selection and ranking rules are not dual-optimised.
 
 ## 7. Decision contract (planning only)
 
