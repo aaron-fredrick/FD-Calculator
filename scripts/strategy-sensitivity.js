@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { parseCSV } from "../src/io/csv.js";
 import { Account, FDOption, TransferFeeConfig } from "../src/core/models.js";
 import { addPeriod, formatISODate } from "../src/core/dates.js";
@@ -91,7 +91,7 @@ function makeInflows(kind, accountId, end) {
 
 const strategies = [
   ["Greedy", () => new GreedyStrategy({ ait_enabled: true })],
-  ["Absolute+", () => new AbsolutePlusStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000 })],
+  ["Absolute R+", () => new AbsolutePlusStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000 })],
   ["GSS", () => new GSSStrategy({ ait_enabled: true, small_period_days: 30 })]
 ];
 const results = [];
@@ -116,7 +116,7 @@ function runCase(category, value, {
     const started = Date.now();
     const result = engine.run(makeStrategy(), input);
     const duration = Date.now() - started;
-    if (!result.finalized || !Number.isFinite(result.net_interest_after_ait)) {
+    if (!result.finalized || !result.valid || !Number.isFinite(result.net_interest_after_ait)) {
       throw new Error(name + " produced an invalid result for " + category + "/" + value);
     }
     const row = {
@@ -175,7 +175,7 @@ for (const rows of grouped.values()) {
       : null;
   }
 }
-process.stdout.write("STRATEGY_SENSITIVITY_JSON=" + JSON.stringify({
+const output = {
   generated_at: new Date().toISOString(),
   start_date: START,
   banks: BANK_IDS.map(id => ({
@@ -188,5 +188,13 @@ process.stdout.write("STRATEGY_SENSITIVITY_JSON=" + JSON.stringify({
   ait_enabled: true,
   compound: false,
   transfer_fee_basis: "Bank catalogue intra/inter-bank transfer fees; all transfer decisions and final sweep use the same fee config.",
+  design: {
+    one_factor_sweeps: ["horizon_months", "starting_capital_lkr", "account_count", "bank_count", "inflow_pattern", "efd_eligibility"],
+    interaction_matrix: "capital_horizon",
+    interaction_points: 9,
+    timing_note: "Single-run wall-clock measurements are observational; compare only on the same runner."
+  },
   results
-}) + "\n");
+};
+writeFileSync(new URL("docs/strategies/benchmarks/results.json", root), JSON.stringify(output, null, 2) + "\n");
+process.stdout.write("STRATEGY_SENSITIVITY_JSON=" + JSON.stringify(output) + "\n");
