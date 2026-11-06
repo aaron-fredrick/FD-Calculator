@@ -100,10 +100,9 @@ function fingerprintAtCommit(sha, cache) {
   }
 }
 
-const currentFingerprint = execFileSync(process.execPath, ["scripts/benchmark-fingerprint.js", "--fingerprint"], {
-  cwd: root,
-  encoding: "utf8"
-}).trim();
+const fingerprintCache = new Map();
+const currentCommit = git(["rev-parse", "HEAD"]);
+const currentFingerprint = fingerprintAtCommit(currentCommit, fingerprintCache);
 if (!/^[a-f0-9]{64}$/i.test(currentFingerprint)) {
   throw new Error("Current benchmark fingerprint is not a valid SHA-256 digest.");
 }
@@ -119,7 +118,6 @@ const candidates = runs
   )
   .sort((a, b) => Number(a.id) - Number(b.id));
 
-const fingerprintCache = new Map();
 let matchingRun = null;
 
 for (const run of candidates) {
