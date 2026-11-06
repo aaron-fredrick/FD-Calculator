@@ -14,6 +14,19 @@ on:
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/strategy-sensitivity.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/benchmark-fingerprint.js"
+      - "scripts/strategy-sensitivity.js"
+      - "scripts/gaml-sensitivity.js"
+      - "src/core/**"
+      - "src/strategies/**"
+      - "src/fd-options/**"
+      - "src/io/csv.js"
+      - "data/banks/**"
+      - "data/fd_options/**"
+      - ".github/workflows/strategy-sensitivity.yml"
   workflow_dispatch:
 
 concurrency:
@@ -26,11 +39,11 @@ permissions:
 jobs:
   sensitivity:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v6
         with:
@@ -48,6 +61,39 @@ jobs:
       - name: Run scoped strategy sensitivity and interaction matrix
         if: steps.cache.outputs.stale == 'true'
         run: set -o pipefail && node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
+      - name: Validate expanded sensitivity dataset
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          import assert from "node:assert/strict";
+          const data = JSON.parse(readFileSync("docs/strategies/benchmarks/results.json", "utf8"));
+          const rows = data.results;
+          const strategies = ["Greedy", "Absolute R+", "GSS"];
+          const groups = new Map();
+          for (const row of rows) {
+            const key = row.category + "|" + row.value;
+            groups.set(key, [...(groups.get(key) ?? []), row]);
+          }
+          assert.equal(rows.length, 330, "Expected 330 strategy observations");
+          assert.equal(groups.size, 110, "Expected 110 distinct scenario points");
+          for (const [key, group] of groups) {
+            assert.deepEqual(group.map(row => row.strategy).sort(), [...strategies].sort(), key + " must include all strategies");
+          }
+          const values = category => [...new Set(rows.filter(row => row.category === category).map(row => Number(row.value)))].sort((a, b) => a - b);
+          assert.deepEqual(values("horizon_months"), Array.from({ length: 21 }, (_, i) => i * 3));
+          assert.deepEqual(values("inflow_monthly_amount_lkr"), Array.from({ length: 21 }, (_, i) => i * 10000));
+          assert.deepEqual(values("outflow_monthly_amount_lkr"), Array.from({ length: 21 }, (_, i) => i * 10000));
+          assert.deepEqual(values("inflow_interval_months"), Array.from({ length: 13 }, (_, i) => i));
+          assert.deepEqual(values("outflow_interval_months"), Array.from({ length: 13 }, (_, i) => i));
+          for (const row of rows.filter(row => ["inflow_monthly_amount_lkr", "inflow_interval_months", "outflow_monthly_amount_lkr", "outflow_interval_months"].includes(row.category))) {
+            assert.equal(row.months, 120, "Cash-flow sweeps must run for 10 years");
+          }
+          for (const row of rows.filter(row => row.category.startsWith("outflow_") && row.valid === false && row.outflow_unpaid === null)) {
+            assert.equal(row.outflows_paid, null, "Unexecuted outflow totals must remain unmeasured");
+            assert.ok(Number.isFinite(row.outflow_scheduled_total), "Scheduled outflows must be reported separately");
+          }
+          console.log("Validated 330 observations, 110 scenarios, 0–60m horizon, and four 10-year cash-flow sweeps.");
+          NODE
       - name: Run Absolute R+ search-parameter sensitivity
         if: steps.cache.outputs.stale == 'true'
         run: set -o pipefail && node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
@@ -58,13 +104,14 @@ jobs:
         if: steps.cache.outputs.stale == 'true'
         run: test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
       - name: Publish refreshed benchmark data to the working branch
-        if: steps.cache.outputs.stale == 'true' && github.ref_type == 'branch' && github.ref_name != 'main'
+        if: steps.cache.outputs.stale == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name == 'pull_request' || (github.ref_type == 'branch' && github.ref_name != 'main'))
         run: |
+          branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin "${GITHUB_REF_NAME}"
+          git fetch origin "$branch"
           remote_fingerprint=""
-          if git show "origin/${GITHUB_REF_NAME}:docs/strategies/benchmarks/.input-fingerprint.json" > /tmp/remote-benchmark-fingerprint.json 2>/dev/null; then
+          if git show "origin/$branch:docs/strategies/benchmarks/.input-fingerprint.json" > /tmp/remote-benchmark-fingerprint.json 2>/dev/null; then
             remote_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/remote-benchmark-fingerprint.json', 'utf8')).fingerprint")"
           fi
           local_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('docs/strategies/benchmarks/.input-fingerprint.json', 'utf8')).fingerprint")"
@@ -78,10 +125,10 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "benchmarks: refresh scoped strategy measurements"
             for attempt in 1 2 3; do
-              git fetch origin "${GITHUB_REF_NAME}"
-              git rebase "origin/${GITHUB_REF_NAME}"
-              if git push origin "HEAD:${GITHUB_REF_NAME}"; then exit 0; fi
-              echo "Branch advanced during publish; retrying after rebase (attempt ${attempt}/3)."
+              git fetch origin "$branch"
+              git rebase "origin/$branch"
+              if git push origin "HEAD:$branch"; then exit 0; fi
+              echo "Branch advanced during publish; retrying after rebase (attempt $attempt/3)."
             done
             exit 1
           fi
