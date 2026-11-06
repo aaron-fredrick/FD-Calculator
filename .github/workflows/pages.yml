@@ -32,7 +32,26 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    # Benchmark-input changes must not publish the docs before their matching
+    # results.json is generated. The successful workflow_run event deploys the
+    # latest main revision, including the benchmark workflow's published data.
+    if: |
+      (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')) &&
+      (github.event_name != 'push' || !(
+        contains(toJSON(github.event.commits), 'scripts/benchmark-fingerprint.js') ||
+        contains(toJSON(github.event.commits), 'scripts/coordinate-benchmark-runs.js') ||
+        contains(toJSON(github.event.commits), 'scripts/strategy-sensitivity.js') ||
+        contains(toJSON(github.event.commits), 'scripts/gaml-sensitivity.js') ||
+        contains(toJSON(github.event.commits), 'src/core/') ||
+        contains(toJSON(github.event.commits), 'src/strategies/') ||
+        contains(toJSON(github.event.commits), 'src/fd-options/') ||
+        contains(toJSON(github.event.commits), 'src/io/csv.js') ||
+        contains(toJSON(github.event.commits), 'data/banks/') ||
+        contains(toJSON(github.event.commits), 'data/fd_options/') ||
+        contains(toJSON(github.event.commits), 'docs/strategies/benchmarks.md') ||
+        contains(toJSON(github.event.commits), '.github/workflows/strategy-sensitivity.yml') ||
+        contains(toJSON(github.event.commits), '.github/workflows/pages.yml')
+      ))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
