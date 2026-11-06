@@ -13,23 +13,14 @@ export function validateConfigurationShape(x){
  if(x.simulation!==undefined){
   if(!obj(x.simulation))bad("simulation","must be an object");
   Object.keys(x.simulation).forEach(k=>{if(!["mode","goal"].includes(k))bad("simulation."+k,"unknown property")});
-  if(!["scoped","goal"].includes(mode))bad("simulation.mode","must be scoped or goal");
-  if(mode==="scoped"){
-   if(x.simulation.goal!==undefined)bad("simulation.goal","not valid for scoped mode");
-  }else{
-   const g=x.simulation.goal;
-   if(!obj(g))bad("simulation.goal","required object for goal mode");
-   Object.keys(g).forEach(k=>{if(!["metric","target"].includes(k))bad("simulation.goal."+k,"unknown property")});
-   if(g.metric!=="consolidation_net_interest")bad("simulation.goal.metric","must be consolidation_net_interest");
-   if(typeof g.target!=="number"||!Number.isFinite(g.target)||g.target<=0)bad("simulation.goal.target","must be a finite positive number");
-  }
+  if(mode!=="scoped")bad("simulation.mode","goal mode is under development; use scoped date-range mode");
+  if(x.simulation.goal!==undefined)bad("simulation.goal","not available while goal mode is under development");
  }
  if(!obj(x.investment))bad("investment","required object");
  Object.keys(x.investment).forEach(k=>{if(!["start_date","end_date"].includes(k))bad("investment."+k,"unknown property")});
  if(x.investment.start_date===undefined)bad("investment.start_date","required");
  date(x.investment.start_date,"investment.start_date");
- if(x.investment.end_date===undefined){if(!x.simulation||mode==="scoped")bad("investment.end_date","required")}else date(x.investment.end_date,"investment.end_date");
- if(mode==="goal"&&x.investment.end_date!==undefined)bad("investment.end_date","omit when simulation.mode is goal; the goal determines the stopping point");
+ if(x.investment.end_date===undefined)bad("investment.end_date","required for scoped date-range mode");else date(x.investment.end_date,"investment.end_date");
  if(!obj(x.accounts)||!Object.keys(x.accounts).length)bad("accounts","must be a non-empty object");
  for(const [id,a] of Object.entries(x.accounts)){const p="accounts."+id;if(!id.trim()||!obj(a))bad(p,"invalid account object");Object.keys(a).forEach(k=>{if(!["bank_id","label","balance","supports_efd"].includes(k))bad(p+"."+k,"unknown property")});if(typeof a.bank_id!=="string"||!a.bank_id.trim())bad(p+".bank_id","required non-empty string");if(a.label!==undefined&&typeof a.label!=="string")bad(p+".label","must be a string");if(a.balance!==undefined&&(typeof a.balance!=="number"||!Number.isFinite(a.balance)||a.balance<0))bad(p+".balance","must be finite and non-negative");if(a.supports_efd!==undefined&&typeof a.supports_efd!=="boolean")bad(p+".supports_efd","must be boolean")}
  if(x.consolidation_account_id!==undefined&&typeof x.consolidation_account_id!=="string")bad("consolidation_account_id","must be an account ID");
