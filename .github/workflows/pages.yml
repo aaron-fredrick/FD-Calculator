@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ready: ${{ steps.assemble.outputs.ready }}
+      changed: ${{ steps.assemble.outputs.changed }}
+      web_sha: ${{ steps.assemble.outputs.web_sha }}
+      docs_sha: ${{ steps.assemble.outputs.docs_sha }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -34,11 +37,16 @@ jobs:
             if ! git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
               echo "::notice::Waiting for both independent site components; $branch has not been published yet."
               echo "ready=false" >> "$GITHUB_OUTPUT"
+              echo "changed=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
           done
 
+          web_sha="$(git rev-parse origin/pages-web-artifact)"
+          docs_sha="$(git rev-parse origin/pages-docs-artifact)"
+          echo "web_sha=$web_sha" >> "$GITHUB_OUTPUT"
+          echo "docs_sha=$docs_sha" >> "$GITHUB_OUTPUT"
           git archive origin/pages-web-artifact | tar -x -C site
           git archive origin/pages-docs-artifact | tar -x -C site
           touch site/.nojekyll
@@ -48,17 +56,33 @@ jobs:
           test -s site/docs/index.html
           test -s site/sitemap.xml
 
+          previous_web_sha=""
+          previous_docs_sha=""
+          if git ls-remote --exit-code origin refs/heads/pages-deploy-state >/dev/null 2>&1; then
+            git fetch --no-tags origin refs/heads/pages-deploy-state:refs/remotes/origin/pages-deploy-state
+            if git show origin/pages-deploy-state:deployment.json > /tmp/pages-deployment-state.json 2>/dev/null; then
+              previous_web_sha="$(jq -r '.web_artifact_sha // empty' /tmp/pages-deployment-state.json)"
+              previous_docs_sha="$(jq -r '.docs_artifact_sha // empty' /tmp/pages-deployment-state.json)"
+            fi
+          fi
+
           echo "ready=true" >> "$GITHUB_OUTPUT"
-          echo "Assembled the latest web and documentation artifacts."
+          if [ "$web_sha" = "$previous_web_sha" ] && [ "$docs_sha" = "$previous_docs_sha" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Both component artifact revisions are already deployed; skipping duplicate Pages deployment."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Assembled web $web_sha and docs $docs_sha."
+          fi
 
       - uses: actions/upload-pages-artifact@v5
-        if: steps.assemble.outputs.ready == 'true'
+        if: steps.assemble.outputs.ready == 'true' && steps.assemble.outputs.changed == 'true'
         with:
           path: site
 
   deploy:
     needs: assemble
-    if: needs.assemble.outputs.ready == 'true'
+    if: needs.assemble.outputs.ready == 'true' && needs.assemble.outputs.changed == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -67,3 +91,37 @@ jobs:
       - name: Deploy the assembled site
         id: deployment
         uses: actions/deploy-pages@v5
+
+  record:
+    needs: [assemble, deploy]
+    if: needs.deploy.result == 'success' && needs.assemble.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Record the deployed component revisions
+        shell: bash
+        env:
+          WEB_SHA: ${{ needs.assemble.outputs.web_sha }}
+          DOCS_SHA: ${{ needs.assemble.outputs.docs_sha }}
+        run: |
+          set -euo pipefail
+          branch="pages-deploy-state"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            git checkout -B "$branch" "refs/remotes/origin/$branch"
+          else
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          git clean -fd
+          printf '{\n  "web_artifact_sha": "%s",\n  "docs_artifact_sha": "%s"\n}\n' "$WEB_SHA" "$DOCS_SHA" > deployment.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deployment.json
+          if ! git diff --cached --quiet; then
+            git commit -m "pages: record deployed component revisions"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
