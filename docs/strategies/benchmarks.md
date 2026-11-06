@@ -25,10 +25,10 @@ All plotted values are **net interest after AIT and transfer fees**, in LKR. The
 | eFD eligibility | Standard-only vs eFD-eligible accounts |
 | AIT | Enabled at 10% |
 | Interest calculation | Simple interest; actual leap-year day basis |
-| Outflows | None |
+| Outflows | None in the current benchmark matrix; liquidity/outflow stress is a planned extension |
 | Transfer fees | Bank-specific catalogue fees; applied to transfers and final sweep |
 
-The general base portfolio is LKR 300,000 across three accounts and three banks over 24 months. Horizon, capital, inflow and eFD sweeps use that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands. Scheduled inflows are deposited into the first (DFCC) account.
+The general base portfolio is LKR 300,000 across three accounts and three banks over 24 months. In addition to the one-factor sweeps, a 3 × 3 capital/horizon interaction matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. The interaction matrix adds 27 strategy runs and is intended to reveal non-additive effects that isolated sweeps miss. Horizon, capital, inflow and eFD sweeps use that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands. Scheduled inflows are deposited into the first (DFCC) account.
 
 ## Bank product catalogues
 
