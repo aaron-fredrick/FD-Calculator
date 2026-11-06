@@ -115,6 +115,9 @@ test("Absolute+ reuses repeated option-interest calculations within one search r
   const cache = result.search_diagnostics.calculation_cache;
   assert.ok(cache.option_interest.misses > 0);
   assert.ok(cache.option_interest.hits > 0);
+  assert.ok(result.search_diagnostics.state_memo_hits >= 0);
+  assert.ok(result.search_diagnostics.raw_state_memo.entries <= 10000);
+  assert.ok(result.search_diagnostics.raw_state_memo.hits >= 0);
 });
 
 test("scoped selection compares finance first and only replaces Greedy on a strategic tie-break", () => {
@@ -186,8 +189,37 @@ test("scoped state identity includes every future-relevant cash-flow field", () 
     { ...state, date: "2026-01-02" },
     { ...state, balances: [["account-a", 24999], ["account-b", 10000]] },
     { ...state, flows: [["2026-03-02", [["account-a", 26000]]]] },
+    { ...state, flows: [["2026-03-01", [["account-b", 26000]]]] },
+    { ...state, flows: [["2026-03-01", [["account-a", 26001]]]] },
     { ...state, obligations: [["outflow-a", "2026-02-02", 5000]] },
+    { ...state, obligations: [["outflow-b", "2026-02-01", 5000]] },
+    { ...state, obligations: [["outflow-a", "2026-02-01", 5001]] },
     { ...state, paid: 1199 }
   ];
   for (const variant of variants) assert.notEqual(searchStateKey(variant), searchStateKey(state));
+});
+
+test("Absolute prunes an identical raw state reached through equivalent standard and eFD branches", () => {
+  const account = new Account({
+    id: "main", bank_id: "BANK_A", bank_key: "bank_a",
+    label: "Main", balance: 30000, supports_efd: true
+  });
+  const options = [
+    new FDOption({
+      label: "Standard 30d", bank_id: "BANK_A", bank_key: "bank_a",
+      period_str: "30d", annual_rate: 10, min_amount: 25000
+    }),
+    new FDOption({
+      label: "eFD 30d", bank_id: "BANK_A", bank_key: "bank_a",
+      period_str: "30d", annual_rate: 10, min_amount: 25000, is_efd: true
+    })
+  ];
+  const result = run(new AbsoluteStrategy({ ait_enabled: true }), {
+    options, start: "2026-01-01", end: "2026-02-01",
+    inflow_schedule: {}, accounts: [account], inflow_account_id: "main",
+    fee_config: new TransferFeeConfig(), consolidation_account_id: "main",
+    outflow_schedule: {}
+  });
+  assert.ok(result.search_diagnostics.raw_state_memo.hits > 0);
+  assert.ok(result.search_diagnostics.raw_state_memo.pruned > 0);
 });

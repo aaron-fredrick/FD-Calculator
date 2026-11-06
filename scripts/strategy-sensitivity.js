@@ -179,10 +179,20 @@ function runCase(category, value, {
       cash_retained: Number(result.cash_retained.toFixed(2)),
       duration_ms: duration,
       optimality_proven: result.optimality_proven ?? null,
-      search_expanded: result.search_diagnostics?.expanded_states ?? null
+      search_expanded: result.search_diagnostics?.expanded_states ?? null,
+      state_memo_hits: result.search_diagnostics?.state_memo_hits ?? null,
+      state_memo_evictions: result.search_diagnostics?.state_memo_evictions ?? null,
+      raw_state_memo_hits: result.search_diagnostics?.raw_state_memo?.hits ?? null,
+      raw_state_memo_pruned: result.search_diagnostics?.raw_state_memo?.pruned ?? null,
+      raw_state_memo_evictions: result.search_diagnostics?.raw_state_memo?.evictions ?? null,
+      local_branches_generated: result.search_diagnostics?.local_branches_generated ?? null,
+      consolidation_branches_generated: result.search_diagnostics?.consolidation_branches_generated ?? null,
+      candidate_states_generated: result.search_diagnostics?.candidate_states_generated ?? null,
+      candidate_state_duplicates: result.search_diagnostics?.candidate_state_duplicates ?? null,
+      budget_frontier_archive_candidates: result.search_diagnostics?.budget_frontier_archive_candidates ?? null
     };
     results.push(row);
-    process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify({ category, value, strategy: name, net_interest: row.net_interest, duration_ms: duration }) + "\n");
+    process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify(row) + "\n");
   }
 }
 

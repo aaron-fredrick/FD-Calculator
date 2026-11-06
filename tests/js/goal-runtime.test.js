@@ -97,6 +97,7 @@ test("Absolute+ evaluates goal candidates against the Greedy baseline with bound
   assert.equal(result.search_diagnostics.goal_search_budget, 80);
   assert.equal(result.search_diagnostics.goal_objective, "earliest consolidation net-interest achievement");
   assert.ok(result.search_diagnostics.selected_goal_score);
+  assert.equal(result.search_diagnostics.raw_state_memo.entries, 0);
 });
 
 test("final consolidation at the last event can be the first goal-credit boundary", () => {

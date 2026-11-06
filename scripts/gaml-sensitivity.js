@@ -60,12 +60,47 @@ for (const settings of cases) {
     expanded_states: result.search_diagnostics?.expanded_states ?? 0,
     beam_pruned: result.search_diagnostics?.beam_pruned ?? 0,
     local_combination_pruned: result.search_diagnostics?.local_combination_pruned ?? 0,
+    state_memo_hits: result.search_diagnostics?.state_memo_hits ?? 0,
+    state_memo_evictions: result.search_diagnostics?.state_memo_evictions ?? 0,
+    raw_state_memo_hits: result.search_diagnostics?.raw_state_memo?.hits ?? 0,
+    raw_state_memo_pruned: result.search_diagnostics?.raw_state_memo?.pruned ?? 0,
+    raw_state_memo_evictions: result.search_diagnostics?.raw_state_memo?.evictions ?? 0,
+    local_branches_generated: result.search_diagnostics?.local_branches_generated ?? 0,
+    consolidation_branches_generated: result.search_diagnostics?.consolidation_branches_generated ?? 0,
+    candidate_states_generated: result.search_diagnostics?.candidate_states_generated ?? 0,
+    candidate_state_duplicates: result.search_diagnostics?.candidate_state_duplicates ?? 0,
+    budget_stopped: result.search_diagnostics?.budget_stopped ?? false,
+    budget_frontier_states: result.search_diagnostics?.budget_frontier_states ?? 0,
+    budget_frontier_archive_candidates: result.search_diagnostics?.budget_frontier_archive_candidates ?? 0,
+    selected_strategy: result.search_diagnostics?.result_selection?.selected ?? result.strategy_name,
+    selected_reason: result.search_diagnostics?.result_selection?.reason ?? null,
+    candidates_replayed: result.search_diagnostics?.result_selection?.candidates_replayed ?? 0,
+    candidate_objective: result.search_diagnostics?.result_selection?.candidate_objective ?? null,
+    greedy_objective: result.search_diagnostics?.result_selection?.greedy_objective ?? null,
+    candidate_operations: result.search_diagnostics?.result_selection?.candidate_operations ?? null,
+    greedy_operations: result.search_diagnostics?.result_selection?.greedy_operations ?? null,
+    candidate_outstanding: result.search_diagnostics?.result_selection?.candidate_outstanding ?? null,
+    greedy_outstanding: result.search_diagnostics?.result_selection?.greedy_outstanding ?? null,
     optimality_proven: result.optimality_proven === true,
     duration_ms
   };
   results.push(row);
   process.stdout.write("GAML_SENSITIVITY_POINT=" + JSON.stringify(row) + "\n");
 }
+const decisionBudgetRows = results.filter(row => row.sweep === "decision_cap").sort((a, b) => a.value - b.value);
+if (decisionBudgetRows.length && decisionBudgetRows[0].budget_frontier_archive_candidates < 1) {
+  throw new Error("Absolute R+ did not archive the first decision-budget frontier.");
+}
+for (let index = 1; index < decisionBudgetRows.length; index += 1) {
+  const previous = decisionBudgetRows[index - 1];
+  const current = decisionBudgetRows[index];
+  if (current.net_interest + 0.01 < previous.net_interest) {
+    throw new Error("Absolute R+ decision-budget quality regressed from " +
+      previous.value + " to " + current.value + " decisions: " +
+      previous.net_interest + " -> " + current.net_interest);
+  }
+}
+
 const output = {
   generated_at: new Date().toISOString(), start_date: START,
   scenario: { horizon_months: 24, capital_lkr: 300000, accounts: 3, banks: BANK_IDS, inflows: "none", efd_eligible: true, ait_enabled: true, compound: false },

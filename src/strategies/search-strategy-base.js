@@ -21,6 +21,9 @@ const balanceTotal = balances => sum(balances.map(([, value]) => value));
 const dateSort = (a, b) => a.localeCompare(b);
 const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
+const SEARCH_RAW_STATE_MEMO_LIMIT = 10000;
+const SEARCH_BUDGET_FRONTIER_INTERVAL = 500;
+const SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT = 512;
 
 function cachedValue(cache, key, compute, stats) {
   if (cache.has(key)) {
@@ -407,11 +410,13 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       }
     }
   } else {
-    let partials = [{ score: 0, choices: [] }];
+    let partials = [{ score: 0, efd: 0, choices: [] }];
     for (let index = 0; index < accountIds.length; index++) {
       const id = accountIds[index], expanded = [];
       const accountOptions = slots[index].slice(1);
       const standardTerms = new Set(accountOptions.filter(option => !option.is_efd).map(option => option.economic_terms_key));
+      const equivalentStandardTerms = new Set((optionsByAccount.get(id) || [])
+        .filter(option => !option.is_efd).map(option => option.economic_terms_key));
       const choices = accountOptions.sort((a, b) => {
         const profit = settings.goalMode
           ? goalOptionScore(id, b) - goalOptionScore(id, a)
@@ -422,23 +427,29 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
           Number(a.is_efd && standardTerms.has(a.economic_terms_key));
       });
       for (const partial of partials) {
-        expanded.push({ score: partial.score, choices: [...partial.choices, [id, null]] });
+        expanded.push({
+          score: partial.score, efd: partial.efd,
+          choices: [...partial.choices, [id, null]]
+        });
         for (const option of choices) {
           expanded.push({
             score: partial.score + (settings.goalMode
               ? goalOptionScore(id, option)
               : getOptionInterest(context, option, balances.get(id), today) * (1 - settings.aitRate)),
+            efd: partial.efd + Number(option.is_efd && equivalentStandardTerms.has(option.economic_terms_key)),
             choices: [...partial.choices, [id, option]]
           });
         }
       }
-      expanded.sort((a, b) => b.score - a.score || efdFor(b.choices) - efdFor(a.choices));
+      // Carry the eFD tie-break count with each partial instead of rescanning
+      // every account choice for every comparator invocation.
+      expanded.sort((a, b) => b.score - a.score || b.efd - a.efd);
       if (expanded.length > settings.maxLocalBranches) pruned += expanded.length - settings.maxLocalBranches;
       partials = expanded.slice(0, settings.maxLocalBranches);
     }
     for (const partial of partials) {
       if (partial.choices.some(([, option]) => option)) branches.push({
-        score: partial.score, efd: efdFor(partial.choices), choices: partial.choices
+        score: partial.score, efd: partial.efd, choices: partial.choices
       });
     }
   }
@@ -638,8 +649,7 @@ function calculateUpperBound(state, context, exponential = false) {
   return total + state.paid - sum(state.obligations.map(item => Number(item[2])));
 }
 
-function makePriority(state, context) {
-  const key = stateKey(state);
+function makePriority(state, context, key = stateKey(state)) {
   return cachedValue(context.priorityCache, key,
     () => calculatePriority(state, context),
     context.cacheStats.priority);
@@ -836,6 +846,26 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
 }
 
 function expandState(rawState, context, settings, mode, counters, operationCount = 0) {
+  const goalMode = context.simulation?.mode === "goal";
+  if (!goalMode && mode === "absolute") {
+    const rawKey = stateKey(rawState);
+    const priorRaw = counters.rawMemo.get(rawKey);
+    if (priorRaw) {
+      counters.rawMemo.delete(rawKey);
+      counters.rawMemo.set(rawKey, priorRaw);
+      counters.rawStateMemoHits++;
+      if (priorRaw.operationCount <= operationCount) {
+        counters.rawStateMemoPruned++;
+        return { terminal: false, children: [] };
+      }
+    } else if (counters.rawMemo.size >= SEARCH_RAW_STATE_MEMO_LIMIT) {
+      counters.rawMemo.delete(counters.rawMemo.keys().next().value);
+      counters.rawStateMemoEvictions++;
+    }
+    counters.rawMemo.set(rawKey, {
+      operationCount: Math.min(operationCount, priorRaw?.operationCount ?? Infinity)
+    });
+  }
   const state = advanceState(rawState, context);
   if (!state) return { terminal: false, children: [] };
   if (state.date >= context.end) {
@@ -843,8 +873,16 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     const value = terminalValue(state, context);
     return { terminal: true, value, state, children: [] };
   }
-  const goalMode = context.simulation?.mode === "goal";
-  const bound = makeUpperBound(state, context, mode === "gaml");
+  const key = stateKey(state);
+  const prior = goalMode ? null : counters.memo.get(key);
+  if (prior) {
+    counters.memo.delete(key);
+    counters.memo.set(key, prior);
+    counters.stateMemoHits++;
+  }
+  // The upper bound is deterministic for a canonical state. Reuse the memoised
+  // value instead of recalculating it for another path to the same state.
+  const bound = prior?.bound ?? makeUpperBound(state, context, mode === "gaml");
   const stillSeekingBaselineTie = counters.bestValue <= counters.baselineValue + EPS;
   if (!goalMode && (stillSeekingBaselineTie
     ? bound < counters.bestValue - EPS
@@ -852,15 +890,7 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     counters.boundPruned++;
     return { terminal: false, children: [] };
   }
-  const key = stateKey(state);
-  const prior = counters.memo.get(key);
-  if (!goalMode && prior) {
-    counters.memo.delete(key);
-    counters.memo.set(key, prior);
-  }
-  if (!goalMode && prior &&
-      prior.bound >= bound - EPS &&
-      prior.operationCount <= operationCount) {
+  if (!goalMode && prior && prior.bound >= bound - EPS && prior.operationCount <= operationCount) {
     counters.memoPruned++;
     return { terminal: false, children: [] };
   }
@@ -877,10 +907,13 @@ function expandState(rawState, context, settings, mode, counters, operationCount
 
   const nextDate = nextEventDate(state.date, state.flows, context.eventDates, context.end);
   const activeIds = state.balances.filter(([, amount]) => amount > EPS).map(([id]) => id);
-  if (!activeIds.length) return {
-    terminal: false,
-    children: [{ state: { ...state, date: nextDate }, action: null, root_signature: null, priority: null }]
-  };
+  if (!activeIds.length) {
+    const result = {
+      terminal: false,
+      children: [{ state: { ...state, date: nextDate }, action: null, root_signature: null, priority: null }]
+    };
+    return result;
+  }
 
   const balances = new Map(state.balances);
   const children = [];
@@ -958,6 +991,7 @@ function expandState(rawState, context, settings, mode, counters, operationCount
   const consolidation = buildConsolidationBranches(state.balances, context.accounts, context, context.feeConfig, parseISODate(state.date), {
     ...settings, endDate: context.endDate, compound: context.compound, actualLeapYear: context.actualLeapYear, aitRate: context.aitRate
   });
+  counters.consolidationBranchesGenerated += consolidation.length;
   for (const branch of consolidation) {
     if (mode === "gaml" && settings.maxDecisions != null && counters.expanded >= settings.maxDecisions) break;
     let nextBalances = state.balances;
@@ -1010,6 +1044,7 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     consolidationId: context.consolidationId
   });
   counters.localPruned += local.pruned;
+  counters.localBranchesGenerated += local.branches.length;
   for (const branch of local.branches) {
     if (mode === "gaml" && settings.maxDecisions != null && counters.expanded >= settings.maxDecisions) break;
     const bookings = branch.choices.filter(([, option]) => option).map(([account_id, option]) => ({
@@ -1143,6 +1178,47 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
   return { bestNode, bestGoalScore, goalPrunedByAchievement, optimalityProven };
 }
 
+function selectGamlBeam(candidates, rootBest, settings, goalMode) {
+  const candidateKey = candidate => goalMode
+    ? candidate.state_key ?? goalSearchStateKey(candidate.state, candidate.node ? nodePath(candidate.node) : [])
+    : candidate.state_key ?? stateKey(candidate.state);
+  const bestByState = new Map();
+  for (const candidate of candidates) {
+    const key = candidateKey(candidate);
+    const previous = bestByState.get(key);
+    if (!previous || candidate.priority > previous.priority ||
+        (Math.abs(candidate.priority - previous.priority) <= EPS &&
+          (candidate.node?.operation_count ?? 0) < (previous.node?.operation_count ?? 0))) {
+      bestByState.set(key, candidate);
+    }
+  }
+  const unique = [...bestByState.values()].sort((a, b) =>
+    b.priority - a.priority ||
+    (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0) ||
+    a.sequence - b.sequence
+  );
+  const diversity = [...rootBest.values()].sort((a, b) =>
+    b.priority - a.priority ||
+    (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
+  ).slice(0, Math.max(1, Math.floor(settings.beamWidth / 3)));
+  const selected = [], seen = new Set();
+  for (const candidate of diversity) {
+    const key = candidateKey(candidate);
+    if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
+  }
+  for (const candidate of unique) {
+    if (selected.length >= settings.beamWidth) break;
+    const key = candidateKey(candidate);
+    if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
+  }
+  return {
+    selected,
+    duplicates: candidates.length - bestByState.size,
+    beamPruned: Math.max(0, candidates.length - selected.length),
+    rootPeak: diversity.length
+  };
+}
+
 function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
   let bestNode = null, bestGoalScore = initialGoalScore, sequence = 0;
   let goalPrunedByAchievement = 0;
@@ -1154,6 +1230,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
   }];
   let budgetStopped = false, beamPruned = 0, rootPeak = 0;
   let budgetFrontier = [];
+  const budgetFrontierHistory = new Map();
   while (beam.length) {
     const candidates = [], rootBest = new Map();
     for (let beamIndex = 0; beamIndex < beam.length; beamIndex++) {
@@ -1183,17 +1260,39 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         if (evaluateGoal) {
           const score = evaluateGoal(path ?? nodePath(entry.node), expanded.value);
           if (compareGoalScores(score, bestGoalScore) > 0) { bestGoalScore = score; bestNode = entry.node; }
-          continue;
+        } else {
+          updateScopedBest(expanded.value, expanded.state, entry.node, counters);
+          bestNode = counters.bestNode;
         }
-        updateScopedBest(expanded.value, expanded.state, entry.node, counters);
-        bestNode = counters.bestNode;
+        if (!goalMode && settings.maxDecisions != null &&
+            counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
+          const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
+          const archiveCandidates = [...snapshot.selected].sort((a, b) =>
+            b.priority - a.priority ||
+            (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
+          ).slice(0, 4);
+          for (const archived of archiveCandidates) {
+            const archivedPath = nodePath(archived.node);
+            if (!archivedPath.length) continue;
+            const signature = goalPathSignature(archivedPath);
+            if (!budgetFrontierHistory.has(signature) &&
+                budgetFrontierHistory.size < SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT) {
+              budgetFrontierHistory.set(signature, { ...archived, path: archivedPath });
+            }
+          }
+        }
         continue;
       }
       for (const child of expanded.children) {
         sequence++;
         const node = child.action ? makeNode(entry.node, child.action, child.date, entry.node?.root_signature ? null : child.root_signature) : entry.node;
-        const priority = goalMode ? makeGoalPriority(child.state, context) : makePriority(child.state, context);
-        const candidate = { state: child.state, node, priority, sequence };
+        const stateKeyForCandidate = goalMode
+          ? goalSearchStateKey(child.state, node ? nodePath(node) : [])
+          : stateKey(child.state);
+        const priority = goalMode
+          ? makeGoalPriority(child.state, context)
+          : makePriority(child.state, context, stateKeyForCandidate);
+        const candidate = { state: child.state, node, priority, sequence, state_key: stateKeyForCandidate };
         const signature = node?.root_signature || ["unclassified"];
         const rootKey = JSON.stringify(signature);
         const prior = rootBest.get(rootKey);
@@ -1203,50 +1302,39 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
           rootBest.set(rootKey, candidate);
         }
         candidates.push(candidate);
+        counters.candidateStatesGenerated++;
+      }
+      if (!goalMode && settings.maxDecisions != null &&
+          counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
+        const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
+        const archiveCandidates = [...snapshot.selected].sort((a, b) =>
+          b.priority - a.priority ||
+          (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
+        ).slice(0, 4);
+        for (const archived of archiveCandidates) {
+          const archivedPath = nodePath(archived.node);
+          if (!archivedPath.length) continue;
+          const signature = goalPathSignature(archivedPath);
+          if (!budgetFrontierHistory.has(signature) &&
+              budgetFrontierHistory.size < SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT) {
+            budgetFrontierHistory.set(signature, { ...archived, path: archivedPath });
+          }
+        }
       }
     }
-    const candidateKey = candidate => goalMode
-      ? goalSearchStateKey(candidate.state, candidate.node ? nodePath(candidate.node) : [])
-      : stateKey(candidate.state);
-    const bestByState = new Map();
-    for (const candidate of candidates) {
-      const key = candidateKey(candidate);
-      const previous = bestByState.get(key);
-      if (!previous || candidate.priority > previous.priority ||
-          (Math.abs(candidate.priority - previous.priority) <= EPS &&
-            (candidate.node?.operation_count ?? 0) < (previous.node?.operation_count ?? 0))) {
-        bestByState.set(key, candidate);
-      }
-    }
-    const unique = [...bestByState.values()].sort((a, b) =>
-      b.priority - a.priority ||
-      (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0) ||
-      a.sequence - b.sequence
-    );
-    const diversity = [...rootBest.values()].sort((a, b) =>
-      b.priority - a.priority ||
-      (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
-    ).slice(0, Math.max(1, Math.floor(settings.beamWidth / 3)));
-    rootPeak = Math.max(rootPeak, diversity.length);
-    const selected = [], seen = new Set();
-    for (const candidate of diversity) {
-      const key = candidateKey(candidate);
-      if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
-    }
-    for (const candidate of unique) {
-      if (selected.length >= settings.beamWidth) break;
-      const key = candidateKey(candidate);
-      if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
-    }
-    beamPruned += Math.max(0, candidates.length - selected.length);
-    beam = selected;
+    const selection = selectGamlBeam(candidates, rootBest, settings, goalMode);
+    counters.candidateStateDuplicates += selection.duplicates;
+    rootPeak = Math.max(rootPeak, selection.rootPeak);
+    beamPruned += selection.beamPruned;
+    beam = selection.selected;
     if (budgetStopped) {
-      budgetFrontier = selected;
+      budgetFrontier = selection.selected;
       break;
     }
   }
   return {
-    bestNode, bestGoalScore, beamPruned, rootPeak, budgetStopped, budgetFrontier, goalPrunedByAchievement,
+    bestNode, bestGoalScore, beamPruned, rootPeak, budgetStopped, budgetFrontier,
+    budgetFrontierHistory: [...budgetFrontierHistory.values()], goalPrunedByAchievement,
     optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
 }
@@ -1326,12 +1414,16 @@ export class SearchStrategyBase {
     } : null;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
+      stateMemoHits: 0,
+      rawStateMemoHits: 0, rawStateMemoPruned: 0, rawStateMemoEvictions: 0,
+      localBranchesGenerated: 0, consolidationBranchesGenerated: 0,
+      candidateStatesGenerated: 0, candidateStateDuplicates: 0,
       bestValue: goalMode ? -Infinity : greedyObjective,
       baselineValue: goalMode ? -Infinity : greedyObjective,
       bestOperationCount: goalMode ? Infinity : resultOperationCount(greedy),
       bestOutstanding: goalMode ? Infinity : sum((greedy.outstanding_outflows ?? []).map(item => Number(item.remaining || 0))),
       totalCapital: context.totalCapital,
-      bestNode: null, alternatives: [], memo: new Map(), memoEvictions: 0
+      bestNode: null, alternatives: [], memo: new Map(), memoEvictions: 0, rawMemo: new Map(),
     };
     const initialGoalProvenance = goalMode ? new BalanceProvenance([...context.accounts.keys()]) : null;
     if (initialGoalProvenance) {
@@ -1357,11 +1449,23 @@ export class SearchStrategyBase {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
       beam_pruned: search.beamPruned || 0, local_combination_pruned: counters.localPruned,
+      local_branches_generated: counters.localBranchesGenerated,
+      consolidation_branches_generated: counters.consolidationBranchesGenerated,
+      candidate_states_generated: counters.candidateStatesGenerated,
+      candidate_state_duplicates: counters.candidateStateDuplicates,
       root_strategy_peak: search.rootPeak || 0,
       budget_stopped: Boolean(search.budgetStopped),
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
+      budget_frontier_archive_candidates: search.budgetFrontierHistory?.length ?? 0,
       state_memo_size: counters.memo.size,
+      state_memo_hits: counters.stateMemoHits,
       state_memo_evictions: counters.memoEvictions,
+      raw_state_memo: {
+        entries: counters.rawMemo.size,
+        hits: counters.rawStateMemoHits,
+        pruned: counters.rawStateMemoPruned,
+        evictions: counters.rawStateMemoEvictions
+      },
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
@@ -1392,8 +1496,19 @@ export class SearchStrategyBase {
       if (search.bestNode) {
         candidates.push({ path: nodePath(search.bestNode), continuation: false, source: "search" });
       }
+      const seen = new Set(candidates.map(candidate => goalPathSignature(candidate.path)));
+      const archivedFrontier = [...(search.budgetFrontierHistory ?? [])]
+        .sort((a, b) => b.priority - a.priority ||
+          (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0));
+      for (const entry of archivedFrontier) {
+        const path = entry.path ?? nodePath(entry.node);
+        if (!path.length) continue;
+        const key = goalPathSignature(path);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        candidates.push({ path, continuation: true, source: "budget_checkpoint" });
+      }
       if (search.budgetStopped) {
-        const seen = new Set(candidates.map(candidate => goalPathSignature(candidate.path)));
         const frontier = [...(search.budgetFrontier ?? [])]
           .sort((a, b) => b.priority - a.priority ||
             (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0));
