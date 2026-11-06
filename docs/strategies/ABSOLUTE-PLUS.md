@@ -53,7 +53,7 @@ The following controlled experiment varies one Absolute R+ search limit at a tim
 - No inflows or outflows; eFD eligible; AIT enabled at 10%; simple interest.
 - Baseline controls: beam width 96, local branch limit 48, decision cap 5,000.
 
-Each graph has separate panels for net interest after AIT and transfer fees, expanded search states, and measured runtime. Runtime is specific to the CI runner; it is useful for relative cost within this run, not as a hardware-independent benchmark. Full raw results: [Absolute R+ search results](./benchmarks/gaml-search-results.json).
+The interactive charts let you switch between net interest after AIT and fees, expanded search states, beam/local pruning counts and measured runtime. Runtime is specific to the CI runner; it is useful for relative cost within this run, not as a hardware-independent benchmark. Full raw results: [Absolute R+ search results](./benchmarks/gaml-search-results.json).
 
 ### Beam width
 
