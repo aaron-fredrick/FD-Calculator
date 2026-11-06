@@ -1267,7 +1267,11 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         if (!goalMode && settings.maxDecisions != null &&
             counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
           const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
-          for (const archived of snapshot.selected.slice(0, 4)) {
+          const archiveCandidates = [...snapshot.selected].sort((a, b) =>
+            b.priority - a.priority ||
+            (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
+          ).slice(0, 4);
+          for (const archived of archiveCandidates) {
             const archivedPath = nodePath(archived.node);
             if (!archivedPath.length) continue;
             const signature = goalPathSignature(archivedPath);
@@ -1303,7 +1307,11 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
       if (!goalMode && settings.maxDecisions != null &&
           counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
         const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
-        for (const archived of snapshot.selected.slice(0, 4)) {
+        const archiveCandidates = [...snapshot.selected].sort((a, b) =>
+          b.priority - a.priority ||
+          (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
+        ).slice(0, 4);
+        for (const archived of archiveCandidates) {
           const archivedPath = nodePath(archived.node);
           if (!archivedPath.length) continue;
           const signature = goalPathSignature(archivedPath);
