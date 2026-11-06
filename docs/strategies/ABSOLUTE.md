@@ -43,6 +43,18 @@ The decision space grows rapidly with the number of accounts, eligible FD produc
 
 Inspect search diagnostics and `optimality_proven` with every result. Net interest alone does not establish whether the exhaustive search proved an optimum.
 
-## Naming and compatibility
+## Compatibility
 
 The public display name is **Absolute R**, where R denotes the scoped date range. The JSON strategy identifier remains `absolute`; the CLI accepts both `absolute-r` and the legacy `absolute` alias.
+
+## Runtime boundary
+
+Absolute R produces a candidate decision path; it does not execute hypothetical bookings or mutate authoritative balances. The selected path is replayed by `SimulationRuntime`, which validates and executes the decisions against actual events and balances.
+
+## Source map
+
+| Concern | Implementation |
+|---|---|
+| Exhaustive search and branch-and-bound | `src/strategies/absolute.js`, `src/strategies/search-strategy-base.js` |
+| Authoritative event processing and decision execution | `src/core/simulation-runtime.js` |
+| Session driving and finalisation | `src/core/simulation.js` |
