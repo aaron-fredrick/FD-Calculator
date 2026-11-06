@@ -1,40 +1,87 @@
-name: Strategy sensitivity study
+name: Scoped strategy benchmarks
+
 on:
   push:
-    branches: ["feature/**"]
+    branches: ["feature/**", "chore/**"]
     paths:
+      - "scripts/benchmark-fingerprint.js"
       - "scripts/strategy-sensitivity.js"
       - "scripts/gaml-sensitivity.js"
       - "src/core/**"
       - "src/strategies/**"
       - "src/fd-options/**"
+      - "src/io/csv.js"
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/strategy-sensitivity.yml"
   workflow_dispatch:
+
 concurrency:
-  group: strategy-sensitivity-${{ github.ref }}
+  group: scoped-benchmarks-${{ github.ref }}
   cancel-in-progress: true
+
 permissions:
-  contents: read
+  contents: write
+
 jobs:
   sensitivity:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Run strategy sensitivity study
+      - name: Check benchmark input fingerprint
+        id: cache
+        run: |
+          stale="$(node scripts/benchmark-fingerprint.js --check)"
+          echo "stale=$stale" >> "$GITHUB_OUTPUT"
+          if [ "$stale" = "true" ]; then
+            echo "Benchmark inputs changed or cached outputs are missing; regenerating."
+          else
+            echo "Benchmark inputs and cached outputs match; skipping simulation runs."
+          fi
+      - name: Run scoped strategy sensitivity and interaction matrix
+        if: steps.cache.outputs.stale == 'true'
         run: set -o pipefail && node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
-      - name: Run GAML search sensitivity study
+      - name: Run Absolute R+ search-parameter sensitivity
+        if: steps.cache.outputs.stale == 'true'
         run: set -o pipefail && node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
-      - name: Upload benchmark output
-        uses: actions/upload-artifact@v6
+      - name: Store benchmark input fingerprint
+        if: steps.cache.outputs.stale == 'true'
+        run: node scripts/benchmark-fingerprint.js --write
+      - name: Publish refreshed benchmark data to the working branch
+        if: steps.cache.outputs.stale == 'true' && github.ref_type == 'branch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/strategies/benchmarks/results.json
+          git add docs/strategies/benchmarks/gaml-search-results.json
+          git add docs/strategies/benchmarks/.input-fingerprint.json
+          if ! git diff --cached --quiet; then
+            git commit -m "benchmarks: refresh scoped strategy measurements"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+      - name: Preserve benchmark run output
+        if: always()
+        run: |
+          if [ ! -f strategy-sensitivity-output.txt ]; then
+            echo "Benchmark simulation skipped because the fingerprint and cached outputs were current." > strategy-sensitivity-output.txt
+          fi
+          if [ ! -f gaml-sensitivity-output.txt ]; then
+            echo "Absolute R+ parameter sweep skipped because the fingerprint and cached outputs were current." > gaml-sensitivity-output.txt
+          fi
+      - uses: actions/upload-artifact@v6
+        if: always()
         with:
-          name: strategy-sensitivity-results
+          name: scoped-strategy-benchmarks
           path: |
             strategy-sensitivity-output.txt
             gaml-sensitivity-output.txt
-          retention-days: 14
+            docs/strategies/benchmarks/results.json
+            docs/strategies/benchmarks/gaml-search-results.json
+          retention-days: 30
