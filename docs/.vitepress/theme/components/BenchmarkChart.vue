@@ -1,0 +1,163 @@
+<script setup>
+import { computed, ref } from 'vue'
+
+const props = defineProps({
+  rows: { type: Array, required: true },
+  category: { type: String, required: true },
+  title: { type: String, default: '' },
+  xLabel: { type: String, default: 'Scenario factor' },
+  groupKey: { type: String, default: 'category' },
+  xKey: { type: String, default: 'value' },
+  seriesKey: { type: String, default: 'strategy' },
+  seriesName: { type: String, default: 'Absolute R+' },
+  metrics: {
+    type: Array,
+    default: () => [
+      { key: 'net_interest', label: 'Net interest (LKR)', format: 'currency' },
+      { key: 'delta_pct_vs_greedy', label: 'Difference vs Greedy (%)', format: 'percent' },
+      { key: 'duration_ms', label: 'Runtime (ms)', format: 'number' },
+      { key: 'bookings', label: 'Bookings', format: 'number' }
+    ]
+  }
+})
+
+const metricKey = ref(props.metrics[0]?.key ?? 'net_interest')
+const activePoint = ref(null)
+const hiddenSeries = ref(new Set())
+const palette = ['#56b4e9', '#55c99a', '#bd93f9', '#e69f00']
+const rows = computed(() => props.rows.filter(row => row[props.groupKey] === props.category))
+const metric = computed(() => props.metrics.find(item => item.key === metricKey.value) ?? props.metrics[0])
+const seriesNames = computed(() => [...new Set(rows.value.map(row => row[props.seriesKey] ?? props.seriesName))])
+const xValues = computed(() => {
+  const values = [...new Set(rows.value.map(row => row[props.xKey]))]
+  return values.sort((a, b) => {
+    const an = Number(a), bn = Number(b)
+    return Number.isFinite(an) && Number.isFinite(bn) ? an - bn : String(a).localeCompare(String(b))
+  })
+})
+const numericX = computed(() => xValues.value.length > 1 && xValues.value.every(value => Number.isFinite(Number(value))))
+const validValues = computed(() => rows.value.map(row => Number(row[metric.value?.key])).filter(Number.isFinite))
+const yMax = computed(() => Math.max(1, ...validValues.value) * 1.12)
+const yMin = computed(() => Math.min(0, ...validValues.value))
+const left = 92, right = 960, top = 38, bottom = 374
+const xPos = value => {
+  if (xValues.value.length <= 1) return (left + right) / 2
+  if (numericX.value) {
+    const min = Number(xValues.value[0]), max = Number(xValues.value.at(-1))
+    return left + (Number(value) - min) * (right - left) / (max - min || 1)
+  }
+  return left + xValues.value.indexOf(value) * (right - left) / (xValues.value.length - 1)
+}
+const yPos = value => bottom - (Number(value) - yMin.value) * (bottom - top) / (yMax.value - yMin.value || 1)
+const series = computed(() => seriesNames.value.map((name, index) => ({
+  name,
+  color: palette[index % palette.length],
+  points: rows.value
+    .filter(row => (row[props.seriesKey] ?? props.seriesName) === name && Number.isFinite(Number(row[metric.value?.key])))
+    .sort((a, b) => xValues.value.indexOf(a[props.xKey]) - xValues.value.indexOf(b[props.xKey]))
+})))
+const format = value => {
+  if (!Number.isFinite(Number(value))) return '—'
+  if (metric.value?.format === 'currency') return 'LKR ' + Number(value).toLocaleString('en-LK', { maximumFractionDigits: 2 })
+  if (metric.value?.format === 'percent') return Number(value).toFixed(2) + '%'
+  return Number(value).toLocaleString('en-LK', { maximumFractionDigits: 2 })
+}
+const xFormat = value => Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-LK') : String(value)
+const yTicks = computed(() => Array.from({ length: 5 }, (_, index) => yMin.value + (yMax.value - yMin.value) * index / 4))
+function toggle(name) {
+  const next = new Set(hiddenSeries.value)
+  next.has(name) ? next.delete(name) : next.add(name)
+  hiddenSeries.value = next
+}
+</script>
+
+<template>
+  <section class="benchmark-chart" :aria-label="title || category">
+    <header class="chart-header">
+      <div>
+        <h3 v-if="title">{{ title }}</h3>
+        <p>Hover a point for exact values. Select a metric or toggle a strategy.</p>
+      </div>
+      <label class="metric-picker">
+        <span>Metric</span>
+        <select v-model="metricKey">
+          <option v-for="item in metrics" :key="item.key" :value="item.key">{{ item.label }}</option>
+        </select>
+      </label>
+    </header>
+    <div class="chart-legend" role="group" aria-label="Toggle chart series">
+      <button
+        v-for="item in series"
+        :key="item.name"
+        type="button"
+        :aria-pressed="!hiddenSeries.has(item.name)"
+        :class="{ muted: hiddenSeries.has(item.name) }"
+        @click="toggle(item.name)"
+      ><i :style="{ background: item.color }"></i>{{ item.name }}</button>
+    </div>
+    <div class="chart-plot">
+      <svg viewBox="0 0 1000 440" role="img" :aria-label="title + ', ' + metric.label">
+        <rect x="72" y="18" width="904" height="378" rx="10" class="plot-surface" />
+        <g v-for="tick in yTicks" :key="tick">
+          <line :x1="left" :x2="right" :y1="yPos(tick)" :y2="yPos(tick)" class="grid-line" />
+          <text :x="left - 12" :y="yPos(tick) + 4" text-anchor="end" class="axis-text">{{ format(tick) }}</text>
+        </g>
+        <g v-for="value in xValues" :key="String(value)">
+          <line :x1="xPos(value)" :x2="xPos(value)" :y1="bottom" :y2="bottom + 6" class="axis-line" />
+          <text :x="xPos(value)" :y="bottom + 28" text-anchor="middle" class="axis-text">{{ xFormat(value) }}</text>
+        </g>
+        <g v-for="item in series" :key="item.name" v-show="!hiddenSeries.has(item.name)">
+          <polyline
+            :points="item.points.map(point => xPos(point[xKey]) + ',' + yPos(point[metric.key])).join(' ')"
+            fill="none" :stroke="item.color" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
+          />
+          <g v-for="point in item.points" :key="String(point[xKey]) + item.name">
+            <circle
+              :cx="xPos(point[xKey])" :cy="yPos(point[metric.key])" r="6"
+              :fill="item.color" class="data-point"
+              tabindex="0" role="button"
+              @mouseenter="activePoint = { row: point, name: item.name, color: item.color }"
+              @focus="activePoint = { row: point, name: item.name, color: item.color }"
+              @mouseleave="activePoint = null"
+              @blur="activePoint = null"
+            />
+          </g>
+        </g>
+        <text x="516" y="432" text-anchor="middle" class="axis-title">{{ xLabel }}</text>
+      </svg>
+      <aside v-if="activePoint" class="chart-tooltip" aria-live="polite">
+        <strong><i :style="{ background: activePoint.color }"></i>{{ activePoint.name }}</strong>
+        <span>{{ xLabel }}: {{ xFormat(activePoint.row[xKey]) }}</span>
+        <b>{{ metric.label }}: {{ format(activePoint.row[metric.key]) }}</b>
+        <span v-if="activePoint.row.delta_pct_vs_greedy !== undefined">vs Greedy: {{ Number(activePoint.row.delta_pct_vs_greedy).toFixed(2) }}%</span>
+        <span v-if="activePoint.row.duration_ms !== undefined">Runtime: {{ Number(activePoint.row.duration_ms).toLocaleString('en-LK') }} ms</span>
+      </aside>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.benchmark-chart { margin: 1.5rem 0 2rem; padding: 1rem; border: 1px solid var(--vp-c-border); border-radius: 12px; background: var(--vp-c-bg-soft); color: var(--vp-c-text-1); }
+.chart-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.chart-header h3 { margin: 0; font-size: 1.05rem; font-weight: 650; }
+.chart-header p { margin: .25rem 0 0; color: var(--vp-c-text-2); font-size: .82rem; }
+.metric-picker { display: grid; gap: .25rem; color: var(--vp-c-text-2); font-size: .75rem; }
+.metric-picker select { max-width: 230px; border: 1px solid var(--vp-c-border); border-radius: 7px; padding: .4rem .55rem; color: var(--vp-c-text-1); background: var(--vp-c-bg); }
+.chart-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin: .9rem 0 .25rem; }
+.chart-legend button { display: inline-flex; align-items: center; gap: .4rem; border: 0; padding: .2rem 0; color: var(--vp-c-text-1); background: transparent; font: inherit; font-size: .8rem; cursor: pointer; }
+.chart-legend button.muted { opacity: .38; }
+.chart-legend i, .chart-tooltip i { width: .65rem; height: .65rem; display: inline-block; border-radius: 50%; }
+.chart-plot { position: relative; width: 100%; }
+.chart-plot svg { display: block; width: 100%; height: auto; overflow: visible; }
+.plot-surface { fill: var(--vp-c-bg-alt); stroke: var(--vp-c-border); }
+.grid-line { stroke: var(--vp-c-divider); stroke-dasharray: 3 5; }
+.axis-line { stroke: var(--vp-c-text-3); }
+.axis-text { fill: var(--vp-c-text-2); font-size: 12px; }
+.axis-title { fill: var(--vp-c-text-2); font-size: 13px; }
+.data-point { stroke: var(--vp-c-bg-alt); stroke-width: 2; cursor: crosshair; }
+.data-point:focus { outline: none; stroke: var(--vp-c-text-1); stroke-width: 3; }
+.chart-tooltip { position: absolute; top: .5rem; right: .5rem; z-index: 2; display: grid; gap: .25rem; min-width: 190px; max-width: min(260px, 55%); padding: .65rem .75rem; border: 1px solid var(--vp-c-border); border-radius: 8px; background: var(--vp-c-bg); box-shadow: var(--vp-shadow-3); font-size: .78rem; }
+.chart-tooltip strong { display: flex; align-items: center; gap: .4rem; }
+.chart-tooltip span { color: var(--vp-c-text-2); }
+@media (max-width: 640px) { .benchmark-chart { padding: .7rem; } .axis-text { font-size: 16px; } .chart-tooltip { top: auto; bottom: 2.5rem; max-width: 65%; } }
+</style>
