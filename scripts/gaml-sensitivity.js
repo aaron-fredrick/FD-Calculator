@@ -60,6 +60,11 @@ for (const settings of cases) {
     expanded_states: result.search_diagnostics?.expanded_states ?? 0,
     beam_pruned: result.search_diagnostics?.beam_pruned ?? 0,
     local_combination_pruned: result.search_diagnostics?.local_combination_pruned ?? 0,
+    state_memo_hits: result.search_diagnostics?.state_memo_hits ?? 0,
+    state_memo_evictions: result.search_diagnostics?.state_memo_evictions ?? 0,
+    expansion_cache_hits: result.search_diagnostics?.expansion_cache?.hits ?? 0,
+    expansion_cache_entries: result.search_diagnostics?.expansion_cache?.entries ?? 0,
+    expansion_cache_retained_children: result.search_diagnostics?.expansion_cache?.retained_children ?? 0,
     optimality_proven: result.optimality_proven === true,
     duration_ms
   };
