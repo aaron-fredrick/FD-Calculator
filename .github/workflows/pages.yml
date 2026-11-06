@@ -76,6 +76,8 @@ jobs:
 
           web_needed=false
           docs_needed=false
+          web_baseline_built=false
+          docs_baseline_built=false
           if ! branch_exists pages-web-artifact && ! branch_exists pages-web-baseline; then
             web_needed=true
           fi
@@ -92,6 +94,7 @@ jobs:
               cp scripts/build-docs-preservation.sh /tmp/published-source/scripts/build-docs-preservation.sh
               if [ "$web_needed" = "true" ]; then
                 if (cd /tmp/published-source && bash scripts/build-web-site.sh /tmp/web-baseline); then
+                  web_baseline_built=true
                   echo "Built the preserved web baseline."
                 else
                   echo "::warning::Could not build the preserved web baseline; waiting for the web producer."
@@ -99,6 +102,7 @@ jobs:
               fi
               if [ "$docs_needed" = "true" ]; then
                 if (cd /tmp/published-source && bash scripts/build-docs-preservation.sh /tmp/docs-baseline); then
+                  docs_baseline_built=true
                   echo "Built the preserved docs baseline."
                 else
                   echo "::warning::Could not build the preserved docs baseline; waiting for a validated docs publication."
@@ -130,10 +134,10 @@ jobs:
             fi
           }
 
-          if [ "$web_needed" = "true" ] && [ -d /tmp/web-baseline ]; then
+          if [ "$web_baseline_built" = "true" ]; then
             publish_baseline pages-web-baseline /tmp/web-baseline
           fi
-          if [ "$docs_needed" = "true" ] && [ -d /tmp/docs-baseline ]; then
+          if [ "$docs_baseline_built" = "true" ]; then
             publish_baseline pages-docs-baseline /tmp/docs-baseline
           fi
 
