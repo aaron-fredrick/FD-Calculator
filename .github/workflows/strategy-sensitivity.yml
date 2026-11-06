@@ -14,7 +14,6 @@ on:
       - "src/io/csv.js"
       - "data/banks/**"
       - "data/fd_options/**"
-      - ".github/workflows/strategy-sensitivity.yml"
   pull_request:
     branches: [main]
     paths:
@@ -28,7 +27,6 @@ on:
       - "src/io/csv.js"
       - "data/banks/**"
       - "data/fd_options/**"
-      - ".github/workflows/strategy-sensitivity.yml"
   workflow_dispatch:
 
 permissions:
