@@ -282,8 +282,13 @@ export function generateHtmlReport(result,config) {
     '<p class="muted">The goal metric counts only first-time net interest credited to the consolidation account. It excludes principal and interest still held in other accounts; AIT and attributable transfer fees are accounted for before credit. Portfolio-wide net interest below is a separate measure.</p></div>':'';
   const goalSearch=result.search_diagnostics?.goal_candidates_evaluated!==undefined
     ? '<p class="muted">Goal candidates evaluated: '+count(result.search_diagnostics.goal_candidates_evaluated)+' · Search states: '+count(result.total_decisions_evaluated??0)+' · Goal-date pruning: '+count(result.search_diagnostics.goal_pruned_after_achievement??0)+' · Search budget: '+count(result.search_diagnostics.goal_search_budget??0)+' · Optimality: '+(result.search_diagnostics.optimality_proven?'proven':'not proven within bounded search')+'</p>' : '';
+  const scopedSearchLimits=[
+    result.search_diagnostics?.budget_stopped?'decision cap reached':null,
+    (result.search_diagnostics?.beam_pruned||0)>0?'beam pruning':null,
+    (result.search_diagnostics?.local_combination_pruned||0)>0?'local-branch pruning':null
+  ].filter(Boolean);
   const scopedSearch=result.search_diagnostics?.goal_candidates_evaluated===undefined&&Number.isFinite(result.search_diagnostics?.expanded_states)
-    ? (()=>{const limits=[result.search_diagnostics.budget_stopped?'decision cap reached':null,(result.search_diagnostics.beam_pruned||0)>0?'beam pruning':null,(result.search_diagnostics.local_combination_pruned||0)>0?'local-branch pruning':null].filter(Boolean);return '<p class="muted">Search states: '+count(result.search_diagnostics.expanded_states)+' · Optimality: '+(result.optimality_proven===true?'proven':'not proven'+(limits.length?' ('+limits.join(', ')+')':''))+'</p>'})() : '';
+    ? '<p class="muted">Search states: '+count(result.search_diagnostics.expanded_states)+' · Optimality: '+(result.optimality_proven===true?'proven':'not proven'+(scopedSearchLimits.length?' ('+scopedSearchLimits.join(', ')+')':''))+'</p>' : '';
   const goalTimelineRows=[];
   for(const [dateKey,events] of Object.entries(result.timeline||{}).sort(([a],[b])=>Number(a)-Number(b)))for(const event of events)if(Number.isFinite(event.goal_metric_after))goalTimelineRows.push({date:iso(event.on_date),event:event.label||event.event_type,credited:amount(event.goal_metric_after),status:goal?.achieved&&iso(event.on_date)===goal.achievement_date?(goal.stopping_reason==='goal_achieved_on_final_consolidation'?'Final consolidation sweep':'First achievement boundary'):'—'});
   const goalTimeline=goal?table('Goal-credit progression',[['date','Date'],['event','Event boundary'],['credited','Cumulative credited net interest (LKR)'],['status','Status']],goalTimelineRows):'';
