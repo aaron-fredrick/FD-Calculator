@@ -14,7 +14,7 @@ The workflows are split by responsibility. Keep expensive simulation benchmarks 
 
 ## Benchmark reuse
 
-The Scoped Range and Goal benchmark workflows each calculate a SHA-256 fingerprint over the simulation code, benchmark runner and bank/product data that affect their results.
+The Scoped Range and Goal benchmark workflows each calculate a SHA-256 fingerprint over the simulation code, benchmark runner and bank/product data that affect their results. They share a per-branch publishing concurrency group and retry rebases so their generated files cannot silently overwrite one another.
 
 - If the fingerprint matches the committed manifest and every expected result file exists, the workflow skips all simulation and chart-data generation.
 - If any relevant input changes, or a required result is missing, the workflow reruns the benchmark and updates its manifest and result files on the working branch.
