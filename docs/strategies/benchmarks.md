@@ -50,41 +50,41 @@ Each chart overlays all three strategy results for the same factor. Numeric inpu
 
 ### Investment horizon
 
-<BenchmarkChart :rows="benchmarkResults.results" category="horizon_months" title="Investment horizon" x-label="Horizon (months)" />
+<BenchmarkChart :rows="benchmarkResults.results" category="horizon_months" x-label="Horizon (months)" />
 
 The horizontal axis is linear in months (6, 12 and 24). The 12-month point is placed one-third of the way from 6 to 24 months, reflecting the actual numeric interval.
 
 ### Starting capital
 
-<BenchmarkChart :rows="benchmarkResults.results" category="starting_capital_lkr" title="Starting capital" x-label="Starting capital (LKR)" />
+<BenchmarkChart :rows="benchmarkResults.results" category="starting_capital_lkr" x-label="Starting capital (LKR)" />
 
 The horizontal axis is linear in LKR (25k, 100k, 300k and 1m). Unequal capital intervals therefore occupy unequal horizontal distances. This avoids visually presenting the four test points as equally sized increases. The vertical axis remains linear in net interest.
 
 ### Number of accounts
 
-<BenchmarkChart :rows="benchmarkResults.results" category="account_count" title="Account count" x-label="Number of accounts" />
+<BenchmarkChart :rows="benchmarkResults.results" category="account_count" x-label="Number of accounts" />
 
 The three strategy lines overlap because the measured returns are effectively identical across one, two and three accounts in this single-bank scenario. The near-flat result is meaningful: splitting the same capital across more accounts did not improve the available rate or net return in this catalogue snapshot.
 
 ### Number of banks
 
-<BenchmarkChart :rows="benchmarkResults.results" category="bank_count" title="Bank diversity" x-label="Number of banks" />
+<BenchmarkChart :rows="benchmarkResults.results" category="bank_count" x-label="Number of banks" />
 
 The Greedy and Absolute R+ lines overlap in this comparison. GSS remains close to its one-bank result and does not capture the same benefit from adding banks.
 
 ### Cash inflows
 
-<BenchmarkChart :rows="benchmarkResults.results" category="inflow_pattern" title="Cash inflow pattern" x-label="Inflow pattern" />
+<BenchmarkChart :rows="benchmarkResults.results" category="inflow_pattern" x-label="Inflow pattern" />
 
 ### eFD eligibility
 
-<BenchmarkChart :rows="benchmarkResults.results" category="efd_eligibility" title="eFD eligibility" x-label="Eligibility" />
+<BenchmarkChart :rows="benchmarkResults.results" category="efd_eligibility" x-label="Eligibility" />
 
 ### Liquidity and strict outflow stress
 
 The outflow scenarios are not scored on net interest alone. The metric selector includes simulation validity and unpaid obligations so an invalid or underfunded run cannot appear to be a better strategy merely because it retained more interest. Strict outflows are due from the designated account; another account's balance does not silently cover the obligation.
 
-<BenchmarkChart :rows="benchmarkResults.results" category="outflow_pattern" title="Strict outflow stress" x-label="Outflow scenario" />
+<BenchmarkChart :rows="benchmarkResults.results" category="outflow_pattern" x-label="Outflow scenario" />
 
 ## Capital and horizon interaction
 
