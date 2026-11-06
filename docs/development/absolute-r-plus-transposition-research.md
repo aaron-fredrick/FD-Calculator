@@ -90,7 +90,7 @@ This is now a required validation item: compare the actual web defaults against 
 - [ ] Same-state/better-operation-count arrival reuses children but retains the better parent path.
 - [x] State identity tests cover date, balance, pending-flow date/amount/account, obligation identity/date/amount and paid amount; full Node.js suite passes.
 - [x] Existing replay/parity and cash-flow tests cover booking-created maturity and payout events.
-- [ ] Add a focused positive-hit test proving an identical raw state is pruned before advancement and a better-operation-count revisit reuses a completed expansion.
+- [x] Add a focused positive-hit test proving an identical raw state is pruned before advancement (equivalent standard/eFD branches); Node.js CI passes. A better-operation-count expansion-cache hit remains to be demonstrated from the R+ benchmark or a dedicated fixture.
 - [ ] Verify root-diversity retention under actual duplicate-state hits in R+.
 - [x] Goal-mode bypass is asserted explicitly; legacy parity tests pass.
 - [x] Existing strict-outflow and provenance suites pass; no financial constraints were weakened.
@@ -139,3 +139,4 @@ This is now a required validation item: compare the actual web defaults against 
 - **Persistent browser storage:** not added. The requested overlap is within one search, so a per-run in-memory transposition table is the correct layer. Persisting intermediate nodes across runs would require full simulation, product-catalogue, algorithm-version and runtime fingerprints, plus invalidation and serialization costs. IndexedDB is deferred unless measured repeat-run evidence justifies caching completed simulation results.
 - **Web defaults:** aligned the browser's initial Absolute R+ settings with the benchmark baseline (beam 96, local branches 48, decision cap 5,000). The 24-month parameter sweep showed beam 256 took about 14.7s versus about 6.2s at beam 96 without improving the reported net interest; the tested local-branch sweep from 16 through 128 also produced the same reported objective. Explicit imported `null` caps remain uncapped. The report now discloses search states and whether optimality was proven, including the applicable beam/local/budget limits.
 - **UI regression tests:** verify the bounded web defaults, preserve explicit imported `null` caps as uncapped, and assert the report discloses bounded-search optimality. Goal-mode tests also assert the new Scoped Range memo and expansion cache remain unused in Goal mode.
+- **Raw-state memo regression:** an Absolute R fixture with equivalent standard/eFD products reaches the same raw future state through separate branches; the test asserts a positive memo hit and prune before state advancement.
