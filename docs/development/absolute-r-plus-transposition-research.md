@@ -111,12 +111,12 @@ The UI defaults have now been aligned to the tested benchmark configuration (bea
 - [x] Do not add IndexedDB/localStorage: measured duplicate reuse is per-search; no cross-run cache benefit was demonstrated.
 
 ### Phase 5 — Integration and delivery
-- [ ] Full Node.js test suite and syntax checks.
-- [ ] Existing parity, cash-flow, provenance, GSS, UI and workflow contract tests.
-- [ ] Scoped Range benchmark and Absolute R+ parameter benchmark.
-- [ ] Review code style, comments, diagnostics and UI/API compatibility.
-- [ ] Update this document with actual outcomes and known limitations.
-- [ ] Open a draft PR; do not merge or modify main.
+- [x] Full Node.js test suite and syntax checks pass, including the isolated web artifact build, preserved docs build and workflow YAML parsing (run [42292101492](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42292101492)).
+- [x] Existing parity, cash-flow, provenance, GSS, UI and workflow contract tests pass.
+- [ ] Scoped Range benchmark and Absolute R+ parameter benchmark on the final budget-archive implementation.
+- [x] Review code style, comments, diagnostics and UI/API compatibility; no public strategy API or financial rule changes.
+- [ ] Update this document with final benchmark outcomes and known limitations.
+- [x] Draft PR [#66](https://github.com/aaron-fredrick/FD-Calculator/pull/66); do not merge or modify main.
 
 ## Safety rules for this work
 
