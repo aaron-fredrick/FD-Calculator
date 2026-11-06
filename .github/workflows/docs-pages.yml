@@ -62,7 +62,35 @@ jobs:
           blocked_by_data_pr=false
           open_data_prs="$(gh pr list --base main --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("data-")) | [.number, .headRefName] | @tsv')"
 
-          while IFS=
+          while read -r pr_number pr_branch; do
+            [ -n "$pr_branch" ] || continue
+            git fetch --no-tags origin "refs/heads/$pr_branch:refs/remotes/origin/$pr_branch"
+            if git show "refs/remotes/origin/$pr_branch:docs/strategies/benchmarks/.input-fingerprint.json" > "$RUNNER_TEMP/data-pr-fingerprint.json" 2>/dev/null; then
+              pr_fingerprint="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).fingerprint)" "$RUNNER_TEMP/data-pr-fingerprint.json")"
+              if [ "$pr_fingerprint" = "$expected_fingerprint" ]; then
+                blocked_by_data_pr=true
+                echo "::notice::Open benchmark data PR #$pr_number already contains this input fingerprint; waiting for its normal merge."
+                break
+              fi
+            fi
+          done <<< "$open_data_prs"
+
+          needs_benchmark=false
+          if [ "$blocked_by_data_pr" = "true" ]; then
+            needs_benchmark=true
+          elif [ "$stale" != "false" ] || ! node scripts/validate-scoped-benchmark-data.js; then
+            needs_benchmark=true
+          fi
+
+          echo "needs_benchmark=$needs_benchmark" >> "$GITHUB_OUTPUT"
+          echo "blocked_by_data_pr=$blocked_by_data_pr" >> "$GITHUB_OUTPUT"
+          if [ "$blocked_by_data_pr" = "true" ]; then
+            echo "A matching benchmark data PR is already open; no duplicate simulation or docs publication will run."
+          elif [ "$needs_benchmark" = "true" ]; then
+            echo "Benchmark inputs or published observations are incomplete; this documentation pipeline will generate its own data."
+          else
+            echo "The committed benchmark data matches current inputs and passes completeness validation; no simulation will run."
+          fi
 
   benchmark:
     needs: prepare
