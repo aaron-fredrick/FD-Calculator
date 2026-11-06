@@ -66,7 +66,7 @@ Each graph has separate panels for net interest after AIT and transfer fees, exp
 
 This is a historical one-factor sensitivity baseline, not a universal tuning prescription. Re-run it with different horizons, inflows and bank/account mixes before choosing production defaults. Measurements were produced by the [Absolute R+ sensitivity runner](../../scripts/gaml-sensitivity.js).
 
-## Diagnostics and compatibility
+## Diagnostics
 
 The public display name is **Absolute R+**, where R denotes the scoped date range. The JSON strategy identifier remains `gaml`, and `gaml_settings`, `gaml` and the historical source module path remain supported for compatibility. The CLI accepts `absolute-r-plus` and the legacy `absolute-plus` alias.
 
