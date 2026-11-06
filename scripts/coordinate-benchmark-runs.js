@@ -56,6 +56,19 @@ function git(args, cwd = root) {
   }).trim();
 }
 
+async function hasReusableWork(run) {
+  const result = await request(apiBase + "/repos/" + repository +
+    "/actions/runs/" + run.id + "/jobs?per_page=100");
+  const jobs = result.jobs ?? [];
+  const coordinator = jobs.find(job => job.name === "coordinate");
+  if (coordinator?.conclusion && coordinator.conclusion !== "success") return false;
+
+  const sensitivity = jobs.find(job => job.name === "sensitivity");
+  if (!sensitivity) return true;
+  if (sensitivity.status === "queued" || sensitivity.status === "in_progress") return true;
+  return sensitivity.status === "completed" && sensitivity.conclusion === "success";
+}
+
 function fingerprintAtCommit(sha, cache) {
   if (cache.has(sha)) return cache.get(sha);
   const remote = "benchmark-base";
@@ -132,8 +145,12 @@ for (const run of candidates) {
   }
 
   if (existingFingerprint === currentFingerprint) {
-    matchingRun ??= run;
-    console.log("Run #" + run.run_number + " has the same fingerprint; its benchmark work can be reused.");
+    if (await hasReusableWork(run)) {
+      matchingRun ??= run;
+      console.log("Run #" + run.run_number + " has the same fingerprint and reusable work.");
+    } else {
+      console.log("Run #" + run.run_number + " has the same fingerprint but no reusable active result; this run may take over.");
+    }
     continue;
   }
 
