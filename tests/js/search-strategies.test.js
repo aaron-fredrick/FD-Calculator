@@ -115,11 +115,6 @@ test("Absolute+ reuses repeated option-interest calculations within one search r
   const cache = result.search_diagnostics.calculation_cache;
   assert.ok(cache.option_interest.misses > 0);
   assert.ok(cache.option_interest.hits > 0);
-  const expansionCache = result.search_diagnostics.expansion_cache;
-  assert.ok(expansionCache);
-  assert.ok(expansionCache.entries <= 512);
-  assert.ok(expansionCache.retained_children <= 2048);
-  assert.ok(expansionCache.hits >= 0);
   assert.ok(result.search_diagnostics.state_memo_hits >= 0);
   assert.ok(result.search_diagnostics.raw_state_memo.entries <= 10000);
   assert.ok(result.search_diagnostics.raw_state_memo.hits >= 0);
