@@ -53,3 +53,16 @@ Use two independent, durable component artifact branches and one reusable Pages 
 - Every Pages deployment assembles both latest components and validates the site before atomic publication.
 - A deployment-state manifest prevents repeated deployment of an unchanged web/docs revision pair.
 - No source-main protection bypass is introduced.
+
+## Delivery status
+
+- [x] Separate web and docs producer workflows and component build scripts.
+- [x] Make the docs pipeline the sole main-branch owner of Scoped Range and Absolute R+ benchmark generation.
+- [x] Validate the full Scoped Range observation matrix and Absolute R+ parameter data before docs publication.
+- [x] Suppress duplicate benchmark work when a matching timestamped data PR is already open or complete data has landed on main.
+- [x] Publish independent component artifacts with stale-source guards and non-cancelling write concurrency.
+- [x] Preserve both currently deployed components from the last successful Pages source revision during initial migration.
+- [x] Assemble and deploy the latest component pair, deduplicate by component revisions, and clean up superseded deployment records.
+- [x] Add workflow contract tests, shell syntax checks, component build smoke tests and workflow YAML parsing.
+- [x] Verify Node.js 22 tests, documentation PR check, Dependency Review and CodeQL on the draft PR.
+- [ ] Post-merge production verification: confirm the first main docs run regenerates the incomplete benchmark matrix, publishes the data PR, updates the docs artifact only after validation, and deploys the assembled site.
