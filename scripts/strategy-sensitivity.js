@@ -188,7 +188,8 @@ function runCase(category, value, {
       local_branches_generated: result.search_diagnostics?.local_branches_generated ?? null,
       consolidation_branches_generated: result.search_diagnostics?.consolidation_branches_generated ?? null,
       candidate_states_generated: result.search_diagnostics?.candidate_states_generated ?? null,
-      candidate_state_duplicates: result.search_diagnostics?.candidate_state_duplicates ?? null
+      candidate_state_duplicates: result.search_diagnostics?.candidate_state_duplicates ?? null,
+      budget_frontier_archive_candidates: result.search_diagnostics?.budget_frontier_archive_candidates ?? null
     };
     results.push(row);
     process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify(row) + "\n");
