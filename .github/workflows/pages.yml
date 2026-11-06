@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
   deployments: read
@@ -16,6 +16,10 @@ concurrency:
 jobs:
   assemble:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      deployments: read
     outputs:
       ready: ${{ steps.assemble.outputs.ready }}
       changed: ${{ steps.assemble.outputs.changed }}
@@ -192,6 +196,9 @@ jobs:
   deploy:
     needs: assemble
     if: needs.assemble.outputs.ready == 'true' && needs.assemble.outputs.changed == 'true'
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -205,6 +212,8 @@ jobs:
     needs: [assemble, deploy]
     if: needs.deploy.result == 'success' && needs.assemble.outputs.changed == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
         with:
