@@ -23,15 +23,14 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
-  deployments: read
+  contents: read
 
 jobs:
   build:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
     steps:
@@ -55,6 +54,8 @@ jobs:
     needs: build
     if: needs.build.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     concurrency:
       group: pages-artifact-web
       cancel-in-progress: false
