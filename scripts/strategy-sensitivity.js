@@ -89,6 +89,20 @@ function makeInflows(kind, accountId, end) {
   return schedule;
 }
 
+function makeOutflows(kind, accountId, end) {
+  const schedule = {};
+  if (kind === "strict_50k_at_6m") {
+    const date = formatISODate(addPeriod(START, "6m"));
+    if (date <= end) schedule[date] = [{ name: "Single liquidity obligation", account_id: accountId, amount: 50000, payment_policy: "strict" }];
+  } else if (kind === "strict_staggered_20k") {
+    for (const months of [6, 12, 18]) {
+      const date = formatISODate(addPeriod(START, months + "m"));
+      if (date <= end) schedule[date] = [{ name: "Staggered liquidity obligation", account_id: accountId, amount: 20000, payment_policy: "strict" }];
+    }
+  }
+  return schedule;
+}
+
 const strategies = [
   ["Greedy", () => new GreedyStrategy({ ait_enabled: true })],
   ["Absolute R+", () => new AbsolutePlusStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000 })],
@@ -97,7 +111,7 @@ const strategies = [
 const results = [];
 function runCase(category, value, {
   months = 24, capital = 300000, accountCount = 3, bankCount = 3,
-  inflow = "none", efd = true
+  inflow = "none", outflow = "none", efd = true
 } = {}) {
   const end = formatISODate(addPeriod(START, months + "m"));
   const accounts = makeAccounts(accountCount, capital, bankCount, efd);
@@ -109,19 +123,22 @@ function runCase(category, value, {
     inflow_account_id: accounts[0].id,
     consolidation_account_id: accounts[0].id,
     inflow_schedule: makeInflows(inflow, accounts[0].id, end),
-    outflow_schedule: {},
+    outflow_schedule: makeOutflows(outflow, accounts[0].id, end),
     fee_config: feeConfig
   };
   for (const [name, makeStrategy] of strategies) {
     const started = Date.now();
     const result = engine.run(makeStrategy(), input);
     const duration = Date.now() - started;
-    if (!result.finalized || !result.valid || !Number.isFinite(result.net_interest_after_ait)) {
+    if (!result.finalized || !Number.isFinite(result.net_interest_after_ait) || (outflow === "none" && !result.valid)) {
       throw new Error(name + " produced an invalid result for " + category + "/" + value);
     }
     const row = {
       category, value, strategy: name, months, capital,
-      accounts: accountCount, banks: bankCount, inflow, efd,
+      accounts: accountCount, banks: bankCount, inflow, outflow, efd,
+      valid: result.valid === true,
+      outflows_paid: Number((result.total_outflows_paid ?? 0).toFixed(2)),
+      outflow_unpaid: Number((result.outstanding_outflows ?? []).reduce((sum, item) => sum + Number(item.remaining || 0), 0).toFixed(2)),
       net_interest: Number(result.net_interest_after_ait.toFixed(2)),
       gross_interest: Number(result.total_interest.toFixed(2)),
       ait: Number(result.ait_withheld.toFixed(2)),
@@ -190,8 +207,10 @@ const output = {
   transfer_fee_basis: "Bank catalogue intra/inter-bank transfer fees; all transfer decisions and final sweep use the same fee config.",
   design: {
     one_factor_sweeps: ["horizon_months", "starting_capital_lkr", "account_count", "bank_count", "inflow_pattern", "efd_eligibility"],
-    interaction_matrix: "capital_horizon",
+    interaction_matrices: ["capital_horizon"],
     interaction_points: 9,
+    liquidity_stress: ["strict_50k_at_6m", "strict_staggered_20k"],
+    liquidity_note: "Strict obligations are scored for runtime validity and unpaid amount as well as net interest. Invalid runs are retained as feasibility failures, not treated as competitive returns.",
     timing_note: "Single-run wall-clock measurements are observational; compare only on the same runner."
   },
   results
