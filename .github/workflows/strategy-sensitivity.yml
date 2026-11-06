@@ -5,6 +5,7 @@ on:
     branches: [main, "feature/**", "chore/**"]
     paths:
       - "scripts/benchmark-fingerprint.js"
+      - "scripts/coordinate-benchmark-runs.js"
       - "scripts/strategy-sensitivity.js"
       - "scripts/gaml-sensitivity.js"
       - "src/core/**"
@@ -18,6 +19,7 @@ on:
     branches: [main]
     paths:
       - "scripts/benchmark-fingerprint.js"
+      - "scripts/coordinate-benchmark-runs.js"
       - "scripts/strategy-sensitivity.js"
       - "scripts/gaml-sensitivity.js"
       - "src/core/**"
@@ -29,20 +31,48 @@ on:
       - ".github/workflows/strategy-sensitivity.yml"
   workflow_dispatch:
 
-concurrency:
-  group: benchmark-publish-${{ github.ref }}
-  cancel-in-progress: false
-
 permissions:
+  actions: write
   contents: write
 
 jobs:
+  coordinate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: benchmark-fingerprint-coordinator
+      cancel-in-progress: false
+    outputs:
+      decision: ${{ steps.coordinate.outputs.decision }}
+      fingerprint: ${{ steps.coordinate.outputs.fingerprint }}
+      reuse_run_id: ${{ steps.coordinate.outputs.reuse_run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Coordinate active benchmark runs by input fingerprint
+        id: coordinate
+        run: node scripts/coordinate-benchmark-runs.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   sensitivity:
+    needs: coordinate
+    if: |
+      (needs.coordinate.result == 'success' && needs.coordinate.outputs.decision == 'run') ||
+      (needs.coordinate.result == 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v6
@@ -104,28 +134,45 @@ jobs:
         if: steps.cache.outputs.stale == 'true'
         run: test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
       - name: Publish refreshed benchmark data to the working branch
-        if: steps.cache.outputs.stale == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.ref_type == 'branch')
+        if: steps.cache.outputs.stale == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.ref_type == 'branch'
         run: |
-          branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
+          branch="${ github.event.pull_request.head.ref || github.ref_name }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin "$branch"
+          local_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('docs/strategies/benchmarks/.input-fingerprint.json', 'utf8')).fingerprint")"
+
+          verify_remote_fingerprint() {
+            git fetch origin "$branch"
+            remote_sha="$(git rev-parse "origin/$branch")"
+            temp_root="$(mktemp -d)"
+            verify_tree="$temp_root/tree"
+            git worktree add --detach "$verify_tree" "$remote_sha" >/dev/null
+            remote_source_fingerprint="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --fingerprint)"
+            git worktree remove --force "$verify_tree"
+            rmdir "$temp_root"
+            if [ "$remote_source_fingerprint" != "$local_fingerprint" ]; then
+              echo "Refusing to publish stale benchmark output: latest branch fingerprint $remote_source_fingerprint differs from generated fingerprint $local_fingerprint."
+              return 1
+            fi
+          }
+
+          verify_remote_fingerprint
           remote_fingerprint=""
           if git show "origin/$branch:docs/strategies/benchmarks/.input-fingerprint.json" > /tmp/remote-benchmark-fingerprint.json 2>/dev/null; then
             remote_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/remote-benchmark-fingerprint.json', 'utf8')).fingerprint")"
           fi
-          local_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('docs/strategies/benchmarks/.input-fingerprint.json', 'utf8')).fingerprint")"
           if [ -n "$remote_fingerprint" ] && [ "$remote_fingerprint" = "$local_fingerprint" ]; then
             echo "Matching benchmark inputs were already published by another run; skipping duplicate commit."
             exit 0
           fi
+
           git add docs/strategies/benchmarks/results.json
           git add docs/strategies/benchmarks/gaml-search-results.json
           git add docs/strategies/benchmarks/.input-fingerprint.json
           if ! git diff --cached --quiet; then
             git commit -m "benchmarks: refresh scoped strategy measurements"
             for attempt in 1 2 3; do
-              git fetch origin "$branch"
+              verify_remote_fingerprint
               git rebase "origin/$branch"
               if git push origin "HEAD:$branch"; then exit 0; fi
               echo "Branch advanced during publish; retrying after rebase (attempt $attempt/3)."
