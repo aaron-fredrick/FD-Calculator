@@ -10,6 +10,8 @@ const props = defineProps({
   xKey: { type: String, default: 'value' },
   seriesKey: { type: String, default: 'strategy' },
   seriesName: { type: String, default: 'Absolute R+' },
+  chartType: { type: String, default: 'line' },
+  xTickStep: { type: Number, default: null },
   metrics: {
     type: Array,
     default: () => [
@@ -43,6 +45,9 @@ const validValues = computed(() => rows.value.map(row => row[metric.value?.key])
 const yMax = computed(() => Math.max(1, ...validValues.value) * 1.12)
 const yMin = computed(() => Math.min(0, ...validValues.value))
 const left = 92, right = 960, top = 38, bottom = 374
+const xTickValues = computed(() => xValues.value.filter(value =>
+  props.xTickStep === null || !numericX.value || Number(value) % props.xTickStep === 0
+))
 const xPos = value => {
   if (xValues.value.length <= 1) return (left + right) / 2
   if (numericX.value) {
@@ -68,8 +73,9 @@ const series = computed(() => seriesNames.value.map((name, index) => {
     }
   }
   if (segment.length) segments.push(segment)
-  return { name, color: palette[index % palette.length], points, segments }
+  return { name, color: palette[index % palette.length], index, points, segments }
 }))
+const barWidth = computed(() => Math.min(22, (right - left) / Math.max(1, xValues.value.length) / (seriesNames.value.length + 1)))
 const format = value => {
   if (!validNumber(value)) return '—'
   if (metric.value?.format === 'currency') return 'LKR ' + Number(value).toLocaleString('en-LK', { maximumFractionDigits: 2 })
@@ -127,9 +133,23 @@ function toggle(name) {
         </g>
         <g v-for="value in xValues" :key="String(value)">
           <line :x1="xPos(value)" :x2="xPos(value)" :y1="bottom" :y2="bottom + 6" class="axis-line" />
-          <text :x="xPos(value)" :y="bottom + 28" text-anchor="middle" class="axis-text">{{ xFormat(value) }}</text>
+          <text v-if="xTickValues.includes(value)" :x="xPos(value)" :y="bottom + 28" text-anchor="middle" class="axis-text">{{ xFormat(value) }}</text>
         </g>
         <g v-for="item in series" :key="item.name" v-show="!hiddenSeries.has(item.name)">
+          <g v-if="chartType === 'bar'">
+            <rect
+              v-for="point in item.points" :key="String(point[xKey]) + item.name"
+              :x="xPos(point[xKey]) - (barWidth * series.length) / 2 + item.index * barWidth"
+              :y="yPos(point[metric.key])" :width="barWidth * .86"
+              :height="Math.max(0, bottom - yPos(point[metric.key]))"
+              :fill="item.color" class="data-bar" :class="{ 'invalid-point': point.valid === false }"
+              tabindex="0" role="button"
+              @mouseenter="activePoint = { row: point, name: item.name, color: item.color }"
+              @focus="activePoint = { row: point, name: item.name, color: item.color }"
+              @mouseleave="activePoint = null" @blur="activePoint = null"
+            />
+          </g>
+          <g v-else>
           <polyline
             v-for="(segment, segmentIndex) in item.segments"
             :key="item.name + '-segment-' + segmentIndex"
@@ -147,6 +167,7 @@ function toggle(name) {
               @blur="activePoint = null"
             />
           </g>
+          </g>
         </g>
         <text x="516" y="432" text-anchor="middle" class="axis-title">{{ xLabel }}</text>
       </svg>
@@ -157,7 +178,8 @@ function toggle(name) {
         <span v-if="activePoint.row.valid !== undefined">Simulation validity: {{ activePoint.row.valid ? 'Valid' : 'Invalid' }}</span>
         <span v-if="activePoint.row.outflow_unpaid > 0">Unpaid obligation: {{ format(activePoint.row.outflow_unpaid) }}</span>
         <span v-if="activePoint.row.strategy_error" class="chart-error">{{ activePoint.row.strategy_error }}</span>
-        <span v-if="activePoint.row.delta_pct_vs_greedy !== undefined">vs Greedy: {{ Number(activePoint.row.delta_pct_vs_greedy).toFixed(2) }}%</span>
+        <span v-if="activePoint.row.delta_pct_vs_greedy !== null && Number.isFinite(Number(activePoint.row.delta_pct_vs_greedy))">vs Greedy: {{ Number(activePoint.row.delta_pct_vs_greedy).toFixed(2) }}%</span>
+        <span v-if="activePoint.row.outflow_scheduled_total > 0 && activePoint.row.outflow_unpaid === null">Scheduled obligations: {{ format(activePoint.row.outflow_scheduled_total) }} (payment totals unavailable)</span>
         <span v-if="activePoint.row.duration_ms !== undefined">Runtime: {{ Number(activePoint.row.duration_ms).toLocaleString('en-LK') }} ms</span>
       </aside>
     </div>
@@ -182,7 +204,7 @@ function toggle(name) {
 .axis-line { stroke: var(--vp-c-text-3); }
 .axis-text { fill: var(--vp-c-text-2); font-size: 12px; }
 .axis-title { fill: var(--vp-c-text-2); font-size: 13px; }
-.data-point { stroke: var(--vp-c-bg-alt); stroke-width: 2; cursor: crosshair; }
+.data-point, .data-bar { stroke: var(--vp-c-bg-alt); stroke-width: 2; cursor: crosshair; }
 .data-point:focus { outline: none; stroke: var(--vp-c-text-1); stroke-width: 3; }
 .invalid-point { stroke: #d64b4b; stroke-width: 3; }
 .chart-tooltip { position: absolute; top: .5rem; right: .5rem; z-index: 2; display: grid; gap: .25rem; min-width: 190px; max-width: min(260px, 55%); padding: .65rem .75rem; border: 1px solid var(--vp-c-border); border-radius: 8px; background: var(--vp-c-bg); box-shadow: var(--vp-shadow-3); font-size: .78rem; }
