@@ -91,7 +91,7 @@ function normalize(result) {
     alternative_leaf_net_interests: result.alternative_leaf_net_interests,
     search_diagnostics: Object.fromEntries(
       Object.entries(result.search_diagnostics).filter(([key]) =>
-        !["calculation_cache", "result_selection", "budget_stopped", "budget_frontier_states", "state_memo_size", "state_memo_hits", "state_memo_evictions", "raw_state_memo", "expansion_cache", "bound_pruned", "memo_pruned", "leaves", "local_branches_generated", "consolidation_branches_generated", "candidate_states_generated", "candidate_state_duplicates"].includes(key)
+        !["calculation_cache", "result_selection", "budget_stopped", "budget_frontier_states", "state_memo_size", "state_memo_hits", "state_memo_evictions", "raw_state_memo", "bound_pruned", "memo_pruned", "leaves", "local_branches_generated", "consolidation_branches_generated", "candidate_states_generated", "candidate_state_duplicates"].includes(key)
       )
     ),
     optimality_proven: result.optimality_proven,
