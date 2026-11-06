@@ -159,7 +159,7 @@ jobs:
 
   build:
     needs: [prepare, benchmark]
-    if: needs.prepare.result == 'success' && (needs.benchmark.result == 'success' || needs.benchmark.result == 'skipped')
+    if: always() && needs.prepare.result == 'success' && (needs.benchmark.result == 'success' || needs.benchmark.result == 'skipped')
     runs-on: ubuntu-latest
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
