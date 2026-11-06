@@ -30,12 +30,12 @@
 
 ### Verification status
 
-- **Node.js 22 full test suite and syntax checks passed** on current branch source (run `42232246012`). This includes cache reuse, canonical state-key coverage, financial/strategic comparison, Greedy baseline protection and forced budget-frontier completion.
-- **Dependency Review passed** (run `42232247510`).
-- **Documentation pull-request check passed** (run `42232245939`).
-- **CodeQL passed** (run `42232245849`).
-- The full Scoped sensitivity run is active as workflow run `42232044042` (run number 411), executing the 110-point Scoped strategy matrix and then Absolute R+ parameter sensitivity. The latest coordinator run `42232246002` reused that active run because its input fingerprint matches; its own sensitivity job was correctly skipped. No completed benchmark measurements are available yet.
-- Baseline local profiling was not possible because this environment has no mounted repository checkout. No speedup percentage or peak-memory improvement is claimed until the active benchmark completes and its outputs are inspected.
+- **Node.js 22 full test suite and syntax checks passed** on current code (run `42233111762`). This includes cache reuse, canonical state-key coverage, financial/strategic comparison, explicit Greedy fallback reporting and forced budget-frontier completion.
+- **Dependency Review passed** (run `42233111845`).
+- **Documentation pull-request check passed** (run `42233111855`).
+- **CodeQL is running** (run `42233111704`).
+- The full Scoped sensitivity workflow coordinator succeeded and its sensitivity job is executing the 110-point matrix, followed by Absolute R+ parameter sensitivity (run `42233111651`). Earlier runs were superseded/reused during fingerprint coordination; no completed benchmark measurements are available yet.
+- Baseline local profiling was not possible because this environment has no mounted repository checkout. No speedup percentage or peak-memory improvement is claimed until the active sensitivity job completes and its outputs are inspected.
 ## Objective
 
 Reduce repeated search work without changing financial/runtime semantics. Reuse calculations for identical complete inputs and equivalent future-relevant states. Select an Absolute result only when its authoritative replay is financially better than Greedy, or financially equal within a documented tolerance and strategically better. Otherwise retain Greedy.
