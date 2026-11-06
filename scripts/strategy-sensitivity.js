@@ -137,6 +137,7 @@ function runCase(category, value, {
       category, value, strategy: name, months, capital,
       accounts: accountCount, banks: bankCount, inflow, outflow, efd,
       valid: result.valid === true,
+      validity_pct: result.valid === true ? 100 : 0,
       outflows_paid: Number((result.total_outflows_paid ?? 0).toFixed(2)),
       outflow_unpaid: Number((result.outstanding_outflows ?? []).reduce((sum, item) => sum + Number(item.remaining || 0), 0).toFixed(2)),
       net_interest: Number(result.net_interest_after_ait.toFixed(2)),
