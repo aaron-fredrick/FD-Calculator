@@ -16,7 +16,9 @@ const props = defineProps({
       { key: 'net_interest', label: 'Net interest (LKR)', format: 'currency' },
       { key: 'delta_pct_vs_greedy', label: 'Difference vs Greedy (%)', format: 'percent' },
       { key: 'duration_ms', label: 'Runtime (ms)', format: 'number' },
-      { key: 'bookings', label: 'Bookings', format: 'number' }
+      { key: 'bookings', label: 'Bookings', format: 'number' },
+      { key: 'validity_pct', label: 'Simulation validity (%)', format: 'percent' },
+      { key: 'outflow_unpaid', label: 'Unpaid outflows (LKR)', format: 'currency' }
     ]
   }
 })
