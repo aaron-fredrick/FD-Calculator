@@ -219,3 +219,30 @@ test("goal reports show the canonical consolidation-interest outcome and event p
   assert.match(consoleText, /GOAL OUTCOME/);
   assert.match(consoleText, /ACHIEVED/);
 });
+
+test("scoped search report discloses when bounded search has not proven optimality", () => {
+  const account = { id: "main", bank_id: "BANK_A", label: "Main", balance: 1000, supports_efd: false };
+  const result = {
+    strategy_name: "Absolute R+", start_date: "2026-11-04", end_date: "2026-11-05",
+    timeline: {}, accounts: { main: account }, bookings: [],
+    total_interest: 10, ait_withheld: 1, total_transfer_fees: 0,
+    net_interest: 9, final_value: 1009, total_principal: 1000,
+    total_outflows_paid: 0, outstanding_outflows: [],
+    ait_enabled: true, ait_rate: 0.1, optimality_proven: false,
+    search_diagnostics: {
+      expanded_states: 5000, budget_stopped: true,
+      beam_pruned: 12, local_combination_pruned: 8
+    }
+  };
+  const config = {
+    start: "2026-11-04", end: "2026-11-05", compound: false,
+    actual_leap_year: true, accounts: [account], consolidation_account_id: "main",
+    ait_enabled: true, ait_rate: 0.1,
+    fee_config: { default_inter_bank_fee: 0, same_bank_fee: 0 },
+    inflow_summaries: [], outflow_summaries: [],
+    bank_registry: { BANK_A: { name: "Bank A" } }
+  };
+  const html = generateHtmlReport(result, config);
+  assert.ok(html.includes("Search states: 5,000"));
+  assert.ok(html.includes("Optimality: not proven (decision cap reached, beam pruning, local-branch pruning)"));
+});
