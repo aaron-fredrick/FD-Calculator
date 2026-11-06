@@ -7,7 +7,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  deployments: read
+  deployments: write
 
 concurrency:
   group: pages-deploy
@@ -214,6 +214,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      deployments: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -243,3 +244,38 @@ jobs:
             git commit -m "pages: record deployed component revisions"
             git push origin "HEAD:refs/heads/$branch"
           fi
+      - name: Remove superseded Pages deployment records
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: "github-pages",
+              per_page: 100
+            });
+
+            for (const deployment of deployments) {
+              if (deployment.sha === context.sha) continue;
+              const statuses = await github.paginate(github.rest.repos.listDeploymentStatuses, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id,
+                per_page: 100
+              });
+              if (statuses[0]?.state !== "inactive") {
+                await github.rest.repos.createDeploymentStatus({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  deployment_id: deployment.id,
+                  state: "inactive",
+                  description: "Superseded by a newer assembled Pages deployment."
+                });
+              }
+              await github.rest.repos.deleteDeployment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id
+              });
+            }
