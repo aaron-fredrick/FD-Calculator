@@ -38,7 +38,8 @@ test("documentation producer owns benchmark readiness and publication", () => {
   assert.match(docs, /docs\/strategies\/benchmarks\/results\.json/);
   assert.match(docs, /TZ=Asia\/Colombo/);
   assert.match(docs, /publish_branch="data-/);
-  assert.match(docs, /gh pr checks/);
+  assert.match(docs, /merged_at=/);
+  assert.match(docs, /refusing to build or publish documentation/);
   assert.match(docs, /gh pr merge/);
   assert.match(docs, /pages-docs-artifact/);
   assert.match(docs, /uses: \.\/\.github\/workflows\/pages\.yml/);
