@@ -6,7 +6,7 @@ FD Cal has two entry points: the browser application for interactive scenarios a
 
 Open the [FD Cal web application](https://aaron-fredrick.github.io/FD-Calculator/web/). Configure the scenario inputs, choose a supported strategy and run the simulation. The report presents the resulting portfolio and event history.
 
-The web application currently exposes **Greedy**, **GAML** and **GSS**. Absolute is intentionally CLI-only.
+The web application exposes **Greedy**, **Absolute R+** and **GSS** for scoped date-range simulations. **Absolute R** is CLI-only. Goal mode is under development and disabled.
 
 ## Run locally
 
@@ -43,9 +43,9 @@ The local `config.json` is ignored by Git because it may contain private financi
 ## Choose a strategy
 
 - **Greedy** — fast local decisions; useful as a baseline.
-- **GAML** — bounded beam search over multiple promising plans.
-- **GSS** — recursive goal-seeking with SPLIT and CONSOLIDATE evaluation.
-- **Absolute** — exhaustive branch-and-bound search; CLI only.
+- **Absolute R+** — bounded beam search over multiple promising plans.
+- **GSS** — recursive scoped planning with SPLIT and CONSOLIDATE evaluation.
+- **Absolute R** — exhaustive branch-and-bound search; CLI only.
 
 Read the [strategy guide](/STRATEGIES) before comparing results. Strategy performance and outcomes depend on the supplied data, assumptions and simulation horizon.
 
