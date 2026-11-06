@@ -7,14 +7,14 @@ The workflows are split by responsibility. Keep expensive simulation benchmarks 
 | `tests.yml` | Push/PR to `main` | Install the locked Node.js dependencies, run the complete test suite and syntax-check source, scripts and tests. |
 | `docs.yml` | Documentation pull requests | Build VitePress and verify the generated documentation layout before merge. |
 | `pages.yml` | Relevant pushes to `main`, or manual dispatch | Assemble the web app and documentation once, then deploy the combined GitHub Pages site. |
-| `strategy-sensitivity.yml` | Relevant source/data/script pushes to feature or chore branches, or manual dispatch | Run Scoped Range strategy and Absolute R+ parameter benchmarks when their inputs change. |
+| `strategy-sensitivity.yml` | Relevant source/data/script pushes to feature or chore branches, relevant pull requests to `main`, or manual dispatch | Run Scoped Range strategy and Absolute R+ parameter benchmarks when their inputs change. |
 | `goal-achievement-sensitivity.yml` | Relevant source/data/script pushes to feature or chore branches, or manual dispatch | Run the separate Goal development benchmark suite. |
 | `codeql.yml` | Push/PR to `main`, weekly schedule, or manual dispatch | Run extended CodeQL analysis. |
 | `dependency-review.yml` | Pull requests to `main` | Reject dependency changes with high-severity vulnerabilities. |
 
 ## Benchmark reuse
 
-The Scoped Range and Goal benchmark workflows each calculate a SHA-256 fingerprint over the simulation code, benchmark runner and bank/product data that affect their results. They share a per-branch publishing concurrency group and retry rebases so their generated files cannot silently overwrite one another.
+The Scoped Range and Goal benchmark workflows each calculate a SHA-256 fingerprint over the simulation code, benchmark runner and bank/product data that affect their results. Scoped Range benchmarks also run on relevant pull requests; same-repository PRs publish refreshed result data back to the PR branch. They share a per-branch publishing concurrency group and retry rebases so their generated files cannot silently overwrite one another.
 
 - If the fingerprint matches the committed manifest and every expected result file exists, the workflow skips all simulation and chart-data generation.
 - If any relevant input changes, or a required result is missing, the workflow reruns the benchmark and updates its manifest and result files on the working branch.
