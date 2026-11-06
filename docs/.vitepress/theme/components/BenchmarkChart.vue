@@ -125,7 +125,7 @@ function toggle(name) {
           <g v-for="point in item.points" :key="String(point[xKey]) + item.name">
             <circle
               :cx="xPos(point[xKey])" :cy="yPos(point[metric.key])" r="6"
-              :fill="item.color" class="data-point"
+              :fill="item.color" class="data-point" :class="{ 'invalid-point': point.valid === false }"
               tabindex="0" role="button"
               @mouseenter="activePoint = { row: point, name: item.name, color: item.color }"
               @focus="activePoint = { row: point, name: item.name, color: item.color }"
@@ -140,6 +140,8 @@ function toggle(name) {
         <strong><i :style="{ background: activePoint.color }"></i>{{ activePoint.name }}</strong>
         <span>{{ xLabel }}: {{ xFormat(activePoint.row[xKey]) }}</span>
         <b>{{ metric.label }}: {{ format(activePoint.row[metric.key]) }}</b>
+        <span v-if="activePoint.row.valid !== undefined">Simulation validity: {{ activePoint.row.valid ? 'Valid' : 'Invalid' }}</span>
+        <span v-if="activePoint.row.outflow_unpaid > 0">Unpaid obligation: {{ format(activePoint.row.outflow_unpaid) }}</span>
         <span v-if="activePoint.row.delta_pct_vs_greedy !== undefined">vs Greedy: {{ Number(activePoint.row.delta_pct_vs_greedy).toFixed(2) }}%</span>
         <span v-if="activePoint.row.duration_ms !== undefined">Runtime: {{ Number(activePoint.row.duration_ms).toLocaleString('en-LK') }} ms</span>
       </aside>
@@ -167,6 +169,7 @@ function toggle(name) {
 .axis-title { fill: var(--vp-c-text-2); font-size: 13px; }
 .data-point { stroke: var(--vp-c-bg-alt); stroke-width: 2; cursor: crosshair; }
 .data-point:focus { outline: none; stroke: var(--vp-c-text-1); stroke-width: 3; }
+.invalid-point { stroke: #d64b4b; stroke-width: 3; }
 .chart-tooltip { position: absolute; top: .5rem; right: .5rem; z-index: 2; display: grid; gap: .25rem; min-width: 190px; max-width: min(260px, 55%); padding: .65rem .75rem; border: 1px solid var(--vp-c-border); border-radius: 8px; background: var(--vp-c-bg); box-shadow: var(--vp-shadow-3); font-size: .78rem; }
 .chart-tooltip strong { display: flex; align-items: center; gap: .4rem; }
 .chart-tooltip span { color: var(--vp-c-text-2); }
