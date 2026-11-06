@@ -39,11 +39,11 @@ Absolute R can report `optimality_proven: true` when its scoped branch-and-bound
 
 The decision space grows rapidly with the number of accounts, eligible FD products, relevant event dates, split/consolidation combinations and cash-flow schedules. Dominance, memoisation and bound pruning reduce work but do not remove worst-case combinatorial growth. Absolute R is therefore CLI-only.
 
-## Diagnostics and compatibility
+## Diagnostics
 
 Inspect search diagnostics and `optimality_proven` with every result. Net interest alone does not establish whether the exhaustive search proved an optimum.
 
-## Compatibility
+## Configuration and compatibility
 
 The public display name is **Absolute R**, where R denotes the scoped date range. The JSON strategy identifier remains `absolute`; the CLI accepts both `absolute-r` and the legacy `absolute` alias.
 
