@@ -1,6 +1,6 @@
 # Goal-based net-interest planning
 
-<badge color="warning">Under development</badge>
+**Status: Under development — not user selectable.**
 
 Goal-based net-interest planning is not currently available to users. The browser marks the mode as disabled, and the public configuration validator and JSON schema reject `simulation.mode: "goal"`.
 
