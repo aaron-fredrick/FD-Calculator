@@ -10,25 +10,26 @@ FD Cal keeps its two simulation objectives separate. **Scoped Range** is the sup
 
 This study executes the repository's actual `SimulationEngine` and the three strategies available in the web application: **Greedy**, **Absolute R+** and **GSS**. Each comparison changes one scenario factor at a time and gives every strategy the same inputs.
 
-The published dataset contains **90 strategy observations** across 30 scenario points: 18 one-factor points, three outflow cases and nine capital/horizon combinations, each evaluated by all three strategies. The default chart metric is **net interest after AIT and transfer fees**, in LKR; interactive selectors also expose the difference vs Greedy, runtime, booking count, simulation validity and unpaid outflows where applicable. Net interest is not gross interest or final portfolio value. This is the scoped date-range study. All strategies receive the same selected start and end dates.
+The expanded dataset contains **330 strategy observations** across 110 scenario points, evaluated by all three strategies. The default chart metric is **net interest after AIT and transfer fees**, in LKR; interactive selectors also expose the difference vs Greedy, runtime, booking count, simulation validity and unpaid outflows where applicable. Net interest is not gross interest or final portfolio value. This is the scoped date-range study. All strategies receive the same selected start and end dates.
 
 ## Benchmark setup
 
 | Parameter | Setting |
 |---|---|
 | Start date | 5 November 2026 |
-| Horizons | 6, 12 and 24 months |
+| Investment horizon | 0–60 months in 3-month increments |
 | Starting capital sweep | LKR 25,000; 100,000; 300,000; 1,000,000 |
 | Account sweep | 1, 2 and 3 accounts, all at DFCC |
 | Bank sweep | 1, 2 and 3 banks across a fixed 3-account portfolio |
-| Inflow sweep | None; LKR 10,000 monthly; LKR 100,000 once after 6 months |
+| Cash inflows | Monthly amount: LKR 0–200,000 in LKR 10,000 steps; then LKR 100,000 at intervals of 0–12 months |
+| Cash outflows | Strict monthly amount: LKR 0–200,000 in LKR 10,000 steps; then LKR 100,000 at intervals of 0–12 months |
 | eFD eligibility | Standard-only vs eFD-eligible accounts |
 | AIT | Enabled at 10% |
 | Interest calculation | Simple interest; actual leap-year day basis |
 | Outflows | None; LKR 50,000 strict obligation at 6 months; three LKR 20,000 strict obligations at 6, 12 and 18 months |
 | Transfer fees | Bank-specific catalogue fees; applied to transfers and final sweep |
 
-The general base portfolio is LKR 300,000 across three accounts and three banks over 24 months. In addition to the one-factor sweeps, a 3 × 3 capital/horizon interaction matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. The interaction matrix adds 27 strategy runs and is intended to reveal non-additive effects that isolated sweeps miss. Two additional strict-outflow scenarios test account-level liquidity under a single and staggered withdrawal schedule. Horizon, capital, inflow and eFD sweeps use that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands. Scheduled inflows are deposited into the first (DFCC) account.
+The base portfolio is LKR 300,000 across three accounts and three banks. The horizon sweep runs from 0 to 60 months in 3-month steps. Both cash-flow studies use a 10-year simulation: the first varies a monthly amount while the second fixes the amount at LKR 100,000 and varies its interval. An interval of 0 months represents a single event at the simulation start; 1–12 months represent recurring intervals. Cash flows are applied to the first (DFCC) account. The capital/horizon matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. For the account-count sweep, all accounts use DFCC; for the bank-count sweep, the account count and total capital remain fixed.
 
 ## Bank product catalogues
 
@@ -46,19 +47,19 @@ Transfer fees follow the bank catalogue: DFCC LKR 30 inter-bank, Commercial Bank
 
 ## Sensitivity graphs
 
-Each chart overlays all three strategy results for the same factor. Numeric inputs use a linear numeric horizontal axis, so point spacing reflects the actual difference between tested values; categorical sweeps retain equal category spacing. Exact machine-readable rows are available in [benchmark-results.json](./benchmarks/results.json).
+Charts compare the same inputs across all three strategies. Hover points for exact values, switch metrics and toggle strategies. Full observations are available in [benchmark-results.json](./benchmarks/results.json).
 
 ### Investment horizon
 
 <BenchmarkChart :rows="benchmarkResults.results" category="horizon_months" x-label="Horizon (months)" />
 
-The horizontal axis is linear in months (6, 12 and 24). The 12-month point is placed one-third of the way from 6 to 24 months, reflecting the actual numeric interval.
+The sweep covers 0–60 months in 3-month steps.
 
 ### Starting capital
 
 <BenchmarkChart :rows="benchmarkResults.results" category="starting_capital_lkr" x-label="Starting capital (LKR)" />
 
-The horizontal axis is linear in LKR (25k, 100k, 300k and 1m). Unequal capital intervals therefore occupy unequal horizontal distances. This avoids visually presenting the four test points as equally sized increases. The vertical axis remains linear in net interest.
+Capital is varied while the base horizon and portfolio remain fixed.
 
 ### Number of accounts
 
@@ -74,27 +75,31 @@ The Greedy and Absolute R+ lines overlap in this comparison. GSS remains close t
 
 ### Cash inflows
 
-<BenchmarkChart :rows="benchmarkResults.results" category="inflow_pattern" x-label="Inflow pattern" />
+**Monthly amount** — fixed monthly interval, varied from LKR 0 to 200,000 in LKR 10,000 steps. Each run spans 10 years.
+
+<BenchmarkChart :rows="benchmarkResults.results" category="inflow_monthly_amount_lkr" x-label="Monthly inflow (LKR)" :x-tick-step="20000" />
+
+**Inflow interval** — fixed LKR 100,000, varied from one-time at 0 months to recurring every 1–12 months. Each run spans 10 years.
+
+<BenchmarkChart :rows="benchmarkResults.results" category="inflow_interval_months" x-label="Inflow interval (months)" :x-tick-step="2" />
 
 ### eFD eligibility
 
-<BenchmarkChart :rows="benchmarkResults.results" category="efd_eligibility" x-label="Eligibility" />
+<BenchmarkChart :rows="benchmarkResults.results" category="efd_eligibility" x-label="Eligibility" chart-type="bar" />
 
-### Liquidity and strict outflow stress
+### Cash outflows
 
-The outflow scenarios are not scored on net interest alone. The metric selector includes simulation validity and unpaid obligations so an invalid or underfunded run cannot appear to be a better strategy merely because it retained more interest. Strategy exceptions are retained as infeasible observations with their error text instead of aborting the entire benchmark; invalid points are outlined in red and expose the failure in the hover detail. Strict outflows are due from the designated account; another account's balance does not silently cover the obligation.
+Strict outflows use the same two sweeps as inflows. They are due from the designated account and are not covered by balances in other accounts.
 
-<BenchmarkChart :rows="benchmarkResults.results" category="outflow_pattern" x-label="Outflow scenario" />
+**Monthly amount** — fixed monthly interval, varied from LKR 0 to 200,000 in LKR 10,000 steps. Each run spans 10 years.
 
-### Liquidity stress result
+<BenchmarkChart :rows="benchmarkResults.results" category="outflow_monthly_amount_lkr" x-label="Monthly outflow (LKR)" :x-tick-step="20000" />
 
-The strict-outflow runs expose a material feasibility difference:
+**Outflow interval** — fixed LKR 100,000, varied from one-time at 0 months to recurring every 1–12 months. Each run spans 10 years.
 
-- **GSS** paid the full LKR 50,000 single obligation and all three LKR 20,000 staggered obligations from the designated account; both runs remained valid.
-- **Greedy** failed the first strict obligation in both schedules and paid LKR 0 before the run became invalid.
-- **Absolute R+** returned no feasible path under the benchmark search settings (96 beam width, 48 local branches, 5,000 expanded-state cap).
+<BenchmarkChart :rows="benchmarkResults.results" category="outflow_interval_months" x-label="Outflow interval (months)" :x-tick-step="2" />
 
-This does **not** prove that no valid Absolute R+ path exists: GSS found one under the same financial inputs. It indicates a search-feasibility gap under the current Absolute R+ limits and should be investigated separately. Invalid results are not included in the difference-vs-Greedy comparison.
+Outflow charts include validity and unpaid-obligation metrics. If a strategy stops before producing a result, paid and unpaid totals are left unmeasured; the scheduled total is shown separately. Invalid observations are not treated as competitive interest results.
 
 ## Capital and horizon interaction
 
