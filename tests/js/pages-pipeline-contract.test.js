@@ -14,7 +14,7 @@ test("Pages deployment is a reusable assembler, not a source-change trigger", ()
   assert.match(pages, /pages-web-baseline/);
   assert.match(pages, /pages-docs-baseline/);
   assert.match(pages, /listDeployments/);
-  assert.match(pages, /build-docs-preservation\\.sh/);
+  assert.match(pages, /build-docs-preservation\.sh/);
   assert.match(pages, /pages-deploy-state/);
   assert.match(pages, /previous_web_sha/);
   assert.match(pages, /Both component artifact revisions are already deployed/);
@@ -65,7 +65,7 @@ test("component build scripts validate and stage separate output roots", () => {
   const web = read("scripts/build-web-site.sh");
   const docs = read("scripts/build-docs-site.sh");
   const validator = read("scripts/validate-scoped-benchmark-data.js");
-  const preservation = read("scripts/build-docs-preservation.sh");
+  assert.match(pages, /build-docs-preservation\.sh/);
   assert.match(web, /src\/web/);
   assert.match(web, /src\/strategies/);
   assert.match(docs, /validate-scoped-benchmark-data\.js/);
