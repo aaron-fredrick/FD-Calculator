@@ -1,10 +1,12 @@
-> **Scope note:** The scoped sensitivity study below is the active strategy comparison. The Goal-mode dashboards and measurements retained later in this document are historical development artifacts only; Goal mode is currently disabled in the public UI, CLI configuration and schema. They do not represent supported strategy choices or a current ranking.
+# Strategy benchmarks
 
-# Strategy sensitivity benchmark
+FD Cal keeps its two simulation objectives separate. **Scoped Range** is the supported benchmark area. **Goal** is under development and has no published benchmark data yet.
+
+## Scoped Range
 
 This study executes the repository's actual `SimulationEngine` and the three strategies available in the web application: **Greedy**, **Absolute R+** and **GSS**. Each comparison changes one scenario factor at a time and gives every strategy the same inputs.
 
-All plotted values are **net interest after AIT and transfer fees**, in LKR. They are not gross interest or final portfolio value. This is the fixed-horizon study; goal-based runs use a separate objective and matrix documented in [Goal Achievement Sensitivity](./goal-achievement.md).
+All plotted values are **net interest after AIT and transfer fees**, in LKR. They are not gross interest or final portfolio value. This is the scoped date-range study. All strategies receive the same selected start and end dates.
 
 ## Benchmark setup
 
@@ -125,38 +127,6 @@ The dual-scope implementation was compared against the archived fixed-horizon ba
 
 This is a historical scoped-regression check for the web strategies. The active acceptance requirement is to keep the current scoped outputs and diagnostics unchanged.
 
-## Goal-scope strategy benchmarks
-
-The historical Goal-mode matrix used a different objective from this fixed-horizon study: minimise elapsed time to the first valid consolidation net-interest credit. Goal mode is now disabled pending the Absolute R-only rework. The archived 21-input / 63-run matrix and its dashboards are retained only as historical development evidence; they are not a current comparison of supported strategies.
-
-See the [goal-based simulation methodology and interpretation](./goal-achievement.md) for the scenario definitions, accounting contract, limitations and raw data.
-
-### Goal target
-
-![Goal target sensitivity](./assets/goal-achievement/goal-target.svg)
-
-### Starting capital
-
-![Goal starting-capital sensitivity](./assets/goal-achievement/starting-capital.svg)
-
-### Account count
-
-![Goal account-count sensitivity](./assets/goal-achievement/account-count.svg)
-
-### Bank count
-
-![Goal bank-count sensitivity](./assets/goal-achievement/bank-count.svg)
-
-### Inflow pattern
-
-![Goal inflow-pattern sensitivity](./assets/goal-achievement/inflow-pattern.svg)
-
-### eFD eligibility
-
-![Goal eFD eligibility sensitivity](./assets/goal-achievement/efd-eligibility.svg)
-
-Raw measurements: [goal-mode benchmark results](./assets/goal-achievement/results.json). These assets are regenerated together by the goal-achievement sensitivity workflow; computation times are single-run CI measurements, and bounded Absolute R+ results are not global optimality proofs.
-
 ## Reproducibility and limitations
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.
@@ -165,3 +135,11 @@ Raw measurements: [goal-mode benchmark results](./assets/goal-achievement/result
 - Absolute R is CLI-only and exhaustive; it is not included in this web-strategy comparison.
 - No outflows, early-termination penalties, liquidity preference, or rate changes during the forecast are modelled.
 - Published bank rates are a dated data snapshot, not guaranteed live offers. Confirm minimum balances, account eligibility, payout conditions and current tariffs with each bank before investing.
+
+## Goal
+
+**Status: Under development — no benchmark data available yet.**
+
+Goal mode is currently disabled in the public UI and configuration schema. Its objective is to reach the configured consolidation net-interest target at the earliest valid credit date. The planner and accounting verification are still being worked on, so no Goal strategy comparison, sensitivity measurements or graphs are published here.
+
+The planned first Goal optimiser is Absolute R. Greedy, GSS and Absolute R+ remain scoped-range strategies. Goal benchmark data will be added only after the planner, authoritative runtime replay, provenance accounting and adversarial verification are complete.
