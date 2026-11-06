@@ -31,7 +31,7 @@ There is already a global (per-search) state memo for both search drivers. It is
 - the generated child list is not retained for reuse;
 - memo eviction can allow a previously seen state to be expanded again.
 
-This is the specific reuse gap to test and address. Any enhancement must preserve alternate path metadata and root diversity; blindly discarding a duplicate node could remove a useful route to the same future state.
+The post-advance memo and R+ per-beam candidate deduplication already prevent most duplicate expansions. The useful additional early check is a raw-state memo for Absolute R's depth-first traversal, where identical raw states can otherwise replay event advancement. For R+, benchmark evidence is required before adding another memo/cache layer.
 
 ### Existing benchmark evidence
 
@@ -45,7 +45,7 @@ In its Scoped Range horizon sweep, Absolute R+ measured:
 
 The 24-month parameter sweep reported 15/15 configurations with `optimality_proven: false`. At the tested baseline (beam width 96, local branch limit 48, decision budget 5,000), 2,791 states were expanded and runtime was approximately 5.8–6.2 seconds. Increasing beam width to 192/256 increased runtime to approximately 12.8/14.7 seconds without improving the reported objective.
 
-A surprising result needs a dedicated regression investigation: decision budget 500 returned LKR 63,302.37 net interest, while budgets 1,000, 2,500, 5,000 and 10,000 returned LKR 61,886.03 for the same 24-month fixture. This may be a budget-frontier/beam-retention effect rather than a financial calculation error. It must be reproduced and explained before changing the search policy. A larger budget must not silently lose a better already-found feasible candidate.
+The decision-budget regression was reproduced: cap 500 returned LKR 63,302.37, while caps 1,000, 2,500, 5,000 and 10,000 returned the Greedy baseline LKR 61,886.03. The 500 run selected an Absolute R+ budget-frontier prefix; larger runs discarded that prefix as the beam evolved. This is a search-retention defect, not a ledger/provenance error. The implementation now archives the top four feasible frontier prefixes every 500 expanded states and replays them against Greedy; the GAML benchmark asserts non-decreasing best net interest as the decision budget increases.
 
 These timings are CI-runner observations, not local-machine benchmarks. They are recorded as a reproducible baseline, not a guaranteed speedup target.
 
@@ -75,37 +75,40 @@ This is now a required validation item: compare the actual web defaults against 
 - [x] Inspect latest main benchmark logs and record measured baseline.
 - [x] Inspect state advancement and canonical ordering: balances are sorted by account ID; pending cash flows are grouped and sorted by date/account; state advancement applies today's inflows and booking-created flows before processing outflow obligations. The scoped state identity includes the post-advance date, balances, pending cash flows, obligations and paid amount.
 - [x] Add counters for raw-state memo hits/prunes/evictions, normalized-state memo hits, expansion-cache hits/evictions, generated local/consolidation branches and duplicate candidate states.
-- [ ] Reproduce the non-monotonic decision-budget result with a small deterministic fixture and the full benchmark fixture.
+- [x] Reproduce the non-monotonic decision-budget result in the full 24-month GAML parameter fixture and identify budget-frontier loss as the cause.
 
-### Phase 1 — State identity and expansion reuse design
+### Phase 1 — State identity and reuse design
 - [x] Prove scoped state equivalence from the transition implementation; Goal provenance and Goal path history remain outside the new reuse path.
-- [x] Define the cache lifecycle implicitly as completed-only: expansion entries are inserted only after the complete child list has been generated. There is no partially-expanded cache entry.
-- [x] Cache only deterministic, fully generated scoped child expansions. Candidate nodes and parent/action paths are rebuilt for each arrival, preserving root/path metadata.
-- [x] Keep Goal mode entirely outside the raw-state memo and expansion cache.
-- [x] Preserve bounded memory: raw-state memo 10,000 entries; normalized memo 50,000 entries; expansion cache up to 512 entries, 2,048 retained child references, at most 64 children per entry and 4,096-character keys.
+- [x] Keep the existing normalized-state memo for both Absolute strategies; keep R+ candidate deduplication within each beam generation.
+- [x] Add a bounded raw-state memo before event advancement for Absolute R DFS. It is disabled for R+ after measurement showed only 11 raw-state hits across 108 R+ scenarios, too few to justify serializing every expanded R+ state twice.
+- [x] Prototype and measure a completed-expansion cache. It recorded zero hits across the 108 R+ benchmark scenarios, so it was removed rather than retained as unused production complexity.
 - [x] Add an incremental eFD tie-break count to bounded local-combination partials, avoiding repeated scans of all prior account choices during sort comparisons.
+- [x] Reuse the candidate state fingerprint for both priority caching and beam deduplication, avoiding a second JSON serialization per generated candidate.
+- [x] Design a bounded budget-frontier archive: retain the top four candidate prefixes at 500-state checkpoints, up to 512 archived paths, then authoritatively replay them with greedy continuation.
 
 ### Phase 2 — Correctness tests
-- [ ] Same-state/same-path duplicate is not expanded twice.
-- [ ] Same-state/better-operation-count arrival reuses children but retains the better parent path.
+- [x] Same raw state reached through equivalent standard/eFD branches is pruned before event advancement in Absolute R.
+- [x] R+ duplicate states are deduplicated within beam generation and by the normalized-state memo; a separate expansion cache was not retained because measured hits were zero.
 - [x] State identity tests cover date, balance, pending-flow date/amount/account, obligation identity/date/amount and paid amount; full Node.js suite passes.
 - [x] Existing replay/parity and cash-flow tests cover booking-created maturity and payout events.
-- [x] Add a focused positive-hit test proving an identical raw state is pruned before advancement (equivalent standard/eFD branches); Node.js CI passes. A better-operation-count expansion-cache hit remains to be demonstrated from the R+ benchmark or a dedicated fixture.
+- [x] Add a focused positive-hit test proving an identical raw state is pruned before advancement (equivalent standard/eFD branches); Node.js CI passes.
 - [ ] Verify root-diversity retention under actual duplicate-state hits in R+.
 - [x] Goal-mode bypass is asserted explicitly; legacy parity tests pass.
 - [x] Existing strict-outflow and provenance suites pass; no financial constraints were weakened.
 
 ### Phase 3 — Search quality and budget correctness
-- [ ] Reproduce decision-budget non-monotonicity.
-- [ ] Preserve best feasible candidate/frontier across all explored budget layers; never replace a better replay with a worse one.
-- [ ] Compare deterministic objective and selected strategy at multiple budgets.
-- [ ] Do not claim optimality when beam/local/budget pruning occurred.
+- [x] Reproduce decision-budget non-monotonicity in the 24-month fixture.
+- [x] Implement a bounded archive of frontier prefixes every 500 expanded states; replay each archived path with authoritative simulation and Greedy continuation.
+- [x] Add a benchmark invariant requiring net interest not to regress as the decision budget increases.
+- [ ] Verify monotonicity and compare selected strategy/objective at 500, 1,000, 2,500, 5,000 and 10,000 after the archive implementation.
+- [x] Preserve optimality_proven: false whenever beam/local/budget pruning prevents proof.
 
 ### Phase 4 — Performance validation and tuning
-- [ ] Run identical 24-, 36-, 48- and 60-month cases before/after.
-- [ ] Compare expanded states, unique expansions, cache reuse, local combinations, runtime and bounded memory.
-- [ ] Add no IndexedDB/localStorage unless measured repeat-run evidence justifies it.
-- [ ] Tune cache bounds from observed memory and hit rates, not guesswork.
+- [x] Run the 108-point matrix on the implementation before budget-frontier archival and compare with main: 24-month R+ runtime fell from about 6.14s to 3.32s; 60-month runtime fell from about 26.80s to 14.08s.
+- [x] Inspect reuse metrics: 11 raw-state hits, 1,821 normalized memo hits, 2.99m same-layer candidate duplicates and zero expansion-cache hits across 108 R+ scenarios.
+- [ ] Re-run identical 24-, 36-, 48- and 60-month cases on the final budget-archive implementation.
+- [ ] Compare expanded states, unique expansions, local combinations, candidate generation, runtime and bounded memory.
+- [x] Do not add IndexedDB/localStorage: measured duplicate reuse is per-search; no cross-run cache benefit was demonstrated.
 
 ### Phase 5 — Integration and delivery
 - [ ] Full Node.js test suite and syntax checks.
@@ -128,15 +131,16 @@ This is now a required validation item: compare the actual web defaults against 
 
 ## Latest implementation update
 
-- **Raw-state transposition lookup:** before `advanceState`, Scoped Range now checks a bounded memo keyed by the complete raw state. An identical state reached by an equal/worse operation-count path is skipped before replaying inflows, pending maturities/payouts and outflow processing. A better-operation-count arrival is still allowed through.
-- **Normalized-state memo:** the existing post-advance memo remains in place to catch different raw states that converge to the same future state after today's events are applied.
-- **Completed expansion reuse:** when a better-operation-count path reaches a normalized state that has already been expanded, the search can reuse its fully generated child list. Child nodes are rebuilt from the new parent path. The cache is deliberately bounded and skips oversized entries.
+- **Raw-state transposition lookup:** before `advanceState`, Absolute R checks a bounded memo keyed by the complete raw state. An identical state reached by an equal/worse operation-count path is skipped before replaying inflows, pending maturities/payouts and outflow processing. This is disabled for R+ because its measured raw-state hit rate was negligible.
+- **Normalized-state memo:** the existing post-advance memo remains shared by Absolute R and R+ to catch different raw states that converge to the same future state after today's events are applied. R+ also deduplicates candidates within each beam generation.
+- **Expansion-cache decision:** a bounded child-expansion cache was prototyped and measured, but had zero hits across the 108 R+ scenarios. It was removed from production code to avoid memory and complexity without benefit.
+- **Budget-frontier archive:** R+ now snapshots the selected frontier every 500 expanded states, retains up to four paths per checkpoint (512 paths maximum), and replays archived paths with greedy continuation. This is intended to prevent a larger decision budget from losing a better earlier feasible prefix.
 - **Local branch ranking:** eFD tie-break counts are carried incrementally in each partial combination rather than recalculated by scanning all account choices on every sort comparison. The equivalent-standard-term set uses the full compatible account catalogue, matching the previous `efdFor` semantics rather than only the currently eligible options.
-- **Instrumentation:** benchmark rows now include raw/normalized memo activity, expansion-cache reuse, branch-generation counts, candidate-state duplicates, budget frontier size and selected strategy/reason.
+- **Instrumentation:** benchmark rows include raw/normalized memo activity, branch-generation counts, candidate-state duplicates, budget frontier/archive sizes and selected strategy/reason. The GAML parameter benchmark now asserts monotonic best net interest across increasing decision caps.
 - **Benchmark artifact handling:** the PR/feature-branch sensitivity workflow now retains generated JSON and its fingerprint only as a one-day Actions artifact. It no longer pushes benchmark snapshots or requests pull-request write permission; the production docs workflow on main independently regenerates its own run-local datasets.
 - **Parity:** the first CI attempts exposed only expected differences in newly-added diagnostic fields; those fields are excluded from legacy behavioural parity comparison. The Node.js test suite passed after the raw-state memo and eFD tie-break correction at commit `48675ec2cc3a3febb8cae18ed4d748c681131141` (run [42288854621](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42288854621)), including the pre-refactor ledger parity tests.
-- **Current benchmark:** run [42288854738](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42288854738) is executing the 108-point Scoped Range matrix using the latest search implementation and benchmark diagnostics. Performance conclusions remain pending until its Absolute R+ parameter sweep and artifact are complete.
-- **Persistent browser storage:** not added. The requested overlap is within one search, so a per-run in-memory transposition table is the correct layer. Persisting intermediate nodes across runs would require full simulation, product-catalogue, algorithm-version and runtime fingerprints, plus invalidation and serialization costs. IndexedDB is deferred unless measured repeat-run evidence justifies caching completed simulation results.
+- **Measured pre-archive performance:** run [42288854738](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42288854738) completed all 108 R+ scenarios. Aggregate R+ runtime was about 820s. At 24 months it measured 3.32s versus 6.14s on main; at 60 months it measured 14.08s versus 26.80s on main. The 24-month parameter sweep reproduced the 500-versus-1,000 budget regression. The new archive implementation still requires a fresh benchmark run.
+- **Persistent browser storage:** not added. The useful overlap is within one search, so in-memory per-run maps are the correct layer. Persisting intermediate nodes across runs would require full simulation, product-catalogue, algorithm-version and runtime fingerprints, plus invalidation and serialization costs. IndexedDB is deferred unless repeat-run evidence justifies caching completed simulation results.
 - **Web defaults:** aligned the browser's initial Absolute R+ settings with the benchmark baseline (beam 96, local branches 48, decision cap 5,000). The 24-month parameter sweep showed beam 256 took about 14.7s versus about 6.2s at beam 96 without improving the reported net interest; the tested local-branch sweep from 16 through 128 also produced the same reported objective. Explicit imported `null` caps remain uncapped. The report now discloses search states and whether optimality was proven, including the applicable beam/local/budget limits.
-- **UI regression tests:** verify the bounded web defaults, preserve explicit imported `null` caps as uncapped, and assert the report discloses bounded-search optimality. Goal-mode tests also assert the new Scoped Range memo and expansion cache remain unused in Goal mode.
+- **UI regression tests:** verify the bounded web defaults, preserve explicit imported `null` caps as uncapped, and assert the report discloses bounded-search optimality. Goal-mode tests assert the raw-state memo remains unused in Goal mode.
 - **Raw-state memo regression:** an Absolute R fixture with equivalent standard/eFD products reaches the same raw future state through separate branches; the test asserts a positive memo hit and prune before state advancement.
