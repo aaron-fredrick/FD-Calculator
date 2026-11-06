@@ -220,6 +220,6 @@ jobs:
     needs: publish
     uses: ./.github/workflows/pages.yml
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
