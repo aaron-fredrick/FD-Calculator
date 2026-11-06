@@ -1,213 +1,125 @@
-name: Benchmark, build and publish FD Cal documentation
+name: Benchmark and publish FD Cal documentation
 
 on:
   push:
     branches: [main]
-    paths:
-      - "docs/**"
-      - "scripts/benchmark-fingerprint.js"
-      - "scripts/strategy-sensitivity.js"
-      - "scripts/gaml-sensitivity.js"
-      - "scripts/validate-scoped-benchmark-data.js"
-      - "scripts/build-docs-site.sh"
-      - "scripts/build-docs-preservation.sh"
-      - "src/core/**"
-      - "src/strategies/**"
-      - "src/fd-options/**"
-      - "src/io/csv.js"
-      - "src/brand/favicon.svg"
-      - "data/banks/**"
-      - "data/fd_options/**"
-      - ".github/workflows/strategy-sensitivity.yml"
-      - ".github/workflows/docs-pages.yml"
-      - ".github/workflows/pages.yml"
-      - "docs/strategies/benchmarks/results.json"
-      - "docs/strategies/benchmarks/gaml-search-results.json"
-      - "docs/strategies/benchmarks/.input-fingerprint.json"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# Every main push gets its own benchmark run. The component publisher and
+# reusable Pages deployer have their own non-cancelling concurrency controls.
 concurrency:
-  group: docs-benchmark-pipeline-main
+  group: docs-benchmark-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
-  prepare:
-    if: github.ref == 'refs/heads/main'
+  scoped-range-benchmark:
+    name: Scoped Range page benchmark
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      needs_benchmark: ${{ steps.check.outputs.needs_benchmark }}
-      blocked_by_data_pr: ${{ steps.check.outputs.blocked_by_data_pr }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: main
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-      - name: Check both the benchmark fingerprint and dataset completeness
-        id: check
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          stale="$(node scripts/benchmark-fingerprint.js --check)"
-          expected_fingerprint="$(node scripts/benchmark-fingerprint.js --write)"
-          blocked_by_data_pr=false
-          open_data_prs="$(gh pr list --base main --state open --limit 100 --json number,headRefName --jq '.[] | select(.headRefName | startswith("data-")) | [.number, .headRefName] | @tsv')"
-
-          while read -r pr_number pr_branch; do
-            [ -n "$pr_branch" ] || continue
-            git fetch --no-tags origin "refs/heads/$pr_branch:refs/remotes/origin/$pr_branch"
-            if git show "refs/remotes/origin/$pr_branch:docs/strategies/benchmarks/.input-fingerprint.json" > "$RUNNER_TEMP/data-pr-fingerprint.json" 2>/dev/null; then
-              pr_fingerprint="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).fingerprint)" "$RUNNER_TEMP/data-pr-fingerprint.json")"
-              if [ "$pr_fingerprint" = "$expected_fingerprint" ]; then
-                blocked_by_data_pr=true
-                echo "::notice::Open benchmark data PR #$pr_number already contains this input fingerprint; waiting for its normal merge."
-                break
-              fi
-            fi
-          done <<< "$open_data_prs"
-
-          needs_benchmark=false
-          if [ "$blocked_by_data_pr" = "true" ]; then
-            needs_benchmark=true
-          elif [ "$stale" != "false" ] || ! node scripts/validate-scoped-benchmark-data.js; then
-            needs_benchmark=true
-          fi
-
-          echo "needs_benchmark=$needs_benchmark" >> "$GITHUB_OUTPUT"
-          echo "blocked_by_data_pr=$blocked_by_data_pr" >> "$GITHUB_OUTPUT"
-          if [ "$blocked_by_data_pr" = "true" ]; then
-            echo "A matching benchmark data PR is already open; no duplicate simulation or docs publication will run."
-          elif [ "$needs_benchmark" = "true" ]; then
-            echo "Benchmark inputs or published observations are incomplete; this documentation pipeline will generate its own data."
-          else
-            echo "The committed benchmark data matches current inputs and passes completeness validation; no simulation will run."
-          fi
-
-  benchmark:
-    needs: prepare
-    if: needs.prepare.outputs.needs_benchmark == 'true' && needs.prepare.outputs.blocked_by_data_pr != 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      contents: write
-      pull-requests: write
-    outputs:
-      dispatch_docs: ${{ steps.publish.outputs.dispatch_docs }}
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
-          fetch-depth: 0
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Run the Scoped Range strategy sensitivity matrix
-        run: set -o pipefail && node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
-      - name: Run Absolute R+ search-parameter sensitivity
-        run: set -o pipefail && node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
-      - name: Validate the complete benchmark dataset
-        run: node scripts/validate-scoped-benchmark-data.js
-      - name: Write and verify the benchmark input fingerprint
-        run: |
-          node scripts/benchmark-fingerprint.js --write
-          test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
-      - name: Publish generated data through a timestamped data branch and PR
-        id: publish
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run the Scoped Range strategy matrix
         shell: bash
+        run: set -o pipefail && node scripts/strategy-sensitivity.js | tee scoped-range-benchmark-output.txt
+      - name: Validate Scoped Range observations
         run: |
-          set -euo pipefail
-          echo "dispatch_docs=false" >> "$GITHUB_OUTPUT"
-          local_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('docs/strategies/benchmarks/.input-fingerprint.json', 'utf8')).fingerprint")"
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
 
-          git fetch origin main
-          remote_sha="$(git rev-parse origin/main)"
-          temp_root="$(mktemp -d)"
-          verify_tree="$temp_root/verify"
-          git worktree add --detach "$verify_tree" "$remote_sha" >/dev/null
-          remote_stale="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --check)"
-          remote_fingerprint="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --write)"
-          remote_data_valid=false
-          if [ "$remote_stale" = "false" ] && (cd "$verify_tree" && node scripts/validate-scoped-benchmark-data.js >/dev/null); then
-            remote_data_valid=true
-          fi
-          git worktree remove --force "$verify_tree"
-          rmdir "$temp_root"
-          if [ "$remote_fingerprint" != "$local_fingerprint" ]; then
-            echo "Refusing to publish benchmark output: main advanced to a different input fingerprint."
-            exit 1
-          fi
-          if [ "$remote_data_valid" = "true" ]; then
-            echo "Main already contains a complete dataset for this fingerprint; reusing it instead of overwriting newer data."
-            gh workflow run docs-pages.yml --ref main
-            echo "dispatch_docs=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          const data = JSON.parse(readFileSync("docs/strategies/benchmarks/results.json", "utf8"));
+          const rows = data.results;
+          const strategies = ["Greedy", "Absolute R+", "GSS"];
+          const groups = new Map();
+          for (const row of rows) {
+            const key = row.category + "|" + row.value;
+            groups.set(key, [...(groups.get(key) ?? []), row]);
+          }
 
-          output_root="$(mktemp -d)"
-          mkdir -p "$output_root/docs/strategies/benchmarks"
-          cp docs/strategies/benchmarks/results.json "$output_root/docs/strategies/benchmarks/"
-          cp docs/strategies/benchmarks/gaml-search-results.json "$output_root/docs/strategies/benchmarks/"
-          cp docs/strategies/benchmarks/.input-fingerprint.json "$output_root/docs/strategies/benchmarks/"
+          assert.equal(rows.length, 324, "Expected 324 Scoped Range observations.");
+          assert.equal(groups.size, 108, "Expected 108 distinct Scoped Range scenarios.");
+          for (const [key, group] of groups) {
+            assert.deepEqual(
+              group.map(row => row.strategy).sort(),
+              [...strategies].sort(),
+              key + " must contain exactly one result for every strategy."
+            );
+          }
 
-          publish_timestamp="$(TZ=Asia/Colombo date '+%Y-%m-%d-%H-%M-%S-LKT')"
-          publish_branch="data-$publish_timestamp"
-          if git ls-remote --exit-code origin "refs/heads/$publish_branch" >/dev/null 2>&1; then
-            publish_branch="$publish_branch-$GITHUB_RUN_ID"
-          fi
-          git checkout -B "$publish_branch" origin/main
-          cp "$output_root/docs/strategies/benchmarks/results.json" docs/strategies/benchmarks/results.json
-          cp "$output_root/docs/strategies/benchmarks/gaml-search-results.json" docs/strategies/benchmarks/gaml-search-results.json
-          cp "$output_root/docs/strategies/benchmarks/.input-fingerprint.json" docs/strategies/benchmarks/.input-fingerprint.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/strategies/benchmarks/results.json
-          git add docs/strategies/benchmarks/gaml-search-results.json
-          git add docs/strategies/benchmarks/.input-fingerprint.json
-          if ! git diff --cached --quiet; then
-            git commit -m "benchmarks: refresh scoped strategy measurements ($publish_timestamp LKT)"
-            git push origin "HEAD:refs/heads/$publish_branch"
-            pr_url="$(gh pr create --base main --head "$publish_branch" --title "benchmarks: refresh scoped strategy measurements ($publish_timestamp LKT)" --body "Automated Scoped Range benchmark output for input fingerprint ${local_fingerprint}. Generated at ${publish_timestamp} Sri Lanka Time (Asia/Colombo).")"
-            gh pr merge "$pr_url" --merge
-            merged_at="$(gh pr view "$pr_url" --json mergedAt --jq '.mergedAt')"
-            if [ -z "$merged_at" ] || [ "$merged_at" = "null" ]; then
-              echo "Benchmark data PR did not merge; refusing to build or publish documentation."
-              exit 1
-            fi
-            echo "Merged validated benchmark data through $publish_branch at $merged_at."
-            gh workflow run docs-pages.yml --ref main
-            echo "dispatch_docs=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "The generated dataset is identical to the current main data; no data PR is required."
-          fi
-      - name: Preserve benchmark execution logs
-        if: always()
-        run: |
-          test -f strategy-sensitivity-output.txt || echo "No strategy output was produced." > strategy-sensitivity-output.txt
-          test -f gaml-sensitivity-output.txt || echo "No Absolute R+ output was produced." > gaml-sensitivity-output.txt
-      - uses: actions/upload-artifact@v6
-        if: always()
+          console.log("Validated 324 observations across 108 Scoped Range scenarios.");
+          NODE
+      - name: Upload run-local Scoped Range data for the docs build
+        uses: actions/upload-artifact@v6
         with:
-          name: docs-owned-scoped-benchmark-run
+          name: scoped-range-benchmark-data
           path: |
-            strategy-sensitivity-output.txt
-            gaml-sensitivity-output.txt
-          retention-days: 30
+            docs/strategies/benchmarks/results.json
+            scoped-range-benchmark-output.txt
+          if-no-files-found: error
+          retention-days: 1
+
+  absolute-r-plus-benchmark:
+    name: Absolute R+ page benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Run Absolute R+ search-parameter sensitivity
+        shell: bash
+        run: set -o pipefail && node scripts/gaml-sensitivity.js | tee absolute-r-plus-benchmark-output.txt
+      - name: Validate Absolute R+ parameter observations
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+
+          const data = JSON.parse(readFileSync("docs/strategies/benchmarks/gaml-search-results.json", "utf8"));
+          assert.equal(data.results.length, 15, "Expected 15 Absolute R+ parameter observations.");
+          assert.deepEqual(data.baseline, {
+            beam_width: 96,
+            max_local_branches: 48,
+            max_decisions: 5000
+          });
+          const expected = {
+            beam_width: [32, 64, 96, 192, 256],
+            local_branch_limit: [16, 32, 48, 96, 128],
+            decision_cap: [500, 1000, 2500, 5000, 10000]
+          };
+          for (const [sweep, values] of Object.entries(expected)) {
+            assert.deepEqual(
+              data.results.filter(row => row.sweep === sweep).map(row => row.value),
+              values,
+              sweep + " must contain the complete parameter sweep."
+            );
+          }
+          console.log("Validated all 15 Absolute R+ parameter observations.");
+          NODE
+      - name: Upload run-local Absolute R+ data for the docs build
+        uses: actions/upload-artifact@v6
+        with:
+          name: absolute-r-plus-benchmark-data
+          path: |
+            docs/strategies/benchmarks/gaml-search-results.json
+            absolute-r-plus-benchmark-output.txt
+          if-no-files-found: error
+          retention-days: 1
 
   build:
-    needs: [prepare, benchmark]
-    if: always() && needs.prepare.result == 'success' && needs.prepare.outputs.blocked_by_data_pr != 'true' && (needs.benchmark.result == 'skipped' || (needs.benchmark.result == 'success' && needs.benchmark.outputs.dispatch_docs != 'true'))
+    name: Build docs using this run's benchmark data
+    needs: [scoped-range-benchmark, absolute-r-plus-benchmark]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -216,15 +128,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: Capture documentation dependency revision
+      - name: Capture the exact source revision
         id: source
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Build and validate the documentation component
+      - name: Restore this run's Scoped Range data
+        uses: actions/download-artifact@v6
+        with:
+          name: scoped-range-benchmark-data
+          path: docs/strategies/benchmarks
+      - name: Restore this run's Absolute R+ data
+        uses: actions/download-artifact@v6
+        with:
+          name: absolute-r-plus-benchmark-data
+          path: docs/strategies/benchmarks
+      - name: Validate both page datasets together
+        run: node scripts/validate-scoped-benchmark-data.js
+      - name: Build documentation from the generated datasets
         run: bash scripts/build-docs-site.sh /tmp/docs-site
       - uses: actions/upload-artifact@v6
         with:
@@ -245,7 +169,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - uses: actions/download-artifact@v6
         with:
@@ -258,7 +182,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          if ! git diff --quiet "$SOURCE_SHA" origin/main -- docs scripts/benchmark-fingerprint.js scripts/strategy-sensitivity.js scripts/gaml-sensitivity.js scripts/validate-scoped-benchmark-data.js scripts/build-docs-site.sh src/core src/strategies src/fd-options src/io/csv.js src/brand/favicon.svg data/banks data/fd_options; then
+          if ! git diff --quiet "$SOURCE_SHA" origin/main -- docs scripts/strategy-sensitivity.js scripts/gaml-sensitivity.js scripts/validate-scoped-benchmark-data.js scripts/build-docs-site.sh src/core src/strategies src/fd-options src/io/csv.js src/brand/favicon.svg data/banks data/fd_options; then
             echo "::notice::Documentation or benchmark inputs changed after this artifact was built; a newer docs run owns publication."
             exit 0
           fi
@@ -278,7 +202,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "The documentation artifact branch already contains this component."
           else
-            git commit -m "pages: publish documentation from ${GITHUB_SHA}"
+            git commit -m "pages: publish docs built from main ${SOURCE_SHA}"
             git push origin "HEAD:refs/heads/$branch"
           fi
 
