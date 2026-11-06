@@ -438,7 +438,7 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       }
     }
   } else {
-    let partials = [{ score: 0, choices: [] }];
+    let partials = [{ score: 0, efd: 0, choices: [] }];
     for (let index = 0; index < accountIds.length; index++) {
       const id = accountIds[index], expanded = [];
       const accountOptions = slots[index].slice(1);
@@ -453,23 +453,29 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
           Number(a.is_efd && standardTerms.has(a.economic_terms_key));
       });
       for (const partial of partials) {
-        expanded.push({ score: partial.score, choices: [...partial.choices, [id, null]] });
+        expanded.push({
+          score: partial.score, efd: partial.efd,
+          choices: [...partial.choices, [id, null]]
+        });
         for (const option of choices) {
           expanded.push({
             score: partial.score + (settings.goalMode
               ? goalOptionScore(id, option)
               : getOptionInterest(context, option, balances.get(id), today) * (1 - settings.aitRate)),
+            efd: partial.efd + Number(option.is_efd && standardTerms.has(option.economic_terms_key)),
             choices: [...partial.choices, [id, option]]
           });
         }
       }
-      expanded.sort((a, b) => b.score - a.score || efdFor(b.choices) - efdFor(a.choices));
+      // Carry the eFD tie-break count with each partial instead of rescanning
+      // every account choice for every comparator invocation.
+      expanded.sort((a, b) => b.score - a.score || b.efd - a.efd);
       if (expanded.length > settings.maxLocalBranches) pruned += expanded.length - settings.maxLocalBranches;
       partials = expanded.slice(0, settings.maxLocalBranches);
     }
     for (const partial of partials) {
       if (partial.choices.some(([, option]) => option)) branches.push({
-        score: partial.score, efd: efdFor(partial.choices), choices: partial.choices
+        score: partial.score, efd: partial.efd, choices: partial.choices
       });
     }
   }
