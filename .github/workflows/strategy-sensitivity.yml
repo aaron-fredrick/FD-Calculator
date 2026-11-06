@@ -36,7 +36,7 @@ permissions:
 
 jobs:
   coordinate:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.ref != 'refs/heads/main' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
@@ -64,8 +64,10 @@ jobs:
   sensitivity:
     needs: coordinate
     if: |
+      github.ref != 'refs/heads/main' && (
       (needs.coordinate.result == 'success' && needs.coordinate.outputs.decision == 'run') ||
       (needs.coordinate.result == 'skipped' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
