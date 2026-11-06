@@ -194,7 +194,11 @@ test("scoped state identity includes every future-relevant cash-flow field", () 
     { ...state, date: "2026-01-02" },
     { ...state, balances: [["account-a", 24999], ["account-b", 10000]] },
     { ...state, flows: [["2026-03-02", [["account-a", 26000]]]] },
+    { ...state, flows: [["2026-03-01", [["account-b", 26000]]]] },
+    { ...state, flows: [["2026-03-01", [["account-a", 26001]]]] },
     { ...state, obligations: [["outflow-a", "2026-02-02", 5000]] },
+    { ...state, obligations: [["outflow-b", "2026-02-01", 5000]] },
+    { ...state, obligations: [["outflow-a", "2026-02-01", 5001]] },
     { ...state, paid: 1199 }
   ];
   for (const variant of variants) assert.notEqual(searchStateKey(variant), searchStateKey(state));
