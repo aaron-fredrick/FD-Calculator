@@ -22,7 +22,7 @@ const files = [
   ...collect("data/fd_options"),
   "src/io/csv.js",
   "scripts/strategy-sensitivity.js",
-  "scripts/gaml-sensitivity.js"
+  "scripts/benchmark-fingerprint.js", "scripts/gaml-sensitivity.js"
 ].sort();
 const hash = createHash("sha256");
 for (const path of files) {
