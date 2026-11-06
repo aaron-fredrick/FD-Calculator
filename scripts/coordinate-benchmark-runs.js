@@ -61,10 +61,19 @@ async function hasReusableWork(run) {
     "/actions/runs/" + run.id + "/jobs?per_page=100");
   const jobs = result.jobs ?? [];
   const coordinator = jobs.find(job => job.name === "coordinate");
-  if (coordinator?.conclusion && coordinator.conclusion !== "success") return false;
+
+  // Reuse only after coordination succeeded. A queued/unfinished coordinator,
+  // missing job data, or failed coordinator is not evidence of healthy work.
+  if (!coordinator || coordinator.status !== "completed" || coordinator.conclusion !== "success") {
+    return false;
+  }
 
   const sensitivity = jobs.find(job => job.name === "sensitivity");
-  if (!sensitivity) return true;
+  if (!sensitivity) return false;
+
+  // The workflow run itself is filtered to queued/in_progress by the caller.
+  // A queued/running sensitivity job will produce the data; a successful
+  // completed sensitivity job has already validated and published it.
   if (sensitivity.status === "queued" || sensitivity.status === "in_progress") return true;
   return sensitivity.status === "completed" && sensitivity.conclusion === "success";
 }
@@ -147,9 +156,9 @@ for (const run of candidates) {
   if (existingFingerprint === currentFingerprint) {
     if (await hasReusableWork(run)) {
       matchingRun ??= run;
-      console.log("Run #" + run.run_number + " has the same fingerprint and reusable work.");
+      console.log("Run #" + run.run_number + " has the same fingerprint and healthy active work; reusing it.");
     } else {
-      console.log("Run #" + run.run_number + " has the same fingerprint but no reusable active result; this run may take over.");
+      console.log("Run #" + run.run_number + " has the same fingerprint but no reusable work; this run may take over.");
     }
     continue;
   }
@@ -171,5 +180,5 @@ const output = [
 
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, output);
 console.log(matchingRun
-  ? "Decision: reuse active run #" + matchingRun.run_number + "; skip duplicate simulation."
-  : "Decision: no older matching run remains; proceed with this fingerprint.");
+  ? "Decision: reuse healthy active run #" + matchingRun.run_number + "; skip duplicate simulation."
+  : "Decision: no healthy older matching run remains; proceed with this fingerprint.");
