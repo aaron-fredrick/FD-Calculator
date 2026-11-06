@@ -2,7 +2,7 @@ name: Scoped strategy benchmarks
 
 on:
   push:
-    branches: ["feature/**", "chore/**"]
+    branches: [main, "feature/**", "chore/**"]
     paths:
       - "scripts/benchmark-fingerprint.js"
       - "scripts/strategy-sensitivity.js"
@@ -104,7 +104,7 @@ jobs:
         if: steps.cache.outputs.stale == 'true'
         run: test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
       - name: Publish refreshed benchmark data to the working branch
-        if: steps.cache.outputs.stale == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name == 'pull_request' || (github.ref_type == 'branch' && github.ref_name != 'main'))
+        if: steps.cache.outputs.stale == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.ref_type == 'branch')
         run: |
           branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
           git config user.name "github-actions[bot]"
