@@ -132,7 +132,7 @@ function runCase(category, value, {
     try {
       result = engine.run(makeStrategy(), input);
     } catch (error) {
-      if (outflow === "none") throw error;
+      if (outflow === "none" || !String(error?.message ?? error).includes("strict outflows")) throw error;
       const duration = Date.now() - started;
       const required = Object.values(input.outflow_schedule)
         .flat()
