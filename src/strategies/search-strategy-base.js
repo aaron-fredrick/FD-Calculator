@@ -1300,7 +1300,6 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         candidates.push(candidate);
         counters.candidateStatesGenerated++;
       }
-    }
     if (!goalMode && settings.maxDecisions != null &&
         counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
       const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
@@ -1314,13 +1313,14 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         }
       }
     }
+    }
     const selection = selectGamlBeam(candidates, rootBest, settings, goalMode);
     counters.candidateStateDuplicates += selection.duplicates;
     rootPeak = Math.max(rootPeak, selection.rootPeak);
     beamPruned += selection.beamPruned;
     beam = selection.selected;
     if (budgetStopped) {
-      budgetFrontier = selected;
+      budgetFrontier = selection.selected;
       break;
     }
   }
