@@ -57,15 +57,15 @@ The interactive charts let you switch between net interest after AIT and fees, e
 
 ### Beam width
 
-<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="beam_width" title="Beam width" x-label="Beam width" series-name="Absolute R+" :metrics="searchMetrics" />
+<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="beam_width" x-label="Beam width" series-name="Absolute R+" :metrics="searchMetrics" />
 
 ### Local branch limit
 
-<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="local_branch_limit" title="Local branch limit" x-label="Local branch limit" series-name="Absolute R+" :metrics="searchMetrics" />
+<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="local_branch_limit" x-label="Local branch limit" series-name="Absolute R+" :metrics="searchMetrics" />
 
 ### Expanded-state decision cap
 
-<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="decision_cap" title="Expanded-state decision cap" x-label="Decision cap" series-name="Absolute R+" :metrics="searchMetrics" />
+<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="decision_cap" x-label="Decision cap" series-name="Absolute R+" :metrics="searchMetrics" />
 
 ### Observations
 
