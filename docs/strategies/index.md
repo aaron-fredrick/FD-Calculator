@@ -8,15 +8,15 @@ See the [strategy comparison](/STRATEGIES) for purpose, trade-offs, settings and
 
 ## Technical references
 
-- [Absolute](/strategies/ABSOLUTE) — exhaustive branch-and-bound search and optimality proof conditions.
-- [Absolute+](/strategies/ABSOLUTE-PLUS) — bounded search based on the Absolute optimisation approach.
+- [Absolute R](/strategies/ABSOLUTE) — exhaustive scoped branch-and-bound search and optimality proof conditions.
+- [Absolute R+](/strategies/ABSOLUTE-PLUS) — bounded scoped search based on the Absolute R optimisation approach.
 - [Greedy](/strategies/GREEDY) — local SPLIT/CONSOLIDATE/CARRY decisions, option selection and tie-breakers.
 - [GSS](/strategies/GSS) — recursive goal planning, forecast contraction and shared-runtime decision replay.
 
 ## Simulation objectives
 
-- [Goal-based simulation](/strategies/goal-achievement) — first-credit consolidation net-interest objective, horizon semantics, strategy evaluation and goal sensitivity methodology.
-- [Dual-scope search strategy implementation plan](/strategies/dual-scope-search-implementation-plan) — phase-by-phase integration and scoped-regression acceptance gates.
+- [Goal-based simulation](/strategies/goal-achievement) — under-development status and the current public availability boundary.
+- [Goal-mode rework plan](/strategies/goal-mode-rework-plan) — future Absolute R-only goal optimisation architecture.
 
 ## Performance and sensitivity
 

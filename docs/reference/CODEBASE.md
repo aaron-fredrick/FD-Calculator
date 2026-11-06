@@ -23,7 +23,7 @@ This page describes the main runtime boundaries and responsibilities of the shar
 
 The Node.js CLI and GitHub Pages web application use the same JavaScript calculation engine. Environment-specific work belongs in adapters: core and strategy modules should not depend on the DOM, Node-only APIs or environment-specific file access.
 
-The web application exposes Greedy, GAML and GSS. Absolute remains CLI-only for internal verification and testing.
+The web application exposes Greedy, GSS and Absolute R+ for scoped date-range simulations. Absolute R remains CLI-only for internal verification and testing. Goal mode is disabled in public configuration.
 
 ## Simulation lifecycle
 
@@ -44,9 +44,9 @@ See [the simulation lifecycle reference](../SIMULATION-LIFECYCLE.md).
 Production strategies expose `createSession(context)`; they do not expose a `simulate(input)` execution method. A session consumes read-only planning views and returns immutable decision signals. It does not own actual event processing, settlement, booking/transfer execution or result construction.
 
 - **Greedy** uses `pickDailyGreedyPlan()` to make local SPLIT/CONSOLIDATE/CARRY decisions from the current view.
-- **GAML** retains bounded beam search and diagnostics, then emits its selected path as session decisions.
-- **Absolute** retains exhaustive branch-and-bound search, then emits its selected path as session decisions.
-- **GSS** retains recursive goal search, forecast contraction and interim-plan exploration in a private hypothetical planner, then emits its selected decision path.
+- **Absolute R+** retains bounded beam search and diagnostics, then emits its selected path as session decisions.
+- **Absolute R** retains exhaustive branch-and-bound search, then emits its selected path as session decisions.
+- **GSS** retains recursive scoped planning, forecast contraction and interim-plan exploration in a private hypothetical planner, then emits its selected decision path.
 
 Hypothetical strategy projections may use local financial/event state to explore possible futures. The authoritative simulation and actual ledger remain in SimulationRuntime.
 

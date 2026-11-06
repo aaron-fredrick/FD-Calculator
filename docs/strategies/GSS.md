@@ -1,69 +1,33 @@
-# Goal-Seeking Strategy (GSS)
+# GSS — Goal-Seeking Strategy
 
-## Purpose and independence
+## Purpose
 
-GSS is an independent recursive planning strategy. It never invokes Greedy, GAML or Absolute. It consumes immutable runtime planning snapshots and goal candidates supplied by FDOptionManager. Its private hypothetical planner explores recursive goal windows and records a selected decision path; the shared runtime alone owns actual event processing and execution.
+GSS is an independent recursive strategy for the **scoped date-range objective**. It obtains account-compatible and horizon-compatible FD candidates from FDOptionManager, consumes the manager-provided order and recursively plans SPLIT, CONSOLIDATE and liquidity-aware waiting decisions.
 
-## Candidate discovery and ordering
+GSS does not invoke Greedy, Absolute R or Absolute R+. Candidate exhaustion leaves funds liquid; there is no strategy fallback.
 
-GSS calls FDOptionManager for the complete account-compatible and horizon-compatible candidate list. The manager owns product eligibility and its underlying catalogue order.
+**Implementation:** `src/strategies/gss.js`.
 
-- **Scoped mode** preserves the established manager-provided candidate order and does not add goal-specific ranking overhead.
-- **Goal mode** evaluates viable plans across the candidate set and ranks them by projected first-credit timing at the consolidation account. It can defer an immediately viable non-consolidation booking when a known near-term event enables an earlier consolidation plan. Manager order remains a deterministic tie-breaker, not the goal objective.
+## Planning model
 
-A nonviable candidate does not stop consideration; GSS continues evaluating the remaining account/option pairs.
+For each candidate account and FD option, GSS evaluates feasible SPLIT and CONSOLIDATE plans. If neither is viable now, it projects scheduled inflows, existing FD cash flows/maturities and outflows to find a future affordability date. It recursively plans the waiting period with GSS itself.
 
-## SPLIT and CONSOLIDATE
+Interim bookings must preserve the liquidity required by the parent plan and all strict outflow obligations within the selected scoped horizon. At each future event boundary, the planner re-evaluates the parent candidate against the updated balances and available products.
 
-For each candidate:
+## Candidate ordering
 
-- **SPLIT:** the candidate option is booked in its account. Other accounts may be invested independently using their first viable manager-ordered option. Funds that cannot be invested remain liquid.
-- **CONSOLIDATE:** balances are transferred to the candidate account. Each source-to-target transfer fee is deducted before checking the candidate option's minimum amount and projected return.
+GSS consumes the FDOptionManager candidate order. For a candidate, it compares feasible plans using post-AIT interest and actual transfer fees, while preserving deterministic manager order as a tie-breaker. It does not add Goal-specific ranking or search overhead to the scoped planner.
 
-In scoped mode, both viable plans are evaluated using post-AIT interest and actual transfer fees; the higher net-interest plan is selected for that candidate.
+## Liquidity and outflows
 
-In goal mode, plan ranking uses a provenance-aware projection of interest actually eligible to be credited to the consolidation account. The estimate accounts for existing scheduled payouts, principal provenance carried through a booking, newly generated post-AIT interest, transfers and proportional fee allocation. Earliest target achievement wins; same-date comparisons preserve the established higher-credited-interest, lower-fee and lower-operation tie-breaks. A consolidation plan is not discarded solely because transfer fees exceed the new FD's total projected interest: the transfer may still move enough previously uncredited interest to cross the goal.
+The planner accounts for future scheduled inflows, FD cash flows and outflows when determining whether a booking or transfer is viable. A consolidation transfer permanently removes cash from its source account, so source-account liquidity required for obligations later in the requested date range must remain reserved. Split bookings remain in their own accounts and are re-evaluated at maturity.
 
-## Future affordability and recursive waiting
+Strict outflow constraints are not relaxed to improve investment returns. If the strategy cannot satisfy a strict obligation, the authoritative runtime rejects the result.
 
-If a candidate cannot be booked immediately, GSS projects future inflows, known FD cash flows/maturities and outflows to find the earliest event date at which that candidate can form a viable plan.
+## Runtime boundary
 
-GSS recursively advances the waiting period. The child hypothetical planning window advances a private projection of known events and evaluates immediately achievable goals. It can invest interim balances, but only in products that mature no later than the parent target date. This prevents interim bookings from locking away liquidity needed by the parent goal.
+GSS exposes `createSession(context)`. Its private recursive planner returns a sequence of decisions; it does not return its hypothetical ledger as the actual simulation result. `SimulationRuntime` processes authoritative events, settles outflows, validates transfers and atomically executes selected decisions. Same-date recursive actions are emitted as one atomic batch. `SimulationEngine` performs the single final consolidation sweep after the scoped session completes.
 
-The projected target date is a forecast, not a fixed appointment. Every active recursive goal frame owns its candidate, projected target date, horizon and execution responsibility.
+## Goal mode status
 
-While a recursive window advances, GSS re-evaluates ancestor goals after each processed event date **and after each interim investment decision**. This second checkpoint matters because booking an interim FD adds future cash-flow and maturity events to the timeline. Descendants can therefore change when an ancestor is expected to become viable, even if the ancestor is not yet affordable at the current date.
-
-For each ancestor, from the innermost parent outwards, GSS:
-
-1. Rebuilds SPLIT and CONSOLIDATE plans against projected balances and pending obligations.
-2. If a plan is viable now, signals early execution to the owning frame.
-3. Otherwise, reruns the future-date projection against the updated timeline.
-4. Contracts the frame's forecast when the newly projected viable date is earlier than its previous forecast.
-5. Records infeasibility separately when no future viable date remains within that frame's horizon.
-
-A contraction is propagated through recursive returns. If a revised ancestor boundary falls inside a descendant's current waiting window, that boundary pre-empts the descendant's original target. The hypothetical projection advances only to the revised date, then unwinds to the owning frame. The owner rebuilds its plan from the updated planning state and records its own decision only if it is still viable. A projected date is never treated as an execution guarantee.
-
-Forecasts are monotonic during a wait: they may move earlier, but are not extended later. A later or absent forecast does not silently extend an existing wait; the frame resumes normal candidate evaluation if its projected opportunity is no longer viable. Multiple ancestor changes are handled in innermost-to-outermost order, and a child never executes an ancestor's goal.
-
-Reforecasting uses the same planning rules as ordinary decisions, including AIT-adjusted cash flows, FD maturity and payout dates, scheduled inflows/outflows, pending obligations, SPLIT/CONSOLIDATE affordability, transfer fees, account liquidity reserves, parent-goal restrictions and the overall simulation horizon. Interim bookings remain constrained by the active parent target, so contraction cannot retroactively assume locked principal is liquid.
-
-Planned outflows are also protected. Scoped mode retains the liquidity required across the requested date range. A consolidation transfer permanently removes cash from its source account, so goal mode reserves source-account obligations across the remaining simulation horizon, net of scheduled inflows and cash flows that arrive before each due date. The reserve is not released at the target FD's maturity because transferred funds mature in the target account, not the source. Split bookings remain in their own accounts and retain the liquidity needed through their own maturity boundary; the recursive planner re-evaluates at maturity.
-
-If a parent candidate is no longer viable when its projected date is reached, GSS continues considering candidates from the updated date/state. In goal mode, its hypothetical provenance ledger stops further planning once the target has been credited; the shared runtime remains authoritative for actual accounting and termination. If all candidates are exhausted, remaining funds stay liquid and carry forward. There is no strategy fallback.
-
-## Recursion threshold
-
-The setting gss_settings.small_period_days defaults to 30 and must be a positive integer. Waiting periods at or below the threshold are advanced without further future-goal subdivision, while immediately viable goals are still evaluated. A hard recursion-depth guard prevents unbounded nested calls.
-
-## Shared simulation lifecycle
-
-GSS exposes `createSession(context)`. Its private recursive planner returns a sequence of decisions; it does not return its hypothetical ledger as the actual simulation result. In goal mode, the planner uses the same principal/uncredited-interest/counted-interest provenance model to rank and stop its hypothetical plan, but this remains a planning estimate. `SimulationRuntime` processes the authoritative events, settles outflows, validates provenance and atomically executes the selected decisions. Same-date recursive actions are emitted as one atomic batch. `SimulationEngine` performs the one final consolidation sweep only when the goal was not already achieved. Recursive planning windows never trigger finalization.
-
-## Observed performance
-
-The [strategy sensitivity benchmark](/strategies/benchmarks) compares GSS against Greedy and GAML across horizon, capital, bank/account diversity, inflows and eFD eligibility. The measured results are scenario-specific and should be read alongside the benchmark assumptions.
-
-## Diagnostics
-
-The runtime result carries the planner's decision log and `gss_diagnostics`, including candidate count, SPLIT/CONSOLIDATE plan evaluations, future goals, recursive waits, early parent-goal rechecks/executions, forecast rechecks/contractions, maximum recursion depth and the configured threshold. Goal-mode diagnostics additionally report the target, hypothetical credited net interest, whether planning stopped at the goal, and the number of goal-plan evaluations. The decision log records contractions, waits, selected plans and candidate exhaustion.
+Goal-specific GSS planning is not part of the supported strategy contract. Goal mode is disabled while the project reworks it as an Absolute R-only objective. GSS remains scoped-range only.

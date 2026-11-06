@@ -1,6 +1,8 @@
-# Dual-Scope Search Strategies — Implementation Plan
+# Historical dual-scope search implementation plan
 
-## Status and authority
+> **Superseded architecture (2026-11-06).** This historical plan proposed Goal-mode optimisation across GSS, Absolute and Absolute+. That direction is no longer the project decision. All four strategies remain scoped date-range strategies; Goal mode is disabled in public UI/configuration. The only planned future Goal optimiser is **Absolute R**. The active execution contract is [Goal-mode rework plan](./goal-mode-rework-plan.md). The phase notes below are retained as implementation history, not current instructions.
+
+### Status and authority
 
 This document is the execution contract for extending the existing search strategies to operate correctly in both **scoped date-range mode** and **goal mode**. All implementation work for this task must remain on `feature/dual-scope-strategy-planning`.
 

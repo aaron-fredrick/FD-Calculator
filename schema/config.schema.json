@@ -211,44 +211,6 @@
           }
         }
       }
-    },
-    {
-      "if": {
-        "properties": {
-          "simulation": {
-            "properties": {
-              "mode": {
-                "const": "goal"
-              }
-            },
-            "required": [
-              "mode"
-            ]
-          }
-        },
-        "required": [
-          "simulation"
-        ]
-      },
-      "then": {
-        "properties": {
-          "investment": {
-            "required": [
-              "start_date"
-            ],
-            "not": {
-              "required": [
-                "end_date"
-              ]
-            }
-          },
-          "simulation": {
-            "required": [
-              "goal"
-            ]
-          }
-        }
-      }
     }
   ],
   "$defs": {
@@ -603,31 +565,8 @@
         "mode": {
           "type": "string",
           "enum": [
-            "scoped",
-            "goal"
+            "scoped"
           ]
-        },
-        "goal": {
-          "$ref": "#/$defs/goal"
-        }
-      }
-    },
-    "goal": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "metric",
-        "target"
-      ],
-      "properties": {
-        "metric": {
-          "type": "string",
-          "const": "consolidation_net_interest"
-        },
-        "target": {
-          "type": "number",
-          "exclusiveMinimum": 0,
-          "description": "LKR of first-time net interest credited to the consolidation account."
         }
       }
     }

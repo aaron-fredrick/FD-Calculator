@@ -102,20 +102,11 @@ test("configuration exposes default and configured Greedy tenor policies",()=>{
   assert.deepEqual(validateConfiguration({...base,greedy_settings:{tenor_tiebreaker:"longest",plan_tenor_tiebreaker:"shortest"}},context).greedy_settings,{tenor_tiebreaker:"longest",plan_tenor_tiebreaker:"shortest"});
 });
 
-test("goal configuration derives an internal safety horizon without requiring an end date", () => {
+test("goal mode is blocked by the public configuration validator while under development", () => {
   const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
-  const config = validateConfiguration({ simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 25000 } }, investment: { start_date: "2026-01-31" }, accounts: { main: { bank_id: "BANK_A", balance: 50000 } } }, {
+  assert.throws(() => validateConfiguration({ simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 25000 } }, investment: { start_date: "2026-01-31" }, accounts: { main: { bank_id: "BANK_A", balance: 50000 } } }, {
     bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options
-  });
-  assert.equal(config.start.toISOString().slice(0, 10), "2026-01-31");
-  assert.equal(config.end.toISOString().slice(0, 10), "2056-01-31");
-  assert.deepEqual(config.simulation, { mode: "goal", goal: { metric: "consolidation_net_interest", target: 25000 } });
-  assert.equal(config.accounts[0].balance, 50000);
-});
-
-test("goal mode rejects a user-supplied investment end date", () => {
-  const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
-  assert.throws(() => validateConfiguration({ simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1000 } }, investment: { start_date: "2026-01-31", end_date: "2027-01-31" }, accounts: { main: { bank_id: "BANK_A", balance: 50000 } } }, { bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options }), /omit when simulation.mode is goal/);
+  }), /goal mode is under development/);
 });
 
 test("legacy configuration normalizes as scoped and retains explicit dates", () => {

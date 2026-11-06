@@ -1,54 +1,48 @@
-# Absolute — technical reference
+# Absolute R — technical reference
 
 ## Purpose
 
-Absolute is the exhaustive branch-and-bound portfolio optimiser. It explores the feasible decision space and uses an incumbent solution plus admissible upper bounds to prune branches that cannot improve the incumbent.
+Absolute R is the exhaustive branch-and-bound portfolio optimiser for the **scoped date-range objective**. It explores feasible decisions within the requested start and end dates and uses a feasible incumbent plus admissible upper bounds to prune branches that cannot improve the terminal portfolio outcome.
 
-**Implementation:** `src/strategies/absolute.js` and the shared search implementation in `src/strategies/search-strategy-base.js`.
+**Implementation:** `src/strategies/absolute.js` and `src/strategies/search-strategy-base.js`.
 
 ## Search model
 
-1. Build the same financial and event context used by the search strategies.
-2. Run Greedy to obtain a feasible incumbent and lower bound.
-3. Recursively expand feasible SPLIT, CONSOLIDATE and carry decisions across relevant event dates.
-4. Update the incumbent when a better complete feasible path is found.
-5. Prune a branch only when its upper bound cannot beat the incumbent, or when its state is dominated/equivalent to an already explored state.
-6. Emit the best complete path as revision-bound session decisions for the shared runtime to execute.
+1. Build a simulation context containing accounts, eligible FD products, cash-flow schedules, transfer fees and the scoped investment horizon.
+2. Run Greedy to obtain a feasible incumbent.
+3. Expand each search state into feasible local booking, consolidation and carry decisions.
+4. Advance candidates to the next relevant event date, including FD cash flows/maturities, inflows and outflows.
+5. Apply scoped dominance, memoisation and admissible terminal-value bounds.
+6. Continue until the feasible search space is exhausted, then emit the best decision path for authoritative runtime execution.
 
-Unlike GAML, Absolute does not retain only a fixed-width beam. Its local booking combinations are exhaustive, and its search is not stopped by a GAML beam-width limit.
+Unlike Absolute R+, Absolute R does not retain a fixed-width beam or truncate local booking combinations.
 
-## Scope-specific objective
+## Objective and constraints
 
-Absolute supports both simulation scopes without changing its search identity.
+Absolute R maximises the scoped terminal portfolio outcome under the supplied model. The search respects:
 
-- **Scoped mode** retains the finite-range terminal-portfolio objective, its admissible upper bound, memoisation/dominance behaviour and existing local combination ordering.
-- **Goal mode** optimises the earliest event boundary at which the configured net-interest target is actually credited to the consolidation account. Candidate paths are replayed through the authoritative `SimulationEngine`; projected tenor interest is never treated as achieved credit.
+- Account and FD-product compatibility.
+- Minimum booking amounts and account eFD eligibility.
+- Scheduled and recurring inflows.
+- Strict, deferred and best-effort outflow policies.
+- Transfer fees and consolidation constraints.
+- AIT, interest payout and maturity rules.
+- The selected investment start and end dates.
 
-Goal mode deliberately does not reuse scoped terminal-value pruning or memoisation. It keeps the full account-compatible product set rather than applying the scoped product-dominance reduction, and it retains executable consolidation paths even when projected FD interest less transfer fees is negative. This is necessary because transfer fees are allocated proportionally across principal and interest provenance: a transfer can still credit enough previously uncredited interest to reach the target.
-
-The exhaustive goal search compares achieved paths by earliest achievement date, then the established same-date higher-credited-interest, lower-fee and lower-operation tie-breaks. Once an achieved incumbent exists, states strictly later than its achievement date are pruned; same-date states remain eligible for tie-breaking. This date pruning cannot remove a path that could achieve at the incumbent's earlier boundary.
+The simulation runtime remains authoritative for actual event processing, balance mutation, outflow settlement and finalisation.
 
 ## Optimality guarantee
 
-Absolute can report `optimality_proven: true` when its scoped branch-and-bound search completes under the configured model, or when its goal-mode exhaustive search completes without any local, bound or memo pruning that could invalidate the active objective. This is a proof relative to the supplied FD catalogue, account capabilities, cash-flow schedules, fees, tax and interest assumptions—not a guarantee about future bank rates or real-world outcomes outside the model.
-
-If execution is interrupted externally or the implementation reports an incomplete search, the best feasible result must not be described as proven optimal.
+Absolute R can report `optimality_proven: true` when its scoped branch-and-bound search completes and all applied bounds and dominance rules remain valid. This is a proof relative to the supplied FD catalogue, account capabilities, cash-flow schedules, fees, tax and interest assumptions—not a guarantee about future bank rates or real-world outcomes outside the model.
 
 ## Complexity and practical limits
 
-The decision space grows rapidly with:
-
-- Number of accounts and eligible FD products.
-- Number of relevant event dates and investment horizon.
-- Available split and consolidation combinations.
-- Cash-flow schedules and the number of distinct future states.
-
-Dominance, memoisation and bound pruning reduce work, but do not remove worst-case combinatorial growth. Absolute is therefore exposed through the CLI rather than the browser UI.
+The decision space grows rapidly with the number of accounts, eligible FD products, relevant event dates, split/consolidation combinations and cash-flow schedules. Dominance, memoisation and bound pruning reduce work but do not remove worst-case combinatorial growth. Absolute R is therefore CLI-only.
 
 ## Diagnostics
 
-Inspect the search diagnostics and `optimality_proven` flag with every result. Net interest alone does not tell whether the result is an exhaustive optimum or merely the best path found before an incomplete run.
+Inspect search diagnostics and `optimality_proven` with every result. Net interest alone does not establish whether the exhaustive search proved an optimum.
 
-## Shared simulation lifecycle
+## Naming and compatibility
 
-Absolute exposes `createSession(context)`. Its exhaustive search remains hypothetical and returns the selected decision path; it does not execute the authoritative event timeline or construct the actual result. `SimulationRuntime` executes the path, and `SimulationEngine` performs exactly one final consolidation sweep. Search branches do not finalise or sweep independently.
+The public display name is **Absolute R**, where R denotes the scoped date range. The JSON strategy identifier remains `absolute`; the CLI accepts both `absolute-r` and the legacy `absolute` alias.

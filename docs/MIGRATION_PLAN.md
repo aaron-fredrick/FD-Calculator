@@ -8,11 +8,11 @@ One shared JavaScript engine must run unchanged in Node.js and modern browsers. 
 
 `src/` contains all application code:
 - `src/core/`: financial domain models, validation, dates, interest, cash-flow accounting, events and results.
-- `src/strategies/`: shared Greedy, GAML and Absolute strategies plus search algorithms.
+- `src/strategies/`: shared Greedy, GSS, Absolute R and Absolute R+ strategies plus search algorithms.
 - `src/reporting/`: console formatter and standalone HTML report generator.
 - `src/io/`: CSV parsing and Node-side data loading.
-- `src/cli/`: Node CLI. Supports Greedy, GAML and Absolute.
-- `src/web/`: GitHub Pages browser application. Exposes Greedy and GAML only. Never expose Absolute in web controls, query parameters or browser strategy registry.
+- `src/cli/`: Node CLI. Supports Greedy, GSS, Absolute R and Absolute R+.
+- `src/web/`: GitHub Pages browser application. Exposes Greedy, GSS and Absolute R+ for scoped date-range simulations. Absolute R remains CLI-only. Goal mode is disabled until the Absolute R-only Goal planner is complete.
 - `data/`: portable bank and FD product datasets shared by both runtimes.
 - `schema/`: configuration JSON Schema.
 - `tests/`: engine unit tests, CLI tests and browser-facing contract tests.
@@ -25,7 +25,7 @@ One shared JavaScript engine must run unchanged in Node.js and modern browsers. 
 3. Preserve account-specific eFD eligibility, transfer channels/fees, AIT treatment, payout schedules, maturity accounting, event ordering, and all existing strategy semantics.
 4. Preserve the eight-section report, chart interactions, per-event chart stages, bank FD-principal aggregation, and existing colour/line-style rules.
 5. Preserve CLI diagnostic/printing patterns. Browser presentation may differ, but calculated values and event ordering must not.
-6. Absolute is an internal verification strategy: CLI and automated tests only. It is not a user-selectable web strategy.
+6. Absolute R is an exhaustive internal verification strategy: CLI and automated tests only. It is not a user-selectable web strategy.
 7. Use deterministic calculations and explicit numeric tolerances in parity tests. Do not silently round intermediate financial values.
 
 ## Migration sequence
@@ -35,11 +35,11 @@ One shared JavaScript engine must run unchanged in Node.js and modern browsers. 
 - [ ] Port interest, AIT, transfer fees, and cash-flow accounting.
 - [ ] Port simulator and deterministic event ledger.
 - [ ] Port Greedy and establish Python-vs-JavaScript golden fixtures.
-- [ ] Port GAML and validate diagnostics and objective parity.
-- [ ] Port Absolute for CLI/internal testing only.
+- [ ] Port Absolute R+ and validate diagnostics and scoped-objective parity.
+- [ ] Retain Absolute R for CLI/internal testing only.
 - [ ] Port canonical report model, console output, and standalone HTML report.
-- [ ] Build interactive web configuration and results UI (Greedy/GAML only).
-- [ ] Build CLI (Greedy/GAML/Absolute).
+- [ ] Build interactive web configuration and results UI (Greedy, GSS and Absolute R+; scoped mode only).
+- [ ] Build CLI (Greedy/GSS/Absolute R+/Absolute R).
 - [ ] Add Node CI, browser tests, and GitHub Pages deployment from `main`.
 - [ ] Merge migration into `main` after regression and CLI/web report parity pass.
 - [ ] Retire feature branches only after their changes are verified in the archived baseline and migration history.

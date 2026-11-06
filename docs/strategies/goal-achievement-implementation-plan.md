@@ -1,3 +1,5 @@
+> **Current status (2026-11-06): Goal mode is not user-selectable.** The earlier implementation plan describes the previous multi-strategy goal direction. It is retained as implementation history only. The approved future architecture is Absolute R-only Goal optimisation; Greedy, GSS and Absolute R+ remain scoped. See [Goal-mode rework plan](./goal-mode-rework-plan.md).
+
 # Goal-Based Simulation — Implementation Plan
 
 ## Status

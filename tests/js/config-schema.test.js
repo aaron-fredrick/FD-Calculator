@@ -92,24 +92,20 @@ test("published JSON schema declares GSS and all strategy settings", () => {
   assert.ok(schema.properties.strategy_settings.properties.gss);
   assert.equal(schema.$defs.gssSettings.properties.small_period_days.minimum, 1);
   assert.equal(schema.$defs.gssSettings.properties.small_period_days.default, 30);
-  assert.deepEqual(schema.$defs.simulation.properties.mode.enum, ["scoped", "goal"]);
-  assert.deepEqual(schema.$defs.goal.required, ["metric", "target"]);
+  assert.deepEqual(schema.$defs.simulation.properties.mode.enum, ["scoped"]);
+  assert.equal(schema.$defs.goal, undefined);
 });
 
-test("validates scoped and date-independent goal simulation mode shapes", () => {
+test("accepts scoped mode and keeps goal mode unavailable in public configurations", () => {
   const scoped = valid(); scoped.simulation = { mode: "scoped" };
   assert.doesNotThrow(() => validateConfigurationShape(scoped));
   const goal = valid(); goal.simulation = { mode: "goal", goal: { metric: "consolidation_net_interest", target: 50000 } };
-  delete goal.investment.end_date;
-  assert.doesNotThrow(() => validateConfigurationShape(goal));
+  assert.throws(() => validateConfigurationShape(goal), /goal mode is under development/);
 });
 
-test("rejects unsupported time-based mode and invalid goal settings", () => {
+test("rejects unsupported time-based mode and goal-mode configuration", () => {
   const time = valid(); time.simulation = { mode: "time_based", duration: "6m" };
   assert.throws(() => validateConfigurationShape(time), /simulation.duration: unknown property/);
-  const goal = valid(); goal.simulation = { mode: "goal", goal: { metric: "portfolio_value", target: 0 } };
-  delete goal.investment.end_date;
-  assert.throws(() => validateConfigurationShape(goal), /simulation.goal.metric/);
-  const datedGoal = valid(); datedGoal.simulation = { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1 } };
-  assert.throws(() => validateConfigurationShape(datedGoal), /omit when simulation.mode is goal/);
+  const goal = valid(); goal.simulation = { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1 } };
+  assert.throws(() => validateConfigurationShape(goal), /goal mode is under development/);
 });
