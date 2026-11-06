@@ -25,10 +25,10 @@ All plotted values are **net interest after AIT and transfer fees**, in LKR. The
 | eFD eligibility | Standard-only vs eFD-eligible accounts |
 | AIT | Enabled at 10% |
 | Interest calculation | Simple interest; actual leap-year day basis |
-| Outflows | None in the current benchmark matrix; liquidity/outflow stress is a planned extension |
+| Outflows | None; LKR 50,000 strict obligation at 6 months; three LKR 20,000 strict obligations at 6, 12 and 18 months |
 | Transfer fees | Bank-specific catalogue fees; applied to transfers and final sweep |
 
-The general base portfolio is LKR 300,000 across three accounts and three banks over 24 months. In addition to the one-factor sweeps, a 3 × 3 capital/horizon interaction matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. The interaction matrix adds 27 strategy runs and is intended to reveal non-additive effects that isolated sweeps miss. Horizon, capital, inflow and eFD sweeps use that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands. Scheduled inflows are deposited into the first (DFCC) account.
+The general base portfolio is LKR 300,000 across three accounts and three banks over 24 months. In addition to the one-factor sweeps, a 3 × 3 capital/horizon interaction matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. The interaction matrix adds 27 strategy runs and is intended to reveal non-additive effects that isolated sweeps miss. Two additional strict-outflow scenarios test account-level liquidity under a single and staggered withdrawal schedule. Horizon, capital, inflow and eFD sweeps use that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands. Scheduled inflows are deposited into the first (DFCC) account.
 
 ## Bank product catalogues
 
@@ -79,6 +79,12 @@ The Greedy and Absolute R+ lines overlap in this comparison. GSS remains close t
 ### eFD eligibility
 
 <BenchmarkChart :rows="benchmarkResults.results" category="efd_eligibility" title="eFD eligibility" x-label="Eligibility" />
+
+### Liquidity and strict outflow stress
+
+The outflow scenarios are not scored on net interest alone. The metric selector includes simulation validity and unpaid obligations so an invalid or underfunded run cannot appear to be a better strategy merely because it retained more interest. Strict outflows are due from the designated account; another account's balance does not silently cover the obligation.
+
+<BenchmarkChart :rows="benchmarkResults.results" category="outflow_pattern" title="Strict outflow stress" x-label="Outflow scenario" />
 
 ## Capital and horizon interaction
 
