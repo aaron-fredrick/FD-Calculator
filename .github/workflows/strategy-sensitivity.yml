@@ -2,7 +2,7 @@ name: Scoped strategy benchmarks
 
 on:
   push:
-    branches: [main, "feature/**", "chore/**"]
+    branches: ["feature/**", "chore/**"]
     paths:
       - "scripts/benchmark-fingerprint.js"
       - "scripts/coordinate-benchmark-runs.js"
