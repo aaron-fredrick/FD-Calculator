@@ -71,7 +71,7 @@ assert.deepEqual(searchResults.baseline, {
   max_local_branches: 48,
   max_decisions: 5000
 });
-assert.match(searchResults.start_date, /^\\d{4}-\\d{2}-\\d{2}$/);
+assert.match(searchResults.start_date, /^\d{4}-\d{2}-\d{2}$/);
 assert.equal(searchResults.scenario.horizon_months, 24);
 assert.equal(searchResults.scenario.capital_lkr, 300000);
 assert.equal(searchResults.scenario.accounts, 3);
