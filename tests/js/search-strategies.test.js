@@ -121,6 +121,8 @@ test("Absolute+ reuses repeated option-interest calculations within one search r
   assert.ok(expansionCache.retained_children <= 2048);
   assert.ok(expansionCache.hits >= 0);
   assert.ok(result.search_diagnostics.state_memo_hits >= 0);
+  assert.ok(result.search_diagnostics.raw_state_memo.entries <= 10000);
+  assert.ok(result.search_diagnostics.raw_state_memo.hits >= 0);
 });
 
 test("scoped selection compares finance first and only replaces Greedy on a strategic tie-break", () => {
