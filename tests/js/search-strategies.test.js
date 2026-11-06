@@ -155,6 +155,7 @@ test("Absolute R preserves the Greedy financial baseline", () => {
   assert.equal(absolute.valid, true);
   assert.ok(absolute.final_value >= greedy.final_value - 0.01);
   assert.ok(["Absolute R", "Greedy"].includes(absolute.strategy_name));
+  assert.equal(absolute.strategy_name, absolute.search_diagnostics.result_selection.selected);
   assert.ok(absolute.search_diagnostics.result_selection);
 });
 
