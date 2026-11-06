@@ -18,6 +18,8 @@ on:
       - "robots.txt"
       - "scripts/build-web-site.sh"
       - ".github/workflows/web-pages.yml"
+      - ".github/workflows/pages.yml"
+      - "scripts/build-docs-preservation.sh"
   workflow_dispatch:
 
 permissions:
