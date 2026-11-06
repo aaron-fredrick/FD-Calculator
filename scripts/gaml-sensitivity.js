@@ -65,6 +65,14 @@ for (const settings of cases) {
     expansion_cache_hits: result.search_diagnostics?.expansion_cache?.hits ?? 0,
     expansion_cache_entries: result.search_diagnostics?.expansion_cache?.entries ?? 0,
     expansion_cache_retained_children: result.search_diagnostics?.expansion_cache?.retained_children ?? 0,
+    local_branches_generated: result.search_diagnostics?.local_branches_generated ?? 0,
+    consolidation_branches_generated: result.search_diagnostics?.consolidation_branches_generated ?? 0,
+    candidate_states_generated: result.search_diagnostics?.candidate_states_generated ?? 0,
+    candidate_state_duplicates: result.search_diagnostics?.candidate_state_duplicates ?? 0,
+    budget_stopped: result.search_diagnostics?.budget_stopped ?? false,
+    budget_frontier_states: result.search_diagnostics?.budget_frontier_states ?? 0,
+    selected_strategy: result.search_diagnostics?.result_selection?.selected ?? result.strategy_name,
+    selected_reason: result.search_diagnostics?.result_selection?.reason ?? null,
     optimality_proven: result.optimality_proven === true,
     duration_ms
   };
