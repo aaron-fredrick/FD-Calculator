@@ -17,8 +17,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: scoped-benchmarks-${{ github.ref }}
-  cancel-in-progress: true
+  group: benchmark-publish-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -67,7 +67,13 @@ jobs:
           git add docs/strategies/benchmarks/.input-fingerprint.json
           if ! git diff --cached --quiet; then
             git commit -m "benchmarks: refresh scoped strategy measurements"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
+            for attempt in 1 2 3; do
+              git fetch origin "${GITHUB_REF_NAME}"
+              git rebase "origin/${GITHUB_REF_NAME}"
+              if git push origin "HEAD:${GITHUB_REF_NAME}"; then exit 0; fi
+              echo "Branch advanced during publish; retrying after rebase (attempt ${attempt}/3)."
+            done
+            exit 1
           fi
       - name: Preserve benchmark run output
         if: always()
