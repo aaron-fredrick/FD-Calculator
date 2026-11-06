@@ -22,11 +22,8 @@ const dateSort = (a, b) => a.localeCompare(b);
 const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
 const SEARCH_RAW_STATE_MEMO_LIMIT = 10000;
-// Expansion entries retain child states, so bound both entry count and child count.
-const SEARCH_EXPANSION_CACHE_LIMIT = 512;
-const SEARCH_EXPANSION_CACHE_CHILD_LIMIT = 2048;
-const SEARCH_EXPANSION_CACHE_MAX_CHILDREN_PER_STATE = 64;
-const SEARCH_EXPANSION_CACHE_MAX_KEY_LENGTH = 4096;
+const SEARCH_BUDGET_FRONTIER_INTERVAL = 500;
+const SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT = 512;
 
 function cachedValue(cache, key, compute, stats) {
   if (cache.has(key)) {
@@ -41,32 +38,6 @@ function cachedValue(cache, key, compute, stats) {
   if (cache.size >= SEARCH_CACHE_LIMIT) cache.delete(cache.keys().next().value);
   cache.set(key, value);
   return value;
-}
-
-function reuseExpansion(context, key, counters) {
-  const entry = context.expansionCache.get(key);
-  if (!entry) return null;
-  context.expansionCache.delete(key);
-  context.expansionCache.set(key, entry);
-  counters.expansionCacheHits++;
-  return { terminal: false, children: entry.children };
-}
-
-function rememberExpansion(context, key, children, counters) {
-  if (key.length > SEARCH_EXPANSION_CACHE_MAX_KEY_LENGTH ||
-      children.length > SEARCH_EXPANSION_CACHE_MAX_CHILDREN_PER_STATE) return;
-  const childCount = children.length;
-  while (context.expansionCache.size >= SEARCH_EXPANSION_CACHE_LIMIT ||
-      context.expansionCacheChildren + childCount > SEARCH_EXPANSION_CACHE_CHILD_LIMIT) {
-    const oldestKey = context.expansionCache.keys().next().value;
-    if (oldestKey === undefined) return;
-    const oldest = context.expansionCache.get(oldestKey);
-    context.expansionCache.delete(oldestKey);
-    context.expansionCacheChildren -= oldest.childCount;
-    counters.expansionCacheEvictions++;
-  }
-  context.expansionCache.set(key, { children, childCount });
-  context.expansionCacheChildren += childCount;
 }
 
 function getEligibleOptions(context, { account, amount, investmentDate, simulationEndDate = context.endDate }) {
@@ -862,7 +833,6 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
     inflows, outflows, inflowDates, inflowDateTotals, inflowEvents, eventDates,
     eligibleOptionsCache: new Map(), optionInterestCache: new Map(),
     upperBoundCache: new Map(), priorityCache: new Map(),
-    expansionCache: new Map(), expansionCacheChildren: 0,
     cacheStats: {
       eligibleOptions: { hits: 0, misses: 0 },
       optionInterest: { hits: 0, misses: 0 },
@@ -878,7 +848,7 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
 
 function expandState(rawState, context, settings, mode, counters, operationCount = 0) {
   const goalMode = context.simulation?.mode === "goal";
-  if (!goalMode) {
+  if (!goalMode && mode === "absolute") {
     const rawKey = stateKey(rawState);
     const priorRaw = counters.rawMemo.get(rawKey);
     if (priorRaw) {
@@ -934,10 +904,6 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       bound: Math.max(bound, prior?.bound ?? -Infinity),
       operationCount: Math.min(operationCount, prior?.operationCount ?? Infinity)
     });
-    if (prior && operationCount < prior.operationCount) {
-      const cached = reuseExpansion(context, key, counters);
-      if (cached) return cached;
-    }
   }
 
   const nextDate = nextEventDate(state.date, state.flows, context.eventDates, context.end);
@@ -947,7 +913,6 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       terminal: false,
       children: [{ state: { ...state, date: nextDate }, action: null, root_signature: null, priority: null }]
     };
-    if (!goalMode) rememberExpansion(context, key, result.children, counters);
     return result;
   }
 
@@ -1135,7 +1100,6 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     const action = { type: "carry", carries: activeIds };
     pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
   }
-  if (!goalMode) rememberExpansion(context, key, children, counters);
   return { terminal: false, children };
 }
 
@@ -1400,7 +1364,7 @@ export class SearchStrategyBase {
     } : null;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
-      stateMemoHits: 0, expansionCacheHits: 0, expansionCacheEvictions: 0,
+      stateMemoHits: 0,
       rawStateMemoHits: 0, rawStateMemoPruned: 0, rawStateMemoEvictions: 0,
       localBranchesGenerated: 0, consolidationBranchesGenerated: 0,
       candidateStatesGenerated: 0, candidateStateDuplicates: 0,
@@ -1450,12 +1414,6 @@ export class SearchStrategyBase {
         hits: counters.rawStateMemoHits,
         pruned: counters.rawStateMemoPruned,
         evictions: counters.rawStateMemoEvictions
-      },
-      expansion_cache: {
-        entries: context.expansionCache.size,
-        retained_children: context.expansionCacheChildren,
-        hits: counters.expansionCacheHits,
-        evictions: counters.expansionCacheEvictions
       },
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
