@@ -147,9 +147,9 @@ Search pruning and transposition dominance must preserve equal-financial states 
 **Gate:** selected result is never worse than valid Greedy; equal results replace Greedy only with a demonstrated strategic improvement.
 
 ### Phase 6 — Budget-safe frontier completion
-- [x] Inspect the bounded GAML/Absolute R+ stop path and preserve its partial beam.
-- [x] Retain generated and unexpanded frontier entries before returning from a budget stop.
-- [x] Replay up to four top Absolute prefixes followed by Greedy continuation; compare each replay to Greedy.
+- [x] Inspect both budget paths: Absolute R's depth-first search retains completed incumbents; Absolute R+'s bounded beam search preserves its partial frontier.
+- [x] For Absolute R+, retain generated and unexpanded frontier entries before returning from a budget stop.
+- [x] For Absolute R+, replay up to four top Absolute prefixes followed by Greedy continuation; compare each replay to Greedy.
 - [x] Keep Greedy as incumbent and keep budget-stopped searches unproven.
 - [x] Add a forced-budget test that verifies frontier retention, completion validity and the Greedy financial floor.
 
