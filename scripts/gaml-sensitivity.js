@@ -88,6 +88,9 @@ for (const settings of cases) {
   process.stdout.write("GAML_SENSITIVITY_POINT=" + JSON.stringify(row) + "\n");
 }
 const decisionBudgetRows = results.filter(row => row.sweep === "decision_cap").sort((a, b) => a.value - b.value);
+if (decisionBudgetRows.length && decisionBudgetRows[0].budget_frontier_archive_candidates < 1) {
+  throw new Error("Absolute R+ did not archive the first decision-budget frontier.");
+}
 for (let index = 1; index < decisionBudgetRows.length; index += 1) {
   const previous = decisionBudgetRows[index - 1];
   const current = decisionBudgetRows[index];
