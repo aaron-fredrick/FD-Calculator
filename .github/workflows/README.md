@@ -16,11 +16,11 @@ The workflows are separated by responsibility. The browser application and docum
 
 ## Component publication
 
-- The web producer writes only to `pages-web-artifact`.
-- The documentation producer writes only to `pages-docs-artifact`.
+- The web producer writes only to `pages-web-artifact`; the docs producer writes only to `pages-docs-artifact`.
 - Each component has its own non-cancelling publication concurrency group. One component cannot overwrite the other.
-- The reusable Pages workflow fetches both latest artifact branches and assembles one complete site. It records the deployed web/docs commit pair on `pages-deploy-state`, so a second producer run with no newer component revisions skips a duplicate deployment. GitHub Pages deployment remains atomic at the whole-site level, but component builds and publication are independent.
-- If either artifact branch is not yet available, the assembler skips deployment and leaves the current live site untouched.
+- For initial migration or a missing component artifact, the assembler can seed a fallback branch: web from current main, docs from the source SHA of the last successful Pages deployment. The docs fallback preserves the currently published docs; it is not treated as fresh benchmark output. A validated `pages-docs-artifact` always takes precedence over `pages-docs-baseline`.
+- The reusable Pages workflow fetches the latest actual artifacts or their preserved baselines and assembles one complete site. It records the deployed web/docs commit pair on `pages-deploy-state`, so a second producer run with no newer component revisions skips a duplicate deployment. GitHub Pages deployment remains atomic at the whole-site level, but component builds and publication are independent.
+- If neither an actual artifact nor a safe baseline exists for a component, the assembler skips deployment and leaves the current live site untouched.
 - Artifact branch pushes use the workflow token and are followed by an explicit reusable-workflow call. The design does not depend on a GITHUB_TOKEN push triggering another workflow.
 
 ## Benchmark ownership and reuse
