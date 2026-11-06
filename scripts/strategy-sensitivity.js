@@ -184,7 +184,11 @@ function runCase(category, value, {
       state_memo_evictions: result.search_diagnostics?.state_memo_evictions ?? null,
       expansion_cache_hits: result.search_diagnostics?.expansion_cache?.hits ?? null,
       expansion_cache_entries: result.search_diagnostics?.expansion_cache?.entries ?? null,
-      expansion_cache_retained_children: result.search_diagnostics?.expansion_cache?.retained_children ?? null
+      expansion_cache_retained_children: result.search_diagnostics?.expansion_cache?.retained_children ?? null,
+      local_branches_generated: result.search_diagnostics?.local_branches_generated ?? null,
+      consolidation_branches_generated: result.search_diagnostics?.consolidation_branches_generated ?? null,
+      candidate_states_generated: result.search_diagnostics?.candidate_states_generated ?? null,
+      candidate_state_duplicates: result.search_diagnostics?.candidate_state_duplicates ?? null
     };
     results.push(row);
     process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify(row) + "\n");
