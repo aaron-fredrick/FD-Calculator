@@ -5,6 +5,7 @@ import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
 import { AbsolutePlusStrategy } from "../../src/strategies/absolute-plus.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { SimulationEngine } from "../../src/core/simulation.js";
+import { compareScopedResults, searchStateKey } from "../../src/strategies/search-strategy-base.js";
 
 const run = (strategy, input) => new SimulationEngine().run(strategy, input);
 
@@ -100,4 +101,92 @@ test("Absolute+ marks a search that reaches its configured state cap as unproven
   const result = run(new AbsolutePlusStrategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }), scenario());
   assert.equal(result.search_diagnostics.expanded_states, 1);
   assert.equal(result.optimality_proven, false);
+});
+
+test("Absolute+ reuses repeated option-interest calculations within one search run", () => {
+  const input = scenario();
+  input.options.push(new FDOption({
+    label: "Alternative 30d", bank_id: "BANK_A", bank_key: "bank_a",
+    period_str: "30d", annual_rate: 11, min_amount: 25000
+  }));
+  const result = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 8, max_local_branches: 8
+  }), input);
+  const cache = result.search_diagnostics.calculation_cache;
+  assert.ok(cache.option_interest.misses > 0);
+  assert.ok(cache.option_interest.hits > 0);
+});
+
+test("scoped selection compares finance first and only replaces Greedy on a strategic tie-break", () => {
+  const context = {
+    consolidationId: "main",
+    feeConfig: { getFee: () => 0 }
+  };
+  const result = ({ value, outstanding = 0, bookings = 0, transfers = 0 }) => ({
+    valid: true,
+    final_value: value,
+    outstanding_outflows: outstanding ? [{ remaining: outstanding }] : [],
+    accounts: {
+      main: { id: "main", balance: value, bank_identity: "BANK_A" }
+    },
+    bookings: Array.from({ length: bookings }, () => ({})),
+    timeline: transfers ? { events: Array.from({ length: transfers * 2 }, () => ({ type: "transfer" })) } : {}
+  });
+
+  const greedy = result({ value: 100, outstanding: 5, bookings: 2, transfers: 1 });
+  assert.equal(compareScopedResults(result({ value: 101, bookings: 5, transfers: 3 }), greedy, context), 1);
+  assert.equal(compareScopedResults(result({ value: 90, outstanding: 0 }), greedy, context), -1);
+
+  // Equal net value: clearing more of the outstanding obligation is strategically better.
+  assert.equal(compareScopedResults(result({ value: 95, outstanding: 0, bookings: 3 }), greedy, context), 1);
+
+  const equalBaseline = result({ value: 100, bookings: 2, transfers: 1 });
+  assert.equal(compareScopedResults(equalBaseline, equalBaseline, context), 0);
+  assert.equal(compareScopedResults(result({ value: 100, bookings: 1 }), equalBaseline, context), 1);
+  assert.equal(compareScopedResults(result({ value: 100, bookings: 3, transfers: 1 }), equalBaseline, context), -1);
+  assert.equal(compareScopedResults({ valid: false }, equalBaseline, context), -1);
+  assert.equal(compareScopedResults(equalBaseline, { valid: false }, context), 1);
+});
+
+test("Absolute R preserves the Greedy financial baseline", () => {
+  const input = scenario();
+  const greedy = run(new GreedyStrategy({ ait_enabled: true }), input);
+  const absolute = run(new AbsoluteStrategy({ ait_enabled: true }), input);
+  assert.equal(absolute.valid, true);
+  assert.ok(absolute.final_value >= greedy.final_value - 0.01);
+  assert.ok(["Absolute R", "Greedy"].includes(absolute.strategy_name));
+  assert.ok(absolute.search_diagnostics.result_selection);
+});
+
+test("Absolute+ preserves a frontier and safely completes after its decision budget", () => {
+  const input = scenario();
+  const greedy = run(new GreedyStrategy({ ait_enabled: true }), input);
+  const bounded = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 8, max_local_branches: 4, max_decisions: 2
+  }), input);
+  assert.equal(bounded.valid, true);
+  assert.equal(bounded.search_diagnostics.budget_stopped, true);
+  assert.ok(bounded.search_diagnostics.budget_frontier_states > 0);
+  assert.equal(bounded.optimality_proven, false);
+  assert.ok(bounded.final_value >= greedy.final_value - 0.01);
+  assert.ok(bounded.search_diagnostics.result_selection);
+});
+
+test("scoped state identity includes every future-relevant cash-flow field", () => {
+  const state = {
+    date: "2026-01-01",
+    balances: [["account-a", 25000], ["account-b", 10000]],
+    flows: [["2026-03-01", [["account-a", 26000]]]],
+    obligations: [["outflow-a", "2026-02-01", 5000]],
+    paid: 1200
+  };
+  assert.equal(searchStateKey(state), searchStateKey(JSON.parse(JSON.stringify(state))));
+  const variants = [
+    { ...state, date: "2026-01-02" },
+    { ...state, balances: [["account-a", 24999], ["account-b", 10000]] },
+    { ...state, flows: [["2026-03-02", [["account-a", 26000]]]] },
+    { ...state, obligations: [["outflow-a", "2026-02-02", 5000]] },
+    { ...state, paid: 1199 }
+  ];
+  for (const variant of variants) assert.notEqual(searchStateKey(variant), searchStateKey(state));
 });

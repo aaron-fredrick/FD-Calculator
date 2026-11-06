@@ -89,7 +89,11 @@ function normalize(result) {
     decision_log: result.decision_log,
     total_decisions_evaluated: result.total_decisions_evaluated,
     alternative_leaf_net_interests: result.alternative_leaf_net_interests,
-    search_diagnostics: result.search_diagnostics,
+    search_diagnostics: Object.fromEntries(
+      Object.entries(result.search_diagnostics).filter(([key]) =>
+        !["calculation_cache", "result_selection", "budget_stopped", "budget_frontier_states", "state_memo_size", "state_memo_evictions"].includes(key)
+      )
+    ),
     optimality_proven: result.optimality_proven,
     search_settings: result.search_settings
   };
@@ -105,11 +109,19 @@ for (const [name, Strategy, mode, settings] of [
     const migrated = new SimulationEngine().runUnfinalized(new Strategy({ ...settings, ait_enabled: true }), input);
     assert.deepEqual(normalize(migrated), normalize(legacy));
   });
-  test(name + " preserves shared pre-decision snapshots for multi-account splits", () => {
+  test(name + " keeps Greedy when an equal multi-account candidate is not strategically better", () => {
     const input = multiAccountScenario();
     const legacy = new LegacySearchStrategyBase({ ...settings, ait_enabled: true }, mode).simulate(input);
     const migrated = new SimulationEngine().runUnfinalized(new Strategy({ ...settings, ait_enabled: true }), input);
+    const actual = normalize(migrated);
+    const expected = normalize(legacy);
     assert.ok(legacy.bookings.length >= 1);
-    assert.deepEqual(normalize(migrated), normalize(legacy));
+    assert.equal(migrated.search_diagnostics.result_selection.selected, "Greedy");
+    for (const field of [
+      "valid", "total_principal", "total_interest", "total_transfer_fees",
+      "total_outflows_paid", "outstanding_outflows", "accounts", "bookings"
+    ]) {
+      assert.deepEqual(actual[field], expected[field], field);
+    }
   });
 }
