@@ -110,11 +110,21 @@ jobs:
           verify_tree="$temp_root/verify"
           git worktree add --detach "$verify_tree" "$remote_sha" >/dev/null
           remote_fingerprint="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --write)"
+          remote_data_valid=false
+          if (cd "$verify_tree" && node scripts/validate-scoped-benchmark-data.js >/dev/null); then
+            remote_data_valid=true
+          fi
           git worktree remove --force "$verify_tree"
           rmdir "$temp_root"
           if [ "$remote_fingerprint" != "$local_fingerprint" ]; then
             echo "Refusing to publish benchmark output: main advanced to a different input fingerprint."
             exit 1
+          fi
+          if [ "$remote_data_valid" = "true" ]; then
+            echo "Main already contains a complete dataset for this fingerprint; reusing it instead of overwriting newer data."
+            gh workflow run docs-pages.yml --ref main
+            echo "dispatch_docs=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           output_root="$(mktemp -d)"
