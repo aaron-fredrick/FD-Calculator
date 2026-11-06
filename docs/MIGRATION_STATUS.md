@@ -11,7 +11,7 @@
 - Shared strategy entry points in `src/strategies/`; each strategy has its own module and uses the same Node/browser-compatible financial search and replay core.
 - Node CSV parser and file adapters for the bank registry and bank-specific FD product catalogue.
 - Root data catalogue populated from archived bank and FD CSV datasets.
-- Node CLI supports Greedy, Absolute and Absolute R+, prints search diagnostics for optimizer strategies, and writes a standalone HTML report.
+- Node CLI supports Greedy, Absolute R and Absolute R+, prints search diagnostics for optimizer strategies, and writes a standalone HTML report.
 - Unit tests for search primitives, search drivers, strategy execution, future-inflow decisions, Absolute R+ settings, CLI integration and account-level eFD eligibility.
 
 ## Not yet equivalent to the Python application
