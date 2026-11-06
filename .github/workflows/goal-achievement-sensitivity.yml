@@ -1,53 +1,75 @@
-name: Goal achievement sensitivity study
+name: Goal objective development benchmarks
+
 on:
   push:
-    branches: ["feature/**"]
+    branches: ["feature/**", "chore/**"]
     paths:
       - "scripts/goal-achievement-sensitivity.js"
+      - "scripts/goal-benchmark-fingerprint.js"
       - "src/core/**"
       - "src/strategies/**"
       - "src/fd-options/**"
+      - "src/io/csv.js"
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/goal-achievement-sensitivity.yml"
   workflow_dispatch:
+
 concurrency:
-  group: goal-sensitivity-${{ github.ref }}
+  group: goal-benchmarks-${{ github.ref }}
   cancel-in-progress: true
+
 permissions:
   contents: write
+
 jobs:
   goal-sensitivity:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - name: Run goal achievement sensitivity study
-        run: set -o pipefail && node scripts/goal-achievement-sensitivity.js | tee goal-achievement-sensitivity-output.txt
-      - name: Publish generated goal benchmark charts and data to the feature branch
+      - name: Check Goal benchmark input fingerprint
+        id: cache
         run: |
-          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
-            mkdir -p /tmp/goal-achievement-output
-            cp -R docs/strategies/assets/goal-achievement/. /tmp/goal-achievement-output/
-            git fetch origin "$GITHUB_REF_NAME"
-            git checkout -B "$GITHUB_REF_NAME" "origin/$GITHUB_REF_NAME"
-            mkdir -p docs/strategies/assets/goal-achievement
-            cp -R /tmp/goal-achievement-output/. docs/strategies/assets/goal-achievement/
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs/strategies/assets/goal-achievement/
-            if ! git diff --cached --quiet; then
-              git commit -m "docs: publish goal-mode strategy sensitivity results"
-              git push origin "HEAD:$GITHUB_REF_NAME"
-            fi
+          stale="$(node scripts/goal-benchmark-fingerprint.js --check)"
+          echo "stale=$stale" >> "$GITHUB_OUTPUT"
+          if [ "$stale" = "true" ]; then
+            echo "Goal benchmark inputs changed or cached outputs are missing; regenerating."
+          else
+            echo "Goal benchmark inputs and cached outputs match; skipping simulation runs."
           fi
-      - name: Upload goal benchmark output
-        uses: actions/upload-artifact@v6
+      - name: Run Goal achievement sensitivity study
+        if: steps.cache.outputs.stale == 'true'
+        run: set -o pipefail && node scripts/goal-achievement-sensitivity.js | tee goal-achievement-sensitivity-output.txt
+      - name: Store Goal benchmark input fingerprint
+        if: steps.cache.outputs.stale == 'true'
+        run: node scripts/goal-benchmark-fingerprint.js --write
+      - name: Publish development benchmark outputs to the working branch
+        if: steps.cache.outputs.stale == 'true' && github.ref_type == 'branch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/strategies/assets/goal-achievement/
+          if ! git diff --cached --quiet; then
+            git commit -m "benchmarks: refresh Goal development measurements"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+      - name: Preserve benchmark run output
+        if: always()
+        run: |
+          if [ ! -f goal-achievement-sensitivity-output.txt ]; then
+            echo "Goal benchmark simulation skipped because the fingerprint and cached outputs were current." > goal-achievement-sensitivity-output.txt
+          fi
+      - uses: actions/upload-artifact@v6
+        if: always()
         with:
-          name: goal-achievement-sensitivity-results
+          name: goal-development-benchmarks
           path: |
             goal-achievement-sensitivity-output.txt
             docs/strategies/assets/goal-achievement/
