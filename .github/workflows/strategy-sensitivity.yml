@@ -55,7 +55,7 @@ jobs:
         if: steps.cache.outputs.stale == 'true'
         run: node scripts/benchmark-fingerprint.js --write
       - name: Publish refreshed benchmark data to the working branch
-        if: steps.cache.outputs.stale == 'true' && github.ref_type == 'branch'
+        if: steps.cache.outputs.stale == 'true' && github.ref_type == 'branch' && github.ref_name != 'main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
