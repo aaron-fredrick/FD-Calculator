@@ -2,7 +2,7 @@
 
 ## Status
 
-<badge color="warning">Under development — not user selectable</badge>
+**Status: Under development — not user selectable.**
 
 Goal mode is disabled in the browser and rejected by the public configuration validator and JSON schema. This is intentional. Do not re-enable it until every acceptance gate below is complete.
 
