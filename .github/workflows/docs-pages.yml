@@ -29,6 +29,7 @@ permissions:
   pull-requests: write
   pages: write
   id-token: write
+  deployments: read
 
 concurrency:
   group: docs-benchmark-pipeline-main
@@ -236,3 +237,4 @@ jobs:
       contents: write
       pages: write
       id-token: write
+      deployments: read
