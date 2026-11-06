@@ -1,0 +1,219 @@
+name: Benchmark, build and publish FD Cal documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "scripts/benchmark-fingerprint.js"
+      - "scripts/strategy-sensitivity.js"
+      - "scripts/gaml-sensitivity.js"
+      - "scripts/validate-scoped-benchmark-data.js"
+      - "scripts/build-docs-site.sh"
+      - "src/core/**"
+      - "src/strategies/**"
+      - "src/fd-options/**"
+      - "src/io/csv.js"
+      - "data/banks/**"
+      - "data/fd_options/**"
+      - ".github/workflows/strategy-sensitivity.yml"
+      - ".github/workflows/docs-pages.yml"
+      - "docs/strategies/benchmarks/results.json"
+      - "docs/strategies/benchmarks/gaml-search-results.json"
+      - "docs/strategies/benchmarks/.input-fingerprint.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs-benchmark-pipeline-main
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      needs_benchmark: ${{ steps.check.outputs.needs_benchmark }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Check both the benchmark fingerprint and dataset completeness
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          needs_benchmark=true
+          stale="$(node scripts/benchmark-fingerprint.js --check)"
+          if [ "$stale" = "false" ] && node scripts/validate-scoped-benchmark-data.js; then
+            needs_benchmark=false
+          fi
+          echo "needs_benchmark=$needs_benchmark" >> "$GITHUB_OUTPUT"
+          if [ "$needs_benchmark" = "true" ]; then
+            echo "Benchmark inputs or published observations are incomplete; this documentation pipeline will generate its own data."
+          else
+            echo "The committed benchmark data matches current inputs and passes completeness validation; no simulation will run."
+          fi
+
+  benchmark:
+    needs: prepare
+    if: needs.prepare.outputs.needs_benchmark == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Run the Scoped Range strategy sensitivity matrix
+        run: set -o pipefail && node scripts/strategy-sensitivity.js | tee strategy-sensitivity-output.txt
+      - name: Run Absolute R+ search-parameter sensitivity
+        run: set -o pipefail && node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
+      - name: Validate the complete benchmark dataset
+        run: node scripts/validate-scoped-benchmark-data.js
+      - name: Write and verify the benchmark input fingerprint
+        run: |
+          node scripts/benchmark-fingerprint.js --write
+          test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
+      - name: Publish generated data through a timestamped data branch and PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          local_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('docs/strategies/benchmarks/.input-fingerprint.json', 'utf8')).fingerprint")"
+
+          git fetch origin main
+          remote_sha="$(git rev-parse origin/main)"
+          temp_root="$(mktemp -d)"
+          verify_tree="$temp_root/verify"
+          git worktree add --detach "$verify_tree" "$remote_sha" >/dev/null
+          remote_fingerprint="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --write)"
+          git worktree remove --force "$verify_tree"
+          rmdir "$temp_root"
+          if [ "$remote_fingerprint" != "$local_fingerprint" ]; then
+            echo "Refusing to publish benchmark output: main advanced to a different input fingerprint."
+            exit 1
+          fi
+
+          output_root="$(mktemp -d)"
+          mkdir -p "$output_root/docs/strategies/benchmarks"
+          cp docs/strategies/benchmarks/results.json "$output_root/docs/strategies/benchmarks/"
+          cp docs/strategies/benchmarks/gaml-search-results.json "$output_root/docs/strategies/benchmarks/"
+          cp docs/strategies/benchmarks/.input-fingerprint.json "$output_root/docs/strategies/benchmarks/"
+
+          publish_timestamp="$(TZ=Asia/Colombo date '+%Y-%m-%d-%H-%M-%S-LKT')"
+          publish_branch="data-$publish_timestamp"
+          if git ls-remote --exit-code origin "refs/heads/$publish_branch" >/dev/null 2>&1; then
+            publish_branch="$publish_branch-$GITHUB_RUN_ID"
+          fi
+          git checkout -B "$publish_branch" origin/main
+          cp "$output_root/docs/strategies/benchmarks/results.json" docs/strategies/benchmarks/results.json
+          cp "$output_root/docs/strategies/benchmarks/gaml-search-results.json" docs/strategies/benchmarks/gaml-search-results.json
+          cp "$output_root/docs/strategies/benchmarks/.input-fingerprint.json" docs/strategies/benchmarks/.input-fingerprint.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/strategies/benchmarks/results.json
+          git add docs/strategies/benchmarks/gaml-search-results.json
+          git add docs/strategies/benchmarks/.input-fingerprint.json
+          if ! git diff --cached --quiet; then
+            git commit -m "benchmarks: refresh scoped strategy measurements ($publish_timestamp LKT)"
+            git push origin "HEAD:refs/heads/$publish_branch"
+            pr_url="$(gh pr create --base main --head "$publish_branch" --title "benchmarks: refresh scoped strategy measurements ($publish_timestamp LKT)" --body "Automated Scoped Range benchmark output for input fingerprint `$local_fingerprint`. Generated at $publish_timestamp Sri Lanka Time (Asia/Colombo).")"
+            gh pr merge "$pr_url" --merge
+            echo "Merged validated benchmark data through $publish_branch."
+          else
+            echo "The generated dataset is identical to the current main data; no data PR is required."
+          fi
+      - name: Preserve benchmark execution logs
+        if: always()
+        run: |
+          test -f strategy-sensitivity-output.txt || echo "No strategy output was produced." > strategy-sensitivity-output.txt
+          test -f gaml-sensitivity-output.txt || echo "No Absolute R+ output was produced." > gaml-sensitivity-output.txt
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: docs-owned-scoped-benchmark-run
+          path: |
+            strategy-sensitivity-output.txt
+            gaml-sensitivity-output.txt
+          retention-days: 30
+
+  build:
+    needs: [prepare, benchmark]
+    if: needs.prepare.result == 'success' && (needs.benchmark.result == 'success' || needs.benchmark.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Build and validate the documentation component
+        run: bash scripts/build-docs-site.sh /tmp/docs-site
+      - uses: actions/upload-artifact@v6
+        with:
+          name: docs-site
+          path: /tmp/docs-site
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-artifact-docs
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/download-artifact@v6
+        with:
+          name: docs-site
+          path: /tmp/docs-site
+      - name: Publish documentation without touching the web component
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="pages-docs-artifact"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            git checkout -B "$branch" "refs/remotes/origin/$branch"
+          else
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          git clean -fd
+          cp -R /tmp/docs-site/. .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The documentation artifact branch already contains this component."
+          else
+            git commit -m "pages: publish documentation from ${GITHUB_SHA}"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+
+  deploy:
+    needs: publish
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
