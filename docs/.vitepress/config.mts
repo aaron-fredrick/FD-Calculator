@@ -43,7 +43,7 @@ export default defineConfig({
     );
   },
   cleanUrls: false,
-  appearance: 'dark',
+  appearance: true,
 
   themeConfig: {
     siteTitle: 'FD Cal',
