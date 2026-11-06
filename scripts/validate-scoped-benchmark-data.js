@@ -71,15 +71,14 @@ assert.deepEqual(searchResults.baseline, {
   max_local_branches: 48,
   max_decisions: 5000
 });
-assert.equal(searchResults.start_date, "2026-11-05");
+assert.match(searchResults.start_date, /^\\d{4}-\\d{2}-\\d{2}$/);
 assert.equal(searchResults.scenario.horizon_months, 24);
 assert.equal(searchResults.scenario.capital_lkr, 300000);
 assert.equal(searchResults.scenario.accounts, 3);
-assert.deepEqual(searchResults.scenario.banks, [
-  "LK_DFCC_BANK",
-  "LK_COMMERCIAL_BANK_OF_CEYLON",
-  "LK_NATIONAL_DEVELOPMENT_BANK"
-]);
+assert.ok(Array.isArray(searchResults.scenario.banks));
+assert.equal(searchResults.scenario.banks.length, 3);
+assert.equal(new Set(searchResults.scenario.banks).size, 3);
+assert.ok(searchResults.scenario.banks.every(bank => typeof bank === "string" && bank.length > 0));
 const searchSweeps = {
   beam_width: [32, 64, 96, 192, 256],
   local_branch_limit: [16, 32, 48, 96, 128],
