@@ -52,7 +52,7 @@ test("main strategy workflow cannot duplicate the docs-owned benchmark", () => {
   assert.doesNotMatch(pushBlock, /branches: \[main/);
   assert.match(pushBlock, /feature\/\*\*/);
   assert.match(pushBlock, /chore\/\*\*/);
-  assert.match(strategy, /github\\.ref != 'refs\\/heads\\/main'/);
+  assert.match(strategy, /github\.ref != 'refs\/heads\/main'/);
 });
 
 test("component build scripts validate and stage separate output roots", () => {
