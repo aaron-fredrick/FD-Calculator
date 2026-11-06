@@ -51,7 +51,7 @@ const format = value => metric.value === 'delta_pct_vs_greedy'
       </table>
     </div>
     <p v-if="selected" class="cell-detail">
-      **{{ strategy }}** · LKR {{ Number(selected.capital).toLocaleString('en-LK') }} · {{ selected.months }} months:
+      <strong>{{ strategy }}</strong> · LKR {{ Number(selected.capital).toLocaleString('en-LK') }} · {{ selected.months }} months:
       {{ format(selected[metric]) }}. Runtime {{ Number(selected.duration_ms).toLocaleString('en-LK') }} ms; {{ selected.bookings }} bookings.
     </p>
   </section>
