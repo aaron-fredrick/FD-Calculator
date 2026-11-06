@@ -27,6 +27,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
   pages: write
@@ -71,6 +72,8 @@ jobs:
     needs: prepare
     if: needs.prepare.outputs.needs_benchmark == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      dispatch_docs: ${{ steps.publish.outputs.dispatch_docs }}
     timeout-minutes: 150
     steps:
       - uses: actions/checkout@v7
@@ -91,11 +94,13 @@ jobs:
           node scripts/benchmark-fingerprint.js --write
           test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
       - name: Publish generated data through a timestamped data branch and PR
+        id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
+          echo "dispatch_docs=false" >> "$GITHUB_OUTPUT"
           local_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('docs/strategies/benchmarks/.input-fingerprint.json', 'utf8')).fingerprint")"
 
           git fetch origin main
@@ -142,6 +147,8 @@ jobs:
               exit 1
             fi
             echo "Merged validated benchmark data through $publish_branch at $merged_at."
+            gh workflow run docs-pages.yml --ref main
+            echo "dispatch_docs=true" >> "$GITHUB_OUTPUT"
           else
             echo "The generated dataset is identical to the current main data; no data PR is required."
           fi
@@ -161,7 +168,7 @@ jobs:
 
   build:
     needs: [prepare, benchmark]
-    if: always() && needs.prepare.result == 'success' && (needs.benchmark.result == 'success' || needs.benchmark.result == 'skipped')
+    if: always() && needs.prepare.result == 'success' && (needs.benchmark.result == 'skipped' || (needs.benchmark.result == 'success' && needs.benchmark.outputs.dispatch_docs != 'true'))
     runs-on: ubuntu-latest
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
