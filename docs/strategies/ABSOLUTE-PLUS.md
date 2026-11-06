@@ -1,12 +1,12 @@
 # Absolute R+ — technical reference
 
-## Purpose
+## Overview
 
 Absolute R+ is the bounded, layered search strategy for the **scoped date-range objective**. It shares the search transition model with Absolute R but applies explicit limits to frontier breadth, local booking combinations and optionally expanded states.
 
 **Implementation:** `src/strategies/absolute-plus.js` (legacy module path retained for compatibility) and `src/strategies/search-strategy-base.js`.
 
-## Search model
+## Planning model
 
 1. Build a simulation context containing accounts, eligible FD products, cash-flow schedules, transfer fees and the scoped investment horizon.
 2. Run Greedy to obtain a feasible incumbent.
@@ -27,13 +27,13 @@ Scoped state identity, memoisation, terminal-value ranking, local ordering and r
 
 These controls limit different parts of the search. Increasing a limit can improve the best result found, but may increase runtime and memory. A larger setting is not guaranteed to improve the result monotonically because search ordering and pruning effects remain.
 
-## Optimality status
+## Optimality and limitations
 
 Absolute R+ reports `optimality_proven` only when the search completes without a decision-budget stop, beam pruning or local-combination pruning. Otherwise, the result is the best feasible path found within the configured bounds, not a proof of global optimality.
 
 Diagnostics include expanded states, terminal leaves, bound and memo pruning, beam pruning, local-combination pruning, peak root strategy frontier, alternative leaf returns and effective settings.
 
-## Parameter sensitivity study
+## Benchmark and sensitivity
 
 The following controlled experiment varies one Absolute R+ search limit at a time. All runs use the actual `SimulationEngine`, the repository's DFCC, Commercial Bank and NDB catalogues, and an identical scoped scenario:
 
@@ -66,6 +66,6 @@ Each graph has separate panels for net interest after AIT and transfer fees, exp
 
 This is a historical one-factor sensitivity baseline, not a universal tuning prescription. Re-run it with different horizons, inflows and bank/account mixes before choosing production defaults. Measurements were produced by the [Absolute R+ sensitivity runner](../../scripts/gaml-sensitivity.js).
 
-## Naming and compatibility
+## Diagnostics and compatibility
 
 The public display name is **Absolute R+**, where R denotes the scoped date range. The JSON strategy identifier remains `gaml`, and `gaml_settings`, `gaml` and the historical source module path remain supported for compatibility. The CLI accepts `absolute-r-plus` and the legacy `absolute-plus` alias.
