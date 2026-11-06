@@ -76,7 +76,6 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Strategy overview', link: '/STRATEGIES' },
-          { text: 'Benchmarks', link: '/strategies/benchmarks' },
           {
             text: 'Scoped Range',
             collapsed: false,
