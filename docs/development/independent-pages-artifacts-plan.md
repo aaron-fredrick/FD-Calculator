@@ -29,7 +29,7 @@ Use two independent, durable component artifact branches and one reusable Pages 
 - Main-branch Scoped Range benchmark ownership moves to the documentation pipeline. The standalone strategy workflow remains available for feature/chore branches and PR validation, but no longer starts a second benchmark run on main.
 - Benchmark execution is conditional on either a fingerprint mismatch or failed dataset-completeness validation. A data-only benchmark PR merge has a matching fingerprint and complete dataset, so it rebuilds docs without rerunning simulations.
 - Benchmark input changes trigger both relevant producers: the web producer builds the calculator independently, while the docs producer owns the benchmark and documentation lifecycle.
-- A benchmark data-only merge triggers the docs producer only. It does not trigger the web producer or the main strategy benchmark workflow.
+- A benchmark data-only merge causes exactly one docs build and no benchmark rerun. When the docs workflow creates and merges the data PR, it explicitly dispatches one docs-only run because GITHUB_TOKEN pushes do not trigger another push workflow. A manually merged data PR uses the normal docs push trigger. Neither path triggers the web producer or the main strategy benchmark workflow.
 - Component artifact branches are not producer triggers. Artifact pushes are followed by an explicit reusable workflow call, avoiding reliance on GITHUB_TOKEN push events to trigger another workflow.
 - Component publishers have separate concurrency groups. Pages deployments share a non-cancelling concurrency group and always assemble the latest heads of both component branches. If an older pending deploy is superseded, the newer deploy still includes both already-published components.
 
