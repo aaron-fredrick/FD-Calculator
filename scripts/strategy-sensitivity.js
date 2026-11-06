@@ -176,6 +176,18 @@ for (const efd of [false, true]) {
   runCase("efd_eligibility", efd ? "eligible" : "standard_only", { efd });
 }
 
+// Strict outflow scenarios stress whether each strategy preserves enough account-level liquidity.
+for (const outflow of ["none", "strict_50k_at_6m", "strict_staggered_20k"]) {
+  runCase("outflow_pattern", outflow, { outflow });
+}
+
+// Two-factor matrix: exposes capital/horizon interactions hidden by isolated sweeps.
+for (const months of [6, 12, 24]) {
+  for (const capital of [100000, 300000, 1000000]) {
+    runCase("capital_horizon", `${capital}:${months}`, { months, capital });
+  }
+}
+
 const grouped = new Map();
 for (const row of results) {
   const key = row.category + "|" + row.value;
