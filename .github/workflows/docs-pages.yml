@@ -206,7 +206,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          if ! git diff --quiet "$SOURCE_SHA" origin/main -- docs scripts/benchmark-fingerprint.js scripts/strategy-sensitivity.js scripts/gaml-sensitivity.js scripts/validate-scoped-benchmark-data.js scripts/build-docs-site.sh src/core src/strategies src/fd-options src/io/csv.js data/banks data/fd_options; then
+          if ! git diff --quiet "$SOURCE_SHA" origin/main -- docs scripts/benchmark-fingerprint.js scripts/strategy-sensitivity.js scripts/gaml-sensitivity.js scripts/validate-scoped-benchmark-data.js scripts/build-docs-site.sh src/core src/strategies src/fd-options src/io/csv.js src/brand/favicon.svg data/banks data/fd_options; then
             echo "::notice::Documentation or benchmark inputs changed after this artifact was built; a newer docs run owns publication."
             exit 0
           fi
