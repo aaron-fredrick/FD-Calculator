@@ -88,11 +88,12 @@ This is now a required validation item: compare the actual web defaults against 
 ### Phase 2 — Correctness tests
 - [ ] Same-state/same-path duplicate is not expanded twice.
 - [ ] Same-state/better-operation-count arrival reuses children but retains the better parent path.
-- [ ] State differences in date, balance, flow date/amount/account, obligation, paid amount and other future-relevant fields do not collide.
-- [ ] Booking-created maturity and periodic payout events remain represented.
-- [ ] Root diversity remains intact in R+.
-- [ ] Goal-mode behaviour and legacy parity remain unchanged.
-- [ ] Strict-outflow and provenance adversarial cases remain valid.
+- [x] State identity tests cover date, balance, pending-flow date/amount/account, obligation identity/date/amount and paid amount; full Node.js suite passes.
+- [x] Existing replay/parity and cash-flow tests cover booking-created maturity and payout events.
+- [ ] Add a focused positive-hit test proving an identical raw state is pruned before advancement and a better-operation-count revisit reuses a completed expansion.
+- [ ] Verify root-diversity retention under actual duplicate-state hits in R+.
+- [x] Goal-mode bypass is asserted explicitly; legacy parity tests pass.
+- [x] Existing strict-outflow and provenance suites pass; no financial constraints were weakened.
 
 ### Phase 3 — Search quality and budget correctness
 - [ ] Reproduce decision-budget non-monotonicity.
