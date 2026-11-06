@@ -72,33 +72,45 @@ function makeAccounts(count, capital, bankCount = 3, efd = true) {
   });
 }
 
-function makeInflows(kind, accountId, end) {
+function makeInflows(accountId, end, amount, intervalMonths) {
   const schedule = {};
-  if (kind === "monthly_10k" || kind === "quarterly_30k") {
-    const period = kind === "monthly_10k" ? "1m" : "3m";
-    const amount = kind === "monthly_10k" ? 10000 : 30000;
-    for (let i = 1; ; i++) {
-      const date = formatISODate(addPeriod(START, period, i));
-      if (date > end) break;
-      schedule[date] = { [accountId]: amount };
-    }
-  } else if (kind === "lump_100k") {
-    const date = formatISODate(addPeriod(START, "6m"));
-    if (date <= end) schedule[date] = { [accountId]: 100000 };
+  if (amount <= 0) return schedule;
+  const addInflow = date => {
+    if (date <= end) schedule[date] = { [accountId]: amount };
+  };
+  if (intervalMonths === 0) {
+    addInflow(START);
+    return schedule;
+  }
+  for (let month = intervalMonths; ; month += intervalMonths) {
+    const date = formatISODate(addPeriod(START, month + "m"));
+    if (date > end) break;
+    addInflow(date);
   }
   return schedule;
 }
 
-function makeOutflows(kind, accountId, end) {
+function makeOutflows(accountId, end, amount, intervalMonths) {
   const schedule = {};
-  if (kind === "strict_50k_at_6m") {
-    const date = formatISODate(addPeriod(START, "6m"));
-    if (date <= end) schedule[date] = [{ name: "Single liquidity obligation", account_id: accountId, amount: 50000, payment_policy: "strict" }];
-  } else if (kind === "strict_staggered_20k") {
-    for (const months of [6, 12, 18]) {
-      const date = formatISODate(addPeriod(START, months + "m"));
-      if (date <= end) schedule[date] = [{ name: "Staggered liquidity obligation", account_id: accountId, amount: 20000, payment_policy: "strict" }];
+  if (amount <= 0) return schedule;
+  const addOutflow = date => {
+    if (date <= end) {
+      schedule[date] = [{
+        name: "Scheduled liquidity obligation",
+        account_id: accountId,
+        amount,
+        payment_policy: "strict"
+      }];
     }
+  };
+  if (intervalMonths === 0) {
+    addOutflow(START);
+    return schedule;
+  }
+  for (let month = intervalMonths; ; month += intervalMonths) {
+    const date = formatISODate(addPeriod(START, month + "m"));
+    if (date > end) break;
+    addOutflow(date);
   }
   return schedule;
 }
@@ -111,7 +123,8 @@ const strategies = [
 const results = [];
 function runCase(category, value, {
   months = 24, capital = 300000, accountCount = 3, bankCount = 3,
-  inflow = "none", outflow = "none", efd = true
+  inflowAmount = 0, inflowIntervalMonths = 1,
+  outflowAmount = 0, outflowIntervalMonths = 1, efd = true
 } = {}) {
   const end = formatISODate(addPeriod(START, months + "m"));
   const accounts = makeAccounts(accountCount, capital, bankCount, efd);
@@ -122,8 +135,8 @@ function runCase(category, value, {
     accounts,
     inflow_account_id: accounts[0].id,
     consolidation_account_id: accounts[0].id,
-    inflow_schedule: makeInflows(inflow, accounts[0].id, end),
-    outflow_schedule: makeOutflows(outflow, accounts[0].id, end),
+    inflow_schedule: makeInflows(accounts[0].id, end, inflowAmount, inflowIntervalMonths),
+    outflow_schedule: makeOutflows(accounts[0].id, end, outflowAmount, outflowIntervalMonths),
     fee_config: feeConfig
   };
   for (const [name, makeStrategy] of strategies) {
@@ -132,16 +145,18 @@ function runCase(category, value, {
     try {
       result = engine.run(makeStrategy(), input);
     } catch (error) {
-      if (outflow === "none" || !String(error?.message ?? error).includes("strict outflows")) throw error;
+      if (outflowAmount <= 0 || !String(error?.message ?? error).includes("strict outflows")) throw error;
       const duration = Date.now() - started;
-      const required = Object.values(input.outflow_schedule)
+      const scheduled = Object.values(input.outflow_schedule)
         .flat()
         .reduce((sum, item) => sum + Number(item.amount || 0), 0);
       const row = {
         category, value, strategy: name, months, capital,
-        accounts: accountCount, banks: bankCount, inflow, outflow, efd,
-        valid: false, validity_pct: 0, outflows_paid: 0,
-        outflow_unpaid: Number(required.toFixed(2)),
+        accounts: accountCount, banks: bankCount,
+        inflow_amount: inflowAmount, inflow_interval_months: inflowIntervalMonths,
+        outflow_amount: outflowAmount, outflow_interval_months: outflowIntervalMonths,
+        efd, valid: false, validity_pct: 0, outflows_paid: null,
+        outflow_unpaid: null, outflow_scheduled_total: Number(scheduled.toFixed(2)),
         net_interest: null, gross_interest: null, ait: null,
         transfer_fees: null, principal: capital, final_value: null,
         bookings: 0, cash_retained: null, duration_ms: duration,
@@ -151,22 +166,25 @@ function runCase(category, value, {
       results.push(row);
       process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify({
         category, value, strategy: name, valid: false,
-        outflow_unpaid: row.outflow_unpaid, duration_ms: duration,
+        outflow_scheduled_total: row.outflow_scheduled_total, duration_ms: duration,
         error: error.message
       }) + "\n");
       continue;
     }
     const duration = Date.now() - started;
-    if (!result.finalized || !Number.isFinite(result.net_interest_after_ait) || (outflow === "none" && !result.valid)) {
+    if (!result.finalized || !Number.isFinite(result.net_interest_after_ait) || (outflowAmount === 0 && !result.valid)) {
       throw new Error(name + " produced an invalid result for " + category + "/" + value);
     }
     const row = {
       category, value, strategy: name, months, capital,
-      accounts: accountCount, banks: bankCount, inflow, outflow, efd,
+      accounts: accountCount, banks: bankCount,
+      inflow_amount: inflowAmount, inflow_interval_months: inflowIntervalMonths,
+      outflow_amount: outflowAmount, outflow_interval_months: outflowIntervalMonths, efd,
       valid: result.valid === true,
       validity_pct: result.valid === true ? 100 : 0,
       outflows_paid: Number((result.total_outflows_paid ?? 0).toFixed(2)),
       outflow_unpaid: Number((result.outstanding_outflows ?? []).reduce((sum, item) => sum + Number(item.remaining || 0), 0).toFixed(2)),
+      outflow_scheduled_total: Number(Object.values(input.outflow_schedule).flat().reduce((sum, item) => sum + Number(item.amount || 0), 0).toFixed(2)),
       net_interest: Number(result.net_interest_after_ait.toFixed(2)),
       gross_interest: Number(result.total_interest.toFixed(2)),
       ait: Number(result.ait_withheld.toFixed(2)),
@@ -184,8 +202,8 @@ function runCase(category, value, {
   }
 }
 
-// One-factor-at-a-time sweeps. All strategies receive identical inputs per point.
-for (const months of [6, 12, 24]) {
+// Investment horizon: every 3 months from an immediate 0-month scope through 5 years.
+for (let months = 0; months <= 60; months += 3) {
   runCase("horizon_months", months, { months });
 }
 for (const capital of [25000, 100000, 300000, 1000000]) {
@@ -197,16 +215,31 @@ for (const accountCount of [1, 2, 3]) {
 for (const bankCount of [1, 2, 3]) {
   runCase("bank_count", bankCount, { accountCount: 3, capital: 300000, bankCount });
 }
-for (const inflow of ["none", "monthly_10k", "lump_100k"]) {
-  runCase("inflow_pattern", inflow, { inflow });
+// Cash inflows: monthly amount sweep and fixed-amount frequency sweep, both over 10 years.
+for (let amount = 0; amount <= 200000; amount += 10000) {
+  runCase("inflow_monthly_amount_lkr", amount, {
+    months: 120, inflowAmount: amount, inflowIntervalMonths: 1
+  });
+}
+for (let interval = 0; interval <= 12; interval += 1) {
+  runCase("inflow_interval_months", interval, {
+    months: 120, inflowAmount: 100000, inflowIntervalMonths: interval
+  });
 }
 for (const efd of [false, true]) {
   runCase("efd_eligibility", efd ? "eligible" : "standard_only", { efd });
 }
 
-// Strict outflow scenarios stress whether each strategy preserves enough account-level liquidity.
-for (const outflow of ["none", "strict_50k_at_6m", "strict_staggered_20k"]) {
-  runCase("outflow_pattern", outflow, { outflow });
+// Strict outflows mirror the two inflow sweeps: monthly amount and fixed-amount frequency.
+for (let amount = 0; amount <= 200000; amount += 10000) {
+  runCase("outflow_monthly_amount_lkr", amount, {
+    months: 120, outflowAmount: amount, outflowIntervalMonths: 1
+  });
+}
+for (let interval = 0; interval <= 12; interval += 1) {
+  runCase("outflow_interval_months", interval, {
+    months: 120, outflowAmount: 100000, outflowIntervalMonths: interval
+  });
 }
 
 // Two-factor matrix: exposes capital/horizon interactions hidden by isolated sweeps.
@@ -248,11 +281,18 @@ const output = {
   compound: false,
   transfer_fee_basis: "Bank catalogue intra/inter-bank transfer fees; all transfer decisions and final sweep use the same fee config.",
   design: {
-    one_factor_sweeps: ["horizon_months", "starting_capital_lkr", "account_count", "bank_count", "inflow_pattern", "efd_eligibility"],
+    one_factor_sweeps: ["horizon_months", "starting_capital_lkr", "account_count", "bank_count", "efd_eligibility"],
+    cash_inflow_sweeps: {
+      monthly_amount_lkr: { min: 0, max: 200000, step: 10000, interval_months: 1, horizon_months: 120 },
+      interval_months: { min: 0, max: 12, step: 1, amount_lkr: 100000, horizon_months: 120, zero_interval: "one-time at simulation start" }
+    },
+    strict_outflow_sweeps: {
+      monthly_amount_lkr: { min: 0, max: 200000, step: 10000, interval_months: 1, horizon_months: 120 },
+      interval_months: { min: 0, max: 12, step: 1, amount_lkr: 100000, horizon_months: 120, zero_interval: "one-time at simulation start" }
+    },
     interaction_matrices: ["capital_horizon"],
     interaction_points: 9,
-    liquidity_stress: ["strict_50k_at_6m", "strict_staggered_20k"],
-    liquidity_note: "Strict obligations are scored for runtime validity and unpaid amount as well as net interest. Invalid runs are retained as feasibility failures, not treated as competitive returns.",
+    liquidity_note: "Strict obligations are scored for runtime validity and observed unpaid amount. When a strategy throws before a result exists, paid/unpaid totals remain unmeasured and the scheduled total is reported separately.",
     timing_note: "Single-run wall-clock measurements are observational; compare only on the same runner."
   },
   results
