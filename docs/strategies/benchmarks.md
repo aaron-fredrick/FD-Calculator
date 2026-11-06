@@ -21,12 +21,11 @@ The expanded dataset contains **330 strategy observations** across 110 scenario 
 | Starting capital sweep | LKR 25,000; 100,000; 300,000; 1,000,000 |
 | Account sweep | 1, 2 and 3 accounts, all at DFCC |
 | Bank sweep | 1, 2 and 3 banks across a fixed 3-account portfolio |
-| Cash inflows | Monthly amount: LKR 0–200,000 in LKR 10,000 steps; then LKR 100,000 at intervals of 0–12 months |
-| Cash outflows | Strict monthly amount: LKR 0–200,000 in LKR 10,000 steps; then LKR 100,000 at intervals of 0–12 months |
+| Cash inflows | 10-year monthly amount sweep (LKR 0–200,000, LKR 10,000 steps) and fixed LKR 100,000 at 0–12-month intervals |
+| Cash outflows | 10-year strict monthly amount sweep (LKR 0–200,000, LKR 10,000 steps) and fixed LKR 100,000 at 0–12-month intervals |
 | eFD eligibility | Standard-only vs eFD-eligible accounts |
 | AIT | Enabled at 10% |
 | Interest calculation | Simple interest; actual leap-year day basis |
-| Outflows | None; LKR 50,000 strict obligation at 6 months; three LKR 20,000 strict obligations at 6, 12 and 18 months |
 | Transfer fees | Bank-specific catalogue fees; applied to transfers and final sweep |
 
 The base portfolio is LKR 300,000 across three accounts and three banks. The horizon sweep runs from 0 to 60 months in 3-month steps. Both cash-flow studies use a 10-year simulation: the first varies a monthly amount while the second fixes the amount at LKR 100,000 and varies its interval. An interval of 0 months represents a single event at the simulation start; 1–12 months represent recurring intervals. Cash flows are applied to the first (DFCC) account. The capital/horizon matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. For the account-count sweep, all accounts use DFCC; for the bank-count sweep, the account count and total capital remain fixed.
@@ -107,41 +106,11 @@ The one-factor sweeps above do not reveal whether a strategy responds differentl
 
 <BenchmarkHeatmap :rows="benchmarkResults.results" />
 
-## Findings
+## Reading the results
 
-### 1. Longer horizons increase absolute net interest
+Net interest is measured after AIT and transfer fees; it excludes principal. The cash-flow studies use a 10-year horizon and vary either the monthly amount or the interval while holding the other factor fixed. An interval of 0 months is a one-time event at the simulation start.
 
-With LKR 300,000 across three banks, Greedy returned LKR 12,933.28 at 6 months, LKR 28,778.95 at 12 months and LKR 61,886.03 at 24 months. Absolute R+ was ahead by 4.28% and 2.90% at 6 and 12 months, then matched Greedy at 24 months. GSS was 0.56% behind at 6 months and 3.98–6.09% behind at the longer horizons.
-
-### 2. More accounts alone did not improve return
-
-Holding the bank fixed at DFCC and total capital at LKR 300,000, 1, 2 and 3 accounts all produced approximately LKR 59,481.37 net interest. The booking count increased with account count, but the return did not. Account fragmentation by itself did not create a rate advantage in this product set.
-
-### 3. Bank diversity improved the Greedy result in this catalogue
-
-With three accounts and LKR 300,000 total capital, the Greedy result rose from LKR 59,481.38 with DFCC only to LKR 61,460.41 with DFCC and Commercial Bank, then LKR 61,886.03 with all three banks. That is a 4.04% increase from one to three banks, after modelled transfer fees of LKR 0, 25 and 50 respectively. Absolute R+ matched Greedy at all three points. GSS did not capture the same gain in the multi-bank cases.
-
-### 4. Inflows raise total interest, but later capital has less time to earn
-
-At 24 months, no inflow produced LKR 61,886.03 net interest on LKR 300,000 principal. Monthly LKR 10,000 inflows raised net interest to LKR 83,353.99 on LKR 540,000 total principal. A single LKR 100,000 inflow after six months produced LKR 76,752.44 on LKR 400,000 principal.
-
-The absolute interest rises as more capital enters, but the net-interest-to-total-principal ratio falls: approximately 20.63% with no inflow, 15.44% with monthly inflows and 19.19% with the later lump sum. This is a timing effect, not a strategy loss: later deposits simply have fewer days to earn interest.
-
-### 5. eFD eligibility was worth LKR 2,454.65 in the tested baseline
-
-For Greedy and Absolute R+, enabling eFD eligibility increased net interest from LKR 59,431.38 to LKR 61,886.03 (+4.13%). GSS remained around LKR 59,421.46 when eFDs were enabled, slightly below its standard-only result. This is a strategy-specific gap worth investigating; eligibility expanded the available products but GSS did not convert that expansion into a better outcome in this scenario.
-
-### 6. Absolute R+'s search cost rises sharply with recurring inflows
-
-Absolute R+ matched Greedy on the monthly-inflow case, but used the full 5,000 expanded-state budget and took about 95 seconds in this CI run. Greedy completed in milliseconds and GSS in under 20 ms. Runtime is environment-dependent, but the relative cost is material. Absolute R+'s result is bounded and does not prove optimality; the study records `optimality_proven: false`.
-
-## Strategy interpretation
-
-- **Greedy** was the strongest or tied strongest result in most tested scenarios, with very low runtime. It remains a useful baseline.
-- **Absolute R+** found improvements in some short-horizon and capital cases, but often returned the Greedy result despite materially higher search cost. Its bounded result is not an optimality proof.
-- **GSS** remained very fast, but underperformed Greedy on several multi-bank, longer-horizon and inflow scenarios. The eFD result also suggests that broader candidate availability is not automatically being converted into better scoped-range returns.
-
-These are observations from this fixed catalogue snapshot and the stated one-factor sweeps, not universal rankings. Rate schedules, product minima, payout types, fees and eligibility all influence the result.
+For strict outflows, use validity and unpaid-obligation metrics alongside interest. If a strategy throws before a result is available, payment totals remain unmeasured and the scheduled amount is reported separately. Absolute R+ is bounded by its search budget; a returned result is not an optimality proof.
 
 ## Absolute R+ search-parameter sensitivity
 
@@ -162,9 +131,9 @@ This is a historical scoped-regression check for the web strategies. The active 
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.
 - The workflow archives the raw output as a GitHub Actions artifact.
-- Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget in the archived one-factor study. Its results are approximate.
+- Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget. Its results are bounded and do not prove optimality.
 - Absolute R is CLI-only and exhaustive; it is not included in this web-strategy comparison.
-- The current matrix does not yet model early-termination penalties, explicit liquidity preference, or rate changes during the forecast. Strict outflow stress is included as a feasibility probe, not a comprehensive liquidity model.
+- Strict outflows test whether the designated account can meet recurring obligations. They are a liquidity-feasibility study, not a full liquidity-preference model.
 - Published bank rates are a dated data snapshot, not guaranteed live offers. Confirm minimum balances, account eligibility, payout conditions and current tariffs with each bank before investing.
 
 ## Goal
