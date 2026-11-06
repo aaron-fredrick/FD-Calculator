@@ -66,7 +66,7 @@ These timings are CI-runner observations, not local-machine benchmarks. They are
 
 The browser UI currently constructs Absolute R+ with `beam_width=256`, `max_local_branches=128` and no decision cap (`src/web/app.js`, `src/web/index.html`). The published benchmark baseline instead uses `96/48/5000`. Therefore, the existing benchmark timings do not represent the default configuration a user runs in the web tool.
 
-This is now a required validation item: compare the actual web defaults against the benchmark baseline on identical 24- and 60-month inputs, record objective, runtime, expanded states and optimality status, then decide whether to align the UI defaults with the tested bounded configuration. Do not change the defaults solely from intuition; confirm the trade-off first.
+The UI defaults have now been aligned to the tested benchmark configuration (beam 96, local branches 48, decision cap 5,000). This is supported by the 24-month sweep: beam 256 took about 14.7s versus about 6.2s at beam 96 without improving the reported objective; local-branch limits 16–128 also produced the same objective. The final post-archive benchmark still needs to verify the complete default combination at 24/60 months.
 
 ## Planned implementation phases
 
