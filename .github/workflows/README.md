@@ -18,7 +18,7 @@ The browser application and documentation have independent build and publication
 
 Every push to `main` starts two independent benchmark jobs:
 
-1. **Scoped Range page** — runs `scripts/strategy-sensitivity.js`, validates 324 observations across 108 scenarios, and uploads `results.json) as a one-day workflow artifact.
+1. **Scoped Range page** — runs `scripts/strategy-sensitivity.js`, validates 324 observations across 108 scenarios, and uploads `results.json` as a one-day workflow artifact.
 2. **Absolute R+ page** — runs `scripts/gaml-sensitivity.js`, validates all 15 parameter observations, and uploads `gaml-search-results.json` as a one-day workflow artifact.
 
 The docs build waits for both jobs, downloads those exact run artifacts into `docs/strategies/benchmarks/`, runs the combined dataset validator, and builds VitePress. The generated JSON is present in the build workspace and in the resulting static documentation output, but it is not committed back to `main`, pushed to a timestamped data branch, or used to create a data PR. Each push gets its own workflow run and its own generated datasets; the build cannot accidentally consume data from a different run.
