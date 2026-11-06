@@ -147,7 +147,7 @@ jobs:
             temp_root="$(mktemp -d)"
             verify_tree="$temp_root/tree"
             git worktree add --detach "$verify_tree" "$remote_sha" >/dev/null
-            remote_source_fingerprint="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --fingerprint)"
+            remote_source_fingerprint="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --write)"
             git worktree remove --force "$verify_tree"
             rmdir "$temp_root"
             if [ "$remote_source_fingerprint" != "$local_fingerprint" ]; then
