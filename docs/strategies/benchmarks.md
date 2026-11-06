@@ -8,7 +8,7 @@ FD Cal keeps its two simulation objectives separate. **Scoped Range** is the sup
 
 ## Scoped Range
 
-This study executes the repository's actual `SimulationEngine` and the three strategies available in the web application: **Greedy**, **Absolute R+** and **GSS**. Each comparison changes one scenario factor at a time and gives every strategy the same inputs.
+This study runs the repository's `SimulationEngine` with the three web strategies: **Greedy**, **Absolute R+** and **GSS**. Most sweeps vary one factor at a time; a separate capital × horizon matrix tests their interaction. Each strategy receives identical inputs at every scenario point.
 
 The expanded dataset contains **330 strategy observations** across 110 scenario points, evaluated by all three strategies. The default chart metric is **net interest after AIT and transfer fees**, in LKR; interactive selectors also expose the difference vs Greedy, runtime, booking count, simulation validity and unpaid outflows where applicable. Net interest is not gross interest or final portfolio value. This is the scoped date-range study. All strategies receive the same selected start and end dates.
 
