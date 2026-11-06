@@ -64,5 +64,32 @@ for (const row of rows.filter(row =>
 const searchResultsPath = new URL("../docs/strategies/benchmarks/gaml-search-results.json", import.meta.url);
 const searchResults = JSON.parse(readFileSync(searchResultsPath, "utf8"));
 assert.ok(searchResults && typeof searchResults === "object", "Absolute R+ search results must be valid JSON.");
+assert.ok(Array.isArray(searchResults.results), "Absolute R+ search results must contain a results array.");
+assert.equal(searchResults.results.length, 15, "Expected 15 Absolute R+ parameter observations.");
+assert.deepEqual(searchResults.baseline, {
+  beam_width: 96,
+  max_local_branches: 48,
+  max_decisions: 5000
+});
+const searchSweeps = {
+  beam_width: sequence(5, 1).map((_, index) => [32, 64, 96, 192, 256][index]),
+  local_branch_limit: [16, 32, 48, 96, 128],
+  decision_cap: [500, 1000, 2500, 5000, 10000]
+};
+for (const [sweep, expectedValues] of Object.entries(searchSweeps)) {
+  const sweepRows = searchResults.results.filter(row => row.sweep === sweep);
+  assert.equal(sweepRows.length, 5, sweep + " must contain five parameter observations.");
+  assert.deepEqual(sweepRows.map(row => row.value), expectedValues);
+}
+for (const row of searchResults.results) {
+  for (const field of [
+    "beam_width", "max_local_branches", "max_decisions", "net_interest",
+    "final_value", "expanded_states", "beam_pruned", "local_combination_pruned",
+    "duration_ms"
+  ]) {
+    assert.ok(Number.isFinite(row[field]), "Absolute R+ result field " + field + " must be finite.");
+  }
+  assert.equal(typeof row.optimality_proven, "boolean");
+}
 
-console.log("Validated 324 observations, 108 scenarios, 0–60m horizon, and four 2-year cash-flow sweeps.");
+console.log("Validated 324 strategy observations, 108 scenarios, 0–60m horizon, four 2-year cash-flow sweeps, and 15 Absolute R+ parameter observations.");
