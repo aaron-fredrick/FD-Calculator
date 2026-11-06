@@ -179,10 +179,15 @@ function runCase(category, value, {
       cash_retained: Number(result.cash_retained.toFixed(2)),
       duration_ms: duration,
       optimality_proven: result.optimality_proven ?? null,
-      search_expanded: result.search_diagnostics?.expanded_states ?? null
+      search_expanded: result.search_diagnostics?.expanded_states ?? null,
+      state_memo_hits: result.search_diagnostics?.state_memo_hits ?? null,
+      state_memo_evictions: result.search_diagnostics?.state_memo_evictions ?? null,
+      expansion_cache_hits: result.search_diagnostics?.expansion_cache?.hits ?? null,
+      expansion_cache_entries: result.search_diagnostics?.expansion_cache?.entries ?? null,
+      expansion_cache_retained_children: result.search_diagnostics?.expansion_cache?.retained_children ?? null
     };
     results.push(row);
-    process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify({ category, value, strategy: name, net_interest: row.net_interest, duration_ms: duration }) + "\n");
+    process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify(row) + "\n");
   }
 }
 
