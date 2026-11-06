@@ -75,7 +75,7 @@ test("component build scripts validate and stage separate output roots", () => {
   assert.match(docs, /site\/docs/);
   assert.match(validator, /324/);
   assert.match(validator, /108/);
-  assert.match(validator, /15 Absolute R\\\+ parameter observations/);
+  assert.match(validator, /15 Absolute R\+ parameter observations/);
   assert.match(preservation, /last successful Pages deployment/);
   assert.doesNotMatch(preservation, /validate-scoped-benchmark-data/);
 });
