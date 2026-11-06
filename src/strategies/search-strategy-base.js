@@ -21,6 +21,7 @@ const balanceTotal = balances => sum(balances.map(([, value]) => value));
 const dateSort = (a, b) => a.localeCompare(b);
 const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
+const SEARCH_RAW_STATE_MEMO_LIMIT = 10000;
 // Expansion entries retain child states, so bound both entry count and child count.
 const SEARCH_EXPANSION_CACHE_LIMIT = 512;
 const SEARCH_EXPANSION_CACHE_CHILD_LIMIT = 2048;
@@ -874,6 +875,26 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
 }
 
 function expandState(rawState, context, settings, mode, counters, operationCount = 0) {
+  const goalMode = context.simulation?.mode === "goal";
+  if (!goalMode) {
+    const rawKey = stateKey(rawState);
+    const priorRaw = counters.rawMemo.get(rawKey);
+    if (priorRaw) {
+      counters.rawMemo.delete(rawKey);
+      counters.rawMemo.set(rawKey, priorRaw);
+      counters.rawStateMemoHits++;
+      if (priorRaw.operationCount <= operationCount) {
+        counters.rawStateMemoPruned++;
+        return { terminal: false, children: [] };
+      }
+    } else if (counters.rawMemo.size >= SEARCH_RAW_STATE_MEMO_LIMIT) {
+      counters.rawMemo.delete(counters.rawMemo.keys().next().value);
+      counters.rawStateMemoEvictions++;
+    }
+    counters.rawMemo.set(rawKey, {
+      operationCount: Math.min(operationCount, priorRaw?.operationCount ?? Infinity)
+    });
+  }
   const state = advanceState(rawState, context);
   if (!state) return { terminal: false, children: [] };
   if (state.date >= context.end) {
@@ -881,7 +902,6 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     const value = terminalValue(state, context);
     return { terminal: true, value, state, children: [] };
   }
-  const goalMode = context.simulation?.mode === "goal";
   const key = stateKey(state);
   const prior = goalMode ? null : counters.memo.get(key);
   if (prior) {
@@ -1379,6 +1399,7 @@ export class SearchStrategyBase {
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
       stateMemoHits: 0, expansionCacheHits: 0, expansionCacheEvictions: 0,
+      rawStateMemoHits: 0, rawStateMemoPruned: 0, rawStateMemoEvictions: 0,
       localBranchesGenerated: 0, consolidationBranchesGenerated: 0,
       candidateStatesGenerated: 0, candidateStateDuplicates: 0,
       bestValue: goalMode ? -Infinity : greedyObjective,
@@ -1386,7 +1407,7 @@ export class SearchStrategyBase {
       bestOperationCount: goalMode ? Infinity : resultOperationCount(greedy),
       bestOutstanding: goalMode ? Infinity : sum((greedy.outstanding_outflows ?? []).map(item => Number(item.remaining || 0))),
       totalCapital: context.totalCapital,
-      bestNode: null, alternatives: [], memo: new Map(), memoEvictions: 0
+      bestNode: null, alternatives: [], memo: new Map(), memoEvictions: 0, rawMemo: new Map(),
     };
     const initialGoalProvenance = goalMode ? new BalanceProvenance([...context.accounts.keys()]) : null;
     if (initialGoalProvenance) {
@@ -1422,6 +1443,12 @@ export class SearchStrategyBase {
       state_memo_size: counters.memo.size,
       state_memo_hits: counters.stateMemoHits,
       state_memo_evictions: counters.memoEvictions,
+      raw_state_memo: {
+        entries: counters.rawMemo.size,
+        hits: counters.rawStateMemoHits,
+        pruned: counters.rawStateMemoPruned,
+        evictions: counters.rawStateMemoEvictions
+      },
       expansion_cache: {
         entries: context.expansionCache.size,
         retained_children: context.expansionCacheChildren,
