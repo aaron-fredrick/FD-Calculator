@@ -1,80 +1,50 @@
-# JavaScript CLI
+# Command-line interface
 
-For a plain-language explanation of how the strategies differ and when to use each, see [Strategy guide](STRATEGIES.md).
+The CLI runs the shared JavaScript financial engine and supports all four **scoped date-range** strategies.
 
-## Strategy support
+## Strategies
 
-The CLI supports all four JavaScript strategies:
+- **Absolute R** — exhaustive branch-and-bound search. CLI-only.
+- **Absolute R+** — bounded layered beam search.
+- **Greedy** — fast immediate-decision baseline.
+- **GSS** — recursive scoped planner.
 
-- **Greedy** — fast baseline heuristic.
-- **Absolute** — exhaustive branch-and-bound in scoped mode; exhaustive earliest-achievement search in goal mode.
-- **GAML / Absolute+** — bounded layered beam search. Scoped mode ranks terminal portfolio value; goal mode uses provenance-aware credit timing, payout-aware local branches and goal-date-aware waiting.
-- **GSS** — independent recursive planner. Scoped mode preserves manager-ordered candidates; goal mode ranks viable plans by projected consolidation-credit timing and can defer rebooking for an earlier future consolidation opportunity.
+All strategies use the configured investment start and end dates. Goal mode is under development and is rejected by public configuration validation.
 
 ## Run
 
-From the repository root:
-
-```powershell
-npm install
-npm test
-npm run cli -- --config .\config.json --strategy greedy
-npm run cli -- --config .\config.json --strategy absolute
-npm run cli -- --config .\config.json --strategy gaml
-npm run cli -- --config .\config.json --strategy gss
+```bash
+npm run cli -- --config ./config.json --strategy absolute-r
+npm run cli -- --config ./config.json --strategy absolute-r-plus
+npm run cli -- --config ./config.json --strategy greedy
+npm run cli -- --config ./config.json --strategy gss
 ```
 
-If `strategy` is present in the JSON configuration, `--strategy` is optional.
+For compatibility, `absolute` remains an alias for `absolute-r`, and `absolute-plus` remains an alias for `absolute-r-plus`. The JSON strategy identifiers remain `absolute` and `gaml`; existing configuration files do not need to be renamed.
 
-## GAML settings
+## Absolute R+ settings
 
-GAML accepts these settings in the configuration JSON:
+`gaml_settings` is the canonical configuration object. The historical aliases `gaml` and `strategy_settings.gaml` remain accepted.
 
-```json
-{
-  "strategy": "gaml",
-  "gaml_settings": {
-    "beam_width": 256,
-    "max_local_branches": 128,
-    "max_decisions": null
-  }
-}
+| Setting | Default | Meaning |
+|---|---:|---|
+| `beam_width` | 256 | Maximum number of candidate states retained at each search layer. |
+| `max_local_branches` | 128 | Maximum partial local-booking combinations retained during one state expansion. Set to null for exhaustive local combinations. |
+| `max_decisions` | Unlimited | Optional cap on expanded search states. |
+
+CLI flags override JSON values:
+
+```bash
+npm run cli -- --strategy absolute-r-plus --beam-width 512 --max-local-branches 256 --max-decisions 20000
+npm run cli -- --strategy absolute-r-plus --max-local-branches none --max-decisions none
 ```
 
-Defaults mirror the archived Python implementation for scoped mode. `beam_width` controls how many candidate states survive each search layer; `max_local_branches` controls how many local booking combinations are explored when expanding a state. In scoped mode, `max_decisions: null` means no hard expanded-state cap. In goal mode, Absolute+ applies a default 5,000-state decision budget when no positive cap is configured. `max_local_branches: null` enumerates all local booking combinations rather than truncating the combination search. See the [strategy guide](STRATEGIES.md) for examples and trade-offs.
-
-CLI flags override the JSON values:
-
-```powershell
-npm run cli -- --config .\config.json --strategy gaml --beam-width 512 --max-local-branches 256 --max-decisions 100000
-```
-
-Use `none` to explicitly disable a configured local-combination or state cap:
-
-```powershell
-npm run cli -- --strategy gaml --max-local-branches none --max-decisions none
-```
-
-The JSON key `gaml_settings` is canonical. For compatibility, `gaml` and `strategy_settings.gaml` are also accepted.
-
-GAML reports expanded states, terminal leaves, bound/memo pruning, beam pruning, local-combination pruning, root-strategy diversity and whether optimality was proven. Goal mode additionally reports goal candidate evaluations, invalid replay candidates, the objective and the decision budget. If beam width, local combinations or a state budget truncate the search, the result is an incumbent solution, not a proof of global optimality. Absolute goal search is exhaustive and reports proof only when no unsafe pruning occurs.
+Absolute R+ reports expanded states, terminal leaves, bound/memo pruning, beam pruning, local-combination pruning, root-strategy diversity and whether optimality was proven. Any relevant truncation means the result is an incumbent rather than a global-optimality proof.
 
 ## GSS settings
 
-GSS accepts a positive integer recursion threshold:
+The GSS recursion threshold defaults to 30 days. Override it with `--small-period-days N`. Short waits skip deeper future-goal subdivision while preserving scoped liquidity constraints.
 
-~~~json
-{ "strategy": "gss", "gss_settings": { "small_period_days": 30 } }
-~~~
+## Goal mode
 
-The default is 30 days. Override it with `--small-period-days N`. Short waiting periods are processed without deeper future-goal subdivision, but immediately achievable goals remain eligible.
-
-## Data and report output
-
-The CLI reads the JSON configuration, resolves the bank registry and bank-specific FD product CSVs from root `data/`, validates the configuration, runs the selected JavaScript strategy, prints the event timeline and booking summary, and writes a standalone HTML report to `report_output_file` (relative paths resolve against the configuration file directory).
-
-The root `data/` directory is copied from the archived catalogue. Do not edit `archive/` to update live catalogue data; update root `data/` and review the corresponding source/effective-date notes.
-
-## Validation status
-
-The strategy implementations require regression parity against archived Python scenarios before financial output should be treated as fully validated. Unit and CLI integration tests alone do not establish parity for every payout type, outflow policy, multi-account topology or large GAML search.
+Goal-based net-interest planning is not available through the CLI configuration contract while its strategy architecture is being reworked. Configurations containing `simulation.mode: "goal"` are rejected. The internal simulation-runtime goal tests remain available to developers and do not constitute a supported CLI mode.
