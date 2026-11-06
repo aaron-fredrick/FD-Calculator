@@ -56,19 +56,6 @@ function git(args, cwd = root) {
   }).trim();
 }
 
-async function hasReusableWork(run) {
-  const result = await request(apiBase + "/repos/" + repository +
-    "/actions/runs/" + run.id + "/jobs?per_page=100");
-  const jobs = result.jobs ?? [];
-  const coordinator = jobs.find(job => job.name === "coordinate");
-  if (coordinator?.conclusion && coordinator.conclusion !== "success") return false;
-
-  const sensitivity = jobs.find(job => job.name === "sensitivity");
-  if (!sensitivity) return true;
-  if (sensitivity.status === "queued" || sensitivity.status === "in_progress") return true;
-  return sensitivity.status === "completed" && sensitivity.conclusion === "success";
-}
-
 function fingerprintAtCommit(sha, cache) {
   if (cache.has(sha)) return cache.get(sha);
   const remote = "benchmark-base";
@@ -131,8 +118,6 @@ const candidates = runs
   )
   .sort((a, b) => Number(a.id) - Number(b.id));
 
-let matchingRun = null;
-
 for (const run of candidates) {
   let existingFingerprint;
   try {
@@ -145,12 +130,9 @@ for (const run of candidates) {
   }
 
   if (existingFingerprint === currentFingerprint) {
-    if (await hasReusableWork(run)) {
-      matchingRun ??= run;
-      console.log("Run #" + run.run_number + " has the same fingerprint and reusable work.");
-    } else {
-      console.log("Run #" + run.run_number + " has the same fingerprint but no reusable active result; this run may take over.");
-    }
+    // A matching run's artifacts are not automatically available on this ref.
+    // Always let this run inspect its own branch cache and regenerate missing files.
+    console.log("Run #" + run.run_number + " has the same fingerprint; preserving it, but this run will check its own cache.");
     continue;
   }
 
@@ -162,14 +144,13 @@ for (const run of candidates) {
   console.log("Cancellation requested for obsolete run #" + run.run_number + ".");
 }
 
-const decision = matchingRun ? "reuse" : "run";
+// The sensitivity job must always inspect this ref's cache. It skips the expensive
+// simulation itself when this ref already has complete, fingerprint-matched outputs.
 const output = [
-  "decision=" + decision,
+  "decision=run",
   "fingerprint=" + currentFingerprint,
-  "reuse_run_id=" + (matchingRun?.id ?? "")
+  "reuse_run_id="
 ].join("\n") + "\n";
 
 if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, output);
-console.log(matchingRun
-  ? "Decision: reuse active run #" + matchingRun.run_number + "; skip duplicate simulation."
-  : "Decision: no older matching run remains; proceed with this fingerprint.");
+console.log("Decision: run this ref's cache check; regenerate benchmark files if missing or stale.");
