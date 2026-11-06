@@ -27,12 +27,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
-  contents: write
-  pull-requests: write
-  pages: write
-  id-token: write
-  deployments: read
+  contents: read
 
 concurrency:
   group: docs-benchmark-pipeline-main
@@ -42,6 +37,8 @@ jobs:
   prepare:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       needs_benchmark: ${{ steps.check.outputs.needs_benchmark }}
     steps:
@@ -72,6 +69,10 @@ jobs:
     needs: prepare
     if: needs.prepare.outputs.needs_benchmark == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
     outputs:
       dispatch_docs: ${{ steps.publish.outputs.dispatch_docs }}
     timeout-minutes: 150
@@ -170,6 +171,8 @@ jobs:
     needs: [prepare, benchmark]
     if: always() && needs.prepare.result == 'success' && (needs.benchmark.result == 'skipped' || (needs.benchmark.result == 'success' && needs.benchmark.outputs.dispatch_docs != 'true'))
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       source_sha: ${{ steps.source.outputs.sha }}
     steps:
@@ -196,6 +199,8 @@ jobs:
     needs: build
     if: needs.build.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     concurrency:
       group: pages-artifact-docs
       cancel-in-progress: false
