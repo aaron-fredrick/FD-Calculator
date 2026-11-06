@@ -54,7 +54,7 @@ These timings are CI-runner observations, not local-machine benchmarks. They are
 1. Does an identical scoped state always have identical future expansion independent of the path used to reach it?
 2. Which fields are required in the state fingerprint, including date, balances, pending maturity/payout flows, obligations and paid amount?
 3. Are state arrays canonical in ordering, and can two semantically identical states currently serialize differently?
-4. Can expansion children be cached and reused when a better path reaches an already-expanded state, without losing the better path's parent/action chain?
+4. Does a separate completed-expansion cache produce meaningful hits when better paths revisit an already-expanded state? The 108-scenario R+ benchmark recorded zero hits, so the cache was removed.
 5. Does memo eviction cause material re-expansion, and what bounded policy gives the best time/memory trade-off?
 6. Is local combination generation, expansion, bound/priority calculation or sorting the dominant cost at 24/60 months?
 7. Why can the 500-decision run outperform the 1,000-decision run? Preserve the best authoritative feasible replay found at every budget point.
