@@ -71,7 +71,7 @@ jobs:
         if: steps.cache.outputs.stale == 'true'
         run: test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
       - name: Publish refreshed benchmark data to the working branch
-        if: steps.cache.outputs.stale == 'true' && github.event.pull_request.head.repo.full_name == github.repository && (github.event_name == 'pull_request' || (github.ref_type == 'branch' && github.ref_name != 'main'))
+        if: steps.cache.outputs.stale == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (github.event_name == 'pull_request' || (github.ref_type == 'branch' && github.ref_name != 'main'))
         run: |
           branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
           git config user.name "github-actions[bot]"
