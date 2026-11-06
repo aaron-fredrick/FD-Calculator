@@ -37,6 +37,8 @@ test("documentation producer owns benchmark readiness and publication", () => {
   const docs = read(".github/workflows/docs-pages.yml");
   assert.match(docs, /scripts\/benchmark-fingerprint\.js/);
   assert.match(docs, /scripts\/validate-scoped-benchmark-data\.js/);
+  assert.match(docs, /remote_data_valid/);
+  assert.match(docs, /reusing it instead of overwriting newer data/);
   assert.match(docs, /scripts\/strategy-sensitivity\.js/);
   assert.match(docs, /scripts\/gaml-sensitivity\.js/);
   assert.match(docs, /always\(\) && needs\.prepare\.result/);
