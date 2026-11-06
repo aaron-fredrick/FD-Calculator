@@ -27,8 +27,8 @@ The workflows are separated by responsibility. The browser application and docum
 
 The documentation producer owns main-branch Scoped Range benchmark readiness:
 
-1. It calculates the input fingerprint and validates the published dataset structure and scenario coverage.
-2. If both are current, it skips simulations and builds docs from the committed JSON.
+1. It calculates the input fingerprint and checks for an already-open `data-...` PR carrying that same fingerprint; if one exists, it waits for normal merge instead of starting duplicate simulations.
+2. It validates the published dataset structure and scenario coverage. If both the fingerprint and dataset are current, it skips simulations and builds docs from the committed JSON.
 3. If inputs differ or the dataset is incomplete, it runs the Scoped Range matrix and Absolute R+ parameter sensitivity, validates the results, and updates the fingerprint. Before publishing, it rechecks main; if a complete dataset for the same fingerprint has already landed, it reuses that data instead of overwriting it.
 4. Generated data is published through a timestamped `data-YYYY-MM-DD-HH-MM-SS-LKT` branch and PR. The workflow requests a normal merge and verifies that the PR actually merged before building documentation; it never bypasses repository rules.
 5. If repository policy requires approval or checks that a token-created PR cannot start automatically, the workflow stops and leaves the PR for normal review. The docs artifact branch is not updated, so the previously deployed docs remain live. After a manual merge, the data-only docs path rebuilds without rerunning simulations.
