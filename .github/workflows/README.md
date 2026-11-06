@@ -19,7 +19,7 @@ The workflows are separated by responsibility. The browser application and docum
 - The web producer writes only to `pages-web-artifact`.
 - The documentation producer writes only to `pages-docs-artifact`.
 - Each component has its own non-cancelling publication concurrency group. One component cannot overwrite the other.
-- The reusable Pages workflow fetches both latest artifact branches and assembles one complete site. GitHub Pages deployment remains atomic at the whole-site level, but component builds and publication are independent.
+- The reusable Pages workflow fetches both latest artifact branches and assembles one complete site. It records the deployed web/docs commit pair on `pages-deploy-state`, so a second producer run with no newer component revisions skips a duplicate deployment. GitHub Pages deployment remains atomic at the whole-site level, but component builds and publication are independent.
 - If either artifact branch is not yet available, the assembler skips deployment and leaves the current live site untouched.
 - Artifact branch pushes use the workflow token and are followed by an explicit reusable-workflow call. The design does not depend on a GITHUB_TOKEN push triggering another workflow.
 
