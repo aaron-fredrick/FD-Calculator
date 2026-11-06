@@ -91,10 +91,18 @@ jobs:
               cp scripts/build-web-site.sh /tmp/published-source/scripts/build-web-site.sh
               cp scripts/build-docs-preservation.sh /tmp/published-source/scripts/build-docs-preservation.sh
               if [ "$web_needed" = "true" ]; then
-                (cd /tmp/published-source && bash scripts/build-web-site.sh /tmp/web-baseline)
+                if (cd /tmp/published-source && bash scripts/build-web-site.sh /tmp/web-baseline); then
+                  echo "Built the preserved web baseline."
+                else
+                  echo "::warning::Could not build the preserved web baseline; waiting for the web producer."
+                fi
               fi
               if [ "$docs_needed" = "true" ]; then
-                (cd /tmp/published-source && bash scripts/build-docs-preservation.sh /tmp/docs-baseline)
+                if (cd /tmp/published-source && bash scripts/build-docs-preservation.sh /tmp/docs-baseline); then
+                  echo "Built the preserved docs baseline."
+                else
+                  echo "::warning::Could not build the preserved docs baseline; waiting for a validated docs publication."
+                fi
               fi
               git worktree remove --force /tmp/published-source
             else
