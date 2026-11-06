@@ -14,6 +14,7 @@ on:
       - "src/strategies/**"
       - "src/fd-options/**"
       - "src/io/csv.js"
+      - "src/brand/favicon.svg"
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/strategy-sensitivity.yml"
