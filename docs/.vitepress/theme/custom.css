@@ -76,17 +76,3 @@
     max-width: 100%;
   }
 }
-
-
-/* Strategy sensitivity SVGs are authored for dark mode. In light mode,
-   invert the chart canvas, labels and grid together while preserving
-   distinct series colours through the hue rotation. */
-html:not(.dark) .VPDoc img[src*="/strategies/assets/"]:not([src*="/goal-achievement/"]) {
-  filter: invert(1) hue-rotate(180deg);
-  transition: filter 160ms ease;
-}
-
-.dark .VPDoc img[src*="/strategies/assets/"] {
-  filter: none;
-  transition: filter 160ms ease;
-}
