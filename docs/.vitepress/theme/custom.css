@@ -1,7 +1,7 @@
 @import "../../../src/brand/tokens.css";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   --vp-c-brand-1: var(--fd-color-accent);
   --vp-c-brand-2: var(--fd-color-accent-hover);
   --vp-c-brand-3: var(--fd-color-accent-strong);
@@ -12,6 +12,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --vp-c-bg: var(--fd-color-bg);
   --vp-c-bg-alt: var(--fd-color-panel);
   --vp-c-bg-elv: var(--fd-color-panel-raised);
@@ -74,4 +75,18 @@
   .VPDoc .content {
     max-width: 100%;
   }
+}
+
+
+/* Strategy sensitivity SVGs are authored for dark mode. In light mode,
+   invert the chart canvas, labels and grid together while preserving
+   distinct series colours through the hue rotation. */
+html:not(.dark) .VPDoc img[src*="/strategies/assets/"]:not([src*="/goal-achievement/"]) {
+  filter: invert(1) hue-rotate(180deg);
+  transition: filter 160ms ease;
+}
+
+.dark .VPDoc img[src*="/strategies/assets/"] {
+  filter: none;
+  transition: filter 160ms ease;
 }
