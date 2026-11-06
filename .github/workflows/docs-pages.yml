@@ -136,9 +136,10 @@ jobs:
           temp_root="$(mktemp -d)"
           verify_tree="$temp_root/verify"
           git worktree add --detach "$verify_tree" "$remote_sha" >/dev/null
+          remote_stale="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --check)"
           remote_fingerprint="$(cd "$verify_tree" && node scripts/benchmark-fingerprint.js --write)"
           remote_data_valid=false
-          if (cd "$verify_tree" && node scripts/validate-scoped-benchmark-data.js >/dev/null); then
+          if [ "$remote_stale" = "false" ] && (cd "$verify_tree" && node scripts/validate-scoped-benchmark-data.js >/dev/null); then
             remote_data_valid=true
           fi
           git worktree remove --force "$verify_tree"
