@@ -161,7 +161,7 @@ jobs:
           if git show "origin/$branch:docs/strategies/benchmarks/.input-fingerprint.json" > /tmp/remote-benchmark-fingerprint.json 2>/dev/null; then
             remote_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/remote-benchmark-fingerprint.json', 'utf8')).fingerprint")"
           fi
-          if [ -n "$remote_fingerprint" ] && [ "$remote_fingerprint" = "$local_fingerprint" ]; then
+          if [ -n "$remote_fingerprint" ] && [ "$remote_fingerprint" = "$local_fingerprint" ] && git cat-file -e "origin/$branch:docs/strategies/benchmarks/results.json" && git cat-file -e "origin/$branch:docs/strategies/benchmarks/gaml-search-results.json"; then
             echo "Matching benchmark inputs were already published by another run; skipping duplicate commit."
             exit 0
           fi
