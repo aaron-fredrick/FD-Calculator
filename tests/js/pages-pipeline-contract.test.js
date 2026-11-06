@@ -33,31 +33,28 @@ test("web producer is isolated from documentation benchmark outputs", () => {
   assert.match(web, /Web dependencies changed after this artifact was built/);
 });
 
-test("documentation producer owns benchmark readiness and publication", () => {
+test("each benchmark-backed docs page runs its own benchmark on every main push", () => {
   const docs = read(".github/workflows/docs-pages.yml");
-  assert.match(docs, /scripts\/benchmark-fingerprint\.js/);
-  assert.match(docs, /scripts\/validate-scoped-benchmark-data\.js/);
-  assert.match(docs, /remote_stale/);
-  assert.match(docs, /remote_data_valid/);
-  assert.match(docs, /open_data_prs/);
-  assert.match(docs, /blocked_by_data_pr/);
-  assert.match(docs, /startswith\("data-"\)/);
-  assert.match(docs, /reusing it instead of overwriting newer data/);
-  assert.match(docs, /scripts\/strategy-sensitivity\.js/);
-  assert.match(docs, /scripts\/gaml-sensitivity\.js/);
-  assert.match(docs, /always\(\) && needs\.prepare\.result/);
-  assert.match(docs, /docs\/strategies\/benchmarks\/results\.json/);
-  assert.match(docs, /TZ=Asia\/Colombo/);
-  assert.match(docs, /publish_branch="data-/);
-  assert.match(docs, /merged_at=/);
-  assert.match(docs, /refusing to build or publish documentation/);
-  assert.match(docs, /gh pr merge/);
-  assert.match(docs, /gh workflow run docs-pages\.yml --ref main/);
-  assert.match(docs, /dispatch_docs=true/);
+  assert.match(docs, /^  push:\n    branches: \[main\]/m);
+  assert.match(docs, /group: docs-benchmark-\$\{\{ github\.sha \}\}/);
+  assert.match(docs, /scoped-range-benchmark:/);
+  assert.match(docs, /name: Scoped Range page benchmark/);
+  assert.match(docs, /node scripts\/strategy-sensitivity\.js/);
+  assert.match(docs, /scoped-range-benchmark-data/);
+  assert.match(docs, /absolute-r-plus-benchmark:/);
+  assert.match(docs, /name: Absolute R\+ page benchmark/);
+  assert.match(docs, /node scripts\/gaml-sensitivity\.js/);
+  assert.match(docs, /absolute-r-plus-benchmark-data/);
+  assert.match(docs, /retention-days: 1/);
+  assert.match(docs, /needs: \[scoped-range-benchmark, absolute-r-plus-benchmark\]/);
+  assert.match(docs, /actions\/download-artifact@v6/);
+  assert.match(docs, /node scripts\/validate-scoped-benchmark-data\.js/);
+  assert.match(docs, /bash scripts\/build-docs-site\.sh/);
   assert.match(docs, /pages-docs-artifact/);
   assert.match(docs, /uses: \.\/\.github\/workflows\/pages\.yml/);
   assert.match(docs, /Documentation or benchmark inputs changed after this artifact was built/);
-  assert.doesNotMatch(docs, /data\/\*\*/);
+  assert.doesNotMatch(docs, /benchmark-fingerprint\.js|gh pr create|gh pr merge|pull-requests: write|blocked_by_data_pr|dispatch_docs/);
+  assert.doesNotMatch(docs, /git add docs\/strategies\/benchmarks/);
 });
 
 test("main strategy workflow cannot duplicate the docs-owned benchmark", () => {
@@ -69,7 +66,7 @@ test("main strategy workflow cannot duplicate the docs-owned benchmark", () => {
   assert.match(strategy, /github\.ref != 'refs\/heads\/main'/);
 });
 
-test("component build scripts validate and stage separate output roots", () => {
+test("component build scripts consume generated data without fingerprint publication", () => {
   const pages = read(".github/workflows/pages.yml");
   const preservation = read("scripts/build-docs-preservation.sh");
   const web = read("scripts/build-web-site.sh");
@@ -79,7 +76,7 @@ test("component build scripts validate and stage separate output roots", () => {
   assert.match(web, /src\/web/);
   assert.match(web, /src\/strategies/);
   assert.match(docs, /validate-scoped-benchmark-data\.js/);
-  assert.match(docs, /benchmark-fingerprint\.js --check/);
+  assert.doesNotMatch(docs, /benchmark-fingerprint\.js/);
   assert.match(docs, /site\/docs/);
   assert.match(validator, /324/);
   assert.match(validator, /108/);
