@@ -52,7 +52,7 @@ test("each benchmark-backed docs page runs its own benchmark on every main push"
   assert.match(docs, /bash scripts\/build-docs-site\.sh/);
   assert.match(docs, /pages-docs-artifact/);
   assert.match(docs, /uses: \.\/\.github\/workflows\/pages\.yml/);
-  assert.match(docs, /Documentation or benchmark inputs changed after this artifact was built/);
+  assert.match(docs, /main advanced from \$SOURCE_SHA to \$latest_main_sha/);
   assert.doesNotMatch(docs, /benchmark-fingerprint\.js|gh pr create|gh pr merge|pull-requests: write|blocked_by_data_pr|dispatch_docs/);
   assert.doesNotMatch(docs, /git add docs\/strategies\/benchmarks/);
 });
