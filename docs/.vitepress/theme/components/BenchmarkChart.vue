@@ -64,7 +64,16 @@ const format = value => {
   if (metric.value?.format === 'percent') return Number(value).toFixed(2) + '%'
   return Number(value).toLocaleString('en-LK', { maximumFractionDigits: 2 })
 }
-const xFormat = value => Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-LK') : String(value)
+const categoryLabels = {
+  none: 'No outflow',
+  strict_50k_at_6m: 'LKR 50k at 6m',
+  strict_staggered_20k: 'LKR 20k at 6/12/18m',
+  standard_only: 'Standard-only',
+  eligible: 'eFD eligible',
+  monthly_10k: 'LKR 10k monthly',
+  lump_100k: 'LKR 100k at 6m'
+}
+const xFormat = value => Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-LK') : (categoryLabels[value] ?? String(value))
 const yTicks = computed(() => Array.from({ length: 5 }, (_, index) => yMin.value + (yMax.value - yMin.value) * index / 4))
 function toggle(name) {
   const next = new Set(hiddenSeries.value)
