@@ -64,6 +64,8 @@ test("main strategy workflow cannot duplicate the docs-owned benchmark", () => {
 });
 
 test("component build scripts validate and stage separate output roots", () => {
+  const pages = read(".github/workflows/pages.yml");
+  const preservation = read("scripts/build-docs-preservation.sh");
   const web = read("scripts/build-web-site.sh");
   const docs = read("scripts/build-docs-site.sh");
   const validator = read("scripts/validate-scoped-benchmark-data.js");
