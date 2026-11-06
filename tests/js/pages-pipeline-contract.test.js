@@ -11,6 +11,9 @@ test("Pages deployment is a reusable assembler, not a source-change trigger", ()
   assert.doesNotMatch(pages, /workflow_run:/);
   assert.match(pages, /pages-web-artifact/);
   assert.match(pages, /pages-docs-artifact/);
+  assert.match(pages, /pages-deploy-state/);
+  assert.match(pages, /previous_web_sha/);
+  assert.match(pages, /Both component artifact revisions are already deployed/);
   assert.match(pages, /site\/web\/index\.html/);
   assert.match(pages, /site\/docs\/index\.html/);
   assert.match(pages, /cancel-in-progress: false/);
@@ -23,6 +26,7 @@ test("web producer is isolated from documentation benchmark outputs", () => {
   assert.match(web, /uses: \.\/\.github\/workflows\/pages\.yml/);
   assert.doesNotMatch(web, /strategy-sensitivity\.js|gaml-sensitivity\.js|docs\/strategies\/benchmarks/);
   assert.match(web, /group: pages-artifact-web/);
+  assert.match(web, /Web dependencies changed after this artifact was built/);
 });
 
 test("documentation producer owns benchmark readiness and publication", () => {
@@ -38,6 +42,8 @@ test("documentation producer owns benchmark readiness and publication", () => {
   assert.match(docs, /gh pr merge/);
   assert.match(docs, /pages-docs-artifact/);
   assert.match(docs, /uses: \.\/\.github\/workflows\/pages\.yml/);
+  assert.match(docs, /Documentation or benchmark inputs changed after this artifact was built/);
+  assert.doesNotMatch(docs, /data\/\*\*/);
 });
 
 test("main strategy workflow cannot duplicate the docs-owned benchmark", () => {
