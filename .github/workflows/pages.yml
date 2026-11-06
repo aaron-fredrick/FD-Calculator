@@ -7,6 +7,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  deployments: read
 
 concurrency:
   group: pages-deploy
@@ -25,7 +26,101 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - uses: actions/configure-pages@v6
+      - name: Find the last successfully deployed source revision
+        id: live
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: "github-pages",
+              per_page: 100
+            });
+
+            for (const deployment of deployments) {
+              const statuses = await github.paginate(github.rest.repos.listDeploymentStatuses, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id,
+                per_page: 100
+              });
+              if (statuses[0]?.state === "success") {
+                core.setOutput("sha", deployment.sha);
+                core.info(`Using last successful Pages source revision ${deployment.sha} for docs preservation.`);
+                return;
+              }
+            }
+
+            core.setOutput("sha", "");
+            core.notice("No successful Pages deployment record was found; docs baseline bootstrap may be unavailable.");
+
+      - name: Bootstrap missing component baselines without replacing published artifacts
+        env:
+          DOCS_SOURCE_SHA: ${{ steps.live.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branch_exists() {
+            git ls-remote --exit-code origin "refs/heads/$1" >/dev/null 2>&1
+          }
+
+          web_needed=false
+          docs_needed=false
+          if ! branch_exists pages-web-artifact && ! branch_exists pages-web-baseline; then
+            web_needed=true
+          fi
+          if ! branch_exists pages-docs-artifact && ! branch_exists pages-docs-baseline; then
+            docs_needed=true
+          fi
+
+          if [ "$web_needed" = "true" ]; then
+            bash scripts/build-web-site.sh /tmp/web-baseline
+          fi
+
+          if [ "$docs_needed" = "true" ] && [ -n "$DOCS_SOURCE_SHA" ]; then
+            git fetch --no-tags origin "$DOCS_SOURCE_SHA"
+            git worktree add --detach /tmp/docs-source "$DOCS_SOURCE_SHA"
+            mkdir -p /tmp/docs-source/scripts
+            cp scripts/build-docs-preservation.sh /tmp/docs-source/scripts/build-docs-preservation.sh
+            (cd /tmp/docs-source && bash scripts/build-docs-preservation.sh /tmp/docs-baseline)
+            git worktree remove --force /tmp/docs-source
+          elif [ "$docs_needed" = "true" ]; then
+            echo "::notice::No prior successful Pages source is available; the docs baseline will wait for a validated docs publication."
+          fi
+
+          publish_baseline() {
+            local branch="$1"
+            local directory="$2"
+            if branch_exists "$branch"; then
+              echo "Baseline $branch was created by another publisher; preserving it."
+              return
+            fi
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+            git clean -fd
+            cp -R "$directory"/. .
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            if ! git diff --cached --quiet; then
+              git commit -m "pages: seed $branch from the last usable component"
+              git push origin "HEAD:refs/heads/$branch"
+            fi
+          }
+
+          if [ "$web_needed" = "true" ]; then
+            publish_baseline pages-web-baseline /tmp/web-baseline
+          fi
+          if [ "$docs_needed" = "true" ] && [ -d /tmp/docs-baseline ]; then
+            publish_baseline pages-docs-baseline /tmp/docs-baseline
+          fi
+
       - name: Assemble the latest published web and docs components
         id: assemble
         shell: bash
@@ -33,22 +128,36 @@ jobs:
           set -euo pipefail
           mkdir -p site
 
-          for branch in pages-web-artifact pages-docs-artifact; do
-            if ! git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
-              echo "::notice::Waiting for both independent site components; $branch has not been published yet."
-              echo "ready=false" >> "$GITHUB_OUTPUT"
-              echo "changed=false" >> "$GITHUB_OUTPUT"
-              exit 0
+          select_component_ref() {
+            local actual="$1"
+            local baseline="$2"
+            if git ls-remote --exit-code origin "refs/heads/$actual" >/dev/null 2>&1; then
+              echo "$actual"
+            elif git ls-remote --exit-code origin "refs/heads/$baseline" >/dev/null 2>&1; then
+              echo "$baseline"
+            else
+              echo ""
             fi
-            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
-          done
+          }
 
-          web_sha="$(git rev-parse origin/pages-web-artifact)"
-          docs_sha="$(git rev-parse origin/pages-docs-artifact)"
+          web_ref="$(select_component_ref pages-web-artifact pages-web-baseline)"
+          docs_ref="$(select_component_ref pages-docs-artifact pages-docs-baseline)"
+          if [ -z "$web_ref" ] || [ -z "$docs_ref" ]; then
+            echo "::notice::Both web and docs must have a published or preserved baseline before Pages can deploy."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags origin "refs/heads/$web_ref:refs/remotes/origin/$web_ref"
+          git fetch --no-tags origin "refs/heads/$docs_ref:refs/remotes/origin/$docs_ref"
+          web_sha="$(git rev-parse "origin/$web_ref")"
+          docs_sha="$(git rev-parse "origin/$docs_ref")"
           echo "web_sha=$web_sha" >> "$GITHUB_OUTPUT"
           echo "docs_sha=$docs_sha" >> "$GITHUB_OUTPUT"
-          git archive origin/pages-web-artifact | tar -x -C site
-          git archive origin/pages-docs-artifact | tar -x -C site
+
+          git archive "origin/$web_ref" | tar -x -C site
+          git archive "origin/$docs_ref" | tar -x -C site
           touch site/.nojekyll
 
           test -s site/index.html
@@ -69,10 +178,10 @@ jobs:
           echo "ready=true" >> "$GITHUB_OUTPUT"
           if [ "$web_sha" = "$previous_web_sha" ] && [ "$docs_sha" = "$previous_docs_sha" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Both component artifact revisions are already deployed; skipping duplicate Pages deployment."
+            echo "Both component revisions are already deployed; skipping duplicate Pages deployment."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Assembled web $web_sha and docs $docs_sha."
+            echo "Assembled web $web_ref ($web_sha) and docs $docs_ref ($docs_sha)."
           fi
 
       - uses: actions/upload-pages-artifact@v5
