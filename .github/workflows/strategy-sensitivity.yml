@@ -14,6 +14,19 @@ on:
       - "data/banks/**"
       - "data/fd_options/**"
       - ".github/workflows/strategy-sensitivity.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/benchmark-fingerprint.js"
+      - "scripts/strategy-sensitivity.js"
+      - "scripts/gaml-sensitivity.js"
+      - "src/core/**"
+      - "src/strategies/**"
+      - "src/fd-options/**"
+      - "src/io/csv.js"
+      - "data/banks/**"
+      - "data/fd_options/**"
+      - ".github/workflows/strategy-sensitivity.yml"
   workflow_dispatch:
 
 concurrency:
@@ -30,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v6
         with:
@@ -58,13 +71,14 @@ jobs:
         if: steps.cache.outputs.stale == 'true'
         run: test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
       - name: Publish refreshed benchmark data to the working branch
-        if: steps.cache.outputs.stale == 'true' && github.ref_type == 'branch' && github.ref_name != 'main'
+        if: steps.cache.outputs.stale == 'true' && github.event.pull_request.head.repo.full_name == github.repository && (github.event_name == 'pull_request' || (github.ref_type == 'branch' && github.ref_name != 'main'))
         run: |
+          branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin "${GITHUB_REF_NAME}"
+          git fetch origin "$branch"
           remote_fingerprint=""
-          if git show "origin/${GITHUB_REF_NAME}:docs/strategies/benchmarks/.input-fingerprint.json" > /tmp/remote-benchmark-fingerprint.json 2>/dev/null; then
+          if git show "origin/$branch:docs/strategies/benchmarks/.input-fingerprint.json" > /tmp/remote-benchmark-fingerprint.json 2>/dev/null; then
             remote_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/remote-benchmark-fingerprint.json', 'utf8')).fingerprint")"
           fi
           local_fingerprint="$(node -p "JSON.parse(require('fs').readFileSync('docs/strategies/benchmarks/.input-fingerprint.json', 'utf8')).fingerprint")"
@@ -78,10 +92,10 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "benchmarks: refresh scoped strategy measurements"
             for attempt in 1 2 3; do
-              git fetch origin "${GITHUB_REF_NAME}"
-              git rebase "origin/${GITHUB_REF_NAME}"
-              if git push origin "HEAD:${GITHUB_REF_NAME}"; then exit 0; fi
-              echo "Branch advanced during publish; retrying after rebase (attempt ${attempt}/3)."
+              git fetch origin "$branch"
+              git rebase "origin/$branch"
+              if git push origin "HEAD:$branch"; then exit 0; fi
+              echo "Branch advanced during publish; retrying after rebase (attempt $attempt/3)."
             done
             exit 1
           fi
