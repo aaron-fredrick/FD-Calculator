@@ -69,3 +69,15 @@ This is a historical one-factor sensitivity baseline, not a universal tuning pre
 ## Diagnostics and compatibility
 
 The public display name is **Absolute R+**, where R denotes the scoped date range. The JSON strategy identifier remains `gaml`, and `gaml_settings`, `gaml` and the historical source module path remain supported for compatibility. The CLI accepts `absolute-r-plus` and the legacy `absolute-plus` alias.
+
+## Runtime boundary
+
+Absolute R+ emits revision-bound session decisions. Its hypothetical search state is not the authoritative simulation ledger. `SimulationRuntime` processes actual events, validates and executes decisions, and constructs the final result.
+
+## Source map
+
+| Concern | Implementation |
+|---|---|
+| Bounded search and frontier controls | `src/strategies/absolute-plus.js`, `src/strategies/search-strategy-base.js` |
+| Authoritative event processing and decision execution | `src/core/simulation-runtime.js` |
+| Sensitivity benchmark runner | `scripts/gaml-sensitivity.js` |
