@@ -121,13 +121,13 @@ The dual-scope implementation was compared against the archived fixed-horizon ba
 - The current run on 5 November 2026 at 21:54 UTC produced the same **all non-timing fields** as the archived run at 09:00 UTC across all 54 Greedy, Absolute R+ and GSS scenario rows. There were zero differences in financial results, fees, booking counts, or other recorded result fields.
 - The 15-point Absolute R+ search-parameter sweep also matched the archived baseline in every non-timing field: net interest, expanded states, beam pruning, local-combination pruning and optimality status were unchanged.
 - Median measured runtimes were 3 ms vs 3 ms for Greedy, 2 ms vs 1 ms for GSS, and 3.40 s vs 5.87 s for Absolute R+ across the 18 scenario points per strategy. The Absolute R+ parameter-sweep median was 3.62 s vs 4.73 s. These are runner-specific samples; they are not used as proof of a speedup. The important compatibility evidence is that the financial outputs and search diagnostics are unchanged.
-- Absolute is not part of the web-strategy sensitivity matrix and has no archived pre-change performance matrix. Its scoped compatibility is covered by the legacy search-parity tests; a dedicated pre-change Absolute timing baseline is unavailable.
+- Absolute R is not part of the web-strategy sensitivity matrix and has no archived pre-change performance matrix. Its scoped compatibility is covered by the legacy search-parity tests; a dedicated pre-change Absolute timing baseline is unavailable.
 
-This is a strong scoped-regression check for the web strategies: goal-specific provenance, ranking and waiting logic do not alter the scoped financial outcomes or Absolute R+ search diagnostics.
+This is a historical scoped-regression check for the web strategies. The active acceptance requirement is to keep the current scoped outputs and diagnostics unchanged.
 
 ## Goal-scope strategy benchmarks
 
-The historical Goal-mode matrix used a different objective from this fixed-horizon study: minimise elapsed time to the first valid consolidation net-interest credit. Goal mode is now disabled pending the Absolute R-only rework. The dedicated goal-mode matrix compares Greedy, Absolute R+ and GSS over 21 one-factor scenario inputs (63 strategy runs). Its six dashboards report elapsed days, credited interest, computation time, transfer fees, credited interest per day and target attainment.
+The historical Goal-mode matrix used a different objective from this fixed-horizon study: minimise elapsed time to the first valid consolidation net-interest credit. Goal mode is now disabled pending the Absolute R-only rework. The archived 21-input / 63-run matrix and its dashboards are retained only as historical development evidence; they are not a current comparison of supported strategies.
 
 See the [goal-based simulation methodology and interpretation](./goal-achievement.md) for the scenario definitions, accounting contract, limitations and raw data.
 
@@ -161,7 +161,7 @@ Raw measurements: [goal-mode benchmark results](./assets/goal-achievement/result
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.
 - The workflow archives the raw output as a GitHub Actions artifact.
-- Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget. Its results are approximate.
-- Absolute is CLI-only and exhaustive; it is not included in this web-strategy comparison.
+- Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget in this archived experiment. Its results are approximate.
+- Absolute R is CLI-only and exhaustive; it is not included in this web-strategy comparison.
 - No outflows, early-termination penalties, liquidity preference, or rate changes during the forecast are modelled.
 - Published bank rates are a dated data snapshot, not guaranteed live offers. Confirm minimum balances, account eligibility, payout conditions and current tariffs with each bank before investing.
