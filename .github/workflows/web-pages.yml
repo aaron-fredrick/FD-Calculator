@@ -1,0 +1,92 @@
+name: Build and publish FD Cal web component
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/web/**"
+      - "src/brand/**"
+      - "src/core/**"
+      - "src/fd-options/**"
+      - "src/strategies/**"
+      - "src/io/csv.js"
+      - "src/reporting/**"
+      - "schema/**"
+      - "data/**"
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "robots.txt"
+      - "scripts/build-web-site.sh"
+      - ".github/workflows/web-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+      - name: Build the web component only
+        run: bash scripts/build-web-site.sh /tmp/web-site
+      - uses: actions/upload-artifact@v6
+        with:
+          name: web-site
+          path: /tmp/web-site
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-artifact-web
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/download-artifact@v6
+        with:
+          name: web-site
+          path: /tmp/web-site
+      - name: Publish the web component without touching documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="pages-web-artifact"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            git checkout -B "$branch" "refs/remotes/origin/$branch"
+          else
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          git clean -fd
+          cp -R /tmp/web-site/. .
+          touch .nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The web artifact branch already contains this component."
+          else
+            git commit -m "pages: publish web component from ${GITHUB_SHA}"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+
+  deploy:
+    needs: publish
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
