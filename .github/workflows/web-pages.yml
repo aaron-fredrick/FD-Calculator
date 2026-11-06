@@ -107,4 +107,4 @@ jobs:
       contents: write
       pages: write
       id-token: write
-      deployments: read
+      deployments: write
