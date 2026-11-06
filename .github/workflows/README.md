@@ -1,18 +1,29 @@
 # GitHub Actions workflow map
 
-The workflows are separated by responsibility. The browser application and documentation have independent build and publication pipelines. Documentation owns its benchmark readiness check and, when necessary, benchmark generation.
+The browser application and documentation have independent build and publication pipelines. The documentation workflow owns the benchmark data required by its pages. Benchmark results are generated inside each workflow run, passed to the docs build as short-lived workflow artifacts, and are not committed to the repository or published through data branches/PRs.
 
 | Workflow | Trigger | Responsibility |
 |---|---|---|
 | `tests.yml` | Push/PR to `main` | Install locked Node.js dependencies, run the complete test suite and syntax-check source, scripts and tests. |
 | `docs.yml` | Documentation pull requests | Build VitePress and verify generated documentation layout before merge. |
 | `web-pages.yml` | Relevant web/runtime/data pushes to `main`, or manual dispatch | Build only the browser application and publish its independent Pages artifact. It does not wait for benchmark generation. |
-| `docs-pages.yml` | Documentation, benchmark-input or benchmark-result changes on `main`, or manual dispatch | Check the benchmark fingerprint and dataset completeness; run Scoped Range and Absolute R+ benchmarks only when required; build and publish docs only after data validation. |
+| `docs-pages.yml` | Every push to `main`, or manual dispatch | Run the Scoped Range and Absolute R+ page benchmarks independently, validate both datasets, build the docs with those run-local results, and publish the docs component. |
 | `pages.yml` | Called by the web or docs producer | Assemble the latest web and docs component artifacts and deploy the complete GitHub Pages site. It has no push or workflow_run trigger. |
 | `strategy-sensitivity.yml` | Relevant source/data/script pushes to feature or chore branches, relevant PRs to `main`, or manual dispatch | Run Scoped Range strategy and Absolute R+ parameter benchmarks for development and PR validation on non-main refs. Main-branch benchmark ownership belongs to `docs-pages.yml`. |
 | `goal-achievement-sensitivity.yml` | Relevant source/data/script pushes to feature or chore branches, or manual dispatch | Run the separate Goal development benchmark suite. |
 | `codeql.yml` | Push/PR to `main`, weekly schedule, or manual dispatch | Run extended CodeQL analysis. |
 | `dependency-review.yml` | Pull requests to `main` | Reject dependency changes with high-severity vulnerabilities. |
+
+## Page-specific benchmark execution
+
+Every push to `main` starts two independent benchmark jobs:
+
+1. **Scoped Range page** — runs `scripts/strategy-sensitivity.js`, validates 324 observations across 108 scenarios, and uploads `results.json) as a one-day workflow artifact.
+2. **Absolute R+ page** — runs `scripts/gaml-sensitivity.js`, validates all 15 parameter observations, and uploads `gaml-search-results.json` as a one-day workflow artifact.
+
+The docs build waits for both jobs, downloads those exact run artifacts into `docs/strategies/benchmarks/`, runs the combined dataset validator, and builds VitePress. The generated JSON is present in the build workspace and in the resulting static documentation output, but it is not committed back to `main`, pushed to a timestamped data branch, or used to create a data PR. Each push gets its own workflow run and its own generated datasets; the build cannot accidentally consume data from a different run.
+
+A failed benchmark, validation or docs build does not publish a new docs component. The existing deployed docs artifact remains available.
 
 ## Component publication
 
@@ -23,26 +34,20 @@ The workflows are separated by responsibility. The browser application and docum
 - If neither an actual artifact nor a safe baseline exists for a component, the assembler skips deployment and leaves the current live site untouched.
 - Artifact branch pushes use the workflow token and are followed by an explicit reusable-workflow call. The design does not depend on a GITHUB_TOKEN push triggering another workflow.
 
-## Benchmark ownership and reuse
+## Trigger and concurrency rules
 
-The documentation producer owns main-branch Scoped Range benchmark readiness:
-
-1. It calculates the input fingerprint and checks for an already-open `data-...` PR carrying that same fingerprint; if one exists, it waits for normal merge instead of starting duplicate simulations.
-2. It validates the published dataset structure and scenario coverage. If both the fingerprint and dataset are current, it skips simulations and builds docs from the committed JSON.
-3. If inputs differ or the dataset is incomplete, it runs the Scoped Range matrix and Absolute R+ parameter sensitivity, validates the results, and updates the fingerprint. Before publishing, it rechecks main; if a complete dataset for the same fingerprint has already landed, it reuses that data instead of overwriting it.
-4. Generated data is published through a timestamped `data-YYYY-MM-DD-HH-MM-SS-LKT` branch and PR. The workflow requests a normal merge and verifies that the PR actually merged before building documentation; it never bypasses repository rules.
-5. If repository policy requires approval or checks that a token-created PR cannot start automatically, the workflow stops and leaves the PR for normal review. The docs artifact branch is not updated, so the previously deployed docs remain live. After a manual merge, the data-only docs path rebuilds without rerunning simulations.
-
-A data-only benchmark PR merge rebuilds docs without rerunning simulations. When the docs workflow itself creates and merges the data PR, it explicitly dispatches one docs-only workflow run because GITHUB_TOKEN pushes do not trigger a second push workflow. A data PR merged manually triggers the normal docs push path. In either case, the fingerprint and completeness checks pass, so simulations are skipped. The merge does not trigger the web producer or a second main-branch benchmark.
-
-Feature/chore branches and PRs retain the standalone `strategy-sensitivity.yml` workflow for development validation. Goal development benchmarks remain separate.
+- The docs benchmark workflow runs on every main push. The Scoped Range and Absolute R+ jobs are separate and can execute independently; the docs build requires both to succeed.
+- The web producer watches only web/runtime dependencies. It does not run for docs-only benchmark output changes.
+- Docs benchmark JSON is transient run output. There is no automated data PR, data branch, main-branch JSON commit, or second docs dispatch after a data merge.
+- Feature/chore branches and PRs retain the standalone `strategy-sensitivity.yml` workflow for development validation. Goal development benchmarks remain separate.
+- Component publishers have separate concurrency groups. Pages deployments share a non-cancelling concurrency group and always assemble the latest heads of both component branches.
+- A stale docs build is prevented from replacing a newer docs component when documentation or benchmark inputs change before publication.
 
 ## Change routing
 
 Keep path filters aligned with actual runtime dependencies:
 
 - Web UI, shared simulation code, strategies, schemas and bank/product data rebuild the web component.
-- Documentation sources and benchmark result files rebuild the docs component.
-- Simulation engine, strategy, FD-option, bank/product data and benchmark runner changes also invalidate the Scoped Range fingerprint; the docs producer runs the benchmark before publishing updated docs.
-- Benchmark result JSON is not a web dependency.
-- Documentation-only edits and chart presentation changes do not invalidate financial simulations when the committed benchmark fingerprint and dataset remain valid.
+- Every push to main runs the docs benchmark workflow, so a relevant source or data change is measured by both page-specific benchmark jobs before docs publication.
+- Benchmark result JSON is generated in the workflow workspace and is not a source dependency for the web producer.
+- Documentation-only edits also receive fresh page benchmark data on the next main push, as requested.
