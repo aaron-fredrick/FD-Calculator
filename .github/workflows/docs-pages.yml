@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   scoped-range-benchmark:
+    if: github.ref == 'refs/heads/main'
     name: Scoped Range page benchmark
     runs-on: ubuntu-latest
     timeout-minutes: 150
@@ -65,6 +66,7 @@ jobs:
           retention-days: 1
 
   absolute-r-plus-benchmark:
+    if: github.ref == 'refs/heads/main'
     name: Absolute R+ page benchmark
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -114,6 +116,7 @@ jobs:
           retention-days: 1
 
   build:
+    if: github.ref == 'refs/heads/main'
     name: Build docs using this run's benchmark data
     needs: [scoped-range-benchmark, absolute-r-plus-benchmark]
     runs-on: ubuntu-latest
@@ -154,8 +157,8 @@ jobs:
           retention-days: 1
 
   publish:
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success'
     needs: build
-    if: needs.build.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -178,8 +181,9 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          if ! git diff --quiet "$SOURCE_SHA" origin/main -- docs scripts/strategy-sensitivity.js scripts/gaml-sensitivity.js scripts/validate-scoped-benchmark-data.js scripts/build-docs-site.sh src/core src/strategies src/fd-options src/io/csv.js src/brand/favicon.svg data/banks data/fd_options; then
-            echo "::notice::Documentation or benchmark inputs changed after this artifact was built; a newer docs run owns publication."
+          latest_main_sha="$(git rev-parse origin/main)"
+          if [ "$SOURCE_SHA" != "$latest_main_sha" ]; then
+            echo "::notice::main advanced from $SOURCE_SHA to $latest_main_sha while benchmarks were running; this run will not replace a newer docs artifact."
             exit 0
           fi
           branch="pages-docs-artifact"
