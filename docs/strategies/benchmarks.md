@@ -86,6 +86,16 @@ The outflow scenarios are not scored on net interest alone. The metric selector 
 
 <BenchmarkChart :rows="benchmarkResults.results" category="outflow_pattern" x-label="Outflow scenario" />
 
+### Liquidity stress result
+
+The strict-outflow runs expose a material feasibility difference:
+
+- **GSS** paid the full LKR 50,000 single obligation and all three LKR 20,000 staggered obligations from the designated account; both runs remained valid.
+- **Greedy** failed the first strict obligation in both schedules and paid LKR 0 before the run became invalid.
+- **Absolute R+** returned no feasible path under the benchmark search settings (96 beam width, 48 local branches, 5,000 expanded-state cap).
+
+This does **not** prove that no valid Absolute R+ path exists: GSS found one under the same financial inputs. It indicates a search-feasibility gap under the current Absolute R+ limits and should be investigated separately. Invalid results are not included in the difference-vs-Greedy comparison.
+
 ## Capital and horizon interaction
 
 The one-factor sweeps above do not reveal whether a strategy responds differently to larger capital at longer horizons. The additional 3 × 3 interaction matrix runs nine combined capital/horizon scenarios for every strategy. Select a strategy and metric, then inspect individual cells for exact runtime and booking counts.
