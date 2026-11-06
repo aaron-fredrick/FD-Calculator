@@ -17,7 +17,7 @@ const collect = directory => {
 const files = [
   ...collect("src/core"), ...collect("src/strategies"), ...collect("src/fd-options"),
   ...collect("data/banks"), ...collect("data/fd_options"),
-  "src/io/csv.js", "scripts/goal-achievement-sensitivity.js"
+  "src/io/csv.js", "scripts/goal-benchmark-fingerprint.js", "scripts/goal-achievement-sensitivity.js"
 ].sort();
 const hash = createHash("sha256");
 for (const path of files) {
