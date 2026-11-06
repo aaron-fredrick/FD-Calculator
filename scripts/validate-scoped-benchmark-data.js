@@ -71,6 +71,15 @@ assert.deepEqual(searchResults.baseline, {
   max_local_branches: 48,
   max_decisions: 5000
 });
+assert.equal(searchResults.start_date, "2026-11-05");
+assert.equal(searchResults.scenario.horizon_months, 24);
+assert.equal(searchResults.scenario.capital_lkr, 300000);
+assert.equal(searchResults.scenario.accounts, 3);
+assert.deepEqual(searchResults.scenario.banks, [
+  "LK_DFCC_BANK",
+  "LK_COMMERCIAL_BANK_OF_CEYLON",
+  "LK_NATIONAL_DEVELOPMENT_BANK"
+]);
 const searchSweeps = {
   beam_width: [32, 64, 96, 192, 256],
   local_branch_limit: [16, 32, 48, 96, 128],
@@ -90,6 +99,21 @@ for (const row of searchResults.results) {
     assert.ok(Number.isFinite(row[field]), "Absolute R+ result field " + field + " must be finite.");
   }
   assert.equal(typeof row.optimality_proven, "boolean");
+  if (row.sweep === "beam_width") {
+    assert.equal(row.beam_width, row.value);
+    assert.equal(row.max_local_branches, 48);
+    assert.equal(row.max_decisions, 5000);
+  } else if (row.sweep === "local_branch_limit") {
+    assert.equal(row.beam_width, 96);
+    assert.equal(row.max_local_branches, row.value);
+    assert.equal(row.max_decisions, 5000);
+  } else if (row.sweep === "decision_cap") {
+    assert.equal(row.beam_width, 96);
+    assert.equal(row.max_local_branches, 48);
+    assert.equal(row.max_decisions, row.value);
+  } else {
+    assert.fail("Unexpected Absolute R+ sweep: " + row.sweep);
+  }
 }
 
 console.log("Validated 324 strategy observations, 108 scenarios, 0–60m horizon, four 2-year cash-flow sweeps, and 15 Absolute R+ parameter observations.");
