@@ -4,6 +4,7 @@ import { formatISODate, parseISODate, daysBetween } from "../core/dates.js";
 import { processOutflows, validateOutflowSchedule } from "../core/cashflows.js";
 import { GreedyStrategy } from "./greedy.js";
 import { SimulationEngine } from "../core/simulation.js";
+import { BalanceProvenance } from "../core/balance-provenance.js";
 import {
   createStrategyDecision, createStrategyWait, createStrategyComplete,
   StrategyDecisionType
@@ -34,6 +35,15 @@ function stateKey(state) {
   return JSON.stringify([
     state.date, state.balances, state.flows, state.obligations, state.paid
   ]);
+}
+
+/**
+ * Scoped optimisation may discard products dominated on identical payout
+ * mechanics. Goal search keeps the complete catalogue: a longer product can
+ * still be the only single payout large enough to cross a particular target.
+ */
+export function selectSearchOptions(options, simulation = { mode: "scoped" }) {
+  return simulation?.mode === "goal" ? [...options] : pruneDominatedOptions(options);
 }
 
 function makeNode(parent, action, date, rootSignature = null) {
@@ -160,6 +170,15 @@ function goalPathSignature(path) {
   ]));
 }
 
+/**
+ * Scalar balances and aggregate cash flows are insufficient to prove two goal
+ * search paths equivalent: their interest/principal provenance can differ.
+ * Keep distinct action histories separate in goal-mode beam deduplication.
+ */
+export function goalSearchStateKey(state, path = []) {
+  return JSON.stringify([stateKey(state), goalPathSignature(path)]);
+}
+
 export function evaluateGoalPath(path, engineContext, terminalValue, runtimeSettings) {
   const signature = goalPathSignature(path);
   try {
@@ -176,7 +195,8 @@ export function evaluateGoalPath(path, engineContext, terminalValue, runtimeSett
     return {
       achieved: false, elapsed_days: Infinity, actual: -Infinity,
       fees: Infinity, operations: Infinity, terminal_value: -Infinity,
-      signature, invalid_candidate: true, invalid_reason: String(error?.message ?? error)
+      signature, invalid_candidate: true, invalid_reason: String(error?.message ?? error),
+      invalid_stack: String(error?.stack ?? "")
     };
   }
 }
@@ -208,9 +228,54 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       !candidate.is_efd && candidate.economic_terms_key === option.economic_terms_key
     ) ? 1 : 0);
   }, 0);
+  const goalOptionScores = new Map();
+  const goalOptionScore = (id, option) => {
+    const key = id + "|" + option.economic_terms_key;
+    if (goalOptionScores.has(key)) return goalOptionScores.get(key);
+    const amount = balances.get(id);
+    const ledger = settings.goalProvenance.clone();
+    const booked = ledger.debit(id, amount);
+    const flows = option.generateCashFlowComponentsAfterAIT(
+      amount, today, settings.aitRate, settings.compound, settings.actualLeapYear
+    ).map(flow => {
+      const returned = ledger.allocateBookedPrincipal(booked, flow.principal, amount);
+      return {
+        date: formatISODate(flow.date),
+        amount: returned.uncredited_interest + flow.interest
+      };
+    }).filter(flow => flow.amount > EPS);
+    const existing = (settings.goalFlows ?? []).map(([date, accountId, components]) => ({
+      date, accountId,
+      amount: Number(components?.principal_components?.uncredited_interest || 0) +
+        Number(components?.interest || 0)
+    })).filter(flow => flow.amount > EPS);
+    const direct = id === settings.consolidationId;
+    const directSchedule = [
+      ...existing.filter(flow => flow.accountId === settings.consolidationId),
+      ...(direct ? flows : [])
+    ].sort((a, b) => a.date.localeCompare(b.date));
+    let credited = settings.goalProvenance.creditedNetInterest;
+    for (const flow of directSchedule) {
+      credited = round2(credited + flow.amount);
+      if (credited + EPS >= settings.goalTarget) {
+        const days = daysBetween(today, parseISODate(flow.date));
+        const score = 1e12 - days * 1e6 + credited;
+        goalOptionScores.set(key, score);
+        return score;
+      }
+    }
+    const firstDate = flows[0]?.date ?? formatISODate(today);
+    const days = daysBetween(today, parseISODate(firstDate));
+    const interest = sum(flows.map(flow => flow.amount));
+    const score = (direct ? 1e10 : 1e9) - days * 1e4 + interest;
+    goalOptionScores.set(key, score);
+    return score;
+  };
   const profitFor = choices => sum(choices.filter(([, option]) => option).map(([id, option]) =>
-    option.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) *
-    (1 - settings.aitRate)
+    settings.goalMode
+      ? goalOptionScore(id, option)
+      : option.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) *
+        (1 - settings.aitRate)
   ));
   const branches = [];
   let pruned = 0;
@@ -233,8 +298,10 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       const accountOptions = slots[index].slice(1);
       const standardTerms = new Set(accountOptions.filter(option => !option.is_efd).map(option => option.economic_terms_key));
       const choices = accountOptions.sort((a, b) => {
-        const profit = b.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) -
-          a.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear);
+        const profit = settings.goalMode
+          ? goalOptionScore(id, b) - goalOptionScore(id, a)
+          : b.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) -
+            a.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear);
         if (Math.abs(profit) > 1e-9) return profit;
         return Number(b.is_efd && standardTerms.has(b.economic_terms_key)) -
           Number(a.is_efd && standardTerms.has(a.economic_terms_key));
@@ -243,7 +310,9 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
         expanded.push({ score: partial.score, choices: [...partial.choices, [id, null]] });
         for (const option of choices) {
           expanded.push({
-            score: partial.score + option.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) * (1 - settings.aitRate),
+            score: partial.score + (settings.goalMode
+              ? goalOptionScore(id, option)
+              : option.totalInterestOn(balances.get(id), today, settings.compound, settings.actualLeapYear) * (1 - settings.aitRate)),
             choices: [...partial.choices, [id, option]]
           });
         }
@@ -283,7 +352,10 @@ function buildConsolidationBranches(balances, accounts, context, feeConfig, toda
     for (const option of context.fdOptionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: settings.endDate })) {
       const score = option.totalInterestOn(deployable, today, settings.compound, settings.actualLeapYear) *
         (1 - settings.aitRate) - fees;
-      if (score <= 0) continue;
+      // A negative portfolio-return delta is not proof that a transfer path
+      // cannot contribute positive credited interest after provenance-based
+      // fee allocation. Keep every financially executable goal candidate.
+      if (score <= 0 && context.simulation?.mode !== "goal") continue;
       branches.push({
         score, efd: option.is_efd && (optionsByAccount.get(targetId) || []).some(candidate =>
           !candidate.is_efd && candidate.economic_terms_key === option.economic_terms_key
@@ -298,11 +370,14 @@ function buildConsolidationBranches(balances, accounts, context, feeConfig, toda
 
 function advanceState(state, context) {
   const { inflows, outflows } = context;
+  const goalMode = context.simulation?.mode === "goal";
+  const goalProvenance = goalMode ? state.goalProvenance.clone() : null;
   let balances = state.balances;
   const todayInflows = inflows[state.date] || {};
   for (const [accountId, amount] of Object.entries(todayInflows)) {
     if (!context.accounts.has(accountId)) throw new RangeError("Inflow destination account " + accountId + " is not configured.");
     balances = addSearchBalance(balances, accountId, amount);
+    goalProvenance?.addPrincipal(accountId, amount);
   }
 
   const pending = [];
@@ -313,12 +388,39 @@ function advanceState(state, context) {
     } else pending.push([date, entries]);
   }
 
+  const pendingGoalFlows = [];
+  for (const [date, accountId, components] of state.goalFlows ?? []) {
+    if (date < state.date) continue;
+    if (date === state.date) {
+      goalProvenance?.addCashFlow(
+        accountId, components.principal_components ?? {}, components.interest ?? 0
+      );
+    } else pendingGoalFlows.push([date, accountId, components]);
+  }
+  goalProvenance?.recognizeConsolidationCredit(context.consolidationId);
+
+  const beforeOutflows = goalMode ? new Map(balances) : null;
   const processed = processOutflows(state.date, balances, state.obligations, outflows[state.date] || []);
   if (!processed.valid) return null;
+  if (goalProvenance) {
+    const afterOutflows = new Map(processed.balances);
+    for (const [accountId, before] of beforeOutflows) {
+      const paid = round2(before - (afterOutflows.get(accountId) || 0));
+      if (paid > EPS) goalProvenance.debit(accountId, paid);
+    }
+    for (const [accountId, balance] of afterOutflows) {
+      if (Math.abs(round2(balance) - goalProvenance.total(accountId)) > 0.02) {
+        throw new Error("Goal search provenance does not reconcile for account " + accountId + ".");
+      }
+    }
+  }
   return {
     ...state,
     balances: processed.balances,
     flows: pending,
+    goalFlows: pendingGoalFlows,
+    goalProvenance: goalProvenance ?? state.goalProvenance,
+    goalPriorityHint: null,
     obligations: processed.pending,
     paid: round2(state.paid + processed.paid),
   };
@@ -396,6 +498,113 @@ function makePriority(state, context) {
   return estimate + 0.05 * Math.max(0, upper - estimate);
 }
 
+function estimateGoalOpportunity(state, context) {
+  const goal = context.simulation?.goal;
+  if (!goal || !state.goalProvenance) return null;
+  const targetId = context.consolidationId;
+  const targetAccount = context.accounts.get(targetId);
+  const ledger = state.goalProvenance.clone();
+  const balances = mapOf(state.balances);
+  for (const [sourceId, amount] of state.balances) {
+    if (sourceId === targetId || amount <= EPS) continue;
+    const source = context.accounts.get(sourceId);
+    const fee = context.feeConfig.getFee(source.bank_identity, targetAccount.bank_identity);
+    if (amount <= fee) continue;
+    ledger.transfer(sourceId, targetId, amount, fee);
+    balances.set(sourceId, 0);
+    balances.set(targetId, round2((balances.get(targetId) || 0) + amount - fee));
+  }
+  ledger.recognizeConsolidationCredit(targetId);
+  if (ledger.creditedNetInterest + EPS >= goal.target) return state.date;
+
+  const existingCredits = (state.goalFlows ?? [])
+    .filter(([, accountId]) => accountId === targetId)
+    .map(([date, , components]) => ({
+      date,
+      amount: Number(components?.principal_components?.uncredited_interest || 0) +
+        Number(components?.interest || 0)
+    })).filter(item => item.amount > EPS);
+  const principal = balances.get(targetId) || 0;
+  const options = context.fdOptionManager.getEligibleOptions({
+    account: targetAccount, amount: principal,
+    investmentDate: parseISODate(state.date), simulationEndDate: context.endDate
+  });
+  let bestDate = null;
+  const evaluate = additions => {
+    let actual = ledger.creditedNetInterest;
+    for (const flow of [...existingCredits, ...additions].sort((a, b) => a.date.localeCompare(b.date))) {
+      actual = round2(actual + flow.amount);
+      if (actual + EPS >= goal.target) return flow.date;
+    }
+    return null;
+  };
+  bestDate = evaluate([]);
+  for (const option of options) {
+    const trial = ledger.clone();
+    const booked = trial.debit(targetId, principal);
+    const additions = option.generateCashFlowComponentsAfterAIT(
+      principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear
+    ).map(flow => {
+      const returned = trial.allocateBookedPrincipal(booked, flow.principal, principal);
+      return {
+        date: formatISODate(flow.date),
+        amount: returned.uncredited_interest + flow.interest
+      };
+    }).filter(item => item.amount > EPS);
+    const date = evaluate(additions);
+    if (date && (!bestDate || date < bestDate)) bestDate = date;
+  }
+  return bestDate;
+}
+
+function makeGoalPriority(state, context) {
+  const goal = context.simulation?.goal;
+  const provenance = state.goalProvenance;
+  if (!goal || !provenance) return -Infinity;
+  const target = Number(goal.target);
+  const credited = provenance.creditedNetInterest;
+  if (credited + EPS >= target) {
+    const days = daysBetween(parseISODate(context.start), parseISODate(state.date));
+    return 1e15 - days * 1e9 + credited;
+  }
+  const pending = (state.goalFlows ?? []).map(([date, accountId, components]) => ({
+    date, accountId,
+    interest: Number(components?.principal_components?.uncredited_interest || 0) +
+      Number(components?.interest || 0)
+  })).filter(item => item.interest > EPS);
+  const direct = pending.filter(item => item.accountId === context.consolidationId)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  let running = credited;
+  let directAchievementDate = null;
+  for (const flow of direct) {
+    running = round2(running + flow.interest);
+    if (running + EPS >= target) {
+      directAchievementDate = flow.date;
+      break;
+    }
+  }
+  if (state.goalPriorityHint &&
+      (!directAchievementDate || state.goalPriorityHint < directAchievementDate)) {
+    const days = daysBetween(parseISODate(context.start), parseISODate(state.goalPriorityHint));
+    return 1e14 - days * 1e9 + 5e8;
+  }
+  if (directAchievementDate) {
+    const days = daysBetween(parseISODate(context.start), parseISODate(directAchievementDate));
+    return 1e14 - days * 1e9 + running;
+  }
+
+  const liquidUncredited = sum([...provenance.accounts.values()].map(item => item.uncredited_interest));
+  const pendingPotential = sum(pending.map(item => item.interest));
+  const potential = credited + liquidUncredited + pendingPotential;
+  const earliestPotentialDate = liquidUncredited > EPS
+    ? state.date
+    : pending.reduce((earliest, item) => !earliest || item.date < earliest ? item.date : earliest, null) ?? state.date;
+  const days = daysBetween(parseISODate(context.start), parseISODate(earliestPotentialDate));
+  if (potential + EPS >= target) return 1e12 - days * 1e6 + potential;
+  const elapsed = daysBetween(parseISODate(context.start), parseISODate(state.date));
+  return 1e9 * Math.min(1, potential / target) + credited * 100 - elapsed * 1e4;
+}
+
 function createContext({ options, start, end, simulation, inflow_schedule, accounts, inflow_account_id, fee_config, consolidation_account_id, outflow_schedule }, strategy) {
   const startDate = parseISODate(start), endDate = parseISODate(end);
   if (!Array.isArray(options) || !options.length) throw new TypeError(strategy.name + " simulation requires FD options.");
@@ -415,7 +624,7 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
   const inflows = normalizeInflowSchedule(inflow_schedule, inflow_account_id);
   const outflows = outflow_schedule || {};
   validateOutflowSchedule(outflows, formatISODate(startDate), formatISODate(endDate), new Set(accountMap.keys()));
-  const effectiveOptions = pruneDominatedOptions(options);
+  const effectiveOptions = selectSearchOptions(options, simulation);
   const fdOptionManager = new FDOptionManager(effectiveOptions);
   const optionsByAccount = new Map();
   for (const [id, account] of accountMap) {
@@ -465,18 +674,38 @@ function expandState(rawState, context, settings, mode, counters) {
 
   const balances = new Map(state.balances);
   const children = [];
-  const pushAction = (date, nextBalances, nextFlows, action, rootSignature = null) => {
+  const pushAction = (
+    date, nextBalances, nextFlows, action, rootSignature = null,
+    nextGoalProvenance = state.goalProvenance, nextGoalFlows = state.goalFlows ?? [],
+    goalPriorityHint = null
+  ) => {
     children.push({
-      state: { date, balances: nextBalances, flows: nextFlows, obligations: state.obligations, paid: state.paid },
+      state: {
+        date, balances: nextBalances, flows: nextFlows,
+        goalProvenance: nextGoalProvenance, goalFlows: nextGoalFlows,
+        goalPriorityHint, obligations: state.obligations, paid: state.paid
+      },
       date: state.date, action, root_signature: rootSignature
     });
   };
 
   let waitFirst = false;
+  let waitGoalDate = null;
   if (mode === "gaml") {
     const futureInflows = Object.keys(context.inflows).filter(date => date > state.date).sort();
     const nextInflow = futureInflows[0];
-    if (nextInflow && daysBetween(parseISODate(state.date), parseISODate(nextInflow)) <= 30) {
+    if (goalMode) {
+      if (nextInflow && nextInflow === nextDate &&
+          daysBetween(parseISODate(state.date), parseISODate(nextInflow)) <= 30) {
+        const projected = advanceState({ ...state, date: nextInflow }, context);
+        if (projected) {
+          const currentGoalDate = estimateGoalOpportunity(state, context);
+          const futureGoalDate = estimateGoalOpportunity(projected, context);
+          waitFirst = Boolean(futureGoalDate && (!currentGoalDate || futureGoalDate < currentGoalDate));
+          if (waitFirst) waitGoalDate = futureGoalDate;
+        }
+      }
+    } else if (nextInflow && daysBetween(parseISODate(state.date), parseISODate(nextInflow)) <= 30) {
       const projected = new Map(balances);
       for (const [id, amount] of Object.entries(context.inflows[nextInflow] || {})) projected.set(id, round2((projected.get(id) || 0) + amount));
       const bestRate = map => {
@@ -512,7 +741,8 @@ function expandState(rawState, context, settings, mode, counters) {
   }
   if (waitFirst && (mode !== "gaml" || settings.maxDecisions == null || counters.expanded < settings.maxDecisions)) {
     const action = { type: "carry", carries: activeIds };
-    pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
+    pushAction(nextDate, state.balances, state.flows, action, ["carry"],
+      state.goalProvenance, state.goalFlows ?? [], waitGoalDate);
   }
 
   const consolidation = buildConsolidationBranches(state.balances, context.accounts, context, context.feeConfig, parseISODate(state.date), {
@@ -525,18 +755,49 @@ function expandState(rawState, context, settings, mode, counters) {
     nextBalances = setSearchBalance(nextBalances, branch.target_id, 0);
     const flows = branch.option.generateCashFlowsAfterAIT(branch.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear)
       .map(flow => [formatISODate(flow.date), branch.target_id, flow.amount]);
+    let nextGoalProvenance = state.goalProvenance;
+    let nextGoalFlows = state.goalFlows ?? [];
+    if (nextGoalProvenance) {
+      nextGoalProvenance = nextGoalProvenance.clone();
+      for (const transfer of branch.transfers) {
+        nextGoalProvenance.transfer(transfer.src_id, transfer.tgt_id, transfer.amount, transfer.fee);
+        if (transfer.tgt_id === context.consolidationId) {
+          nextGoalProvenance.recognizeConsolidationCredit(context.consolidationId);
+        }
+      }
+      const bookedComponents = nextGoalProvenance.debit(branch.target_id, branch.principal);
+      const componentFlows = branch.option.generateCashFlowComponentsAfterAIT(
+        branch.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear
+      );
+      nextGoalFlows = [...nextGoalFlows];
+      for (const flow of componentFlows) {
+        const principalComponents = nextGoalProvenance.allocateBookedPrincipal(
+          bookedComponents, flow.principal, branch.principal
+        );
+        nextGoalFlows.push([formatISODate(flow.date), branch.target_id, {
+          principal_components: principalComponents, interest: flow.interest
+        }]);
+      }
+      nextGoalProvenance.recognizeConsolidationCredit(context.consolidationId);
+    }
     const action = {
       type: "consolidate", target_id: branch.target_id, option: branch.option,
       transfers: branch.transfers, principal: branch.principal, carries: branch.carries
     };
     const root = ["consolidate", branch.target_id, branch.option.label, branch.option.payout_type, branch.option.payout_period_str];
     const merged = mergePendingFlows(state.flows, flows);
-    pushAction(nextEventDate(state.date, merged, context.inflows, context.outflows, context.end), nextBalances, merged, action, root);
+    pushAction(
+      nextEventDate(state.date, merged, context.inflows, context.outflows, context.end),
+      nextBalances, merged, action, root, nextGoalProvenance, nextGoalFlows
+    );
   }
 
   const local = allLocalCombinations(activeIds, context, balances, parseISODate(state.date), {
     endDate: context.endDate, compound: context.compound, actualLeapYear: context.actualLeapYear,
-    aitRate: context.aitRate, maxLocalBranches: mode === "gaml" ? settings.maxLocalBranches : null
+    aitRate: context.aitRate, maxLocalBranches: mode === "gaml" ? settings.maxLocalBranches : null,
+    goalMode, goalTarget: context.simulation?.goal?.target,
+    goalProvenance: state.goalProvenance, goalFlows: state.goalFlows,
+    consolidationId: context.consolidationId
   });
   counters.localPruned += local.pruned;
   for (const branch of local.branches) {
@@ -548,18 +809,44 @@ function expandState(rawState, context, settings, mode, counters) {
     const carries = activeIds.filter(id => !bookedIds.has(id));
     let nextBalances = state.balances;
     const additions = [];
+    let nextGoalProvenance = state.goalProvenance;
+    let nextGoalFlows = state.goalFlows ?? [];
+    if (nextGoalProvenance) {
+      nextGoalProvenance = nextGoalProvenance.clone();
+      nextGoalFlows = [...nextGoalFlows];
+    }
     for (const booking of bookings) {
       nextBalances = setSearchBalance(nextBalances, booking.account_id, 0);
-      for (const flow of booking.option.generateCashFlowsAfterAIT(booking.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear)) {
-        additions.push([formatISODate(flow.date), booking.account_id, flow.amount]);
+      if (nextGoalProvenance) {
+        const bookedComponents = nextGoalProvenance.debit(booking.account_id, booking.principal);
+        const componentFlows = booking.option.generateCashFlowComponentsAfterAIT(
+          booking.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear
+        );
+        for (const flow of componentFlows) {
+          additions.push([formatISODate(flow.date), booking.account_id, flow.amount]);
+          const principalComponents = nextGoalProvenance.allocateBookedPrincipal(
+            bookedComponents, flow.principal, booking.principal
+          );
+          nextGoalFlows.push([formatISODate(flow.date), booking.account_id, {
+            principal_components: principalComponents, interest: flow.interest
+          }]);
+        }
+      } else {
+        for (const flow of booking.option.generateCashFlowsAfterAIT(
+          booking.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear
+        )) additions.push([formatISODate(flow.date), booking.account_id, flow.amount]);
       }
     }
+    nextGoalProvenance?.recognizeConsolidationCredit(context.consolidationId);
     const merged = mergePendingFlows(state.flows, additions);
     const action = { type: "local", bookings, carries };
     const root = ["local", bookings.map(item => [
       item.account_id, item.option.label, item.option.payout_type, item.option.payout_period_str
     ]).sort((a, b) => a[0].localeCompare(b[0]))];
-    pushAction(nextEventDate(state.date, merged, context.inflows, context.outflows, context.end), nextBalances, merged, action, root);
+    pushAction(
+      nextEventDate(state.date, merged, context.inflows, context.outflows, context.end),
+      nextBalances, merged, action, root, nextGoalProvenance, nextGoalFlows
+    );
   }
 
   if ((!waitFirst || mode !== "gaml") &&
@@ -617,13 +904,21 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
     }
   }
   visit(initial);
-  return { bestNode, bestGoalScore, goalPrunedByAchievement, optimalityProven: true };
+  const optimalityProven = evaluateGoal
+    ? counters.localPruned === 0 && counters.boundPruned === 0 && counters.memoPruned === 0
+    : true;
+  return { bestNode, bestGoalScore, goalPrunedByAchievement, optimalityProven };
 }
 
 function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
   let bestNode = null, bestGoalScore = initialGoalScore, sequence = 0;
   let goalPrunedByAchievement = 0;
-  let beam = [{ state: initial, node: null, priority: makeUpperBound(initial, context, true), sequence: sequence++ }];
+  const goalMode = context.simulation?.mode === "goal";
+  let beam = [{
+    state: initial, node: null,
+    priority: goalMode ? makeGoalPriority(initial, context) : makeUpperBound(initial, context, true),
+    sequence: sequence++
+  }];
   let budgetStopped = false, beamPruned = 0, rootPeak = 0;
   while (beam.length) {
     const candidates = [], rootBest = new Map();
@@ -666,7 +961,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         generated++;
         sequence++;
         const node = child.action ? makeNode(entry.node, child.action, child.date, entry.node?.root_signature ? null : child.root_signature) : entry.node;
-        const priority = makePriority(child.state, context);
+        const priority = goalMode ? makeGoalPriority(child.state, context) : makePriority(child.state, context);
         const candidate = { state: child.state, node, priority, sequence };
         const signature = node?.root_signature || ["unclassified"];
         const rootKey = JSON.stringify(signature);
@@ -676,9 +971,12 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
       }
     }
     if (budgetStopped) break;
+    const candidateKey = candidate => goalMode
+      ? goalSearchStateKey(candidate.state, candidate.node ? nodePath(candidate.node) : [])
+      : stateKey(candidate.state);
     const bestByState = new Map();
     for (const candidate of candidates) {
-      const key = stateKey(candidate.state);
+      const key = candidateKey(candidate);
       const previous = bestByState.get(key);
       if (!previous || candidate.priority > previous.priority) bestByState.set(key, candidate);
     }
@@ -687,12 +985,12 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     rootPeak = Math.max(rootPeak, diversity.length);
     const selected = [], seen = new Set();
     for (const candidate of diversity) {
-      const key = stateKey(candidate.state);
+      const key = candidateKey(candidate);
       if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
     }
     for (const candidate of unique) {
       if (selected.length >= settings.beamWidth) break;
-      const key = stateKey(candidate.state);
+      const key = candidateKey(candidate);
       if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
     }
     beamPruned += Math.max(0, generated - selected.length);
@@ -747,6 +1045,7 @@ export class SearchStrategyBase {
     let goalCandidatesEvaluated = greedyGoal ? 1 : 0;
     let goalInvalidCandidates = 0;
     const goalInvalidReasons = new Map();
+    const goalInvalidExamples = [];
     const evaluatedGoalPaths = new Set();
     const evaluateGoal = goalMode ? (path, value) => {
       const pathKey = goalPathSignature(path);
@@ -758,6 +1057,21 @@ export class SearchStrategyBase {
         goalInvalidCandidates++;
         const reason = score.invalid_reason || "Unknown candidate replay failure";
         goalInvalidReasons.set(reason, (goalInvalidReasons.get(reason) ?? 0) + 1);
+        if (goalInvalidExamples.length < 5) {
+          goalInvalidExamples.push({
+            reason, stack: score.invalid_stack.split("\n").slice(0, 6),
+            actions: path.map(({ date, action }) => ({
+              date, type: action.type, target_id: action.target_id ?? null,
+              principal: action.principal ?? null,
+              transfers: (action.transfers ?? []).map(item => ({
+                source: item.src_id, target: item.tgt_id, amount: item.amount, fee: item.fee
+              })),
+              bookings: (action.bookings ?? []).map(item => ({
+                account_id: item.account_id, option: item.option?.label, principal: item.principal
+              }))
+            }))
+          });
+        }
       }
       return score;
     } : null;
@@ -765,10 +1079,15 @@ export class SearchStrategyBase {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
       bestValue: goalMode ? -Infinity : greedyObjective, alternatives: [], memo: new Map()
     };
+    const initialGoalProvenance = goalMode ? new BalanceProvenance([...context.accounts.keys()]) : null;
+    if (initialGoalProvenance) {
+      for (const [id, account] of context.accounts) initialGoalProvenance.addPrincipal(id, account.balance);
+    }
     const initial = {
       date: context.start,
       balances: makeBalanceState(Object.fromEntries([...context.accounts].map(([id, account]) => [id, account.balance]))),
-      flows: [], obligations: [], paid: 0
+      flows: [], goalFlows: [], goalProvenance: initialGoalProvenance,
+      obligations: [], paid: 0
     };
     // Goal mode has a finite default budget so a 30-year safety horizon
     // cannot turn a browser search into an effectively unbounded run.
@@ -788,7 +1107,7 @@ export class SearchStrategyBase {
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
-      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_objective: "earliest consolidation net-interest achievement", goal_search_budget: goalSearchBudget, goal_pruned_after_achievement: search.goalPrunedByAchievement ?? 0, selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
+      ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_invalid_candidate_examples: goalInvalidExamples, goal_objective: "earliest consolidation net-interest achievement", goal_search_budget: goalSearchBudget, goal_pruned_after_achievement: search.goalPrunedByAchievement ?? 0, selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
     const resultMetadata = {
       total_decisions_evaluated: diagnostics.expanded_states,

@@ -2,10 +2,11 @@
 
 ## Status
 
-This document is the implementation contract for the goal-based simulation work on
-`feature/goal-based-simulation`. It is intentionally explicit about accounting,
-runtime ownership, migration, testing, and release gates. Work is not complete until
-all acceptance criteria below are implemented and verified.
+This document records the original shared goal-runtime implementation contract on
+`feature/goal-based-simulation`: accounting, runtime ownership, configuration
+migration, reporting and initial strategy integration. The later strategy-search
+follow-on is documented in [Dual-Scope Search Strategies Implementation Plan](dual-scope-search-implementation-plan.md),
+which covers goal-aware GSS, Absolute and Absolute+ while preserving scoped-mode behaviour.
 
 ## Objective
 
@@ -115,13 +116,18 @@ not principal.
   achievement date, elapsed days, overshoot or shortfall, safety-horizon boundary, and
   stopping reason.
 
-## Strategy compatibility
+## Strategy compatibility (original integration)
+
+The following records the initial strategy integration at the time this plan was
+written. Current dual-scope search behaviour is maintained in the follow-on plan
+linked above.
 
 - Greedy retains its existing local decision policy initially. It receives the
   shared runtime goal stop and serves as a baseline.
-- GSS retains its current planning policy initially. Measure it under the goal
-  objective before changing its search behaviour.
-- Absolute+ uses a goal-aware evaluator. Rank candidates lexicographically:
+- GSS initially retained its planning policy; the follow-on work adds provenance-aware
+  goal plan ranking and recursive stopping.
+- Absolute+ initially used a goal-aware evaluator. The follow-on work adds
+  provenance-aware beam/local ranking and goal-date-aware waiting. Rank candidates lexicographically:
   1. A goal-achieving candidate beats a non-achieving candidate.
   2. Among achievers, earliest achievement date wins.
   3. On the same date, higher net interest at achievement wins.
@@ -276,7 +282,8 @@ outflow accounting is verified.
 - Added provenance buckets for principal, uncredited net interest, and previously counted interest.
 - Added proportional transfer/fee allocation, proportional outflow consumption, and provenance propagation through FD booking and maturity.
 - Added shared-runtime consolidation-credit recognition, first-crossing stop metadata, safety-horizon shortfall, and goal-aware final-sweep handling.
-- Added Greedy/GSS shared-runtime goal stopping and an Absolute+ goal candidate replay evaluator with lexicographic scoring, inherited runtime financial settings, invalid-candidate rejection, and bounded-search diagnostics.
+- Added Greedy shared-runtime goal stopping and an Absolute+ goal candidate replay evaluator with lexicographic scoring, inherited runtime financial settings, invalid-candidate rejection, and bounded-search diagnostics.
+- Follow-on dual-scope strategy integration: GSS now uses provenance-aware recursive plan ranking and stops its hypothetical planner at the goal; Absolute uses exhaustive goal-specific search without scoped terminal-value/memo pruning; Absolute+ uses provenance-aware goal priority, local payout ranking and goal-date-aware waiting. Scoped financial outputs and search diagnostics were compared against the archived baseline and matched exactly for the recorded web-strategy matrices.
 - Migrated CLI and browser configuration inputs; added mode controls, export/import normalization, and goal summaries.
 - Added goal outcome and event-boundary progression to HTML and CLI reports.
 - Added a dedicated goal sensitivity runner and GitHub Actions workflow.

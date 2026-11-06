@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { SimulationEngine } from "../../src/core/simulation.js";
 import { AbsolutePlusStrategy } from "../../src/strategies/absolute-plus.js";
+import { AbsoluteStrategy } from "../../src/strategies/absolute.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { GSSStrategy } from "../../src/strategies/gss.js";
 import {
@@ -68,6 +69,15 @@ test("goal mode returns an explicit shortfall when no future events can advance 
   assert.ok(result.goal_outcome.shortfall > 0);
   assert.equal(result.end_date.toISOString().slice(0, 10), "2026-01-31");
   assert.equal(result.finalized, true);
+});
+
+test("Absolute goal search evaluates complete goal paths and reports exhaustive proof status", () => {
+  const result = new SimulationEngine().run(new AbsoluteStrategy({ ait_enabled: true }), input(100));
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(result.optimality_proven, true);
+  assert.ok(result.search_diagnostics.goal_candidates_evaluated >= 1);
+  assert.equal(result.search_diagnostics.goal_objective, "earliest consolidation net-interest achievement");
 });
 
 test("Absolute+ evaluates goal candidates against the Greedy baseline with bounded-search diagnostics", () => {
@@ -235,6 +245,227 @@ test("Greedy and GSS use the same shared goal outcome and stopping contract", ()
     assert.equal(result.goal_outcome.elapsed_days, 30);
     assert.equal(result.finalized, true);
   }
+});
+
+test("Absolute+ waits for a near-term inflow when it enables an earlier goal payout", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-04-01",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1000 } },
+    options: [
+      new FDOption({ label: "60d current", period_str: "60d", annual_rate: 20, min_amount: 100000, bank_id: "BANK_A", bank_key: "a" }),
+      new FDOption({ label: "30d threshold", period_str: "30d", annual_rate: 10, min_amount: 150000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    inflow_schedule: { "2026-01-15": 100000 }
+  };
+  const result = new SimulationEngine().run(new AbsolutePlusStrategy({
+    ait_enabled: false, beam_width: 2, max_local_branches: 2, max_decisions: 500
+  }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-02-14");
+  assert.equal(result.bookings[0].option.label, "30d threshold");
+  assert.equal(result.bookings[0].start.toISOString().slice(0, 10), "2026-01-15");
+});
+
+test("Absolute retains a fee-heavy consolidation path when it credits the goal sooner", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 500 } },
+    options: [
+      new FDOption({ label: "Reserve high-yield", period_str: "30d", annual_rate: 36.5, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Main low-yield", period_str: "30d", annual_rate: 1, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0 }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000 })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 1000, same_bank_fee: 0 })
+  };
+  const result = new SimulationEngine().run(new AbsoluteStrategy({ ait_enabled: false }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.ok(result.credited_net_interest >= 500);
+  assert.ok(result.total_transfer_fees >= 1000);
+  assert.equal(result.optimality_proven, true);
+});
+
+test("Absolute+ goal ranking keeps the faster lower-interest payout under local truncation", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 700 } },
+    options: [
+      new FDOption({ label: "Fast 30d", period_str: "30d", annual_rate: 10, min_amount: 10000, bank_id: "BANK_A", bank_key: "a" }),
+      new FDOption({ label: "Slow 60d", period_str: "60d", annual_rate: 20, min_amount: 10000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    inflow_account_id: "main", consolidation_account_id: "main"
+  };
+  const result = new SimulationEngine().run(new AbsolutePlusStrategy({
+    ait_enabled: false, beam_width: 4, max_local_branches: 2, max_decisions: 100
+  }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(result.bookings[0].option.label, "Fast 30d");
+  assert.equal(result.optimality_proven, false);
+});
+
+
+test("Absolute+ local truncation retains an earlier low-interest goal path", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-04-01",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 500 } },
+    options: [
+      new FDOption({ label: "Fast eFD 30d", period_str: "30d", annual_rate: 10, min_amount: 25000, bank_id: "BANK_B", bank_key: "b", is_efd: true }),
+      new FDOption({ label: "Slow standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Consolidation standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0, supports_efd: false }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000, supports_efd: true })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const engine = new SimulationEngine();
+  const exhaustive = engine.run(new AbsoluteStrategy({ ait_enabled: false }), scenario);
+  const bounded = engine.run(new AbsolutePlusStrategy({
+    ait_enabled: false, beam_width: 32, max_local_branches: 2, max_decisions: 500
+  }), scenario);
+  assert.equal(exhaustive.goal_outcome.achievement_date, "2026-01-31");
+  assert.equal(bounded.goal_outcome.achievement_date, exhaustive.goal_outcome.achievement_date);
+  assert.equal(bounded.bookings[0].option.label, "Fast eFD 30d");
+  assert.ok(bounded.search_diagnostics.local_combination_pruned > 0);
+  assert.equal(bounded.optimality_proven, false);
+});
+
+
+
+test("GSS keeps a directly goal-achieving path ahead of an earlier insufficient payout", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-04-01",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 3000 } },
+    options: [
+      new FDOption({ label: "Fast eFD 30d", period_str: "30d", annual_rate: 10, min_amount: 25000, bank_id: "BANK_B", bank_key: "b", is_efd: true }),
+      new FDOption({ label: "Slow standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Consolidation standard 60d", period_str: "60d", annual_rate: 20, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0, supports_efd: false }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000, supports_efd: true })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const engine = new SimulationEngine();
+  const greedy = engine.run(new GreedyStrategy({ ait_enabled: false }), scenario);
+  const gss = engine.run(new GSSStrategy({ ait_enabled: false }), scenario);
+  assert.equal(greedy.goal_outcome.achievement_date, "2026-03-02");
+  assert.equal(gss.goal_outcome.achievement_date, "2026-03-02");
+  assert.equal(gss.bookings[0].option.label, "Consolidation standard 60d");
+});
+
+
+test("GSS goal planning reserves source liquidity for strict outflows beyond the next maturity", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 5000 } },
+    options: [
+      new FDOption({ label: "Reserve high-yield", period_str: "30d", annual_rate: 36.5, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Main standard", period_str: "30d", annual_rate: 1, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0 }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000 })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    outflow_schedule: {
+      "2026-02-15": [{ account_id: "reserve", amount: 50000, payment_policy: "strict" }]
+    },
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const result = new SimulationEngine().run(new GSSStrategy({ ait_enabled: false }), scenario);
+  assert.equal(result.valid, true, JSON.stringify({
+    total_outflows_paid: result.total_outflows_paid,
+    outstanding_outflows: result.outstanding_outflows,
+    goal_outcome: result.goal_outcome,
+    gss_diagnostics: result.gss_diagnostics,
+    bookings: result.bookings.map(item => ({ option: item.option.label, principal: item.principal, start: item.start.toISOString().slice(0, 10) })),
+    outflow_events: result.timeline[20260215]
+  }));
+  assert.equal(result.total_outflows_paid, 50000);
+  assert.equal(result.outstanding_outflows.length, 0);
+  assert.ok(result.timeline[20260215].some(event => event.event_type === "outflow" && event.amount === 50000));
+});
+
+
+test("GSS goal planning can use a scheduled source inflow to cover a later strict outflow", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 5000 } },
+    options: [
+      new FDOption({ label: "Reserve high-yield", period_str: "30d", annual_rate: 36.5, min_amount: 25000, bank_id: "BANK_B", bank_key: "b" }),
+      new FDOption({ label: "Main standard", period_str: "30d", annual_rate: 1, min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    accounts: [
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0 }),
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000 })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    inflow_schedule: { "2026-02-10": { reserve: 60000 } },
+    outflow_schedule: {
+      "2026-02-15": [{ account_id: "reserve", amount: 50000, payment_policy: "strict" }]
+    },
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const result = new SimulationEngine().run(new GSSStrategy({ ait_enabled: false }), scenario);
+  assert.equal(result.valid, true, JSON.stringify({
+    total_outflows_paid: result.total_outflows_paid,
+    outstanding_outflows: result.outstanding_outflows,
+    accounts: result.accounts,
+    goal_outcome: result.goal_outcome,
+    gss_diagnostics: result.gss_diagnostics
+  }));
+  assert.equal(result.total_outflows_paid, 50000);
+  assert.equal(result.outstanding_outflows.length, 0);
+});
+
+
+test("GSS waits for an earlier consolidation opportunity instead of rebooking interest elsewhere", () => {
+  const scenario = {
+    start: "2026-01-01", end: "2026-03-10",
+    simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1000 } },
+    options: [
+      new FDOption({
+        label: "Reserve eFD", period_str: "30d", annual_rate: 36.5,
+        min_amount: 25000, bank_id: "BANK_B", bank_key: "b", is_efd: true
+      }),
+      new FDOption({
+        label: "Consolidation standard", period_str: "30d", annual_rate: 1,
+        min_amount: 110000, bank_id: "BANK_A", bank_key: "a"
+      })
+    ],
+    accounts: [
+      new Account({ id: "reserve", bank_id: "BANK_B", bank_key: "b", balance: 100000, supports_efd: true }),
+      new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 0, supports_efd: false })
+    ],
+    inflow_account_id: "main", consolidation_account_id: "main",
+    inflow_schedule: { "2026-02-01": { main: 20000 } },
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 0, same_bank_fee: 0 })
+  };
+  const result = new SimulationEngine().run(new GSSStrategy({ ait_enabled: false }), scenario);
+  assert.equal(result.goal_outcome.achieved, true);
+  assert.equal(result.goal_outcome.achievement_date, "2026-02-01", JSON.stringify({
+    gss_diagnostics: result.gss_diagnostics,
+    decision_log: result.decision_log,
+    bookings: result.bookings.map(item => ({ option: item.option.label, start: item.start.toISOString().slice(0, 10), end: item.end.toISOString().slice(0, 10) }))
+  }));
+  assert.equal(result.gss_diagnostics.planner_stopped_on_goal, true);
+  assert.ok(result.gss_diagnostics.goal_plan_evaluations > 0);
+  assert.ok(result.credited_net_interest >= 1000);
+  assert.equal(result.bookings[0].option.label, "Reserve eFD");
+  assert.equal(result.bookings[1].option.label, "Consolidation standard");
 });
 
 test("Absolute+ applies a finite default decision budget in goal mode", () => {

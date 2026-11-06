@@ -303,12 +303,16 @@ export class SimulationRuntime {
       const source = account(item.source_account_id);
       const target = account(item.target_account_id);
       if (source.id === target.id) throw new RangeError("Transfer source and target must differ.");
-      const amount = Number(item.amount);
+      let amount = Number(item.amount);
       const expectedFee = this.context.fee_config.getFee(source.bank_identity, target.bank_identity);
       const fee = Number(item.fee);
-      if (!Number.isFinite(amount) || amount <= 0 || amount > (balances.get(source.id) ?? 0) + 1e-9) {
+      const available = balances.get(source.id) ?? 0;
+      if (!Number.isFinite(amount) || amount <= 0 || amount > available + 1e-9) {
         throw new RangeError("Transfer amount exceeds available source balance.");
       }
+      // Validation permits a 1e-9 tolerance for floating-point residue. Clamp
+      // that tolerated excess before updating balances or provenance.
+      if (amount > available) amount = available;
       if (!Number.isFinite(expectedFee) || expectedFee < 0 ||
           !Number.isFinite(fee) || Math.abs(fee - expectedFee) > EPS || amount <= fee) {
         throw new RangeError("Transfer fee or net transfer amount is invalid.");

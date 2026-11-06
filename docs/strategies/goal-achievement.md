@@ -56,11 +56,17 @@ Legacy configurations without a `simulation` object continue to normalize as sco
 The shared `SimulationRuntime` owns cash-flow execution, AIT, transfers, provenance, outflows, and goal threshold detection. `SimulationEngine` owns strategy-session progression and exactly-once finalization. Strategies do not implement independent goal termination.
 
 - **Greedy** switches to a goal-specific local policy: it keeps non-consolidation balances liquid, prefers bookings into the consolidation account, and selects the eligible product with the earliest positive post-AIT interest payout. It re-evaluates at each event boundary. This is a fastest-first heuristic, not a global proof.
-- **GSS** retains its existing planner initially; its goal-mode behaviour is measured before policy redesign.
-- **Absolute+** replays candidate paths through the authoritative runtime as soon as a path can credit the consolidation account. It compares outcomes lexicographically: achievement before non-achievement, earliest achievement, higher credited interest on the same date, lower transfer fees, fewer operations, then deterministic terminal-value/signature tie-breakers. Once an achieved incumbent exists, states strictly later than its achievement date are pruned. Goal mode defaults to 5,000 expanded states when no decision cap is configured. Candidate paths that fail authoritative replay are rejected and counted with failure reasons. Beam/local pruning or reaching the decision cap means global optimality is not proven.
-- **Absolute** uses the exhaustive search path and the same goal-aware terminal comparison, without beam pruning.
+- **GSS** keeps its recursive planner and adds goal-specific candidate-plan ranking. It tracks principal, uncredited interest and counted interest through bookings, payouts, outflows and transfers; estimates which viable SPLIT/CONSOLIDATE plan reaches consolidation credit earliest; can defer a non-consolidation rebooking when a near-term event enables an earlier consolidation plan; and stops hypothetical planning once its provenance ledger reaches the target. The runtime remains authoritative for actual execution and stopping. Scoped candidate ordering and recursive behaviour remain unchanged. Consolidation transfers also preserve source-account obligations through the remaining horizon, net of scheduled inflows/cash flows; a target FD maturity cannot release that reserve because the transferred funds mature in the target account. Split bookings retain liquidity in their own account and are re-evaluated at maturity.
+- **Absolute+** retains bounded beam search but uses goal-specific provenance-aware state priority, local payout-timing ranking and a goal-date-aware wait decision. It preserves distinct decision histories during goal-state deduplication and retains all compatible products. Candidate paths are replayed through the authoritative runtime as soon as they can credit the consolidation account. It compares outcomes lexicographically: achievement before non-achievement, earliest achievement, higher credited interest on the same date, lower transfer fees, fewer operations, then deterministic tie-breakers. Once an achieved incumbent exists, states strictly later than its achievement date are pruned. Goal mode defaults to 5,000 expanded states when no decision cap is configured. Candidate paths that fail authoritative replay are rejected and counted with failure reasons. Beam/local pruning or reaching the decision cap means global optimality is not proven.
+- **Absolute** uses exhaustive goal search with the same authoritative replay and goal comparator, but no beam or decision-budget truncation. Goal mode disables scoped terminal-value/memo pruning, retains the complete compatible product set, and preserves fee-heavy consolidation branches when proportional provenance allocation can still credit the goal. It reports optimality only when no unsafe pruning occurred.
 
 When a goal is achieved before the maximum horizon, later events are not processed and the final consolidation sweep is skipped so it cannot alter the recorded achievement amount. When the maximum horizon is reached without achievement, the final consolidation sweep is processed with provenance; interest first credited by that sweep is recognised at the maximum-date boundary.
+
+## Strategy diagnostics and proof status
+
+- **GSS** reports its goal target, hypothetical credited net interest, whether its planner stopped at the goal, and the number of goal-plan evaluations in `gss_diagnostics`. These values describe the private planning projection; the runtime's goal outcome remains authoritative.
+- **Absolute** reports `optimality_proven` only when its exhaustive goal search completes without local, bound or memo pruning that could invalidate the objective.
+- **Absolute+** reports the goal decision budget, expanded states, candidate replay count, invalid replay count/reasons, beam pruning, local-combination pruning and `optimality_proven`. Invalid candidate paths are rejected rather than allowed to affect the selected result. Any bounded-search truncation prevents a global optimality claim.
 
 ## Reports
 
@@ -76,7 +82,7 @@ Run the reproducible one-factor-at-a-time matrix with:
 node scripts/goal-achievement-sensitivity.js
 ```
 
-The 63 scenario points vary one factor at a time:
+The 21 scenario inputs (63 strategy runs) vary one factor at a time:
 
 - Goal target: LKR 10k, 25k, 50k, 75k, 100k.
 - Starting capital: LKR 25k, 100k, 300k, 1m.

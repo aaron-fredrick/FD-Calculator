@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { compareGoalScores, createPathReplayStrategy, evaluateGoalPath } from "../../src/strategies/search-strategy-base.js";
+import { FDOption } from "../../src/core/models.js";
+import {
+  compareGoalScores, createPathReplayStrategy, evaluateGoalPath,
+  goalSearchStateKey, selectSearchOptions
+} from "../../src/strategies/search-strategy-base.js";
 
 const score = overrides => ({
   achieved: false, elapsed_days: Infinity, actual: 0, fees: 0,
@@ -51,4 +55,35 @@ test("invalid hypothetical goal candidates are rejected without aborting the sea
   assert.ok(invalid.invalid_reason);
   const valid = score({ achieved: false, actual: 10 });
   assert.ok(compareGoalScores(valid, invalid) > 0);
+});
+
+
+test("goal search retains longer products that scoped dominance pruning would remove", () => {
+  const shorter = new FDOption({
+    label: "Shorter", period_str: "6m", annual_rate: 12,
+    min_amount: 10000, bank_id: "BANK_A", bank_key: "a"
+  });
+  const longer = new FDOption({
+    label: "Longer", period_str: "12m", annual_rate: 10,
+    min_amount: 25000, bank_id: "BANK_A", bank_key: "a"
+  });
+  assert.deepEqual(selectSearchOptions([shorter, longer], { mode: "scoped" }), [shorter]);
+  assert.deepEqual(selectSearchOptions([shorter, longer], { mode: "goal" }), [shorter, longer]);
+});
+
+test("goal beam state identity preserves distinct decision histories with equal scalar state", () => {
+  const state = {
+    date: "2026-06-01", balances: [["a", 100000]], flows: [],
+    obligations: [], paid: 0
+  };
+  const firstPath = [{
+    date: "2026-01-01",
+    action: { type: "local", bookings: [{ account_id: "a", option: { economic_terms_key: "term-a" }, principal: 100000 }], carries: [] }
+  }];
+  const secondPath = [{
+    date: "2026-01-01",
+    action: { type: "local", bookings: [{ account_id: "a", option: { economic_terms_key: "term-b" }, principal: 100000 }], carries: [] }
+  }];
+  assert.notEqual(goalSearchStateKey(state, firstPath), goalSearchStateKey(state, secondPath));
+  assert.equal(goalSearchStateKey(state, firstPath), goalSearchStateKey(state, firstPath));
 });

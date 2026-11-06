@@ -112,6 +112,49 @@ These are observations from this fixed catalogue snapshot and the stated one-fac
 
 A separate controlled experiment varies Absolute+'s beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Results and overlay charts are published alongside the main study once the run completes and is reviewed.
 
+## Scoped-mode compatibility check for dual-scope strategy work
+
+The dual-scope implementation was compared against the archived fixed-horizon baseline before changing the benchmark assumptions:
+
+- The current run on 5 November 2026 at 21:54 UTC produced the same **all non-timing fields** as the archived run at 09:00 UTC across all 54 Greedy, Absolute+ and GSS scenario rows. There were zero differences in financial results, fees, booking counts, or other recorded result fields.
+- The 15-point Absolute+ search-parameter sweep also matched the archived baseline in every non-timing field: net interest, expanded states, beam pruning, local-combination pruning and optimality status were unchanged.
+- Median measured runtimes were 3 ms vs 3 ms for Greedy, 2 ms vs 1 ms for GSS, and 3.40 s vs 5.87 s for Absolute+ across the 18 scenario points per strategy. The Absolute+ parameter-sweep median was 3.62 s vs 4.73 s. These are runner-specific samples; they are not used as proof of a speedup. The important compatibility evidence is that the financial outputs and search diagnostics are unchanged.
+- Absolute is not part of the web-strategy sensitivity matrix and has no archived pre-change performance matrix. Its scoped compatibility is covered by the legacy search-parity tests; a dedicated pre-change Absolute timing baseline is unavailable.
+
+This is a strong scoped-regression check for the web strategies: goal-specific provenance, ranking and waiting logic do not alter the scoped financial outcomes or Absolute+ search diagnostics.
+
+## Goal-scope strategy benchmarks
+
+Goal mode uses a different objective from this fixed-horizon study: minimise elapsed time to the first valid consolidation net-interest credit. The dedicated goal-mode matrix compares Greedy, Absolute+ and GSS over 21 one-factor scenario inputs (63 strategy runs). Its six dashboards report elapsed days, credited interest, computation time, transfer fees, credited interest per day and target attainment.
+
+See the [goal-based simulation methodology and interpretation](./goal-achievement.md) for the scenario definitions, accounting contract, limitations and raw data.
+
+### Goal target
+
+![Goal target sensitivity](./assets/goal-achievement/goal-target.svg)
+
+### Starting capital
+
+![Goal starting-capital sensitivity](./assets/goal-achievement/starting-capital.svg)
+
+### Account count
+
+![Goal account-count sensitivity](./assets/goal-achievement/account-count.svg)
+
+### Bank count
+
+![Goal bank-count sensitivity](./assets/goal-achievement/bank-count.svg)
+
+### Inflow pattern
+
+![Goal inflow-pattern sensitivity](./assets/goal-achievement/inflow-pattern.svg)
+
+### eFD eligibility
+
+![Goal eFD eligibility sensitivity](./assets/goal-achievement/efd-eligibility.svg)
+
+Raw measurements: [goal-mode benchmark results](./assets/goal-achievement/results.json). These assets are regenerated together by the goal-achievement sensitivity workflow; computation times are single-run CI measurements, and bounded Absolute+ results are not global optimality proofs.
+
 ## Reproducibility and limitations
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.
