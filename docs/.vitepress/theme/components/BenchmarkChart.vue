@@ -41,7 +41,9 @@ const xValues = computed(() => {
 })
 const numericX = computed(() => xValues.value.length > 1 && xValues.value.every(value => Number.isFinite(Number(value))))
 const validNumber = value => value !== null && value !== undefined && Number.isFinite(Number(value))
-const validValues = computed(() => rows.value.map(row => row[metric.value?.key]).filter(validNumber).map(Number))
+const isPlottable = row => validNumber(row[metric.value?.key]) &&
+  !(metric.value?.key === 'net_interest' && row.valid === false)
+const validValues = computed(() => rows.value.filter(isPlottable).map(row => Number(row[metric.value?.key])))
 const yMax = computed(() => Math.max(1, ...validValues.value) * 1.12)
 const yMin = computed(() => Math.min(0, ...validValues.value))
 const left = 92, right = 960, top = 38, bottom = 374
@@ -64,12 +66,12 @@ const series = computed(() => seriesNames.value.map((name, index) => {
   const pointRows = rows.value
     .filter(row => (row[props.seriesKey] ?? props.seriesName) === name)
     .sort((a, b) => xValues.value.indexOf(a[props.xKey]) - xValues.value.indexOf(b[props.xKey]))
-  const points = pointRows.filter(row => validNumber(row[metric.value?.key]))
+  const points = pointRows.filter(isPlottable)
   const segments = []
   let segment = []
   for (const xValue of xValues.value) {
     const point = pointRows.find(row => row[props.xKey] === xValue)
-    if (point && validNumber(point[metric.value?.key])) segment.push(point)
+    if (point && isPlottable(point)) segment.push(point)
     else if (segment.length) {
       segments.push(segment)
       segment = []
