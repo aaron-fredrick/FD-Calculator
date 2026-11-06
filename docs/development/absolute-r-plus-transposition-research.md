@@ -62,6 +62,12 @@ These timings are CI-runner observations, not local-machine benchmarks. They are
 9. Does Absolute R benefit from the same cache without changing its exhaustive/branch-and-bound semantics?
 10. Is persistent browser storage justified? Do not put IndexedDB/localStorage I/O inside the search loop. Persistent state reuse is only considered if repeat-run measurements show a material benefit and a complete input/algorithm version key can be safely maintained.
 
+## Production web defaults discovered during the audit
+
+The browser UI currently constructs Absolute R+ with `beam_width=256`, `max_local_branches=128` and no decision cap (`src/web/app.js`, `src/web/index.html`). The published benchmark baseline instead uses `96/48/5000`. Therefore, the existing benchmark timings do not represent the default configuration a user runs in the web tool.
+
+This is now a required validation item: compare the actual web defaults against the benchmark baseline on identical 24- and 60-month inputs, record objective, runtime, expanded states and optimality status, then decide whether to align the UI defaults with the tested bounded configuration. Do not change the defaults solely from intuition; confirm the trade-off first.
+
 ## Planned implementation phases
 
 ### Phase 0 — Research and baseline
