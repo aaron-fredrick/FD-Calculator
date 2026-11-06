@@ -12,7 +12,7 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
     ['meta', { name: 'theme-color', content: '#0b0e13' }],
-    ['meta', { name: 'color-scheme', content: 'dark' }],
+    ['meta', { name: 'color-scheme', content: 'dark light' }],
     ['meta', { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' }],
     ['meta', { name: 'author', content: 'FD Cal contributors' }],
     ['meta', { property: 'og:type', content: 'website' }],
@@ -76,15 +76,24 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Strategy overview', link: '/STRATEGIES' },
-          { text: 'Sensitivity benchmark', link: '/strategies/benchmarks' },
+          { text: 'Benchmarks', link: '/strategies/benchmarks' },
           {
-            text: 'Technical references',
+            text: 'Scoped Range',
             collapsed: false,
             items: [
-              { text: 'Absolute', link: '/strategies/ABSOLUTE' },
-              { text: 'Absolute+', link: '/strategies/ABSOLUTE-PLUS' },
               { text: 'Greedy', link: '/strategies/GREEDY' },
               { text: 'GSS', link: '/strategies/GSS' },
+              { text: 'Absolute R', link: '/strategies/ABSOLUTE' },
+              { text: 'Absolute R+', link: '/strategies/ABSOLUTE-PLUS' },
+              { text: 'Scoped benchmark', link: '/strategies/benchmarks#scoped-range' },
+            ],
+          },
+          {
+            text: 'Goal',
+            collapsed: false,
+            items: [
+              { text: 'Goal status', link: '/strategies/benchmarks#goal' },
+              { text: 'Rework plan', link: '/strategies/goal-mode-rework-plan' },
             ],
           },
         ],

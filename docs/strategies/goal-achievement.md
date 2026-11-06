@@ -2,7 +2,7 @@
 
 **Status: Under development — not user selectable.**
 
-Goal-based net-interest planning is not currently available to users. The browser marks the mode as disabled, and the public configuration validator and JSON schema reject `simulation.mode: "goal"`.
+Goal-based net-interest planning is not currently available to users. No Goal benchmark measurements, strategy comparisons or sensitivity graphs are published yet; work on the planner and its verification is ongoing. The browser marks the mode as disabled, and the public configuration validator and JSON schema reject `simulation.mode: "goal"`.
 
 The existing goal-aware runtime, provenance ledger, strategy search code and direct runtime tests are retained as development material. They should not be interpreted as a supported public feature or as a reason to enable Goal mode.
 
