@@ -160,10 +160,16 @@ jobs:
     needs: [prepare, benchmark]
     if: needs.prepare.result == 'success' && (needs.benchmark.result == 'success' || needs.benchmark.result == 'skipped')
     runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: main
+          fetch-depth: 0
+      - name: Capture documentation dependency revision
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -194,8 +200,15 @@ jobs:
           path: /tmp/docs-site
       - name: Publish documentation without touching the web component
         shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
         run: |
           set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git diff --quiet "$SOURCE_SHA" origin/main -- docs scripts/benchmark-fingerprint.js scripts/strategy-sensitivity.js scripts/gaml-sensitivity.js scripts/validate-scoped-benchmark-data.js scripts/build-docs-site.sh src/core src/strategies src/fd-options src/io/csv.js data/banks data/fd_options; then
+            echo "::notice::Documentation or benchmark inputs changed after this artifact was built; a newer docs run owns publication."
+            exit 0
+          fi
           branch="pages-docs-artifact"
           if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
             git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
