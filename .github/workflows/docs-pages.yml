@@ -60,7 +60,7 @@ jobs:
           stale="$(node scripts/benchmark-fingerprint.js --check)"
           expected_fingerprint="$(node scripts/benchmark-fingerprint.js --write)"
           blocked_by_data_pr=false
-          open_data_prs="$(gh pr list --base main --state open --json number,headRefName,title --jq '.[] | select(.title | startswith("benchmarks: refresh scoped strategy measurements")) | [.number, .headRefName] | @tsv')"
+          open_data_prs="$(gh pr list --base main --state open --json number,headRefName --jq '.[] | select(.headRefName | startswith("data-")) | [.number, .headRefName] | @tsv')"
 
           while IFS=
 
