@@ -108,7 +108,7 @@ function toggle(name) {
       ><i :style="{ background: item.color }"></i>{{ item.name }}</button>
     </div>
     <div class="chart-plot">
-      <svg viewBox="0 0 1000 440" role="img" :aria-label="title + ', ' + metric.label">
+      <svg viewBox="0 0 1000 440" role="img" :aria-label="(title || category) + ', ' + metric.label">
         <rect x="72" y="18" width="904" height="378" rx="10" class="plot-surface" />
         <g v-for="tick in yTicks" :key="tick">
           <line :x1="left" :x2="right" :y1="yPos(tick)" :y2="yPos(tick)" class="grid-line" />
