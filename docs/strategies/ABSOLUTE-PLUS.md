@@ -1,5 +1,16 @@
 # Absolute R+ — technical reference
 
+<script setup>
+import searchResults from './benchmarks/gaml-search-results.json'
+const searchMetrics = [
+  { key: 'net_interest', label: 'Net interest (LKR)', format: 'currency' },
+  { key: 'expanded_states', label: 'Expanded states', format: 'number' },
+  { key: 'duration_ms', label: 'Runtime (ms)', format: 'number' },
+  { key: 'beam_pruned', label: 'Beam-pruned states', format: 'number' },
+  { key: 'local_combination_pruned', label: 'Local combinations pruned', format: 'number' }
+]
+</script>
+
 ## Overview
 
 Absolute R+ is the bounded, layered search strategy for the **scoped date-range objective**. It shares the search transition model with Absolute R but applies explicit limits to frontier breadth, local booking combinations and optionally expanded states.
@@ -46,15 +57,15 @@ Each graph has separate panels for net interest after AIT and transfer fees, exp
 
 ### Beam width
 
-![Absolute R+ beam-width sensitivity](./assets/gaml-beam-width.svg)
+<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="beam_width" title="Beam width" x-label="Beam width" series-name="Absolute R+" :metrics="searchMetrics" />
 
 ### Local branch limit
 
-![Absolute R+ local-branch sensitivity](./assets/gaml-local-branch-limit.svg)
+<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="local_branch_limit" title="Local branch limit" x-label="Local branch limit" series-name="Absolute R+" :metrics="searchMetrics" />
 
 ### Expanded-state decision cap
 
-![Absolute R+ decision-cap sensitivity](./assets/gaml-decision-cap.svg)
+<BenchmarkChart :rows="searchResults.results" group-key="sweep" category="decision_cap" title="Expanded-state decision cap" x-label="Decision cap" series-name="Absolute R+" :metrics="searchMetrics" />
 
 ### Observations
 
