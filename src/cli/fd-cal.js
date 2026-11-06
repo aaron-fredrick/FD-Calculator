@@ -37,7 +37,7 @@ async function main() {
   if (cli.help) {
     console.log([
       "Usage: npm run cli -- [--config config.json] [--strategy greedy|absolute-r-plus|absolute-r|absolute-plus|absolute|gss]",
-      "Absolute+ settings: --beam-width N --max-local-branches N|none --max-decisions N|none",
+      "Absolute R+ settings: --beam-width N --max-local-branches N|none --max-decisions N|none",
       "GSS setting: --small-period-days N (default: 30)"
     ].join("\n"));
     return;
