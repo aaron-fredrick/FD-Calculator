@@ -149,7 +149,7 @@ This is a historical scoped-regression check for the web strategies. The active 
 - The workflow archives the raw output as a GitHub Actions artifact.
 - Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget in the archived one-factor study. Its results are approximate.
 - Absolute R is CLI-only and exhaustive; it is not included in this web-strategy comparison.
-- The current matrix still excludes outflows, early-termination penalties, explicit liquidity preference, and rate changes during the forecast. These are gaps for the next benchmark expansion.
+- The current matrix does not yet model early-termination penalties, explicit liquidity preference, or rate changes during the forecast. Strict outflow stress is included as a feasibility probe, not a comprehensive liquidity model.
 - Published bank rates are a dated data snapshot, not guaranteed live offers. Confirm minimum balances, account eligibility, payout conditions and current tariffs with each bank before investing.
 
 ## Goal
