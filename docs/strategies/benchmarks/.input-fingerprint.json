@@ -1,6 +1,6 @@
 {
   "algorithm": "sha256",
-  "fingerprint": "994e974e4985e0d2e117718a693c0fad19e46d6e69a481dae78e01b60b9f8fb2",
+  "fingerprint": "38eb97ea23452c73cb6b08e4ad3d546d6605d5a1db1969dfa3b225086e9724fd",
   "files": [
     "data/banks/banks.csv",
     "data/fd_options/banks/LK_AMANA_BANK.csv",
