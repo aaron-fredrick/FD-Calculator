@@ -54,6 +54,9 @@ const xPos = value => {
     const min = Number(xValues.value[0]), max = Number(xValues.value.at(-1))
     return left + (Number(value) - min) * (right - left) / (max - min || 1)
   }
+  if (props.chartType === 'bar') {
+    return left + (xValues.value.indexOf(value) + 0.5) * (right - left) / xValues.value.length
+  }
   return left + xValues.value.indexOf(value) * (right - left) / (xValues.value.length - 1)
 }
 const yPos = value => bottom - (Number(value) - yMin.value) * (bottom - top) / (yMax.value - yMin.value || 1)
