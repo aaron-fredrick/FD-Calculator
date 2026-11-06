@@ -46,7 +46,7 @@ test("documentation producer owns benchmark readiness and publication", () => {
   assert.match(docs, /merged_at=/);
   assert.match(docs, /refusing to build or publish documentation/);
   assert.match(docs, /gh pr merge/);
-  assert.match(docs, /gh workflow run docs-pages\\.yml --ref main/);
+  assert.match(docs, /gh workflow run docs-pages\.yml --ref main/);
   assert.match(docs, /dispatch_docs=true/);
   assert.match(docs, /pages-docs-artifact/);
   assert.match(docs, /uses: \.\/\.github\/workflows\/pages\.yml/);
