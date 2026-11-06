@@ -61,10 +61,19 @@ async function hasReusableWork(run) {
     "/actions/runs/" + run.id + "/jobs?per_page=100");
   const jobs = result.jobs ?? [];
   const coordinator = jobs.find(job => job.name === "coordinate");
-  if (coordinator?.conclusion && coordinator.conclusion !== "success") return false;
+
+  // Reuse only after coordination succeeded. A queued/unfinished coordinator,
+  // missing job data, or failed coordinator is not evidence of healthy work.
+  if (!coordinator || coordinator.status !== "completed" || coordinator.conclusion !== "success") {
+    return false;
+  }
 
   const sensitivity = jobs.find(job => job.name === "sensitivity");
-  if (!sensitivity) return true;
+  if (!sensitivity) return false;
+
+  // The workflow run itself is filtered to queued/in_progress by the caller.
+  // A queued/running sensitivity job will produce the data; a successful
+  // completed sensitivity job has already validated and published it.
   if (sensitivity.status === "queued" || sensitivity.status === "in_progress") return true;
   return sensitivity.status === "completed" && sensitivity.conclusion === "success";
 }
