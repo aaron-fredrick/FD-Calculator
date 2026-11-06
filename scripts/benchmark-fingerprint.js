@@ -44,12 +44,10 @@ const mode = process.argv[2] ?? "--check";
 if (mode === "--write") {
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
   process.stdout.write(manifest.fingerprint + "\n");
-} else if (mode === "--fingerprint") {
-  process.stdout.write(manifest.fingerprint + "\n");
 } else if (mode === "--check") {
   const current = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, "utf8")) : null;
   const outputsExist = existsSync(resultsPath) && existsSync(searchResultsPath);
   process.stdout.write(current?.fingerprint === manifest.fingerprint && outputsExist ? "false\n" : "true\n");
 } else {
-  throw new Error("Usage: node scripts/benchmark-fingerprint.js [--check|--fingerprint|--write]");
+  throw new Error("Usage: node scripts/benchmark-fingerprint.js [--check|--write]");
 }
