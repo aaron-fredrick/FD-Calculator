@@ -1,5 +1,9 @@
 # Strategy benchmarks
 
+<script setup>
+import benchmarkResults from './benchmarks/results.json'
+</script>
+
 FD Cal keeps its two simulation objectives separate. **Scoped Range** is the supported benchmark area. **Goal** is under development and has no published benchmark data yet.
 
 ## Scoped Range
@@ -46,35 +50,41 @@ Each chart overlays all three strategy results for the same factor. Numeric inpu
 
 ### Investment horizon
 
-![Investment horizon sensitivity](./assets/horizon.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="horizon_months" title="Investment horizon" x-label="Horizon (months)" />
 
 The horizontal axis is linear in months (6, 12 and 24). The 12-month point is placed one-third of the way from 6 to 24 months, reflecting the actual numeric interval.
 
 ### Starting capital
 
-![Starting capital sensitivity](./assets/capital.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="starting_capital_lkr" title="Starting capital" x-label="Starting capital (LKR)" />
 
 The horizontal axis is linear in LKR (25k, 100k, 300k and 1m). Unequal capital intervals therefore occupy unequal horizontal distances. This avoids visually presenting the four test points as equally sized increases. The vertical axis remains linear in net interest.
 
 ### Number of accounts
 
-![Account-count sensitivity](./assets/accounts.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="account_count" title="Account count" x-label="Number of accounts" />
 
 The three strategy lines overlap because the measured returns are effectively identical across one, two and three accounts in this single-bank scenario. The near-flat result is meaningful: splitting the same capital across more accounts did not improve the available rate or net return in this catalogue snapshot.
 
 ### Number of banks
 
-![Bank-count sensitivity](./assets/banks.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="bank_count" title="Bank diversity" x-label="Number of banks" />
 
 The Greedy and Absolute R+ lines overlap in this comparison. GSS remains close to its one-bank result and does not capture the same benefit from adding banks.
 
 ### Cash inflows
 
-![Cash-inflow sensitivity](./assets/inflows.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="inflow_pattern" title="Cash inflow pattern" x-label="Inflow pattern" />
 
 ### eFD eligibility
 
-![eFD eligibility sensitivity](./assets/efd.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="efd_eligibility" title="eFD eligibility" x-label="Eligibility" />
+
+## Capital and horizon interaction
+
+The one-factor sweeps above do not reveal whether a strategy responds differently to larger capital at longer horizons. The additional 3 × 3 interaction matrix runs nine combined capital/horizon scenarios for every strategy. Select a strategy and metric, then inspect individual cells for exact runtime and booking counts.
+
+<BenchmarkHeatmap :rows="benchmarkResults.results" />
 
 ## Findings
 
@@ -108,13 +118,13 @@ Absolute R+ matched Greedy on the monthly-inflow case, but used the full 5,000 e
 
 - **Greedy** was the strongest or tied strongest result in most tested scenarios, with very low runtime. It remains a useful baseline.
 - **Absolute R+** found improvements in some short-horizon and capital cases, but often returned the Greedy result despite materially higher search cost. Its bounded result is not an optimality proof.
-- **GSS** remained very fast, but underperformed Greedy on several multi-bank, longer-horizon and inflow scenarios. The eFD result also suggests that broader candidate availability is not automatically being converted into better goal outcomes.
+- **GSS** remained very fast, but underperformed Greedy on several multi-bank, longer-horizon and inflow scenarios. The eFD result also suggests that broader candidate availability is not automatically being converted into better scoped-range returns.
 
 These are observations from this fixed catalogue snapshot and the stated one-factor sweeps, not universal rankings. Rate schedules, product minima, payout types, fees and eligibility all influence the result.
 
 ## Absolute R+ search-parameter sensitivity
 
-A separate controlled experiment varies Absolute R+'s beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Results and overlay charts are published alongside the main study once the run completes and is reviewed.
+A separate controlled experiment varies Absolute R+'s beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Interactive charts and exact measurements are shown in the [Absolute R+ technical reference](./ABSOLUTE-PLUS#benchmark-and-sensitivity).
 
 ## Scoped-mode compatibility check for dual-scope strategy work
 
@@ -131,9 +141,9 @@ This is a historical scoped-regression check for the web strategies. The active 
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.
 - The workflow archives the raw output as a GitHub Actions artifact.
-- Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget in this archived experiment. Its results are approximate.
+- Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget in the archived one-factor study. Its results are approximate.
 - Absolute R is CLI-only and exhaustive; it is not included in this web-strategy comparison.
-- No outflows, early-termination penalties, liquidity preference, or rate changes during the forecast are modelled.
+- The current matrix still excludes outflows, early-termination penalties, explicit liquidity preference, and rate changes during the forecast. These are gaps for the next benchmark expansion.
 - Published bank rates are a dated data snapshot, not guaranteed live offers. Confirm minimum balances, account eligibility, payout conditions and current tariffs with each bank before investing.
 
 ## Goal
