@@ -82,7 +82,7 @@ The Greedy and Absolute R+ lines overlap in this comparison. GSS remains close t
 
 ### Liquidity and strict outflow stress
 
-The outflow scenarios are not scored on net interest alone. The metric selector includes simulation validity and unpaid obligations so an invalid or underfunded run cannot appear to be a better strategy merely because it retained more interest. Strategy exceptions are retained as infeasible observations with their error text instead of aborting the entire benchmark. Strict outflows are due from the designated account; another account's balance does not silently cover the obligation.
+The outflow scenarios are not scored on net interest alone. The metric selector includes simulation validity and unpaid obligations so an invalid or underfunded run cannot appear to be a better strategy merely because it retained more interest. Strategy exceptions are retained as infeasible observations with their error text instead of aborting the entire benchmark; invalid points are outlined in red and expose the failure in the hover detail. Strict outflows are due from the designated account; another account's balance does not silently cover the obligation.
 
 <BenchmarkChart :rows="benchmarkResults.results" category="outflow_pattern" x-label="Outflow scenario" />
 
