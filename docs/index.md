@@ -17,7 +17,7 @@ features:
   - title: One calculation engine
     details: The CLI and browser application share the same financial models, simulation lifecycle and strategy implementations.
   - title: Understand each strategy
-    details: Compare Greedy, GAML, GSS and Absolute by their decision process, search limits and optimality guarantees.
+    details: Compare Greedy, Absolute R+, GSS and Absolute R by their scoped decision process, search limits and optimality guarantees.
   - title: Trace the architecture
     details: Follow the boundaries between simulation, FD option management, strategies, reporting and runtime adapters.
 ---
