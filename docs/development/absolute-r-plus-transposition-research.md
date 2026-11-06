@@ -74,7 +74,7 @@ This is now a required validation item: compare the actual web defaults against 
 - [x] Read current state identity, state advancement, memo, beam loop, candidate replay and test conventions.
 - [x] Inspect latest main benchmark logs and record measured baseline.
 - [x] Inspect state advancement and canonical ordering: balances are sorted by account ID; pending cash flows are grouped and sorted by date/account; state advancement applies today's inflows and booking-created flows before processing outflow obligations. The scoped state identity includes the post-advance date, balances, pending cash flows, obligations and paid amount.
-- [x] Add counters for raw-state memo hits/prunes/evictions, normalized-state memo hits, expansion-cache hits/evictions, generated local/consolidation branches and duplicate candidate states.
+- [x] Add counters for raw-state memo hits/prunes/evictions, normalized-state memo hits, generated local/consolidation branches, duplicate candidate states and budget-frontier archives.
 - [x] Reproduce the non-monotonic decision-budget result in the full 24-month GAML parameter fixture and identify budget-frontier loss as the cause.
 
 ### Phase 1 — State identity and reuse design
