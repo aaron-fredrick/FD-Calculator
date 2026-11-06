@@ -1300,19 +1300,19 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         candidates.push(candidate);
         counters.candidateStatesGenerated++;
       }
-    if (!goalMode && settings.maxDecisions != null &&
-        counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
-      const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
-      for (const archived of snapshot.selected.slice(0, 4)) {
-        const archivedPath = nodePath(archived.node);
-        if (!archivedPath.length) continue;
-        const signature = goalPathSignature(archivedPath);
-        if (!budgetFrontierHistory.has(signature) &&
-            budgetFrontierHistory.size < SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT) {
-          budgetFrontierHistory.set(signature, { ...archived, path: archivedPath });
+      if (!goalMode && settings.maxDecisions != null &&
+          counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
+        const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
+        for (const archived of snapshot.selected.slice(0, 4)) {
+          const archivedPath = nodePath(archived.node);
+          if (!archivedPath.length) continue;
+          const signature = goalPathSignature(archivedPath);
+          if (!budgetFrontierHistory.has(signature) &&
+              budgetFrontierHistory.size < SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT) {
+            budgetFrontierHistory.set(signature, { ...archived, path: archivedPath });
+          }
         }
       }
-    }
     }
     const selection = selectGamlBeam(candidates, rootBest, settings, goalMode);
     counters.candidateStateDuplicates += selection.duplicates;
