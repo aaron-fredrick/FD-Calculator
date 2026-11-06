@@ -1,6 +1,6 @@
 # FD Cal browser app
 
-This static application source imports the same runtime-neutral configuration validator, Greedy/GAML strategies and HTML report generator as the Node.js CLI.
+This static application source imports the same runtime-neutral configuration validator, Greedy/Absolute R+ and GSS strategies, and HTML report generator as the Node.js CLI.
 
 ## Local preview (PowerShell)
 
