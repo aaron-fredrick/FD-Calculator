@@ -113,9 +113,11 @@ test("goal configuration derives an internal safety horizon without requiring an
   assert.equal(config.accounts[0].balance, 50000);
 });
 
-test("goal mode rejects a user-supplied investment end date", () => {
+test("goal mode is blocked by the public configuration validator while under development", () => {
   const options = [new FDOption({ label: "standard", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" })];
-  assert.throws(() => validateConfiguration({ simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 1000 } }, investment: { start_date: "2026-01-31", end_date: "2027-01-31" }, accounts: { main: { bank_id: "BANK_A", balance: 50000 } } }, { bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options }), /omit when simulation.mode is goal/);
+  assert.throws(() => validateConfiguration({ simulation: { mode: "goal", goal: { metric: "consolidation_net_interest", target: 25000 } }, investment: { start_date: "2026-01-31" }, accounts: { main: { bank_id: "BANK_A", balance: 50000 } } }, {
+    bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options
+  }), /goal mode is under development/);
 });
 
 test("legacy configuration normalizes as scoped and retains explicit dates", () => {
