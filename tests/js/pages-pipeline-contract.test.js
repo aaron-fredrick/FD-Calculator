@@ -35,6 +35,7 @@ test("documentation producer owns benchmark readiness and publication", () => {
   assert.match(docs, /scripts\/validate-scoped-benchmark-data\.js/);
   assert.match(docs, /scripts\/strategy-sensitivity\.js/);
   assert.match(docs, /scripts\/gaml-sensitivity\.js/);
+  assert.match(docs, /always\(\) && needs\.prepare\.result/);
   assert.match(docs, /docs\/strategies\/benchmarks\/results\.json/);
   assert.match(docs, /TZ=Asia\/Colombo/);
   assert.match(docs, /publish_branch="data-/);
