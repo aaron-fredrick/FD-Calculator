@@ -67,16 +67,17 @@ These timings are CI-runner observations, not local-machine benchmarks. They are
 ### Phase 0 — Research and baseline
 - [x] Read current state identity, state advancement, memo, beam loop, candidate replay and test conventions.
 - [x] Inspect latest main benchmark logs and record measured baseline.
-- [ ] Inspect all state transitions and canonical ordering, including booking-created timeline events and outflow obligations.
-- [ ] Add focused instrumentation/tests to distinguish duplicate-state hits, better-path revisits, memo evictions and actual repeated expansions.
+- [x] Inspect state advancement and canonical ordering: balances are sorted by account ID; pending cash flows are grouped and sorted by date/account; state advancement applies today's inflows and booking-created flows before processing outflow obligations. The scoped state identity includes the post-advance date, balances, pending cash flows, obligations and paid amount.
+- [x] Add counters for raw-state memo hits/prunes/evictions, normalized-state memo hits, expansion-cache hits/evictions, generated local/consolidation branches and duplicate candidate states.
 - [ ] Reproduce the non-monotonic decision-budget result with a small deterministic fixture and the full benchmark fixture.
 
 ### Phase 1 — State identity and expansion reuse design
-- [ ] Prove scoped state equivalence from the transition implementation.
-- [ ] Define cache entry lifecycle: unseen, expanding, expanded; never treat partial expansion as complete.
-- [ ] Cache only deterministic, fully generated scoped child expansions. Rebuild each candidate's node/path from its own parent so path/root metadata is not shared incorrectly.
-- [ ] Keep Goal mode entirely outside the new cache.
-- [ ] Preserve bounded memory; record hits, misses, evictions and maximum entries.
+- [x] Prove scoped state equivalence from the transition implementation; Goal provenance and Goal path history remain outside the new reuse path.
+- [x] Define the cache lifecycle implicitly as completed-only: expansion entries are inserted only after the complete child list has been generated. There is no partially-expanded cache entry.
+- [x] Cache only deterministic, fully generated scoped child expansions. Candidate nodes and parent/action paths are rebuilt for each arrival, preserving root/path metadata.
+- [x] Keep Goal mode entirely outside the raw-state memo and expansion cache.
+- [x] Preserve bounded memory: raw-state memo 10,000 entries; normalized memo 50,000 entries; expansion cache up to 512 entries, 2,048 retained child references, at most 64 children per entry and 4,096-character keys.
+- [x] Add an incremental eFD tie-break count to bounded local-combination partials, avoiding repeated scans of all prior account choices during sort comparisons.
 
 ### Phase 2 — Correctness tests
 - [ ] Same-state/same-path duplicate is not expanded twice.
@@ -116,3 +117,15 @@ These timings are CI-runner observations, not local-machine benchmarks. They are
 - Do not claim an optimisation unless counters and repeatable benchmark comparisons show it.
 - Avoid browser persistence and extra abstractions unless measured evidence demonstrates value.
 - Every implementation phase must be tested before proceeding.
+
+
+## Latest implementation update
+
+- **Raw-state transposition lookup:** before `advanceState`, Scoped Range now checks a bounded memo keyed by the complete raw state. An identical state reached by an equal/worse operation-count path is skipped before replaying inflows, pending maturities/payouts and outflow processing. A better-operation-count arrival is still allowed through.
+- **Normalized-state memo:** the existing post-advance memo remains in place to catch different raw states that converge to the same future state after today's events are applied.
+- **Completed expansion reuse:** when a better-operation-count path reaches a normalized state that has already been expanded, the search can reuse its fully generated child list. Child nodes are rebuilt from the new parent path. The cache is deliberately bounded and skips oversized entries.
+- **Local branch ranking:** eFD tie-break counts are carried incrementally in each partial combination rather than recalculated by scanning all account choices on every sort comparison.
+- **Instrumentation:** benchmark rows now include raw/normalized memo activity, expansion-cache reuse, branch-generation counts, candidate-state duplicates, budget frontier size and selected strategy/reason.
+- **Parity:** the first CI attempt exposed only expected differences in newly-added diagnostic fields; those fields are excluded from legacy behavioural parity comparison. The Node.js test suite subsequently passed at commit `0a998e6bf730826b37ed0388cd263714bc62d83b`, including the pre-refactor ledger parity tests.
+- **Current benchmark:** run [42288154168](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42288154168) is executing the 108-point Scoped Range matrix using the updated search implementation and benchmark diagnostics. Performance conclusions remain pending until its Absolute R+ parameter sweep and artifact are complete.
+- **Persistent browser storage:** not added. The requested overlap is within one search, so a per-run in-memory transposition table is the correct layer. Persisting intermediate nodes across runs would require full simulation, product-catalogue, algorithm-version and runtime fingerprints, plus invalidation and serialization costs. IndexedDB is deferred unless measured repeat-run evidence justifies caching completed simulation results.
