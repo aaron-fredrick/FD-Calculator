@@ -38,6 +38,9 @@ test("documentation producer owns benchmark readiness and publication", () => {
   assert.match(docs, /scripts\/benchmark-fingerprint\.js/);
   assert.match(docs, /scripts\/validate-scoped-benchmark-data\.js/);
   assert.match(docs, /remote_data_valid/);
+  assert.match(docs, /open_data_prs/);
+  assert.match(docs, /blocked_by_data_pr/);
+  assert.match(docs, /startswith\("data-"\)/);
   assert.match(docs, /reusing it instead of overwriting newer data/);
   assert.match(docs, /scripts\/strategy-sensitivity\.js/);
   assert.match(docs, /scripts\/gaml-sensitivity\.js/);
