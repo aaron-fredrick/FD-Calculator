@@ -63,9 +63,9 @@ jobs:
             core.setOutput("sha", "");
             core.notice("No successful Pages deployment record was found; docs baseline bootstrap may be unavailable.");
 
-      - name: Bootstrap missing component baselines without replacing published artifacts
+      - name: Bootstrap missing component baselines from the last deployed site
         env:
-          DOCS_SOURCE_SHA: ${{ steps.live.outputs.sha }}
+          PUBLISHED_SOURCE_SHA: ${{ steps.live.outputs.sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -83,19 +83,23 @@ jobs:
             docs_needed=true
           fi
 
-          if [ "$web_needed" = "true" ]; then
-            bash scripts/build-web-site.sh /tmp/web-baseline
-          fi
-
-          if [ "$docs_needed" = "true" ] && [ -n "$DOCS_SOURCE_SHA" ]; then
-            git fetch --no-tags origin "$DOCS_SOURCE_SHA"
-            git worktree add --detach /tmp/docs-source "$DOCS_SOURCE_SHA"
-            mkdir -p /tmp/docs-source/scripts
-            cp scripts/build-docs-preservation.sh /tmp/docs-source/scripts/build-docs-preservation.sh
-            (cd /tmp/docs-source && bash scripts/build-docs-preservation.sh /tmp/docs-baseline)
-            git worktree remove --force /tmp/docs-source
-          elif [ "$docs_needed" = "true" ]; then
-            echo "::notice::No prior successful Pages source is available; the docs baseline will wait for a validated docs publication."
+          if [ "$web_needed" = "true" ] || [ "$docs_needed" = "true" ]; then
+            if [ -n "$PUBLISHED_SOURCE_SHA" ]; then
+              git fetch --no-tags origin "$PUBLISHED_SOURCE_SHA"
+              git worktree add --detach /tmp/published-source "$PUBLISHED_SOURCE_SHA"
+              mkdir -p /tmp/published-source/scripts
+              cp scripts/build-web-site.sh /tmp/published-source/scripts/build-web-site.sh
+              cp scripts/build-docs-preservation.sh /tmp/published-source/scripts/build-docs-preservation.sh
+              if [ "$web_needed" = "true" ]; then
+                (cd /tmp/published-source && bash scripts/build-web-site.sh /tmp/web-baseline)
+              fi
+              if [ "$docs_needed" = "true" ]; then
+                (cd /tmp/published-source && bash scripts/build-docs-preservation.sh /tmp/docs-baseline)
+              fi
+              git worktree remove --force /tmp/published-source
+            else
+              echo "::notice::No successful Pages deployment source is available; missing component baselines will wait for validated component publication."
+            fi
           fi
 
           publish_baseline() {
@@ -113,12 +117,12 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add -A
             if ! git diff --cached --quiet; then
-              git commit -m "pages: seed $branch from the last usable component"
+              git commit -m "pages: seed $branch from the last successful deployment"
               git push origin "HEAD:refs/heads/$branch"
             fi
           }
 
-          if [ "$web_needed" = "true" ]; then
+          if [ "$web_needed" = "true" ] && [ -d /tmp/web-baseline ]; then
             publish_baseline pages-web-baseline /tmp/web-baseline
           fi
           if [ "$docs_needed" = "true" ] && [ -d /tmp/docs-baseline ]; then
