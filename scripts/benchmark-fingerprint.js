@@ -11,7 +11,7 @@ const collect = directory => {
     const path = resolve(absolute, entry.name);
     return entry.isDirectory()
       ? collect(relative(root, path))
-      : [relative(root, path).replaceAll("\\\\", "/")];
+      : [relative(root, path).replaceAll("\\", "/")];
   });
 };
 const files = [
@@ -27,9 +27,9 @@ const files = [
 const hash = createHash("sha256");
 for (const path of files) {
   hash.update(path);
-  hash.update("\\0");
+  hash.update("\0");
   hash.update(readFileSync(resolve(root, path)));
-  hash.update("\\0");
+  hash.update("\0");
 }
 const manifest = {
   algorithm: "sha256",
@@ -42,14 +42,14 @@ const searchResultsPath = resolve(root, "docs/strategies/benchmarks/gaml-search-
 const mode = process.argv[2] ?? "--check";
 
 if (mode === "--write") {
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\\n");
-  process.stdout.write(manifest.fingerprint + "\\n");
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  process.stdout.write(manifest.fingerprint + "\n");
 } else if (mode === "--fingerprint") {
-  process.stdout.write(manifest.fingerprint + "\\n");
+  process.stdout.write(manifest.fingerprint + "\n");
 } else if (mode === "--check") {
   const current = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, "utf8")) : null;
   const outputsExist = existsSync(resultsPath) && existsSync(searchResultsPath);
-  process.stdout.write(current?.fingerprint === manifest.fingerprint && outputsExist ? "false\\n" : "true\\n");
+  process.stdout.write(current?.fingerprint === manifest.fingerprint && outputsExist ? "false\n" : "true\n");
 } else {
   throw new Error("Usage: node scripts/benchmark-fingerprint.js [--check|--fingerprint|--write]");
 }
