@@ -52,13 +52,24 @@ const xPos = value => {
   return left + xValues.value.indexOf(value) * (right - left) / (xValues.value.length - 1)
 }
 const yPos = value => bottom - (Number(value) - yMin.value) * (bottom - top) / (yMax.value - yMin.value || 1)
-const series = computed(() => seriesNames.value.map((name, index) => ({
-  name,
-  color: palette[index % palette.length],
-  points: rows.value
-    .filter(row => (row[props.seriesKey] ?? props.seriesName) === name && validNumber(row[metric.value?.key]))
+const series = computed(() => seriesNames.value.map((name, index) => {
+  const pointRows = rows.value
+    .filter(row => (row[props.seriesKey] ?? props.seriesName) === name)
     .sort((a, b) => xValues.value.indexOf(a[props.xKey]) - xValues.value.indexOf(b[props.xKey]))
-})))
+  const points = pointRows.filter(row => validNumber(row[metric.value?.key]))
+  const segments = []
+  let segment = []
+  for (const xValue of xValues.value) {
+    const point = pointRows.find(row => row[props.xKey] === xValue)
+    if (point && validNumber(point[metric.value?.key])) segment.push(point)
+    else if (segment.length) {
+      segments.push(segment)
+      segment = []
+    }
+  }
+  if (segment.length) segments.push(segment)
+  return { name, color: palette[index % palette.length], points, segments }
+}))
 const format = value => {
   if (!validNumber(value)) return '—'
   if (metric.value?.format === 'currency') return 'LKR ' + Number(value).toLocaleString('en-LK', { maximumFractionDigits: 2 })
@@ -120,7 +131,9 @@ function toggle(name) {
         </g>
         <g v-for="item in series" :key="item.name" v-show="!hiddenSeries.has(item.name)">
           <polyline
-            :points="item.points.map(point => xPos(point[xKey]) + ',' + yPos(point[metric.key])).join(' ')"
+            v-for="(segment, segmentIndex) in item.segments"
+            :key="item.name + '-segment-' + segmentIndex"
+            :points="segment.map(point => xPos(point[xKey]) + ',' + yPos(point[metric.key])).join(' ')"
             fill="none" :stroke="item.color" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
           />
           <g v-for="point in item.points" :key="String(point[xKey]) + item.name">
