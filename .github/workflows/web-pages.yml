@@ -24,6 +24,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  deployments: read
 
 jobs:
   build:
@@ -103,3 +104,4 @@ jobs:
       contents: write
       pages: write
       id-token: write
+      deployments: read
