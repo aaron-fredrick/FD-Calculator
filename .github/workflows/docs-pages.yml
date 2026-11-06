@@ -132,7 +132,6 @@ jobs:
             git commit -m "benchmarks: refresh scoped strategy measurements ($publish_timestamp LKT)"
             git push origin "HEAD:refs/heads/$publish_branch"
             pr_url="$(gh pr create --base main --head "$publish_branch" --title "benchmarks: refresh scoped strategy measurements ($publish_timestamp LKT)" --body "Automated Scoped Range benchmark output for input fingerprint `$local_fingerprint`. Generated at $publish_timestamp Sri Lanka Time (Asia/Colombo).")"
-            gh pr checks "$pr_url" --watch --fail-fast
             gh pr merge "$pr_url" --merge
             merged_at="$(gh pr view "$pr_url" --json mergedAt --jq '.mergedAt')"
             if [ -z "$merged_at" ] || [ "$merged_at" = "null" ]; then
