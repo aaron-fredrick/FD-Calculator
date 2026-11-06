@@ -2,53 +2,52 @@
 
 ## Objective
 
-Decouple the calculator web application from documentation benchmark generation and publication. A failure in one producer must not prevent the other component from updating. Avoid duplicate benchmark runs and duplicate Pages deployments when benchmark data is merged.
+Decouple the calculator web application from documentation benchmark generation and publication. A failure or long-running benchmark in one component must not block the other component from publishing. Existing live content must remain available until a complete replacement component is ready.
 
 ## Current failure mode
 
 - `pages.yml` builds the web app and VitePress documentation as one site.
-- Its push gate suppresses the entire combined deployment when benchmark-sensitive inputs change, so the web app waits for benchmark completion.
-- Its `workflow_run` trigger accepts an overall successful benchmark workflow even when the `sensitivity` job was skipped. This allowed Pages to deploy stale benchmark JSON.
-- A data-only benchmark PR merge can trigger a second Pages run through the broad `docs/**` push filter, while the original workflow_run path may also deploy.
-- GitHub Pages publishes one complete site artifact; independent deployments cannot safely replace only one directory without preserving the other directory.
+- Its push gate suppresses the entire deployment when benchmark-sensitive inputs change, so the web app waits for documentation benchmarks.
+- Its `workflow_run` trigger accepts an overall successful benchmark workflow even when the `sensitivity` job was skipped. This can deploy stale benchmark JSON.
+- A data-only benchmark PR merge can cause another broad Pages build, while the original workflow_run path may also deploy.
+- GitHub Pages publishes one complete site artifact; it cannot safely replace only one directory without assembling the other current component too.
 
 ## Target architecture
 
-Use a durable, dedicated `pages-artifacts` branch as the component artifact store, with one serialized publisher and one Pages deployer.
+Use two independent, durable component artifact branches and one reusable Pages assembler.
 
-1. **Web producer**: on relevant application-source changes, build only the web application and publish its output under `web/` on `pages-artifacts`.
-2. **Documentation producer**: on documentation changes, build docs using the currently committed benchmark data and publish only `docs/`. On benchmark-input changes, run the benchmark first, validate the full dataset and fingerprint, then build and publish docs. A data-only merge must rebuild docs but must not rerun simulations.
-3. **Artifact publisher**: serialize writes to `pages-artifacts`, update only the producer's directory, and preserve the other directory. This branch is not a source branch and must not trigger either producer.
-4. **Pages deployer**: trigger only from successful updates to `pages-artifacts`; assemble the complete site from both stored directories and deploy once. Remove the old benchmark `workflow_run` deployment trigger and broad source push deployment path.
-5. **Failure isolation**: if docs benchmark/build fails, no docs artifact is published and the prior docs remain. Web producer can still update `web/` and deployment assembles it with the last valid docs. The reverse applies to web build failures.
-6. **No bypass required**: source `main` remains protected. The artifact branch is a narrowly scoped machine-output branch; grant only the workflow token the contents permission needed to update it. Do not weaken main protection or bypass benchmark validation.
+1. **Web producer** (`web-pages.yml`): watches web UI, shared runtime, strategy, schema and bank-data dependencies. It builds only the web component and publishes it to `pages-web-artifact`. Benchmark result JSON is not a web dependency and does not trigger this producer.
+2. **Documentation producer** (`docs-pages.yml`): watches documentation sources, benchmark inputs and generated benchmark result files. It first checks the current input fingerprint and strict dataset completeness. If either is stale/incomplete, it runs the Scoped Range and Absolute R+ benchmark suites itself, validates the outputs, and publishes them through a timestamped `data-YYYY-MM-DD-HH-MM-SS-LKT` branch and PR. It waits for the PR checks and merge before building docs. If the fingerprint and dataset are already valid, it skips simulation and builds docs directly from committed data.
+3. **Component artifact branches**: web and docs publishers update only their own branch (`pages-web-artifact` or `pages-docs-artifact`). Each has its own non-cancelling publication concurrency group. A web update cannot overwrite docs and a docs update cannot overwrite web.
+4. **Reusable Pages assembler** (`pages.yml`): called after either component is published. It fetches the latest heads of both artifact branches, assembles one complete site, validates required entry points, then performs one atomic GitHub Pages deployment. It has no push or workflow_run trigger of its own.
+5. **Failure isolation**: a failed web build never updates the web artifact branch; a failed benchmark or docs build never updates the docs artifact branch. The currently deployed site remains untouched. If only one artifact branch exists during initial setup, deployment is skipped until both components are available.
+6. **No bypass required**: source `main` remains protected. Workflow tokens write only the generated component branches and timestamped benchmark-data branches; no branch-protection bypass is introduced.
 
 ## Trigger and duplicate-run rules
 
-- Benchmark simulations run only from benchmark-input changes or explicit benchmark dispatch.
-- A benchmark data-only merge changes generated result paths, not benchmark inputs, so it triggers documentation build but not benchmark simulation.
-- A benchmark-input push suppresses the ordinary docs-only producer path and invokes the benchmark-aware documentation path once.
-- Web producer watches only web/runtime dependencies; benchmark-result JSON changes do not rebuild the web artifact.
-- Pages deployer watches only `pages-artifacts`; it has no `workflow_run` trigger and no direct `main` push trigger.
-- Artifact publication uses a shared concurrency group with `cancel-in-progress: false` to prevent lost updates when web and docs finish together.
-- Deployments use a separate non-cancelling concurrency group so a newer artifact update does not cancel a deployment halfway through. The deployer always assembles the latest artifact-branch head.
+- Main-branch Scoped Range benchmark ownership moves to the documentation pipeline. The standalone strategy workflow remains available for feature/chore branches and PR validation, but no longer starts a second benchmark run on main.
+- Benchmark execution is conditional on either a fingerprint mismatch or failed dataset-completeness validation. A data-only benchmark PR merge has a matching fingerprint and complete dataset, so it rebuilds docs without rerunning simulations.
+- Benchmark input changes trigger both relevant producers: the web producer builds the calculator independently, while the docs producer owns the benchmark and documentation lifecycle.
+- A benchmark data-only merge triggers the docs producer only. It does not trigger the web producer or the main strategy benchmark workflow.
+- Component artifact branches are not producer triggers. Artifact pushes are followed by an explicit reusable workflow call, avoiding reliance on GITHUB_TOKEN push events to trigger another workflow.
+- Component publishers have separate concurrency groups. Pages deployments share a non-cancelling concurrency group and always assemble the latest heads of both component branches. If an older pending deploy is superseded, the newer deploy still includes both already-published components.
 
 ## Implementation phases
 
-1. Add this plan and map all existing producer/deployer triggers and required source dependencies.
-2. Add a reusable artifact-publication script/workflow step that updates one artifact subtree while preserving the other, with bounded retry/rebase handling.
-3. Split the current combined Pages build into web and documentation producers. Keep benchmark generation and strict data validation in the documentation path only.
-4. Add the artifact-branch Pages assembler/deployer and remove the current `workflow_run` and combined-main deployment path.
-5. Update workflow documentation and add static workflow/contract tests for path routing, data-only merges, skipped benchmark jobs, serialization, and failure isolation.
-6. Review every trigger and permissions boundary; verify CI and deployment workflow runs. Do not claim live Pages deployment until the PR is merged and the artifact branch has both component artifacts.
+1. Record the existing combined workflow and map the real web/docs dependencies.
+2. Add isolated, repeatable web and docs build scripts plus strict benchmark-data validation.
+3. Move main benchmark ownership into the docs producer; preserve feature/chore and PR benchmark validation.
+4. Add separate web/docs artifact publishers and a reusable full-site Pages assembler.
+5. Remove the old combined push/workflow_run deployment path; update workflow documentation and add static workflow-contract tests.
+6. Verify workflow triggers, permissions, artifact isolation, benchmark gating, CI and deployment behavior. A live deployment is not claimed until the PR is merged and both component artifact branches are populated.
 
 ## Acceptance criteria
 
-- Web source changes can publish/deploy the web app without running or waiting for benchmarks.
-- Documentation benchmark-input changes cannot publish docs unless the benchmark completes and its dataset/fingerprint validation passes.
-- Existing docs remain in the artifact store when a documentation build or benchmark fails.
-- A data-only benchmark PR merge rebuilds docs from committed data without rerunning the benchmark.
-- A data-only merge cannot trigger a duplicate benchmark or a direct Pages deployment.
-- Concurrent web/docs artifact updates do not overwrite each other's directories.
-- Pages deployment occurs only after artifact publication and always assembles both latest stored components.
+- Web source changes build and publish the web component without waiting for documentation benchmarks.
+- Docs benchmark-input changes cannot publish docs unless the benchmark completes, passes strict completeness validation and its input fingerprint matches the latest main branch.
+- Existing docs remain deployed if a docs benchmark or build fails; existing web remains deployed if a web build fails.
+- A data-only benchmark PR merge rebuilds docs from committed data without rerunning simulations.
+- A data-only merge cannot trigger a duplicate main benchmark or web build.
+- Component artifact branches are independently updated and cannot overwrite each other.
+- Every Pages deployment assembles both latest components and validates the site before atomic publication.
 - No source-main protection bypass is introduced.
