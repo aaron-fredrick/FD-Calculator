@@ -50,6 +50,9 @@ jobs:
       - name: Store Goal benchmark input fingerprint
         if: steps.cache.outputs.stale == 'true'
         run: node scripts/goal-benchmark-fingerprint.js --write
+      - name: Verify the generated Goal benchmark cache is reusable
+        if: steps.cache.outputs.stale == 'true'
+        run: test "$(node scripts/goal-benchmark-fingerprint.js --check)" = "false"
       - name: Publish development benchmark outputs to the working branch
         if: steps.cache.outputs.stale == 'true' && github.ref_type == 'branch' && github.ref_name != 'main'
         run: |
