@@ -1,6 +1,6 @@
 # Greedy
 
-## 1. Overview
+## Overview
 
 Greedy is FD Cal's fast, rule-based baseline strategy. It makes a decision at each event date using the balances, eligible FD products, transfer fees and obligations known at that point.
 
@@ -10,7 +10,7 @@ Consequently, Greedy is fast and useful as a baseline, but it does not guarantee
 
 **Implementation:** `src/strategies/greedy.js`
 
-## 2. Strategy context and configuration
+## Strategy context and configuration
 
 Greedy is created through `createSession(context)`, using the shared simulation context supplied by `SimulationEngine`. It does not accept or own the user's simulation inputs as a separate strategy-level input contract.
 
@@ -26,7 +26,7 @@ At each decision boundary, Greedy receives a read-only runtime view containing t
 
 Account defaults and input normalization belong to the simulation/configuration layer, not to Greedy. By the time a session is created, the context contains the resolved account and configuration state. Greedy constructs one `FDOptionManager` from the context's FD options. Account eligibility is evaluated against each individual account, including its eFD capability; eFD support is not assumed to be uniform across all accounts.
 
-## 3. Session planning
+## Session planning
 
 The shared runtime advances the authoritative event timeline and settles inflows, FD cash flows, maturities and outflows before requesting a strategy decision. Greedy receives a deeply immutable account snapshot at each decision boundary.
 
@@ -34,11 +34,11 @@ Greedy evaluates the currently available balances and returns a revision-bound S
 
 Greedy remains locally greedy: it reacts to the current runtime snapshot rather than preserving alternative complete future paths.
 
-## 4. Daily plan generation
+## Daily plan generation
 
 For each decision date, Greedy considers two investment plan types: **SPLIT** and **CONSOLIDATE**. If neither produces an admissible candidate, it carries the available balances forward.
 
-### 4.1 SPLIT
+### SPLIT
 
 Greedy evaluates each account with a balance greater than the internal epsilon threshold.
 
@@ -53,7 +53,7 @@ The resulting SPLIT decision requests that the runtime book each selected accoun
 
 The plan's comparison rate is the **highest selected annual rate** among its bookings; its comparison tenor is the **shortest selected tenor**. Gross interest is the sum of the selected bookings' interest, and net interest is gross interest after the configured effective AIT deduction. SPLIT has no transfer fees.
 
-### 4.2 CONSOLIDATE
+### CONSOLIDATE
 
 Greedy evaluates every configured account as a possible target account.
 
@@ -90,17 +90,17 @@ Here, “main” means the configured `consolidation_account_id`.
 
 This multiplier is an evaluation assumption in the current implementation; it is **not** an additional fee charged during transfer execution. Actual execution deducts each transfer fee once and adds that amount once to the simulation's total transfer fees. The rationale for the estimated multiplier should be revisited if the intended model of subsequent fund repositioning changes.
 
-### 4.3 CARRY
+### CARRY
 
 If no candidate plan is available, Greedy leaves the active balances in their accounts. It also carries individual accounts when no eligible FD option fits their balance or account capabilities.
 
 Carry is not an FD investment and earns no modelled FD interest while the balance remains idle.
 
-## 5. FD option selection
+## FD option selection
 
 Greedy uses two selection stages.
 
-### 5.1 Select one option for an account or consolidated amount
+### Select one option for an account or consolidated amount
 
 The `selectBestOption` function compares eligible options in this order:
 
@@ -110,11 +110,11 @@ The `selectBestOption` function compares eligible options in this order:
 
 This is a rate-first rule. It does not directly select the option with the highest absolute interest amount across different tenors.
 
-### 5.2 eFD preference between equivalent products
+### eFD preference between equivalent products
 
 When ranking complete daily plans, Greedy counts selected eFD bookings for which the same account also has a standard option with matching economic terms. This count is only a late tie-breaker; it does not override a higher rate, shorter tenor or higher net interest in the preceding ranking fields.
 
-## 6. Candidate admission and plan ranking
+## Candidate admission and plan ranking
 
 Greedy first builds the SPLIT plan, if at least one account can be booked, and then generates feasible CONSOLIDATE plans.
 
@@ -141,7 +141,7 @@ The first candidate is executed.
 
 Greedy is a Scoped Range strategy only. It does not implement the earliest-achievement Goal objective. Goal mode is disabled while the project develops a dedicated Absolute R planner; Greedy's scoped selection and ranking rules are not dual-optimised.
 
-## 7. Decision contract (planning only)
+## Decision contract (planning only)
 
 Greedy returns a revision-bound decision describing the plan selected for the current planning snapshot. It does not execute any part of that plan.
 
@@ -151,7 +151,7 @@ Greedy returns a revision-bound decision describing the plan selected for the cu
 
 The strategy does not debit or credit authoritative balances, charge fees, create actual events, schedule cash flows, settle obligations or construct a simulation result. `SimulationRuntime` validates and executes the selected decision against the authoritative state. Invalid or stale decisions are rejected by the runtime before commit.
 
-## 8. Runtime-owned execution and finalization
+## Runtime-owned execution and finalization
 
 After Greedy returns a decision, `SimulationRuntime` owns all actual effects:
 
@@ -163,13 +163,13 @@ After Greedy returns a decision, `SimulationRuntime` owns all actual effects:
 
 Greedy does not perform a final sweep. After the complete simulation horizon and strategy session finish, `SimulationEngine` invokes the single simulation-wide consolidation sweep. It transfers eligible residual balances to the configured consolidation account, charges each applicable fee once, and records any remaining idle cash. This finalization is strategy-independent.
 
-## 9. Financial result and diagnostics
+## Financial result and diagnostics
 
 `SimulationRuntime` constructs the unfinished result from actual bookings, timeline events, transfer fees, paid/outstanding outflows, account balances and validity status. `SimulationEngine` then finalizes it. AIT is applied through the configured effective AIT rate when calculating net interest and generating net cash flows.
 
 Booking and carry events include a `decision_context` with the action and balances before the action. Greedy retains its existing empty `decision_log`; it does not expose a full trace of every candidate considered, rejected or ranked.
 
-## 10. Strengths and limitations
+## Strengths and limitations
 
 ### Strengths
 
@@ -188,7 +188,7 @@ Booking and carry events include a `decision_context` with the action and balanc
 - **Fee-model assumption:** estimated consolidation fees can differ from actual fees charged; the multiplier is an evaluation penalty, not an execution charge.
 - **Limited decision diagnostics:** the structured decision log is currently empty.
 
-## 11. When to use Greedy
+## When to use Greedy
 
 Greedy is appropriate when you need a fast, deterministic plan based on the balances and eligible FD options available at each decision boundary.
 
@@ -201,7 +201,7 @@ It is particularly useful when:
 
 Greedy is not appropriate when the requirement is to evaluate complete alternative future decision paths or to prove that the resulting portfolio is globally optimal. Its decisions are intentionally local, and its result should be interpreted with that limitation in mind.
 
-## 12. Source map
+## Source map
 
 | Concern | Implementation |
 |---|---|
