@@ -128,7 +128,34 @@ function runCase(category, value, {
   };
   for (const [name, makeStrategy] of strategies) {
     const started = Date.now();
-    const result = engine.run(makeStrategy(), input);
+    let result;
+    try {
+      result = engine.run(makeStrategy(), input);
+    } catch (error) {
+      if (outflow === "none") throw error;
+      const duration = Date.now() - started;
+      const required = Object.values(input.outflow_schedule)
+        .flat()
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const row = {
+        category, value, strategy: name, months, capital,
+        accounts: accountCount, banks: bankCount, inflow, outflow, efd,
+        valid: false, validity_pct: 0, outflows_paid: 0,
+        outflow_unpaid: Number(required.toFixed(2)),
+        net_interest: null, gross_interest: null, ait: null,
+        transfer_fees: null, principal: capital, final_value: null,
+        bookings: 0, cash_retained: null, duration_ms: duration,
+        optimality_proven: false, search_expanded: null,
+        strategy_error: error.message
+      };
+      results.push(row);
+      process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify({
+        category, value, strategy: name, valid: false,
+        outflow_unpaid: row.outflow_unpaid, duration_ms: duration,
+        error: error.message
+      }) + "\n");
+      continue;
+    }
     const duration = Date.now() - started;
     if (!result.finalized || !Number.isFinite(result.net_interest_after_ait) || (outflow === "none" && !result.valid)) {
       throw new Error(name + " produced an invalid result for " + category + "/" + value);
@@ -198,9 +225,11 @@ for (const row of results) {
 for (const rows of grouped.values()) {
   const byStrategy = new Map(rows.map(row => [row.strategy, row]));
   const baseline = byStrategy.get("Greedy");
+  const baselineComparable = baseline?.valid === true && Number.isFinite(baseline.net_interest);
   for (const row of rows) {
-    row.delta_vs_greedy = Number((row.net_interest - baseline.net_interest).toFixed(2));
-    row.delta_pct_vs_greedy = baseline.net_interest
+    const comparable = baselineComparable && row.valid === true && Number.isFinite(row.net_interest);
+    row.delta_vs_greedy = comparable ? Number((row.net_interest - baseline.net_interest).toFixed(2)) : null;
+    row.delta_pct_vs_greedy = comparable && baseline.net_interest
       ? Number(((row.net_interest / baseline.net_interest - 1) * 100).toFixed(3))
       : null;
   }
