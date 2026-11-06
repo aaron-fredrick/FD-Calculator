@@ -76,6 +76,7 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Strategy overview', link: '/STRATEGIES' },
+          { text: 'Benchmarks', link: '/strategies/benchmarks' },
           {
             text: 'Scoped Range',
             collapsed: false,
@@ -84,14 +85,12 @@ export default defineConfig({
               { text: 'GSS', link: '/strategies/GSS' },
               { text: 'Absolute R', link: '/strategies/ABSOLUTE' },
               { text: 'Absolute R+', link: '/strategies/ABSOLUTE-PLUS' },
-              { text: 'Scoped benchmark', link: '/strategies/benchmarks#scoped-range' },
             ],
           },
           {
             text: 'Goal',
             collapsed: false,
             items: [
-              { text: 'Goal status', link: '/strategies/benchmarks#goal' },
               { text: 'Rework plan', link: '/strategies/goal-mode-rework-plan' },
             ],
           },
