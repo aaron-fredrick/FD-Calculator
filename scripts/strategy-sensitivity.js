@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { parseCSV } from "../src/io/csv.js";
 import { Account, FDOption, TransferFeeConfig } from "../src/core/models.js";
 import { addPeriod, formatISODate } from "../src/core/dates.js";
@@ -89,15 +89,29 @@ function makeInflows(kind, accountId, end) {
   return schedule;
 }
 
+function makeOutflows(kind, accountId, end) {
+  const schedule = {};
+  if (kind === "strict_50k_at_6m") {
+    const date = formatISODate(addPeriod(START, "6m"));
+    if (date <= end) schedule[date] = [{ name: "Single liquidity obligation", account_id: accountId, amount: 50000, payment_policy: "strict" }];
+  } else if (kind === "strict_staggered_20k") {
+    for (const months of [6, 12, 18]) {
+      const date = formatISODate(addPeriod(START, months + "m"));
+      if (date <= end) schedule[date] = [{ name: "Staggered liquidity obligation", account_id: accountId, amount: 20000, payment_policy: "strict" }];
+    }
+  }
+  return schedule;
+}
+
 const strategies = [
   ["Greedy", () => new GreedyStrategy({ ait_enabled: true })],
-  ["Absolute+", () => new AbsolutePlusStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000 })],
+  ["Absolute R+", () => new AbsolutePlusStrategy({ ait_enabled: true, beam_width: 96, max_local_branches: 48, max_decisions: 5000 })],
   ["GSS", () => new GSSStrategy({ ait_enabled: true, small_period_days: 30 })]
 ];
 const results = [];
 function runCase(category, value, {
   months = 24, capital = 300000, accountCount = 3, bankCount = 3,
-  inflow = "none", efd = true
+  inflow = "none", outflow = "none", efd = true
 } = {}) {
   const end = formatISODate(addPeriod(START, months + "m"));
   const accounts = makeAccounts(accountCount, capital, bankCount, efd);
@@ -109,19 +123,50 @@ function runCase(category, value, {
     inflow_account_id: accounts[0].id,
     consolidation_account_id: accounts[0].id,
     inflow_schedule: makeInflows(inflow, accounts[0].id, end),
-    outflow_schedule: {},
+    outflow_schedule: makeOutflows(outflow, accounts[0].id, end),
     fee_config: feeConfig
   };
   for (const [name, makeStrategy] of strategies) {
     const started = Date.now();
-    const result = engine.run(makeStrategy(), input);
+    let result;
+    try {
+      result = engine.run(makeStrategy(), input);
+    } catch (error) {
+      if (outflow === "none" || !String(error?.message ?? error).includes("strict outflows")) throw error;
+      const duration = Date.now() - started;
+      const required = Object.values(input.outflow_schedule)
+        .flat()
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const row = {
+        category, value, strategy: name, months, capital,
+        accounts: accountCount, banks: bankCount, inflow, outflow, efd,
+        valid: false, validity_pct: 0, outflows_paid: 0,
+        outflow_unpaid: Number(required.toFixed(2)),
+        net_interest: null, gross_interest: null, ait: null,
+        transfer_fees: null, principal: capital, final_value: null,
+        bookings: 0, cash_retained: null, duration_ms: duration,
+        optimality_proven: false, search_expanded: null,
+        strategy_error: error.message
+      };
+      results.push(row);
+      process.stdout.write("SENSITIVITY_POINT=" + JSON.stringify({
+        category, value, strategy: name, valid: false,
+        outflow_unpaid: row.outflow_unpaid, duration_ms: duration,
+        error: error.message
+      }) + "\n");
+      continue;
+    }
     const duration = Date.now() - started;
-    if (!result.finalized || !Number.isFinite(result.net_interest_after_ait)) {
+    if (!result.finalized || !Number.isFinite(result.net_interest_after_ait) || (outflow === "none" && !result.valid)) {
       throw new Error(name + " produced an invalid result for " + category + "/" + value);
     }
     const row = {
       category, value, strategy: name, months, capital,
-      accounts: accountCount, banks: bankCount, inflow, efd,
+      accounts: accountCount, banks: bankCount, inflow, outflow, efd,
+      valid: result.valid === true,
+      validity_pct: result.valid === true ? 100 : 0,
+      outflows_paid: Number((result.total_outflows_paid ?? 0).toFixed(2)),
+      outflow_unpaid: Number((result.outstanding_outflows ?? []).reduce((sum, item) => sum + Number(item.remaining || 0), 0).toFixed(2)),
       net_interest: Number(result.net_interest_after_ait.toFixed(2)),
       gross_interest: Number(result.total_interest.toFixed(2)),
       ait: Number(result.ait_withheld.toFixed(2)),
@@ -159,6 +204,18 @@ for (const efd of [false, true]) {
   runCase("efd_eligibility", efd ? "eligible" : "standard_only", { efd });
 }
 
+// Strict outflow scenarios stress whether each strategy preserves enough account-level liquidity.
+for (const outflow of ["none", "strict_50k_at_6m", "strict_staggered_20k"]) {
+  runCase("outflow_pattern", outflow, { outflow });
+}
+
+// Two-factor matrix: exposes capital/horizon interactions hidden by isolated sweeps.
+for (const months of [6, 12, 24]) {
+  for (const capital of [100000, 300000, 1000000]) {
+    runCase("capital_horizon", `${capital}:${months}`, { months, capital });
+  }
+}
+
 const grouped = new Map();
 for (const row of results) {
   const key = row.category + "|" + row.value;
@@ -168,14 +225,16 @@ for (const row of results) {
 for (const rows of grouped.values()) {
   const byStrategy = new Map(rows.map(row => [row.strategy, row]));
   const baseline = byStrategy.get("Greedy");
+  const baselineComparable = baseline?.valid === true && Number.isFinite(baseline.net_interest);
   for (const row of rows) {
-    row.delta_vs_greedy = Number((row.net_interest - baseline.net_interest).toFixed(2));
-    row.delta_pct_vs_greedy = baseline.net_interest
+    const comparable = baselineComparable && row.valid === true && Number.isFinite(row.net_interest);
+    row.delta_vs_greedy = comparable ? Number((row.net_interest - baseline.net_interest).toFixed(2)) : null;
+    row.delta_pct_vs_greedy = comparable && baseline.net_interest
       ? Number(((row.net_interest / baseline.net_interest - 1) * 100).toFixed(3))
       : null;
   }
 }
-process.stdout.write("STRATEGY_SENSITIVITY_JSON=" + JSON.stringify({
+const output = {
   generated_at: new Date().toISOString(),
   start_date: START,
   banks: BANK_IDS.map(id => ({
@@ -188,5 +247,15 @@ process.stdout.write("STRATEGY_SENSITIVITY_JSON=" + JSON.stringify({
   ait_enabled: true,
   compound: false,
   transfer_fee_basis: "Bank catalogue intra/inter-bank transfer fees; all transfer decisions and final sweep use the same fee config.",
+  design: {
+    one_factor_sweeps: ["horizon_months", "starting_capital_lkr", "account_count", "bank_count", "inflow_pattern", "efd_eligibility"],
+    interaction_matrices: ["capital_horizon"],
+    interaction_points: 9,
+    liquidity_stress: ["strict_50k_at_6m", "strict_staggered_20k"],
+    liquidity_note: "Strict obligations are scored for runtime validity and unpaid amount as well as net interest. Invalid runs are retained as feasibility failures, not treated as competitive returns.",
+    timing_note: "Single-run wall-clock measurements are observational; compare only on the same runner."
+  },
   results
-}) + "\n");
+};
+writeFileSync(new URL("docs/strategies/benchmarks/results.json", root), JSON.stringify(output, null, 2) + "\n");
+process.stdout.write("STRATEGY_SENSITIVITY_JSON=" + JSON.stringify(output) + "\n");

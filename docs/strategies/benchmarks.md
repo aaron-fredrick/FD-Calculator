@@ -1,12 +1,16 @@
 # Strategy benchmarks
 
+<script setup>
+import benchmarkResults from './benchmarks/results.json'
+</script>
+
 FD Cal keeps its two simulation objectives separate. **Scoped Range** is the supported benchmark area. **Goal** is under development and has no published benchmark data yet.
 
 ## Scoped Range
 
 This study executes the repository's actual `SimulationEngine` and the three strategies available in the web application: **Greedy**, **Absolute R+** and **GSS**. Each comparison changes one scenario factor at a time and gives every strategy the same inputs.
 
-All plotted values are **net interest after AIT and transfer fees**, in LKR. They are not gross interest or final portfolio value. This is the scoped date-range study. All strategies receive the same selected start and end dates.
+The published dataset contains **90 strategy observations** across 30 scenario points: 18 one-factor points, three outflow cases and nine capital/horizon combinations, each evaluated by all three strategies. The default chart metric is **net interest after AIT and transfer fees**, in LKR; interactive selectors also expose the difference vs Greedy, runtime, booking count, simulation validity and unpaid outflows where applicable. Net interest is not gross interest or final portfolio value. This is the scoped date-range study. All strategies receive the same selected start and end dates.
 
 ## Benchmark setup
 
@@ -21,10 +25,10 @@ All plotted values are **net interest after AIT and transfer fees**, in LKR. The
 | eFD eligibility | Standard-only vs eFD-eligible accounts |
 | AIT | Enabled at 10% |
 | Interest calculation | Simple interest; actual leap-year day basis |
-| Outflows | None |
+| Outflows | None; LKR 50,000 strict obligation at 6 months; three LKR 20,000 strict obligations at 6, 12 and 18 months |
 | Transfer fees | Bank-specific catalogue fees; applied to transfers and final sweep |
 
-The general base portfolio is LKR 300,000 across three accounts and three banks over 24 months. Horizon, capital, inflow and eFD sweeps use that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands. Scheduled inflows are deposited into the first (DFCC) account.
+The general base portfolio is LKR 300,000 across three accounts and three banks over 24 months. In addition to the one-factor sweeps, a 3 × 3 capital/horizon interaction matrix tests LKR 100,000, 300,000 and 1,000,000 at 6, 12 and 24 months. The interaction matrix adds 27 strategy runs and is intended to reveal non-additive effects that isolated sweeps miss. Two additional strict-outflow scenarios test account-level liquidity under a single and staggered withdrawal schedule. Horizon, capital, inflow and eFD sweeps use that base. For the account-count sweep, all accounts use DFCC so the bank catalogue stays constant. For the bank-count sweep, account count and total capital remain fixed while the selected bank set expands. Scheduled inflows are deposited into the first (DFCC) account.
 
 ## Bank product catalogues
 
@@ -46,35 +50,57 @@ Each chart overlays all three strategy results for the same factor. Numeric inpu
 
 ### Investment horizon
 
-![Investment horizon sensitivity](./assets/horizon.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="horizon_months" x-label="Horizon (months)" />
 
 The horizontal axis is linear in months (6, 12 and 24). The 12-month point is placed one-third of the way from 6 to 24 months, reflecting the actual numeric interval.
 
 ### Starting capital
 
-![Starting capital sensitivity](./assets/capital.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="starting_capital_lkr" x-label="Starting capital (LKR)" />
 
 The horizontal axis is linear in LKR (25k, 100k, 300k and 1m). Unequal capital intervals therefore occupy unequal horizontal distances. This avoids visually presenting the four test points as equally sized increases. The vertical axis remains linear in net interest.
 
 ### Number of accounts
 
-![Account-count sensitivity](./assets/accounts.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="account_count" x-label="Number of accounts" />
 
 The three strategy lines overlap because the measured returns are effectively identical across one, two and three accounts in this single-bank scenario. The near-flat result is meaningful: splitting the same capital across more accounts did not improve the available rate or net return in this catalogue snapshot.
 
 ### Number of banks
 
-![Bank-count sensitivity](./assets/banks.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="bank_count" x-label="Number of banks" />
 
 The Greedy and Absolute R+ lines overlap in this comparison. GSS remains close to its one-bank result and does not capture the same benefit from adding banks.
 
 ### Cash inflows
 
-![Cash-inflow sensitivity](./assets/inflows.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="inflow_pattern" x-label="Inflow pattern" />
 
 ### eFD eligibility
 
-![eFD eligibility sensitivity](./assets/efd.svg)
+<BenchmarkChart :rows="benchmarkResults.results" category="efd_eligibility" x-label="Eligibility" />
+
+### Liquidity and strict outflow stress
+
+The outflow scenarios are not scored on net interest alone. The metric selector includes simulation validity and unpaid obligations so an invalid or underfunded run cannot appear to be a better strategy merely because it retained more interest. Strategy exceptions are retained as infeasible observations with their error text instead of aborting the entire benchmark; invalid points are outlined in red and expose the failure in the hover detail. Strict outflows are due from the designated account; another account's balance does not silently cover the obligation.
+
+<BenchmarkChart :rows="benchmarkResults.results" category="outflow_pattern" x-label="Outflow scenario" />
+
+### Liquidity stress result
+
+The strict-outflow runs expose a material feasibility difference:
+
+- **GSS** paid the full LKR 50,000 single obligation and all three LKR 20,000 staggered obligations from the designated account; both runs remained valid.
+- **Greedy** failed the first strict obligation in both schedules and paid LKR 0 before the run became invalid.
+- **Absolute R+** returned no feasible path under the benchmark search settings (96 beam width, 48 local branches, 5,000 expanded-state cap).
+
+This does **not** prove that no valid Absolute R+ path exists: GSS found one under the same financial inputs. It indicates a search-feasibility gap under the current Absolute R+ limits and should be investigated separately. Invalid results are not included in the difference-vs-Greedy comparison.
+
+## Capital and horizon interaction
+
+The one-factor sweeps above do not reveal whether a strategy responds differently to larger capital at longer horizons. The additional 3 × 3 interaction matrix runs nine combined capital/horizon scenarios for every strategy. Select a strategy and metric, then inspect individual cells for exact runtime and booking counts.
+
+<BenchmarkHeatmap :rows="benchmarkResults.results" />
 
 ## Findings
 
@@ -108,13 +134,13 @@ Absolute R+ matched Greedy on the monthly-inflow case, but used the full 5,000 e
 
 - **Greedy** was the strongest or tied strongest result in most tested scenarios, with very low runtime. It remains a useful baseline.
 - **Absolute R+** found improvements in some short-horizon and capital cases, but often returned the Greedy result despite materially higher search cost. Its bounded result is not an optimality proof.
-- **GSS** remained very fast, but underperformed Greedy on several multi-bank, longer-horizon and inflow scenarios. The eFD result also suggests that broader candidate availability is not automatically being converted into better goal outcomes.
+- **GSS** remained very fast, but underperformed Greedy on several multi-bank, longer-horizon and inflow scenarios. The eFD result also suggests that broader candidate availability is not automatically being converted into better scoped-range returns.
 
 These are observations from this fixed catalogue snapshot and the stated one-factor sweeps, not universal rankings. Rate schedules, product minima, payout types, fees and eligibility all influence the result.
 
 ## Absolute R+ search-parameter sensitivity
 
-A separate controlled experiment varies Absolute R+'s beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Results and overlay charts are published alongside the main study once the run completes and is reviewed.
+A separate controlled experiment varies Absolute R+'s beam width, local branch limit and expanded-state decision cap independently. Each sweep holds the other two settings and the financial scenario constant. Interactive charts and exact measurements are shown in the [Absolute R+ technical reference](./ABSOLUTE-PLUS#benchmark-and-sensitivity).
 
 ## Scoped-mode compatibility check for dual-scope strategy work
 
@@ -131,9 +157,9 @@ This is a historical scoped-regression check for the web strategies. The active 
 
 - Run `node scripts/strategy-sensitivity.js` from the repository root to repeat the study.
 - The workflow archives the raw output as a GitHub Actions artifact.
-- Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget in this archived experiment. Its results are approximate.
+- Absolute R+ uses a 96-state beam, 48 local branches and a 5,000 expanded-state budget in the archived one-factor study. Its results are approximate.
 - Absolute R is CLI-only and exhaustive; it is not included in this web-strategy comparison.
-- No outflows, early-termination penalties, liquidity preference, or rate changes during the forecast are modelled.
+- The current matrix does not yet model early-termination penalties, explicit liquidity preference, or rate changes during the forecast. Strict outflow stress is included as a feasibility probe, not a comprehensive liquidity model.
 - Published bank rates are a dated data snapshot, not guaranteed live offers. Confirm minimum balances, account eligibility, payout conditions and current tariffs with each bank before investing.
 
 ## Goal

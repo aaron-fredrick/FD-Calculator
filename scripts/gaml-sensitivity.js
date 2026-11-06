@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { parseCSV } from "../src/io/csv.js";
 import { Account, FDOption, TransferFeeConfig } from "../src/core/models.js";
 import { addPeriod, formatISODate } from "../src/core/dates.js";
@@ -72,4 +72,5 @@ const output = {
   baseline: { beam_width: 96, max_local_branches: 48, max_decisions: 5000 },
   results
 };
+writeFileSync(new URL("docs/strategies/benchmarks/gaml-search-results.json", root), JSON.stringify(output, null, 2) + "\n");
 process.stdout.write("GAML_SENSITIVITY_JSON=" + JSON.stringify(output) + "\n");

@@ -24,7 +24,6 @@ The supported strategies optimise the selected start and end dates. Their curren
 Goal mode is disabled and is not currently user-selectable. The intended first Goal optimiser is Absolute R; the other three strategies remain Scoped Range only.
 
 - [Goal-mode rework plan](/strategies/goal-mode-rework-plan) — architecture, implementation phases and release gates.
-- [Goal benchmark status](/strategies/benchmarks#goal) — no Goal measurements or graphs are published while work continues.
 
 ## Architecture
 

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-05T09:47:02.355Z",
+  "generated_at": "2026-11-06T07:47:38.796Z",
   "start_date": "2026-11-05",
   "scenario": {
     "horizon_months": 24,
@@ -33,7 +33,7 @@
       "beam_pruned": 12500,
       "local_combination_pruned": 1148,
       "optimality_proven": false,
-      "duration_ms": 802.98
+      "duration_ms": 884.07
     },
     {
       "sweep": "beam_width",
@@ -47,7 +47,7 @@
       "beam_pruned": 25505,
       "local_combination_pruned": 1148,
       "optimality_proven": false,
-      "duration_ms": 1382.88
+      "duration_ms": 1434.16
     },
     {
       "sweep": "beam_width",
@@ -61,7 +61,7 @@
       "beam_pruned": 72870,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4756.6
+      "duration_ms": 4823.53
     },
     {
       "sweep": "beam_width",
@@ -75,7 +75,7 @@
       "beam_pruned": 143644,
       "local_combination_pruned": 22300,
       "optimality_proven": false,
-      "duration_ms": 9227.76
+      "duration_ms": 9372.7
     },
     {
       "sweep": "beam_width",
@@ -89,7 +89,7 @@
       "beam_pruned": 161182,
       "local_combination_pruned": 28870,
       "optimality_proven": false,
-      "duration_ms": 10527.77
+      "duration_ms": 10694.51
     },
     {
       "sweep": "local_branch_limit",
@@ -103,7 +103,7 @@
       "beam_pruned": 64995,
       "local_combination_pruned": 19220,
       "optimality_proven": false,
-      "duration_ms": 4290.99
+      "duration_ms": 4371.56
     },
     {
       "sweep": "local_branch_limit",
@@ -117,7 +117,7 @@
       "beam_pruned": 68699,
       "local_combination_pruned": 16135,
       "optimality_proven": false,
-      "duration_ms": 4465.62
+      "duration_ms": 4576.09
     },
     {
       "sweep": "local_branch_limit",
@@ -131,7 +131,7 @@
       "beam_pruned": 72870,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4798.69
+      "duration_ms": 4841.68
     },
     {
       "sweep": "local_branch_limit",
@@ -145,7 +145,7 @@
       "beam_pruned": 79838,
       "local_combination_pruned": 5975,
       "optimality_proven": false,
-      "duration_ms": 5068.21
+      "duration_ms": 5256.41
     },
     {
       "sweep": "local_branch_limit",
@@ -159,7 +159,7 @@
       "beam_pruned": 77928,
       "local_combination_pruned": 4501,
       "optimality_proven": false,
-      "duration_ms": 4962.96
+      "duration_ms": 5164.15
     },
     {
       "sweep": "decision_cap",
@@ -173,7 +173,7 @@
       "beam_pruned": 15420,
       "local_combination_pruned": 1148,
       "optimality_proven": false,
-      "duration_ms": 913.34
+      "duration_ms": 971.47
     },
     {
       "sweep": "decision_cap",
@@ -187,7 +187,7 @@
       "beam_pruned": 32295,
       "local_combination_pruned": 4654,
       "optimality_proven": false,
-      "duration_ms": 2076.87
+      "duration_ms": 2196.13
     },
     {
       "sweep": "decision_cap",
@@ -201,7 +201,7 @@
       "beam_pruned": 72820,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4666.29
+      "duration_ms": 4843.21
     },
     {
       "sweep": "decision_cap",
@@ -215,7 +215,7 @@
       "beam_pruned": 72870,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4770.54
+      "duration_ms": 4855.07
     },
     {
       "sweep": "decision_cap",
@@ -229,7 +229,7 @@
       "beam_pruned": 72870,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4731.22
+      "duration_ms": 4768.04
     }
   ]
 }

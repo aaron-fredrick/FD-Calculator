@@ -43,7 +43,7 @@ export default defineConfig({
     );
   },
   cleanUrls: false,
-  appearance: 'dark',
+  appearance: true,
 
   themeConfig: {
     siteTitle: 'FD Cal',
@@ -85,14 +85,12 @@ export default defineConfig({
               { text: 'GSS', link: '/strategies/GSS' },
               { text: 'Absolute R', link: '/strategies/ABSOLUTE' },
               { text: 'Absolute R+', link: '/strategies/ABSOLUTE-PLUS' },
-              { text: 'Scoped benchmark', link: '/strategies/benchmarks#scoped-range' },
             ],
           },
           {
             text: 'Goal',
             collapsed: false,
             items: [
-              { text: 'Goal status', link: '/strategies/benchmarks#goal' },
               { text: 'Rework plan', link: '/strategies/goal-mode-rework-plan' },
             ],
           },
