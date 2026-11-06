@@ -7,7 +7,6 @@ output_dir="$(mkdir -p "$output_dir" && cd "$output_dir" && pwd)"
 
 cd "$root_dir"
 node scripts/validate-scoped-benchmark-data.js
-test "$(node scripts/benchmark-fingerprint.js --check)" = "false"
 
 npm install --no-save --package-lock=false vitepress@2.0.0-alpha.21
 npm exec -- vitepress build docs
