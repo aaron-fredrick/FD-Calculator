@@ -21,6 +21,11 @@ const balanceTotal = balances => sum(balances.map(([, value]) => value));
 const dateSort = (a, b) => a.localeCompare(b);
 const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
+// Expansion entries retain child states, so bound both entry count and child count.
+const SEARCH_EXPANSION_CACHE_LIMIT = 512;
+const SEARCH_EXPANSION_CACHE_CHILD_LIMIT = 2048;
+const SEARCH_EXPANSION_CACHE_MAX_CHILDREN_PER_STATE = 64;
+const SEARCH_EXPANSION_CACHE_MAX_KEY_LENGTH = 4096;
 
 function cachedValue(cache, key, compute, stats) {
   if (cache.has(key)) {
@@ -35,6 +40,32 @@ function cachedValue(cache, key, compute, stats) {
   if (cache.size >= SEARCH_CACHE_LIMIT) cache.delete(cache.keys().next().value);
   cache.set(key, value);
   return value;
+}
+
+function reuseExpansion(context, key, counters) {
+  const entry = context.expansionCache.get(key);
+  if (!entry) return null;
+  context.expansionCache.delete(key);
+  context.expansionCache.set(key, entry);
+  counters.expansionCacheHits++;
+  return { terminal: false, children: entry.children };
+}
+
+function rememberExpansion(context, key, children, counters) {
+  if (key.length > SEARCH_EXPANSION_CACHE_MAX_KEY_LENGTH ||
+      children.length > SEARCH_EXPANSION_CACHE_MAX_CHILDREN_PER_STATE) return;
+  const childCount = children.length;
+  while (context.expansionCache.size >= SEARCH_EXPANSION_CACHE_LIMIT ||
+      context.expansionCacheChildren + childCount > SEARCH_EXPANSION_CACHE_CHILD_LIMIT) {
+    const oldestKey = context.expansionCache.keys().next().value;
+    if (oldestKey === undefined) return;
+    const oldest = context.expansionCache.get(oldestKey);
+    context.expansionCache.delete(oldestKey);
+    context.expansionCacheChildren -= oldest.childCount;
+    counters.expansionCacheEvictions++;
+  }
+  context.expansionCache.set(key, { children, childCount });
+  context.expansionCacheChildren += childCount;
 }
 
 function getEligibleOptions(context, { account, amount, investmentDate, simulationEndDate = context.endDate }) {
@@ -822,6 +853,7 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
     inflows, outflows, inflowDates, inflowDateTotals, inflowEvents, eventDates,
     eligibleOptionsCache: new Map(), optionInterestCache: new Map(),
     upperBoundCache: new Map(), priorityCache: new Map(),
+    expansionCache: new Map(), expansionCacheChildren: 0,
     cacheStats: {
       eligibleOptions: { hits: 0, misses: 0 },
       optionInterest: { hits: 0, misses: 0 },
@@ -844,7 +876,16 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     return { terminal: true, value, state, children: [] };
   }
   const goalMode = context.simulation?.mode === "goal";
-  const bound = makeUpperBound(state, context, mode === "gaml");
+  const key = stateKey(state);
+  const prior = goalMode ? null : counters.memo.get(key);
+  if (prior) {
+    counters.memo.delete(key);
+    counters.memo.set(key, prior);
+    counters.stateMemoHits++;
+  }
+  // The upper bound is deterministic for a canonical state. Reuse the memoised
+  // value instead of recalculating it for another path to the same state.
+  const bound = prior?.bound ?? makeUpperBound(state, context, mode === "gaml");
   const stillSeekingBaselineTie = counters.bestValue <= counters.baselineValue + EPS;
   if (!goalMode && (stillSeekingBaselineTie
     ? bound < counters.bestValue - EPS
@@ -852,15 +893,7 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     counters.boundPruned++;
     return { terminal: false, children: [] };
   }
-  const key = stateKey(state);
-  const prior = counters.memo.get(key);
-  if (!goalMode && prior) {
-    counters.memo.delete(key);
-    counters.memo.set(key, prior);
-  }
-  if (!goalMode && prior &&
-      prior.bound >= bound - EPS &&
-      prior.operationCount <= operationCount) {
+  if (!goalMode && prior && prior.bound >= bound - EPS && prior.operationCount <= operationCount) {
     counters.memoPruned++;
     return { terminal: false, children: [] };
   }
@@ -873,14 +906,22 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       bound: Math.max(bound, prior?.bound ?? -Infinity),
       operationCount: Math.min(operationCount, prior?.operationCount ?? Infinity)
     });
+    if (prior && operationCount < prior.operationCount) {
+      const cached = reuseExpansion(context, key, counters);
+      if (cached) return cached;
+    }
   }
 
   const nextDate = nextEventDate(state.date, state.flows, context.eventDates, context.end);
   const activeIds = state.balances.filter(([, amount]) => amount > EPS).map(([id]) => id);
-  if (!activeIds.length) return {
-    terminal: false,
-    children: [{ state: { ...state, date: nextDate }, action: null, root_signature: null, priority: null }]
-  };
+  if (!activeIds.length) {
+    const result = {
+      terminal: false,
+      children: [{ state: { ...state, date: nextDate }, action: null, root_signature: null, priority: null }]
+    };
+    if (!goalMode) rememberExpansion(context, key, result.children, counters);
+    return result;
+  }
 
   const balances = new Map(state.balances);
   const children = [];
@@ -1064,6 +1105,7 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     const action = { type: "carry", carries: activeIds };
     pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
   }
+  if (!goalMode) rememberExpansion(context, key, children, counters);
   return { terminal: false, children };
 }
 
@@ -1326,6 +1368,7 @@ export class SearchStrategyBase {
     } : null;
     const counters = {
       expanded: 0, leaves: 0, boundPruned: 0, memoPruned: 0, localPruned: 0,
+      stateMemoHits: 0, expansionCacheHits: 0, expansionCacheEvictions: 0,
       bestValue: goalMode ? -Infinity : greedyObjective,
       baselineValue: goalMode ? -Infinity : greedyObjective,
       bestOperationCount: goalMode ? Infinity : resultOperationCount(greedy),
@@ -1361,7 +1404,14 @@ export class SearchStrategyBase {
       budget_stopped: Boolean(search.budgetStopped),
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
       state_memo_size: counters.memo.size,
+      state_memo_hits: counters.stateMemoHits,
       state_memo_evictions: counters.memoEvictions,
+      expansion_cache: {
+        entries: context.expansionCache.size,
+        retained_children: context.expansionCacheChildren,
+        hits: counters.expansionCacheHits,
+        evictions: counters.expansionCacheEvictions
+      },
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
