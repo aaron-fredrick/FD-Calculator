@@ -34,4 +34,4 @@ jobs:
         run: bash -n scripts/build-web-site.sh && bash -n scripts/build-docs-site.sh && bash -n scripts/build-docs-preservation.sh
       - name: Parse all GitHub Actions workflow YAML files
         run: |
-          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file, aliases: true); puts "Validated #{file}" }' .github/workflows/*.yml
+          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file, aliases: true); puts "Validated #{file}" }' .github/workflows/pages.yml .github/workflows/web-pages.yml .github/workflows/docs-pages.yml .github/workflows/strategy-sensitivity.yml .github/workflows/tests.yml
