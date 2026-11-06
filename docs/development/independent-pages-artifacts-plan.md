@@ -65,5 +65,5 @@ GitHub Pages itself publishes a complete site atomically. The independent compon
 - [x] Removed main docs workflow's timestamped data-PR creation/merge/dispatch path.
 - [x] Reusable Pages assembler and independent component artifacts.
 - [x] Workflow contract tests updated for the run-local benchmark architecture.
-- [ ] CI verification on the final PR head.
+- [x] CI verification on the final PR head (Node.js 22 tests, syntax checks, web/docs build smoke tests, workflow YAML parsing, docs PR build, Dependency Review and CodeQL).
 - [ ] Post-merge production verification of both benchmark jobs, docs artifact publication and Pages deployment.
