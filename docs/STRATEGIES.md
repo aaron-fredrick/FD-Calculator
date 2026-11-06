@@ -32,7 +32,6 @@ Goal-based net-interest optimisation is disabled in the browser and rejected by 
 
 The intended first Goal optimiser is **Absolute R**, using an earliest-authoritative-credit objective. Greedy, GSS and Absolute R+ remain scoped-range strategies; they are not dual-optimised.
 
-See the [Goal-mode rework plan](strategies/goal-mode-rework-plan.md) for the implementation and release gates, and the [Goal benchmark status](strategies/benchmarks.md#goal).
 
 ## Simulation boundary
 
