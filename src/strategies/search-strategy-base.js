@@ -444,6 +444,8 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       const id = accountIds[index], expanded = [];
       const accountOptions = slots[index].slice(1);
       const standardTerms = new Set(accountOptions.filter(option => !option.is_efd).map(option => option.economic_terms_key));
+      const equivalentStandardTerms = new Set((optionsByAccount.get(id) || [])
+        .filter(option => !option.is_efd).map(option => option.economic_terms_key));
       const choices = accountOptions.sort((a, b) => {
         const profit = settings.goalMode
           ? goalOptionScore(id, b) - goalOptionScore(id, a)
@@ -463,7 +465,7 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
             score: partial.score + (settings.goalMode
               ? goalOptionScore(id, option)
               : getOptionInterest(context, option, balances.get(id), today) * (1 - settings.aitRate)),
-            efd: partial.efd + Number(option.is_efd && standardTerms.has(option.economic_terms_key)),
+            efd: partial.efd + Number(option.is_efd && equivalentStandardTerms.has(option.economic_terms_key)),
             choices: [...partial.choices, [id, option]]
           });
         }
