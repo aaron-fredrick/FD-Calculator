@@ -85,6 +85,30 @@ The 24-month sensitivity result where a 500-decision run found more net interest
 
 For this implementation, exact duplicate-state elimination is safer than generic beam duplicate elimination because the Scoped state key represents the complete future-relevant financial state. Historical path information is retained separately for replay and operation-count tie-breaking.
 
+
+## Decision-budget quality regression: root cause and mitigation
+
+The lower-budget result can be better because budget exhaustion introduces a second candidate class: the top four states on the current beam frontier are completed by Greedy during authoritative replay. A 500-decision run evaluates its own cutoff frontier. A 1,000-decision run continues expanding that frontier, so those exact 500-decision prefixes may disappear from the final frontier and never receive the same Greedy completion. The best terminal search incumbent is retained, but the budget-frontier completion incumbent was not retained across deeper search.
+
+This is an implementation-level anytime-quality gap, not a claim that beam search itself is monotonic. The search order is shared up to the smaller budget; the non-monotonicity enters when each budget independently chooses a different final frontier for Greedy completion.
+
+Mitigation implemented on this branch:
+
+- Capture bounded top-four budget-frontier checkpoints every 500 expanded states.
+- Keep those checkpoint prefixes alongside the final cutoff frontier.
+- Replay checkpoint prefixes with the same authoritative Greedy continuation used for the final frontier.
+- Select the best valid replay across all checkpoints, terminal search incumbent and Greedy baseline.
+- Keep checkpointing Scoped/Absolute R+ only; Goal mode remains unchanged.
+- Expose the checkpoint count in search diagnostics.
+
+This makes the tested 500/1,000/5,000 decision-budget points cumulative at 500-state checkpoints: a larger budget still evaluates the earlier checkpoint portfolios rather than discarding them. It does not assert mathematical monotonicity for arbitrary non-checkpoint budgets, and the benchmark must verify that the additional bounded replay work is acceptable.
+
+## Follow-up verification
+
+- Add a deterministic multi-account, multi-product test that runs the same input at 500 and 1,000 decisions.
+- Assert both runs reach their configured caps, checkpoint counts are cumulative, and the higher-budget result is no worse.
+- Re-run the production sensitivity benchmark and inspect both quality and runtime, including the additional checkpoint replays.
+
 ## Why browser storage is not the first optimisation
 
 Persistent browser storage can reuse completed simulations between separate user runs, but it cannot safely replace intra-search transposition reuse. IndexedDB is asynchronous and introduces serialisation/versioning/invalidation complexity into a hot search path.
