@@ -1399,7 +1399,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     beamPruned += pruned;
     beam = selected;
     if (budgetStopped) {
-      budgetFrontier = selection.selected;
+      budgetFrontier = selected;
       break;
     }
   }
