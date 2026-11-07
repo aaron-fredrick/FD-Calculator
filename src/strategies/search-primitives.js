@@ -31,6 +31,13 @@ export function addSearchBalance(state, accountId, delta) {
   );
 }
 
+/** Set several account balances in one pass while preserving canonical order. */
+export function zeroSearchBalances(state, accountIds) {
+  if (!accountIds?.length) return state;
+  const ids = new Set(accountIds.map(String));
+  return state.map(([key, value]) => ids.has(key) ? [key, 0] : [key, value]);
+}
+
 export function mergePendingFlows(existing, additions) {
   if (!additions?.length) return existing;
   const grouped = new Map();

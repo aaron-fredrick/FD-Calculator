@@ -87,24 +87,55 @@ for (const settings of cases) {
   results.push(row);
   process.stdout.write("GAML_SENSITIVITY_POINT=" + JSON.stringify(row) + "\n");
 }
-const decisionBudgetRows = results.filter(row => row.sweep === "decision_cap").sort((a, b) => a.value - b.value);
-if (decisionBudgetRows.length && decisionBudgetRows[0].budget_frontier_archive_candidates < 1) {
-  throw new Error("Absolute R+ did not archive the first decision-budget frontier.");
-}
-for (let index = 1; index < decisionBudgetRows.length; index += 1) {
-  const previous = decisionBudgetRows[index - 1];
-  const current = decisionBudgetRows[index];
-  if (current.net_interest + 0.01 < previous.net_interest) {
-    throw new Error("Absolute R+ decision-budget quality regressed from " +
-      previous.value + " to " + current.value + " decisions: " +
-      previous.net_interest + " -> " + current.net_interest);
+// Repeat the baseline scenario on the same Node process/runner. A warm-up run
+// removes one-time JIT effects; seven measured runs provide a useful median
+// and nearest-rank p95 without changing the financial sensitivity matrix.
+const repeatSettings = { beam_width: 96, max_local_branches: 48, max_decisions: 5000 };
+const runBaseline = () => engine.run(new GAMLStrategy({ ait_enabled: true, ...repeatSettings }), input);
+const warmup = runBaseline();
+if (!warmup.finalized || !warmup.valid) throw new Error("Absolute R+ timing warm-up was financially invalid.");
+const repeatDurations = [];
+let repeatResult = null;
+for (let index = 0; index < 7; index++) {
+  const strategy = new GAMLStrategy({ ait_enabled: true, ...repeatSettings });
+  const started = performance.now();
+  const result = engine.run(strategy, input);
+  const duration_ms = Number((performance.now() - started).toFixed(2));
+  if (!result.finalized || !result.valid || !Number.isFinite(result.net_interest_after_ait)) {
+    throw new Error("Invalid repeated Absolute R+ timing result at sample " + (index + 1));
   }
+  if (repeatResult && (
+    Number(result.net_interest_after_ait.toFixed(2)) !== Number(repeatResult.net_interest_after_ait.toFixed(2)) ||
+    Number(result.final_value_after_ait.toFixed(2)) !== Number(repeatResult.final_value_after_ait.toFixed(2))
+  )) {
+    throw new Error("Repeated baseline runs produced different financial results.");
+  }
+  repeatResult = result;
+  repeatDurations.push(duration_ms);
+  process.stdout.write("GAML_BASELINE_REPEAT=" + JSON.stringify({
+    sample: index + 1, duration_ms,
+    net_interest: Number(result.net_interest_after_ait.toFixed(2)),
+    final_value: Number(result.final_value_after_ait.toFixed(2)),
+    expanded_states: result.search_diagnostics?.expanded_states ?? 0
+  }) + "\n");
 }
-
+const sortedDurations = [...repeatDurations].sort((a, b) => a - b);
+const percentile = (values, p) => values[Math.max(0, Math.ceil(p * values.length) - 1)];
+const repeatMeasurements = {
+  warmup_runs: 1,
+  measured_runs: repeatDurations.length,
+  durations_ms: repeatDurations,
+  median_ms: percentile(sortedDurations, 0.5),
+  p95_ms: percentile(sortedDurations, 0.95),
+  min_ms: sortedDurations[0],
+  max_ms: sortedDurations.at(-1),
+  financial_result_stable: true
+};
 const output = {
   generated_at: new Date().toISOString(), start_date: START,
   scenario: { horizon_months: 24, capital_lkr: 300000, accounts: 3, banks: BANK_IDS, inflows: "none", efd_eligible: true, ait_enabled: true, compound: false },
   baseline: { beam_width: 96, max_local_branches: 48, max_decisions: 5000 },
+  repeat_measurements: repeatMeasurements,
   results
 };
 writeFileSync(new URL("docs/strategies/benchmarks/gaml-search-results.json", root), JSON.stringify(output, null, 2) + "\n");

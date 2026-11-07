@@ -10,7 +10,7 @@ import {
   StrategyDecisionType
 } from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
-import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
+import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, addSearchBalance, zeroSearchBalances, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
 
 const EPS = SEARCH_EPSILON;
 const round2 = roundSearchMoney;
@@ -21,9 +21,9 @@ const balanceTotal = balances => sum(balances.map(([, value]) => value));
 const dateSort = (a, b) => a.localeCompare(b);
 const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
-const SEARCH_RAW_STATE_MEMO_LIMIT = 10000;
-const SEARCH_BUDGET_FRONTIER_INTERVAL = 500;
-const SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT = 512;
+const SEARCH_EXPANSION_CACHE_LIMIT = 4096;
+const SEARCH_BUDGET_CHECKPOINT_INTERVAL = 500;
+const STATE_KEY_CACHE = new WeakMap();
 
 function cachedValue(cache, key, compute, stats) {
   if (cache.has(key)) {
@@ -125,9 +125,13 @@ function nextEventDate(today, flows, eventDates, end) {
  * Goal mode additionally retains its action history in goalSearchStateKey.
  */
 function stateKey(state) {
-  return JSON.stringify([
+  const cached = STATE_KEY_CACHE.get(state);
+  if (cached) return cached;
+  const key = JSON.stringify([
     state.date, state.balances, state.flows, state.obligations, state.paid
   ]);
+  STATE_KEY_CACHE.set(state, key);
+  return key;
 }
 
 export { stateKey as searchStateKey };
@@ -415,34 +419,33 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       const id = accountIds[index], expanded = [];
       const accountOptions = slots[index].slice(1);
       const standardTerms = new Set(accountOptions.filter(option => !option.is_efd).map(option => option.economic_terms_key));
-      const equivalentStandardTerms = new Set((optionsByAccount.get(id) || [])
-        .filter(option => !option.is_efd).map(option => option.economic_terms_key));
-      const choices = accountOptions.sort((a, b) => {
-        const profit = settings.goalMode
-          ? goalOptionScore(id, b) - goalOptionScore(id, a)
-          : getOptionInterest(context, b, balances.get(id), today) -
-            getOptionInterest(context, a, balances.get(id), today);
+      // Resolve each option's score and eFD tie-break once. The old comparator
+      // recalculated these values O(log n) times per option during sorting and
+      // recalculated the accumulated eFD count for every partial comparison.
+      const rankedOptions = accountOptions.map(option => ({
+        option,
+        score: settings.goalMode
+          ? goalOptionScore(id, option)
+          : getOptionInterest(context, option, balances.get(id), today) * (1 - settings.aitRate),
+        efd: Number(option.is_efd && standardTerms.has(option.economic_terms_key))
+      })).sort((a, b) => {
+        const profit = b.score - a.score;
         if (Math.abs(profit) > 1e-9) return profit;
-        return Number(b.is_efd && standardTerms.has(b.economic_terms_key)) -
-          Number(a.is_efd && standardTerms.has(a.economic_terms_key));
+        return b.efd - a.efd;
       });
       for (const partial of partials) {
         expanded.push({
           score: partial.score, efd: partial.efd,
           choices: [...partial.choices, [id, null]]
         });
-        for (const option of choices) {
+        for (const ranked of rankedOptions) {
           expanded.push({
-            score: partial.score + (settings.goalMode
-              ? goalOptionScore(id, option)
-              : getOptionInterest(context, option, balances.get(id), today) * (1 - settings.aitRate)),
-            efd: partial.efd + Number(option.is_efd && equivalentStandardTerms.has(option.economic_terms_key)),
-            choices: [...partial.choices, [id, option]]
+            score: partial.score + ranked.score,
+            efd: partial.efd + ranked.efd,
+            choices: [...partial.choices, [id, ranked.option]]
           });
         }
       }
-      // Carry the eFD tie-break count with each partial instead of rescanning
-      // every account choice for every comparator invocation.
       expanded.sort((a, b) => b.score - a.score || b.efd - a.efd);
       if (expanded.length > settings.maxLocalBranches) pruned += expanded.length - settings.maxLocalBranches;
       partials = expanded.slice(0, settings.maxLocalBranches);
@@ -831,12 +834,13 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
     accounts: accountMap, options: effectiveOptions, optionsByAccount, fdOptionManager,
     inflows, outflows, inflowDates, inflowDateTotals, inflowEvents, eventDates,
     eligibleOptionsCache: new Map(), optionInterestCache: new Map(),
-    upperBoundCache: new Map(), priorityCache: new Map(),
+    upperBoundCache: new Map(), priorityCache: new Map(), expansionCache: new Map(),
     cacheStats: {
       eligibleOptions: { hits: 0, misses: 0 },
       optionInterest: { hits: 0, misses: 0 },
       upperBound: { hits: 0, misses: 0 },
-      priority: { hits: 0, misses: 0 }
+      priority: { hits: 0, misses: 0 },
+      expansion: { hits: 0, misses: 0 }
     },
     startDate, endDate, start: formatISODate(startDate), end: formatISODate(endDate), simulation: simulation ?? { mode: "scoped" },
     inflowAccountId: inflow_account_id, consolidationId: consolidation_account_id, feeConfig: fee_config,
@@ -903,6 +907,24 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       bound: Math.max(bound, prior?.bound ?? -Infinity),
       operationCount: Math.min(operationCount, prior?.operationCount ?? Infinity)
     });
+
+    const expansionKey = mode + "|" + key;
+    const cachedExpansion = context.expansionCache.get(expansionKey);
+    if (cachedExpansion) {
+      context.expansionCache.delete(expansionKey);
+      context.expansionCache.set(expansionKey, cachedExpansion);
+      context.cacheStats.expansion.hits++;
+      return {
+        terminal: false,
+        children: cachedExpansion.map(child => ({
+          ...child,
+          state: child.state,
+          action: child.action,
+          root_signature: child.root_signature
+        }))
+      };
+    }
+    context.cacheStats.expansion.misses++;
   }
 
   const nextDate = nextEventDate(state.date, state.flows, context.eventDates, context.end);
@@ -994,9 +1016,10 @@ function expandState(rawState, context, settings, mode, counters, operationCount
   counters.consolidationBranchesGenerated += consolidation.length;
   for (const branch of consolidation) {
     if (mode === "gaml" && settings.maxDecisions != null && counters.expanded >= settings.maxDecisions) break;
-    let nextBalances = state.balances;
-    for (const transfer of branch.transfers) nextBalances = setSearchBalance(nextBalances, transfer.src_id, 0);
-    nextBalances = setSearchBalance(nextBalances, branch.target_id, 0);
+    const nextBalances = zeroSearchBalances(
+      state.balances,
+      [...branch.transfers.map(transfer => transfer.src_id), branch.target_id]
+    );
     const flows = branch.option.generateCashFlowsAfterAIT(branch.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear)
       .map(flow => [formatISODate(flow.date), branch.target_id, flow.amount]);
     let nextGoalProvenance = state.goalProvenance;
@@ -1052,7 +1075,10 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     }));
     const bookedIds = new Set(bookings.map(item => item.account_id));
     const carries = activeIds.filter(id => !bookedIds.has(id));
-    let nextBalances = state.balances;
+    const nextBalances = zeroSearchBalances(
+      state.balances,
+      bookings.map(booking => booking.account_id)
+    );
     const additions = [];
     let nextGoalProvenance = state.goalProvenance;
     let nextGoalFlows = state.goalFlows ?? [];
@@ -1061,7 +1087,6 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       nextGoalFlows = [...nextGoalFlows];
     }
     for (const booking of bookings) {
-      nextBalances = setSearchBalance(nextBalances, booking.account_id, 0);
       if (nextGoalProvenance) {
         const bookedComponents = nextGoalProvenance.debit(booking.account_id, booking.principal);
         const componentFlows = booking.option.generateCashFlowComponentsAfterAIT(
@@ -1098,6 +1123,18 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       (mode !== "gaml" || settings.maxDecisions == null || counters.expanded < settings.maxDecisions)) {
     const action = { type: "carry", carries: activeIds };
     pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
+  }
+  if (!goalMode && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions)) {
+    const expansionKey = mode + "|" + key;
+    if (context.expansionCache.size >= SEARCH_EXPANSION_CACHE_LIMIT && !context.expansionCache.has(expansionKey)) {
+      context.expansionCache.delete(context.expansionCache.keys().next().value);
+    }
+    context.expansionCache.set(expansionKey, children.map(child => ({
+      ...child,
+      state: child.state,
+      action: child.action,
+      root_signature: child.root_signature
+    })));
   }
   return { terminal: false, children };
 }
@@ -1228,10 +1265,63 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     priority: goalMode ? makeGoalPriority(initial, context) : makeUpperBound(initial, context, true),
     sequence: sequence++
   }];
-  let budgetStopped = false, beamPruned = 0, rootPeak = 0;
+  let budgetStopped = false, beamPruned = 0, beamDuplicatePruned = 0, rootPeak = 0;
   let budgetFrontier = [];
-  const budgetFrontierHistory = new Map();
+  const budgetFrontierCheckpoints = [];
+  const candidateKey = candidate => goalMode
+    ? goalSearchStateKey(candidate.state, candidate.node ? nodePath(candidate.node) : [])
+    : stateKey(candidate.state);
+  const selectBeam = (candidates, rootBest, carry = []) => {
+    const allCandidates = [...candidates, ...carry];
+    const bestByState = new Map();
+    for (const candidate of allCandidates) {
+      const key = candidateKey(candidate);
+      const previous = bestByState.get(key);
+      if (!previous || candidate.priority > previous.priority ||
+          (Math.abs(candidate.priority - previous.priority) <= EPS &&
+            (candidate.node?.operation_count ?? 0) < (previous.node?.operation_count ?? 0))) {
+        bestByState.set(key, candidate);
+      }
+    }
+    const unique = [...bestByState.values()].sort((a, b) =>
+      b.priority - a.priority ||
+      (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0) ||
+      a.sequence - b.sequence
+    );
+    const diversity = [...rootBest.values()].sort((a, b) =>
+      b.priority - a.priority ||
+      (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
+    ).slice(0, Math.max(1, Math.floor(settings.beamWidth / 3)));
+    const selected = [], seen = new Set();
+    for (const candidate of diversity) {
+      const key = candidateKey(candidate);
+      if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
+    }
+    for (const candidate of unique) {
+      if (selected.length >= settings.beamWidth) break;
+      const key = candidateKey(candidate);
+      if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
+    }
+    return {
+      selected,
+      diversitySize: diversity.length,
+      pruned: Math.max(0, allCandidates.length - selected.length)
+    };
+  };
   while (beam.length) {
+    const beamByState = new Map();
+    for (const entry of beam) {
+      const key = stateKey(entry.state);
+      const previous = beamByState.get(key);
+      if (!previous || entry.priority > previous.priority ||
+          (Math.abs(entry.priority - previous.priority) <= EPS &&
+            (entry.node?.operation_count ?? 0) < (previous.node?.operation_count ?? 0))) {
+        beamByState.set(key, entry);
+      }
+    }
+    beamDuplicatePruned += beam.length - beamByState.size;
+    beam = [...beamByState.values()];
+
     const candidates = [], rootBest = new Map();
     for (let beamIndex = 0; beamIndex < beam.length; beamIndex++) {
       const entry = beam[beamIndex];
@@ -1252,10 +1342,10 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         candidates.push(...beam.slice(beamIndex));
         break;
       }
-      counters.expanded++;
       const expanded = expandState(
         entry.state, context, settings, "gaml", counters, entry.node?.operation_count ?? 0
       );
+      counters.expanded++;
       if (expanded.terminal) {
         if (evaluateGoal) {
           const score = evaluateGoal(path ?? nodePath(entry.node), expanded.value);
@@ -1264,22 +1354,13 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
           updateScopedBest(expanded.value, expanded.state, entry.node, counters);
           bestNode = counters.bestNode;
         }
-        if (!goalMode && settings.maxDecisions != null &&
-            counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
-          const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
-          const archiveCandidates = [...snapshot.selected].sort((a, b) =>
-            b.priority - a.priority ||
-            (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
-          ).slice(0, 4);
-          for (const archived of archiveCandidates) {
-            const archivedPath = nodePath(archived.node);
-            if (!archivedPath.length) continue;
-            const signature = goalPathSignature(archivedPath);
-            if (!budgetFrontierHistory.has(signature) &&
-                budgetFrontierHistory.size < SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT) {
-              budgetFrontierHistory.set(signature, { ...archived, path: archivedPath });
-            }
-          }
+        if (!goalMode && settings.maxDecisions != null && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
+          const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
+          rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
+          budgetFrontierCheckpoints.push([...checkpoint.selected]
+          .sort((a, b) => b.priority - a.priority ||
+            (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0))
+          .slice(0, 4));
         }
         continue;
       }
@@ -1304,37 +1385,27 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         candidates.push(candidate);
         counters.candidateStatesGenerated++;
       }
-      if (!goalMode && settings.maxDecisions != null &&
-          counters.expanded % SEARCH_BUDGET_FRONTIER_INTERVAL === 0) {
-        const snapshot = selectGamlBeam([...candidates, ...beam.slice(beamIndex + 1)], rootBest, settings, false);
-        const archiveCandidates = [...snapshot.selected].sort((a, b) =>
-          b.priority - a.priority ||
-          (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
-        ).slice(0, 4);
-        for (const archived of archiveCandidates) {
-          const archivedPath = nodePath(archived.node);
-          if (!archivedPath.length) continue;
-          const signature = goalPathSignature(archivedPath);
-          if (!budgetFrontierHistory.has(signature) &&
-              budgetFrontierHistory.size < SEARCH_BUDGET_FRONTIER_ARCHIVE_LIMIT) {
-            budgetFrontierHistory.set(signature, { ...archived, path: archivedPath });
-          }
-        }
+      if (!goalMode && settings.maxDecisions != null && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
+        const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
+        rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
+        budgetFrontierCheckpoints.push([...checkpoint.selected]
+          .sort((a, b) => b.priority - a.priority ||
+            (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0))
+          .slice(0, 4));
       }
     }
-    const selection = selectGamlBeam(candidates, rootBest, settings, goalMode);
-    counters.candidateStateDuplicates += selection.duplicates;
-    rootPeak = Math.max(rootPeak, selection.rootPeak);
-    beamPruned += selection.beamPruned;
-    beam = selection.selected;
+    const { selected, diversitySize, pruned } = selectBeam(candidates, rootBest);
+    rootPeak = Math.max(rootPeak, diversitySize);
+    beamPruned += pruned;
+    beam = selected;
     if (budgetStopped) {
       budgetFrontier = selection.selected;
       break;
     }
   }
   return {
-    bestNode, bestGoalScore, beamPruned, rootPeak, budgetStopped, budgetFrontier,
-    budgetFrontierHistory: [...budgetFrontierHistory.values()], goalPrunedByAchievement,
+    bestNode, bestGoalScore, beamPruned, beamDuplicatePruned, rootPeak, budgetStopped, budgetFrontier,
+    budgetFrontierCheckpoints, goalPrunedByAchievement,
     optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
 }
@@ -1448,24 +1519,15 @@ export class SearchStrategyBase {
     const diagnostics = {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
-      beam_pruned: search.beamPruned || 0, local_combination_pruned: counters.localPruned,
-      local_branches_generated: counters.localBranchesGenerated,
-      consolidation_branches_generated: counters.consolidationBranchesGenerated,
-      candidate_states_generated: counters.candidateStatesGenerated,
-      candidate_state_duplicates: counters.candidateStateDuplicates,
+      beam_pruned: search.beamPruned || 0, beam_duplicate_pruned: search.beamDuplicatePruned || 0, local_combination_pruned: counters.localPruned,
       root_strategy_peak: search.rootPeak || 0,
       budget_stopped: Boolean(search.budgetStopped),
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
-      budget_frontier_archive_candidates: search.budgetFrontierHistory?.length ?? 0,
+      budget_frontier_checkpoints: search.budgetFrontierCheckpoints?.length ?? 0,
       state_memo_size: counters.memo.size,
       state_memo_hits: counters.stateMemoHits,
       state_memo_evictions: counters.memoEvictions,
-      raw_state_memo: {
-        entries: counters.rawMemo.size,
-        hits: counters.rawStateMemoHits,
-        pruned: counters.rawStateMemoPruned,
-        evictions: counters.rawStateMemoEvictions
-      },
+      expansion_cache_size: context.expansionCache.size,
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
@@ -1473,7 +1535,8 @@ export class SearchStrategyBase {
         eligible_options: { ...context.cacheStats.eligibleOptions },
         option_interest: { ...context.cacheStats.optionInterest },
         upper_bound: { ...context.cacheStats.upperBound },
-        priority: { ...context.cacheStats.priority }
+        priority: { ...context.cacheStats.priority },
+        expansion: { ...context.cacheStats.expansion }
       },
       ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_invalid_candidate_examples: goalInvalidExamples, goal_objective: "earliest consolidation net-interest achievement", goal_search_budget: goalSearchBudget, goal_pruned_after_achievement: search.goalPrunedByAchievement ?? 0, selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
@@ -1497,16 +1560,16 @@ export class SearchStrategyBase {
         candidates.push({ path: nodePath(search.bestNode), continuation: false, source: "search" });
       }
       const seen = new Set(candidates.map(candidate => goalPathSignature(candidate.path)));
-      const archivedFrontier = [...(search.budgetFrontierHistory ?? [])]
-        .sort((a, b) => b.priority - a.priority ||
-          (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0));
-      for (const entry of archivedFrontier) {
-        const path = entry.path ?? nodePath(entry.node);
-        if (!path.length) continue;
-        const key = goalPathSignature(path);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        candidates.push({ path, continuation: true, source: "budget_checkpoint" });
+      const checkpoints = search.budgetFrontierCheckpoints ?? [];
+      for (let index = 0; index < checkpoints.length; index++) {
+        for (const entry of checkpoints[index]) {
+          const path = nodePath(entry.node);
+          if (!path.length) continue;
+          const key = goalPathSignature(path);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          candidates.push({ path, continuation: true, source: "budget_checkpoint_" + ((index + 1) * SEARCH_BUDGET_CHECKPOINT_INTERVAL) });
+        }
       }
       if (search.budgetStopped) {
         const frontier = [...(search.budgetFrontier ?? [])]
