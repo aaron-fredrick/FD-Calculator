@@ -103,6 +103,16 @@ test("Absolute+ marks a search that reaches its configured state cap as unproven
   assert.equal(result.optimality_proven, false);
 });
 
+test("Absolute+ exposes bounded state-expansion reuse diagnostics", () => {
+  const result = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 8, max_local_branches: 8, max_decisions: 100
+  }), scenario());
+  const diagnostics = result.search_diagnostics;
+  assert.ok(diagnostics.expansion_cache_size >= 0);
+  assert.ok(diagnostics.calculation_cache.expansion.misses > 0);
+  assert.ok(diagnostics.beam_duplicate_pruned >= 0);
+});
+
 test("Absolute+ reuses repeated option-interest calculations within one search run", () => {
   const input = scenario();
   input.options.push(new FDOption({
