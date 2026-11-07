@@ -414,38 +414,43 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
       }
     }
   } else {
-    let partials = [{ score: 0, choices: [] }];
+    let partials = [{ score: 0, efd: 0, choices: [] }];
     for (let index = 0; index < accountIds.length; index++) {
       const id = accountIds[index], expanded = [];
       const accountOptions = slots[index].slice(1);
       const standardTerms = new Set(accountOptions.filter(option => !option.is_efd).map(option => option.economic_terms_key));
-      const choices = accountOptions.sort((a, b) => {
-        const profit = settings.goalMode
-          ? goalOptionScore(id, b) - goalOptionScore(id, a)
-          : getOptionInterest(context, b, balances.get(id), today) -
-            getOptionInterest(context, a, balances.get(id), today);
-        if (Math.abs(profit) > 1e-9) return profit;
-        return Number(b.is_efd && standardTerms.has(b.economic_terms_key)) -
-          Number(a.is_efd && standardTerms.has(a.economic_terms_key));
-      });
+      // Resolve each option's score and eFD tie-break once. The old comparator
+      // recalculated these values O(log n) times per option during sorting and
+      // recalculated the accumulated eFD count for every partial comparison.
+      const rankedOptions = accountOptions.map(option => ({
+        option,
+        score: settings.goalMode
+          ? goalOptionScore(id, option)
+          : getOptionInterest(context, option, balances.get(id), today) * (1 - settings.aitRate),
+        efd: Number(option.is_efd && standardTerms.has(option.economic_terms_key))
+      })).sort((a, b) =>
+        b.score - a.score || b.efd - a.efd
+      );
       for (const partial of partials) {
-        expanded.push({ score: partial.score, choices: [...partial.choices, [id, null]] });
-        for (const option of choices) {
+        expanded.push({
+          score: partial.score, efd: partial.efd,
+          choices: [...partial.choices, [id, null]]
+        });
+        for (const ranked of rankedOptions) {
           expanded.push({
-            score: partial.score + (settings.goalMode
-              ? goalOptionScore(id, option)
-              : getOptionInterest(context, option, balances.get(id), today) * (1 - settings.aitRate)),
-            choices: [...partial.choices, [id, option]]
+            score: partial.score + ranked.score,
+            efd: partial.efd + ranked.efd,
+            choices: [...partial.choices, [id, ranked.option]]
           });
         }
       }
-      expanded.sort((a, b) => b.score - a.score || efdFor(b.choices) - efdFor(a.choices));
+      expanded.sort((a, b) => b.score - a.score || b.efd - a.efd);
       if (expanded.length > settings.maxLocalBranches) pruned += expanded.length - settings.maxLocalBranches;
       partials = expanded.slice(0, settings.maxLocalBranches);
     }
     for (const partial of partials) {
       if (partial.choices.some(([, option]) => option)) branches.push({
-        score: partial.score, efd: efdFor(partial.choices), choices: partial.choices
+        score: partial.score, efd: partial.efd, choices: partial.choices
       });
     }
   }
