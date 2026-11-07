@@ -22,6 +22,7 @@ const dateSort = (a, b) => a.localeCompare(b);
 const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
 const SEARCH_EXPANSION_CACHE_LIMIT = 4096;
+const SEARCH_BUDGET_CHECKPOINT_INTERVAL = 500;
 const STATE_KEY_CACHE = new WeakMap();
 
 function cachedValue(cache, key, compute, stats) {
@@ -1191,6 +1192,46 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
   }];
   let budgetStopped = false, beamPruned = 0, beamDuplicatePruned = 0, rootPeak = 0;
   let budgetFrontier = [];
+  const budgetFrontierCheckpoints = [];
+  const candidateKey = candidate => goalMode
+    ? goalSearchStateKey(candidate.state, candidate.node ? nodePath(candidate.node) : [])
+    : stateKey(candidate.state);
+  const selectBeam = (candidates, rootBest, carry = []) => {
+    const allCandidates = [...candidates, ...carry];
+    const bestByState = new Map();
+    for (const candidate of allCandidates) {
+      const key = candidateKey(candidate);
+      const previous = bestByState.get(key);
+      if (!previous || candidate.priority > previous.priority ||
+          (Math.abs(candidate.priority - previous.priority) <= EPS &&
+            (candidate.node?.operation_count ?? 0) < (previous.node?.operation_count ?? 0))) {
+        bestByState.set(key, candidate);
+      }
+    }
+    const unique = [...bestByState.values()].sort((a, b) =>
+      b.priority - a.priority ||
+      (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0) ||
+      a.sequence - b.sequence
+    );
+    const diversity = [...rootBest.values()].sort((a, b) =>
+      b.priority - a.priority ||
+      (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
+    ).slice(0, Math.max(1, Math.floor(settings.beamWidth / 3)));
+    const selected = [], seen = new Set();
+    for (const candidate of diversity) {
+      const key = candidateKey(candidate);
+      if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
+    }
+    for (const candidate of unique) {
+      if (selected.length >= settings.beamWidth) break;
+      const key = candidateKey(candidate);
+      if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
+    }
+    return {
+      selected,
+      pruned: Math.max(0, allCandidates.length - selected.length)
+    };
+  };
   while (beam.length) {
     const beamByState = new Map();
     for (const entry of beam) {
@@ -1254,41 +1295,14 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         }
         candidates.push(candidate);
       }
-    }
-    const candidateKey = candidate => goalMode
-      ? goalSearchStateKey(candidate.state, candidate.node ? nodePath(candidate.node) : [])
-      : stateKey(candidate.state);
-    const bestByState = new Map();
-    for (const candidate of candidates) {
-      const key = candidateKey(candidate);
-      const previous = bestByState.get(key);
-      if (!previous || candidate.priority > previous.priority ||
-          (Math.abs(candidate.priority - previous.priority) <= EPS &&
-            (candidate.node?.operation_count ?? 0) < (previous.node?.operation_count ?? 0))) {
-        bestByState.set(key, candidate);
+      if (!goalMode && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
+        const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
+        rootPeak = Math.max(rootPeak, [...rootBest.values()].length);
+        budgetFrontierCheckpoints.push(checkpoint.selected.slice(0, 4));
       }
     }
-    const unique = [...bestByState.values()].sort((a, b) =>
-      b.priority - a.priority ||
-      (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0) ||
-      a.sequence - b.sequence
-    );
-    const diversity = [...rootBest.values()].sort((a, b) =>
-      b.priority - a.priority ||
-      (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0)
-    ).slice(0, Math.max(1, Math.floor(settings.beamWidth / 3)));
-    rootPeak = Math.max(rootPeak, diversity.length);
-    const selected = [], seen = new Set();
-    for (const candidate of diversity) {
-      const key = candidateKey(candidate);
-      if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
-    }
-    for (const candidate of unique) {
-      if (selected.length >= settings.beamWidth) break;
-      const key = candidateKey(candidate);
-      if (!seen.has(key)) { selected.push(candidate); seen.add(key); }
-    }
-    beamPruned += Math.max(0, candidates.length - selected.length);
+    const { selected, pruned } = selectBeam(candidates, rootBest);
+    beamPruned += pruned;
     beam = selected;
     if (budgetStopped) {
       budgetFrontier = selected;
@@ -1296,7 +1310,8 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     }
   }
   return {
-    bestNode, bestGoalScore, beamPruned, beamDuplicatePruned, rootPeak, budgetStopped, budgetFrontier, goalPrunedByAchievement,
+    bestNode, bestGoalScore, beamPruned, beamDuplicatePruned, rootPeak, budgetStopped, budgetFrontier,
+    budgetFrontierCheckpoints, goalPrunedByAchievement,
     optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
 }
@@ -1410,6 +1425,7 @@ export class SearchStrategyBase {
       root_strategy_peak: search.rootPeak || 0,
       budget_stopped: Boolean(search.budgetStopped),
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
+      budget_frontier_checkpoints: search.budgetFrontierCheckpoints?.length ?? 0,
       state_memo_size: counters.memo.size,
       state_memo_evictions: counters.memoEvictions,
       expansion_cache_size: context.expansionCache.size,
@@ -1446,6 +1462,17 @@ export class SearchStrategyBase {
       }
       if (search.budgetStopped) {
         const seen = new Set(candidates.map(candidate => goalPathSignature(candidate.path)));
+        const checkpoints = search.budgetFrontierCheckpoints ?? [];
+        for (let index = 0; index < checkpoints.length; index++) {
+          for (const entry of checkpoints[index]) {
+            const path = nodePath(entry.node);
+            if (!path.length) continue;
+            const key = goalPathSignature(path);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            candidates.push({ path, continuation: true, source: "budget_checkpoint_" + ((index + 1) * SEARCH_BUDGET_CHECKPOINT_INTERVAL) });
+          }
+        }
         const frontier = [...(search.budgetFrontier ?? [])]
           .sort((a, b) => b.priority - a.priority ||
             (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0));
