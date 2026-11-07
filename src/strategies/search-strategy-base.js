@@ -1267,10 +1267,10 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         candidates.push(...beam.slice(beamIndex));
         break;
       }
-      counters.expanded++;
       const expanded = expandState(
         entry.state, context, settings, "gaml", counters, entry.node?.operation_count ?? 0
       );
+      counters.expanded++;
       if (expanded.terminal) {
         if (evaluateGoal) {
           const score = evaluateGoal(path ?? nodePath(entry.node), expanded.value);
