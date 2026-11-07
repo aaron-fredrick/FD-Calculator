@@ -1279,7 +1279,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
           updateScopedBest(expanded.value, expanded.state, entry.node, counters);
           bestNode = counters.bestNode;
         }
-        if (!goalMode && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
+        if (!goalMode && settings.maxDecisions != null && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
           const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
           rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
           budgetFrontierCheckpoints.push(checkpoint.selected.slice(0, 4));
@@ -1301,7 +1301,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         }
         candidates.push(candidate);
       }
-      if (!goalMode && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
+      if (!goalMode && settings.maxDecisions != null && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
         const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
         rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
         budgetFrontierCheckpoints.push(checkpoint.selected.slice(0, 4));
@@ -1467,19 +1467,19 @@ export class SearchStrategyBase {
       if (search.bestNode) {
         candidates.push({ path: nodePath(search.bestNode), continuation: false, source: "search" });
       }
-      if (search.budgetStopped) {
-        const seen = new Set(candidates.map(candidate => goalPathSignature(candidate.path)));
-        const checkpoints = search.budgetFrontierCheckpoints ?? [];
-        for (let index = 0; index < checkpoints.length; index++) {
-          for (const entry of checkpoints[index]) {
-            const path = nodePath(entry.node);
-            if (!path.length) continue;
-            const key = goalPathSignature(path);
-            if (seen.has(key)) continue;
-            seen.add(key);
-            candidates.push({ path, continuation: true, source: "budget_checkpoint_" + ((index + 1) * SEARCH_BUDGET_CHECKPOINT_INTERVAL) });
-          }
+      const seen = new Set(candidates.map(candidate => goalPathSignature(candidate.path)));
+      const checkpoints = search.budgetFrontierCheckpoints ?? [];
+      for (let index = 0; index < checkpoints.length; index++) {
+        for (const entry of checkpoints[index]) {
+          const path = nodePath(entry.node);
+          if (!path.length) continue;
+          const key = goalPathSignature(path);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          candidates.push({ path, continuation: true, source: "budget_checkpoint_" + ((index + 1) * SEARCH_BUDGET_CHECKPOINT_INTERVAL) });
         }
+      }
+      if (search.budgetStopped) {
         const frontier = [...(search.budgetFrontier ?? [])]
           .sort((a, b) => b.priority - a.priority ||
             (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0));
