@@ -25,8 +25,9 @@ function budgetSensitivityScenario() {
   ));
   const inflow_schedule = {};
   for (let month = 1; month <= 36; month++) {
-    const date = "2026-" + String(month > 12 ? (month - 1) % 12 + 1 : month).padStart(2, "0") + "-01";
-    if (month > 12 && month % 12 === 1) continue;
+    const year = 2026 + Math.floor((month - 1) / 12);
+    const monthOfYear = (month - 1) % 12 + 1;
+    const date = year + "-" + String(monthOfYear).padStart(2, "0") + "-01";
     inflow_schedule[date] = Object.fromEntries(accounts.map((account, index) => [
       account.id, 1000 + index * 250
     ]));
