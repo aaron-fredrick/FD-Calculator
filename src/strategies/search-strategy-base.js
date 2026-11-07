@@ -428,9 +428,11 @@ function allLocalCombinations(accountIds, context, balances, today, settings) {
           ? goalOptionScore(id, option)
           : getOptionInterest(context, option, balances.get(id), today) * (1 - settings.aitRate),
         efd: Number(option.is_efd && standardTerms.has(option.economic_terms_key))
-      })).sort((a, b) =>
-        b.score - a.score || b.efd - a.efd
-      );
+      })).sort((a, b) => {
+        const profit = b.score - a.score;
+        if (Math.abs(profit) > 1e-9) return profit;
+        return b.efd - a.efd;
+      });
       for (const partial of partials) {
         expanded.push({
           score: partial.score, efd: partial.efd,
