@@ -11,24 +11,32 @@ const run = (strategy, input) => new SimulationEngine().run(strategy, input);
 
 
 function budgetSensitivityScenario() {
-  const banks = ["BANK_A", "BANK_B", "BANK_C"];
+  const banks = ["BANK_A", "BANK_B", "BANK_C", "BANK_D"];
   const accounts = banks.map((bank_id, index) => new Account({
     id: "account-" + index, bank_id, bank_key: bank_id.toLowerCase(),
     label: bank_id, balance: 30000, supports_efd: false
   }));
-  const options = banks.flatMap((bank_id, index) => [
-    new FDOption({ label: bank_id + " 30d", bank_id, bank_key: bank_id.toLowerCase(), period_str: "30d", annual_rate: 8 + index, min_amount: 25000 }),
-    new FDOption({ label: bank_id + " 45d", bank_id, bank_key: bank_id.toLowerCase(), period_str: "45d", annual_rate: 9 + index, min_amount: 25000 }),
-    new FDOption({ label: bank_id + " 60d", bank_id, bank_key: bank_id.toLowerCase(), period_str: "60d", annual_rate: 10 + index, min_amount: 25000 }),
-    new FDOption({ label: bank_id + " 90d", bank_id, bank_key: bank_id.toLowerCase(), period_str: "90d", annual_rate: 11 + index, min_amount: 25000 })
-  ]);
+  const durations = ["30d", "45d", "60d", "90d", "120d", "180d"];
+  const options = banks.flatMap((bank_id, index) => durations.map((period_str, durationIndex) =>
+    new FDOption({
+      label: bank_id + " " + period_str, bank_id, bank_key: bank_id.toLowerCase(),
+      period_str, annual_rate: 8 + index + durationIndex * 0.4, min_amount: 25000
+    })
+  ));
+  const inflow_schedule = {};
+  for (let month = 1; month <= 36; month++) {
+    const date = "2026-" + String(month > 12 ? (month - 1) % 12 + 1 : month).padStart(2, "0") + "-01";
+    if (month > 12 && month % 12 === 1) continue;
+    inflow_schedule[date] = Object.fromEntries(accounts.map((account, index) => [
+      account.id, 1000 + index * 250
+    ]));
+  }
   return {
-    options, start: "2026-01-01", end: "2028-01-01", accounts,
+    options, start: "2026-01-01", end: "2030-01-01", accounts,
     inflow_account_id: "account-0", consolidation_account_id: "account-0",
-    inflow_schedule: {}, outflow_schedule: {}, fee_config: new TransferFeeConfig()
+    inflow_schedule, outflow_schedule: {}, fee_config: new TransferFeeConfig()
   };
 }
-
 function scenario() {
   const account = new Account({
     id: "main", bank_id: "BANK_A", bank_key: "bank_a",
@@ -226,10 +234,10 @@ test("scoped state identity includes every future-relevant cash-flow field", () 
 test("Absolute+ preserves earlier budget-checkpoint incumbents as the decision cap grows", () => {
   const input = budgetSensitivityScenario();
   const lowerBudget = run(new AbsolutePlusStrategy({
-    ait_enabled: true, beam_width: 12, max_local_branches: 8, max_decisions: 500
+    ait_enabled: true, beam_width: 64, max_local_branches: 16, max_decisions: 500
   }), input);
   const higherBudget = run(new AbsolutePlusStrategy({
-    ait_enabled: true, beam_width: 12, max_local_branches: 8, max_decisions: 1000
+    ait_enabled: true, beam_width: 64, max_local_branches: 16, max_decisions: 1000
   }), input);
 
   assert.equal(lowerBudget.search_diagnostics.expanded_states, 500);
