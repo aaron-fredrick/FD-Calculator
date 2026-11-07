@@ -9,6 +9,26 @@ import { compareScopedResults, searchStateKey } from "../../src/strategies/searc
 
 const run = (strategy, input) => new SimulationEngine().run(strategy, input);
 
+
+function budgetSensitivityScenario() {
+  const banks = ["BANK_A", "BANK_B", "BANK_C"];
+  const accounts = banks.map((bank_id, index) => new Account({
+    id: "account-" + index, bank_id, bank_key: bank_id.toLowerCase(),
+    label: bank_id, balance: 30000, supports_efd: false
+  }));
+  const options = banks.flatMap((bank_id, index) => [
+    new FDOption({ label: bank_id + " 30d", bank_id, bank_key: bank_id.toLowerCase(), period_str: "30d", annual_rate: 8 + index, min_amount: 25000 }),
+    new FDOption({ label: bank_id + " 45d", bank_id, bank_key: bank_id.toLowerCase(), period_str: "45d", annual_rate: 9 + index, min_amount: 25000 }),
+    new FDOption({ label: bank_id + " 60d", bank_id, bank_key: bank_id.toLowerCase(), period_str: "60d", annual_rate: 10 + index, min_amount: 25000 }),
+    new FDOption({ label: bank_id + " 90d", bank_id, bank_key: bank_id.toLowerCase(), period_str: "90d", annual_rate: 11 + index, min_amount: 25000 })
+  ]);
+  return {
+    options, start: "2026-01-01", end: "2028-01-01", accounts,
+    inflow_account_id: "account-0", consolidation_account_id: "account-0",
+    inflow_schedule: {}, outflow_schedule: {}, fee_config: new TransferFeeConfig()
+  };
+}
+
 function scenario() {
   const account = new Account({
     id: "main", bank_id: "BANK_A", bank_key: "bank_a",
@@ -200,4 +220,21 @@ test("scoped state identity includes every future-relevant cash-flow field", () 
     { ...state, paid: 1199 }
   ];
   for (const variant of variants) assert.notEqual(searchStateKey(variant), searchStateKey(state));
+});
+
+
+test("Absolute+ preserves earlier budget-checkpoint incumbents as the decision cap grows", () => {
+  const input = budgetSensitivityScenario();
+  const lowerBudget = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 12, max_local_branches: 8, max_decisions: 500
+  }), input);
+  const higherBudget = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 12, max_local_branches: 8, max_decisions: 1000
+  }), input);
+
+  assert.equal(lowerBudget.search_diagnostics.expanded_states, 500);
+  assert.equal(higherBudget.search_diagnostics.expanded_states, 1000);
+  assert.equal(lowerBudget.search_diagnostics.budget_frontier_checkpoints, 1);
+  assert.equal(higherBudget.search_diagnostics.budget_frontier_checkpoints, 2);
+  assert.ok(higherBudget.final_value >= lowerBudget.final_value - 0.01);
 });
