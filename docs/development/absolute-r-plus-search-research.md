@@ -91,12 +91,13 @@ The first implementation should therefore use a bounded in-memory expansion cach
 
 1. Instrument expansion work by state and local-combination generation so the cost distribution is observable.
 2. Add focused tests proving identical Scoped states can reuse an expansion without changing child semantics.
-3. Implement a bounded per-run expansion-result cache.
-4. Preserve the existing dominance memo as a separate pruning mechanism.
-5. Re-run parity, search-strategy and adversarial state-identity tests.
-6. Run the production CI benchmark and inspect Absolute R+ runtime/search diagnostics.
-7. If expansion reuse is insufficient, investigate local-combination generation as the next hotspot rather than increasing beam width.
-8. Only then consider an optional persistent completed-result cache for the browser.
+3. Memoize canonical state-key serialization without introducing strong cross-run references.
+4. Implement a bounded per-run expansion-result cache.
+5. Preserve the existing dominance memo as a separate pruning mechanism.
+6. Re-run parity, search-strategy and adversarial state-identity tests.
+7. Run the production CI benchmark and inspect Absolute R+ runtime/search diagnostics.
+8. If expansion reuse is insufficient, investigate local-combination generation as the next hotspot rather than increasing beam width.
+9. Only then consider an optional persistent completed-result cache for the browser.
 
 ## Explicit non-goals
 
