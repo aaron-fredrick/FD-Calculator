@@ -22,6 +22,7 @@ const dateSort = (a, b) => a.localeCompare(b);
 const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
 const SEARCH_EXPANSION_CACHE_LIMIT = 4096;
+const STATE_KEY_CACHE = new WeakMap();
 
 function cachedValue(cache, key, compute, stats) {
   if (cache.has(key)) {
@@ -123,9 +124,13 @@ function nextEventDate(today, flows, eventDates, end) {
  * Goal mode additionally retains its action history in goalSearchStateKey.
  */
 function stateKey(state) {
-  return JSON.stringify([
+  const cached = STATE_KEY_CACHE.get(state);
+  if (cached) return cached;
+  const key = JSON.stringify([
     state.date, state.balances, state.flows, state.obligations, state.paid
   ]);
+  STATE_KEY_CACHE.set(state, key);
+  return key;
 }
 
 export { stateKey as searchStateKey };
