@@ -129,6 +129,7 @@ test("search strategies never place an eFD in an account without eFD capability"
 test("Absolute+ marks a search that reaches its configured state cap as unproven", () => {
   const result = run(new AbsolutePlusStrategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }), scenario());
   assert.equal(result.search_diagnostics.expanded_states, 1);
+  assert.ok(result.search_diagnostics.budget_frontier_states > 0);
   assert.equal(result.optimality_proven, false);
 });
 
