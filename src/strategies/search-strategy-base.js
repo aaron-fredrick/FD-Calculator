@@ -21,6 +21,7 @@ const balanceTotal = balances => sum(balances.map(([, value]) => value));
 const dateSort = (a, b) => a.localeCompare(b);
 const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
+const SEARCH_EXPANSION_CACHE_LIMIT = 4096;
 
 function cachedValue(cache, key, compute, stats) {
   if (cache.has(key)) {
@@ -821,12 +822,13 @@ function createContext({ options, start, end, simulation, inflow_schedule, accou
     accounts: accountMap, options: effectiveOptions, optionsByAccount, fdOptionManager,
     inflows, outflows, inflowDates, inflowDateTotals, inflowEvents, eventDates,
     eligibleOptionsCache: new Map(), optionInterestCache: new Map(),
-    upperBoundCache: new Map(), priorityCache: new Map(),
+    upperBoundCache: new Map(), priorityCache: new Map(), expansionCache: new Map(),
     cacheStats: {
       eligibleOptions: { hits: 0, misses: 0 },
       optionInterest: { hits: 0, misses: 0 },
       upperBound: { hits: 0, misses: 0 },
-      priority: { hits: 0, misses: 0 }
+      priority: { hits: 0, misses: 0 },
+      expansion: { hits: 0, misses: 0 }
     },
     startDate, endDate, start: formatISODate(startDate), end: formatISODate(endDate), simulation: simulation ?? { mode: "scoped" },
     inflowAccountId: inflow_account_id, consolidationId: consolidation_account_id, feeConfig: fee_config,
@@ -873,6 +875,24 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       bound: Math.max(bound, prior?.bound ?? -Infinity),
       operationCount: Math.min(operationCount, prior?.operationCount ?? Infinity)
     });
+
+    const expansionKey = mode + "|" + key;
+    const cachedExpansion = context.expansionCache.get(expansionKey);
+    if (cachedExpansion) {
+      context.expansionCache.delete(expansionKey);
+      context.expansionCache.set(expansionKey, cachedExpansion);
+      context.cacheStats.expansion.hits++;
+      return {
+        terminal: false,
+        children: cachedExpansion.map(child => ({
+          ...child,
+          state: child.state,
+          action: child.action,
+          root_signature: child.root_signature
+        }))
+      };
+    }
+    context.cacheStats.expansion.misses++;
   }
 
   const nextDate = nextEventDate(state.date, state.flows, context.eventDates, context.end);
@@ -1063,6 +1083,18 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       (mode !== "gaml" || settings.maxDecisions == null || counters.expanded < settings.maxDecisions)) {
     const action = { type: "carry", carries: activeIds };
     pushAction(nextDate, state.balances, state.flows, action, ["carry"]);
+  }
+  if (!goalMode && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions)) {
+    const expansionKey = mode + "|" + key;
+    if (context.expansionCache.size >= SEARCH_EXPANSION_CACHE_LIMIT && !context.expansionCache.has(expansionKey)) {
+      context.expansionCache.delete(context.expansionCache.keys().next().value);
+    }
+    context.expansionCache.set(expansionKey, children.map(child => ({
+      ...child,
+      state: child.state,
+      action: child.action,
+      root_signature: child.root_signature
+    })));
   }
   return { terminal: false, children };
 }
@@ -1362,6 +1394,7 @@ export class SearchStrategyBase {
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
       state_memo_size: counters.memo.size,
       state_memo_evictions: counters.memoEvictions,
+      expansion_cache_size: context.expansionCache.size,
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
       settings,
@@ -1369,7 +1402,8 @@ export class SearchStrategyBase {
         eligible_options: { ...context.cacheStats.eligibleOptions },
         option_interest: { ...context.cacheStats.optionInterest },
         upper_bound: { ...context.cacheStats.upperBound },
-        priority: { ...context.cacheStats.priority }
+        priority: { ...context.cacheStats.priority },
+        expansion: { ...context.cacheStats.expansion }
       },
       ...(goalMode ? { goal_candidates_evaluated: goalCandidatesEvaluated, goal_invalid_candidates: goalInvalidCandidates, goal_invalid_candidate_reasons: Object.fromEntries(goalInvalidReasons), goal_invalid_candidate_examples: goalInvalidExamples, goal_objective: "earliest consolidation net-interest achievement", goal_search_budget: goalSearchBudget, goal_pruned_after_achievement: search.goalPrunedByAchievement ?? 0, selected_goal_score: search.bestGoalScore ?? initialGoalScore } : {})
     };
