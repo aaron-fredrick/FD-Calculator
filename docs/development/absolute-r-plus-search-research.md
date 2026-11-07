@@ -37,6 +37,12 @@ All reported Absolute R+ sensitivity points had `optimality_proven=false`.
 
 These measurements show that search expansion and beam/local candidate generation are material costs. Increasing search budgets is not itself an optimisation and can increase work without improving the selected result.
 
+## Production-default setting finding
+
+The browser currently exposes Absolute R+ defaults of beam width 256 and local-branch limit 128, while the scoped benchmark uses 96 and 48 with a 5,000 decision cap. The 24-month parameter sensitivity showed the wider 256/128 configuration reaching the same reported net interest as 96/48 in that scenario while taking materially longer.
+
+This does **not** justify changing production defaults yet. It is a separate configuration-quality question: the default must be chosen from broader adversarial and horizon evidence, not from one benchmark point. The implementation therefore leaves the UI defaults unchanged until the benchmark and scenario matrix establish a quality/runtime trade-off.
+
 ## Existing reuse mechanisms
 
 The current shared search implementation already has:
