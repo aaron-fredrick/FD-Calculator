@@ -73,6 +73,12 @@ A cached expansion is valid only when:
 
 The current implementation already represents booking-generated future events in the state's pending flow schedule. Goal mode additionally carries provenance and path-sensitive identity, so this work remains Scoped-only.
 
+## Beam-search implication
+
+The 24-month sensitivity result where a 500-decision run found more net interest than a 1,000-decision run is not, by itself, evidence of a financial bug. Standard beam search is not generally monotonic as its search budget or beam width changes: a wider or deeper bounded beam can discard a different set of states and therefore return a different heuristic solution. This means the Absolute R+ contract must keep Greedy as the financial floor and must not assume that more search budget automatically means a better returned portfolio.
+
+For this implementation, exact duplicate-state elimination is safer than generic beam duplicate elimination because the Scoped state key represents the complete future-relevant financial state. Historical path information is retained separately for replay and operation-count tie-breaking.
+
 ## Why browser storage is not the first optimisation
 
 Persistent browser storage can reuse completed simulations between separate user runs, but it cannot safely replace intra-search transposition reuse. IndexedDB is asynchronous and introduces serialisation/versioning/invalidation complexity into a hot search path.
