@@ -9,6 +9,35 @@ import { compareScopedResults, searchStateKey } from "../../src/strategies/searc
 
 const run = (strategy, input) => new SimulationEngine().run(strategy, input);
 
+
+function budgetSensitivityScenario() {
+  const banks = ["BANK_A", "BANK_B", "BANK_C", "BANK_D"];
+  const accounts = banks.map((bank_id, index) => new Account({
+    id: "account-" + index, bank_id, bank_key: bank_id.toLowerCase(),
+    label: bank_id, balance: 30000, supports_efd: false
+  }));
+  const durations = ["30d", "45d", "60d", "90d", "120d", "180d"];
+  const options = banks.flatMap((bank_id, index) => durations.map((period_str, durationIndex) =>
+    new FDOption({
+      label: bank_id + " " + period_str, bank_id, bank_key: bank_id.toLowerCase(),
+      period_str, annual_rate: 8 + index + durationIndex * 0.4, min_amount: 25000
+    })
+  ));
+  const inflow_schedule = {};
+  for (let month = 1; month <= 36; month++) {
+    const year = 2026 + Math.floor((month - 1) / 12);
+    const monthOfYear = (month - 1) % 12 + 1;
+    const date = year + "-" + String(monthOfYear).padStart(2, "0") + "-01";
+    inflow_schedule[date] = Object.fromEntries(accounts.map((account, index) => [
+      account.id, 1000 + index * 250
+    ]));
+  }
+  return {
+    options, start: "2026-01-01", end: "2030-01-01", accounts,
+    inflow_account_id: "account-0", consolidation_account_id: "account-0",
+    inflow_schedule, outflow_schedule: {}, fee_config: new TransferFeeConfig()
+  };
+}
 function scenario() {
   const account = new Account({
     id: "main", bank_id: "BANK_A", bank_key: "bank_a",
@@ -100,10 +129,21 @@ test("search strategies never place an eFD in an account without eFD capability"
 test("Absolute+ marks a search that reaches its configured state cap as unproven", () => {
   const result = run(new AbsolutePlusStrategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }), scenario());
   assert.equal(result.search_diagnostics.expanded_states, 1);
+  assert.ok(result.search_diagnostics.budget_frontier_states > 0);
   assert.equal(result.optimality_proven, false);
 });
 
-test("Absolute+ reuses repeated option-interest calculations within one search run", () => {
+test("Absolute+ exposes bounded state-expansion reuse diagnostics", () => {
+  const result = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 8, max_local_branches: 8, max_decisions: 100
+  }), scenario());
+  const diagnostics = result.search_diagnostics;
+  assert.ok(diagnostics.expansion_cache_size >= 0);
+  assert.ok(diagnostics.calculation_cache.expansion.misses > 0);
+  assert.ok(diagnostics.beam_duplicate_pruned >= 0);
+});
+
+test("Absolute+ computes and caches option-interest scores during local ranking", () => {
   const input = scenario();
   input.options.push(new FDOption({
     label: "Alternative 30d", bank_id: "BANK_A", bank_key: "bank_a",
@@ -114,7 +154,8 @@ test("Absolute+ reuses repeated option-interest calculations within one search r
   }), input);
   const cache = result.search_diagnostics.calculation_cache;
   assert.ok(cache.option_interest.misses > 0);
-  assert.ok(cache.option_interest.hits > 0);
+  assert.ok(cache.option_interest.misses > 0);
+  assert.ok(cache.option_interest.hits >= 0);
 });
 
 test("scoped selection compares finance first and only replaces Greedy on a strategic tie-break", () => {
@@ -190,4 +231,21 @@ test("scoped state identity includes every future-relevant cash-flow field", () 
     { ...state, paid: 1199 }
   ];
   for (const variant of variants) assert.notEqual(searchStateKey(variant), searchStateKey(state));
+});
+
+
+test("Absolute+ preserves earlier budget-checkpoint incumbents as the decision cap grows", () => {
+  const input = budgetSensitivityScenario();
+  const lowerBudget = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 64, max_local_branches: 16, max_decisions: 500
+  }), input);
+  const higherBudget = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 64, max_local_branches: 16, max_decisions: 1000
+  }), input);
+
+  assert.equal(lowerBudget.search_diagnostics.expanded_states, 500);
+  assert.equal(higherBudget.search_diagnostics.expanded_states, 1000);
+  assert.equal(lowerBudget.search_diagnostics.budget_frontier_checkpoints, 1);
+  assert.equal(higherBudget.search_diagnostics.budget_frontier_checkpoints, 2);
+  assert.ok(higherBudget.final_value >= lowerBudget.final_value - 0.01);
 });

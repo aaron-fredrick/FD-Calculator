@@ -4,6 +4,7 @@ import {
   makeBalanceState,
   setSearchBalance,
   addSearchBalance,
+  zeroSearchBalances,
   mergePendingFlows,
   pruneDominatedOptions,
   selectDiverseBeam,
@@ -59,4 +60,10 @@ test("search tree reconstructs actions in chronological order", () => {
     { date: "2026-02-01", action: { type: "book" } },
     { date: "2026-03-01", action: { type: "carry" } },
   ]);
+});
+
+test("multiple balance zeroes are applied in one canonical pass", () => {
+  const state = [["a", 10], ["b", 20], ["c", 30]];
+  assert.deepEqual(zeroSearchBalances(state, ["a", "c"]), [["a", 0], ["b", 20], ["c", 0]]);
+  assert.equal(zeroSearchBalances(state, []), state);
 });
