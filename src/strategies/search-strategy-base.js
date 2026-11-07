@@ -1184,9 +1184,22 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     priority: goalMode ? makeGoalPriority(initial, context) : makeUpperBound(initial, context, true),
     sequence: sequence++
   }];
-  let budgetStopped = false, beamPruned = 0, rootPeak = 0;
+  let budgetStopped = false, beamPruned = 0, beamDuplicatePruned = 0, rootPeak = 0;
   let budgetFrontier = [];
   while (beam.length) {
+    const beamByState = new Map();
+    for (const entry of beam) {
+      const key = stateKey(entry.state);
+      const previous = beamByState.get(key);
+      if (!previous || entry.priority > previous.priority ||
+          (Math.abs(entry.priority - previous.priority) <= EPS &&
+            (entry.node?.operation_count ?? 0) < (previous.node?.operation_count ?? 0))) {
+        beamByState.set(key, entry);
+      }
+    }
+    beamDuplicatePruned += beam.length - beamByState.size;
+    beam = [...beamByState.values()];
+
     const candidates = [], rootBest = new Map();
     for (let beamIndex = 0; beamIndex < beam.length; beamIndex++) {
       const entry = beam[beamIndex];
@@ -1278,7 +1291,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     }
   }
   return {
-    bestNode, bestGoalScore, beamPruned, rootPeak, budgetStopped, budgetFrontier, goalPrunedByAchievement,
+    bestNode, bestGoalScore, beamPruned, beamDuplicatePruned, rootPeak, budgetStopped, budgetFrontier, goalPrunedByAchievement,
     optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
 }
@@ -1388,7 +1401,7 @@ export class SearchStrategyBase {
     const diagnostics = {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
-      beam_pruned: search.beamPruned || 0, local_combination_pruned: counters.localPruned,
+      beam_pruned: search.beamPruned || 0, beam_duplicate_pruned: search.beamDuplicatePruned || 0, local_combination_pruned: counters.localPruned,
       root_strategy_peak: search.rootPeak || 0,
       budget_stopped: Boolean(search.budgetStopped),
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
