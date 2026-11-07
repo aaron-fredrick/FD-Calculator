@@ -96,7 +96,7 @@ for (let index = 0; index < 7; index++) {
     net_interest: Number(result.net_interest_after_ait.toFixed(2)),
     final_value: Number(result.final_value_after_ait.toFixed(2)),
     expanded_states: result.search_diagnostics?.expanded_states ?? 0
-  }) + "\\n");
+  }) + "\n");
 }
 const sortedDurations = [...repeatDurations].sort((a, b) => a - b);
 const percentile = (values, p) => values[Math.max(0, Math.ceil(p * values.length) - 1)];
