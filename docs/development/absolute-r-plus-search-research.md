@@ -90,6 +90,9 @@ For this implementation, exact duplicate-state elimination is safer than generic
 
 The lower-budget result can be better because budget exhaustion introduces a second candidate class: the top four states on the current beam frontier are completed by Greedy during authoritative replay. A 500-decision run evaluates its own cutoff frontier. A 1,000-decision run continues expanding that frontier, so those exact 500-decision prefixes may disappear from the final frontier and never receive the same Greedy completion. The best terminal search incumbent is retained, but the budget-frontier completion incumbent was not retained across deeper search.
 
+
+A second edge case was found while making the checkpoint candidate sets comparable: the decision counter was incremented before `expandState`, while `expandState` itself used that counter to stop generating branches. Therefore the last permitted state could be only partially expanded at the exact budget boundary, while the same state was fully expanded in a higher-budget run. The counter now increments after the state has completed expansion. A cap of N therefore permits N complete state expansions and stops before expansion N+1. A focused test asserts that a one-state budget still produces a non-empty, valid frontier.
+
 This is an implementation-level anytime-quality gap, not a claim that beam search itself is monotonic. The search order is shared up to the smaller budget; the non-monotonicity enters when each budget independently chooses a different final frontier for Greedy completion.
 
 Mitigation implemented on this branch:
