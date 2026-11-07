@@ -1282,7 +1282,10 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         if (!goalMode && settings.maxDecisions != null && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
           const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
           rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
-          budgetFrontierCheckpoints.push(checkpoint.selected.slice(0, 4));
+          budgetFrontierCheckpoints.push([...checkpoint.selected]
+          .sort((a, b) => b.priority - a.priority ||
+            (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0))
+          .slice(0, 4));
         }
         continue;
       }
@@ -1304,7 +1307,10 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
       if (!goalMode && settings.maxDecisions != null && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
         const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
         rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
-        budgetFrontierCheckpoints.push(checkpoint.selected.slice(0, 4));
+        budgetFrontierCheckpoints.push([...checkpoint.selected]
+          .sort((a, b) => b.priority - a.priority ||
+            (a.node?.operation_count ?? 0) - (b.node?.operation_count ?? 0))
+          .slice(0, 4));
       }
     }
     const { selected, diversitySize, pruned } = selectBeam(candidates, rootBest);
