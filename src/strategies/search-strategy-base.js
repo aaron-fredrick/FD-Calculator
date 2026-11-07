@@ -10,7 +10,7 @@ import {
   StrategyDecisionType
 } from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
-import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, zeroSearchBalances, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
+import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, addSearchBalance, zeroSearchBalances, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
 
 const EPS = SEARCH_EPSILON;
 const round2 = roundSearchMoney;
@@ -1063,7 +1063,6 @@ function expandState(rawState, context, settings, mode, counters, operationCount
       nextGoalFlows = [...nextGoalFlows];
     }
     for (const booking of bookings) {
-      nextBalances = setSearchBalance(nextBalances, booking.account_id, 0);
       if (nextGoalProvenance) {
         const bookedComponents = nextGoalProvenance.debit(booking.account_id, booking.principal);
         const componentFlows = booking.option.generateCashFlowComponentsAfterAIT(
