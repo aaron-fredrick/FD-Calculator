@@ -862,7 +862,7 @@ function expandState(rawState, context, settings, mode, counters, operationCount
         counters.rawStateMemoPruned++;
         return { terminal: false, children: [] };
       }
-    } else if (counters.rawMemo.size >= SEARCH_RAW_STATE_MEMO_LIMIT) {
+    } else if (counters.rawMemo.size >= SEARCH_STATE_MEMO_LIMIT) {
       counters.rawMemo.delete(counters.rawMemo.keys().next().value);
       counters.rawStateMemoEvictions++;
     }
@@ -1527,6 +1527,12 @@ export class SearchStrategyBase {
       state_memo_size: counters.memo.size,
       state_memo_hits: counters.stateMemoHits,
       state_memo_evictions: counters.memoEvictions,
+      raw_state_memo: {
+        entries: counters.rawMemo.size,
+        hits: counters.rawStateMemoHits,
+        pruned: counters.rawStateMemoPruned,
+        evictions: counters.rawStateMemoEvictions
+      },
       expansion_cache_size: context.expansionCache.size,
       optimality_proven: search.optimalityProven,
       alternative_leaf_net_interests: counters.alternatives.sort((a, b) => b - a).slice(0, 10),
