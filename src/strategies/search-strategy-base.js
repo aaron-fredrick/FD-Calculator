@@ -1229,6 +1229,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     }
     return {
       selected,
+      diversitySize: diversity.length,
       pruned: Math.max(0, allCandidates.length - selected.length)
     };
   };
@@ -1274,10 +1275,15 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
         if (evaluateGoal) {
           const score = evaluateGoal(path ?? nodePath(entry.node), expanded.value);
           if (compareGoalScores(score, bestGoalScore) > 0) { bestGoalScore = score; bestNode = entry.node; }
-          continue;
+        } else {
+          updateScopedBest(expanded.value, expanded.state, entry.node, counters);
+          bestNode = counters.bestNode;
         }
-        updateScopedBest(expanded.value, expanded.state, entry.node, counters);
-        bestNode = counters.bestNode;
+        if (!goalMode && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
+          const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
+          rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
+          budgetFrontierCheckpoints.push(checkpoint.selected.slice(0, 4));
+        }
         continue;
       }
       for (const child of expanded.children) {
@@ -1297,11 +1303,12 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
       }
       if (!goalMode && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
         const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
-        rootPeak = Math.max(rootPeak, [...rootBest.values()].length);
+        rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
         budgetFrontierCheckpoints.push(checkpoint.selected.slice(0, 4));
       }
     }
-    const { selected, pruned } = selectBeam(candidates, rootBest);
+    const { selected, diversitySize, pruned } = selectBeam(candidates, rootBest);
+    rootPeak = Math.max(rootPeak, diversitySize);
     beamPruned += pruned;
     beam = selected;
     if (budgetStopped) {
