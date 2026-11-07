@@ -152,3 +152,23 @@ The optimisation is complete only if:
 - no Goal-mode behaviour changes;
 - production benchmark evidence demonstrates either a measurable runtime reduction or a clear reduction in repeated expansion work with no material memory regression;
 - the implementation remains bounded, deterministic and understandable.
+
+
+## Production-scenario budget verification (24-month sensitivity)
+
+Executed the repository's `scripts/gaml-sensitivity.js` on the PR branch using the existing production sensitivity scenario: LKR 300,000 across DFCC, Commercial Bank and NDB, 24-month horizon, AIT enabled, no inflows, beam width 96 and local branch limit 48.
+
+| Decision cap | Expanded states | Net interest (LKR) | Final value (LKR) | Runtime |
+|---:|---:|---:|---:|---:|
+| 500 | 500 | 63,302.37 | 363,302.37 | 803.89 ms |
+| 1,000 | 1,000 | 63,302.37 | 363,302.37 | 1,590.02 ms |
+| 2,500 | 2,500 | 63,302.37 | 363,302.37 | 3,100.42 ms |
+| 5,000 | 2,791 | 63,302.37 | 363,302.37 | 3,232.45 ms |
+| 10,000 | 2,791 | 63,302.37 | 363,302.37 | 3,203.83 ms |
+
+The 5,000 and 10,000 caps both naturally exhausted the search after 2,791 expansions; the configured cap was not reached. All rows were financially valid and finalized. `optimality_proven` remained false, so this is evidence of budget-quality preservation for this scenario, not proof of global optimality or a universal guarantee across every input.
+
+Before the fix, the same 24-month scenario returned LKR 63,302.37 at 500 decisions but LKR 61,886.03 at both 1,000 and 5,000. The updated implementation now retains the 500-decision incumbent through later checkpoints, and all tested decision caps return LKR 63,302.37.
+
+Benchmark workflow: https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42409787756
+Artifact: absolute-r-plus-sensitivity (includes the full JSON dataset and raw point output).
