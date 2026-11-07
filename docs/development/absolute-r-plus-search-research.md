@@ -239,3 +239,8 @@ Current-head verification:
 - CodeQL: passed.
 - Dependency review: passed.
 - Scoped strategy benchmark coordinator skipped its matrix because an equivalent fingerprinted benchmark run was already active; the new balance primitive is also covered by the full suite. A fresh full matrix is still desirable before merge.
+
+
+## Repeated same-runner timing protocol
+
+The Absolute R+ sensitivity harness now performs one unmeasured warm-up followed by seven measured executions of the exact baseline configuration (beam width 96, local branch limit 48, decision cap 5,000) within the same Node.js process. It checks that every repetition finalizes, passes financial validation, and produces identical rounded net interest and final value. The output JSON records each duration, median, nearest-rank p95, minimum and maximum. This avoids treating one CI duration as a stable performance estimate. The expanded Scoped Range matrix and this repeated timing sweep are being rerun against the current PR head; results are not accepted until both workflows complete successfully.
