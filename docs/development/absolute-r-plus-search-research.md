@@ -212,3 +212,30 @@ For balance zeroing, K sequential full-array updates change from O(AK) to O(A+K)
 ### Current verification state
 
 The new primitive unit test and ranking/balance changes are on the same PR branch. Node tests, Absolute R+ sensitivity, Scoped strategy benchmarks, documentation build, CodeQL and dependency review have been triggered for the current head. Results must be recorded here after those workflows finish. Financial parity and the production sensitivity results remain the acceptance gate; runtime improvement alone is insufficient.
+
+
+## Follow-on optimisation benchmark results
+
+The updated Node.js 22 full test suite passed on commit 65f417554ed480e36ecf088ee91db3823dd681c5. The dedicated Absolute R+ sensitivity workflow also completed successfully on that exact commit: https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42410672952
+
+The 24-month, beam-96/local-branch-48 decision-cap sweep returned:
+
+| Decision cap | Expanded states | Net interest | Runtime |
+|---:|---:|---:|---:|
+| 500 | 500 | LKR 63,302.37 | 1,403.23 ms |
+| 1,000 | 1,000 | LKR 63,302.37 | 2,669.96 ms |
+| 2,500 | 2,500 | LKR 63,302.37 | 4,911.05 ms |
+| 5,000 | 2,791 | LKR 63,302.37 | 5,033.19 ms |
+| 10,000 | 2,791 | LKR 63,302.37 | 4,930.90 ms |
+
+The 5,000/10,000 caps naturally exhausted at 2,791 states. The net-interest result and final value remained unchanged from the pre-micro-optimisation baseline for every decision-cap point. All points finalized and passed the benchmark's financial validity checks; optimality remains unproven.
+
+The 5,000-cap runtime is 5.033 s versus 5.833 s in the immediately preceding checkpoint implementation's recorded run, approximately 13.7% lower. This is a useful initial signal, not a controlled performance guarantee: these are single CI-run timings and should be confirmed with repeated runs on the same runner class before making a strong claim. The benchmark's beam-width and local-branch sweeps also preserve the observed quality/runtime trade-off; no production defaults were changed.
+
+Current-head verification:
+- Node.js 22 full suite and syntax/build checks: passed.
+- Absolute R+ sensitivity: passed.
+- Documentation build/layout: passed.
+- CodeQL: passed.
+- Dependency review: passed.
+- Scoped strategy benchmark coordinator skipped its matrix because an equivalent fingerprinted benchmark run was already active; the new balance primitive is also covered by the full suite. A fresh full matrix is still desirable before merge.
