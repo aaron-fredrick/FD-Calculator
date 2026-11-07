@@ -10,7 +10,7 @@ import {
   StrategyDecisionType
 } from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
-import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
+import { pruneDominatedOptions, roundSearchMoney, makeBalanceState, setSearchBalance, addSearchBalance, zeroSearchBalances, mergePendingFlows, SEARCH_EPSILON } from "./search-primitives.js";
 
 const EPS = SEARCH_EPSILON;
 const round2 = roundSearchMoney;
@@ -993,9 +993,10 @@ function expandState(rawState, context, settings, mode, counters, operationCount
   });
   for (const branch of consolidation) {
     if (mode === "gaml" && settings.maxDecisions != null && counters.expanded >= settings.maxDecisions) break;
-    let nextBalances = state.balances;
-    for (const transfer of branch.transfers) nextBalances = setSearchBalance(nextBalances, transfer.src_id, 0);
-    nextBalances = setSearchBalance(nextBalances, branch.target_id, 0);
+    const nextBalances = zeroSearchBalances(
+      state.balances,
+      [...branch.transfers.map(transfer => transfer.src_id), branch.target_id]
+    );
     const flows = branch.option.generateCashFlowsAfterAIT(branch.principal, parseISODate(state.date), context.aitRate, context.compound, context.actualLeapYear)
       .map(flow => [formatISODate(flow.date), branch.target_id, flow.amount]);
     let nextGoalProvenance = state.goalProvenance;
@@ -1050,7 +1051,10 @@ function expandState(rawState, context, settings, mode, counters, operationCount
     }));
     const bookedIds = new Set(bookings.map(item => item.account_id));
     const carries = activeIds.filter(id => !bookedIds.has(id));
-    let nextBalances = state.balances;
+    const nextBalances = zeroSearchBalances(
+      state.balances,
+      bookings.map(booking => booking.account_id)
+    );
     const additions = [];
     let nextGoalProvenance = state.goalProvenance;
     let nextGoalFlows = state.goalFlows ?? [];
