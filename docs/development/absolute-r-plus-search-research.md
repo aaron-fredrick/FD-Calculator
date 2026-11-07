@@ -172,3 +172,43 @@ Before the fix, the same 24-month scenario returned LKR 63,302.37 at 500 decisio
 
 Benchmark workflow: https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42409787756
 Artifact: absolute-r-plus-sensitivity (includes the full JSON dataset and raw point output).
+
+
+## Follow-on hot-path optimisation pass
+
+A code-level review identified repeated work in bounded local-combination generation and repeated immutable balance-array rewrites.
+
+### Local-combination ranking
+
+Previously, the bounded branch builder recalculated option interest/goal scores from inside the option sort comparator. Sorting invokes its comparator O(O log O) times, so score lookup and cache-key work were repeated even though each option's score is invariant for the current account, date and search state. It also recalculated the equivalent-eFD count by traversing every partial choice inside each partial-sort comparison.
+
+The bounded path now:
+- calculates each eligible option's score once per account/state;
+- calculates its equivalent-eFD tie-break metadata once;
+- sorts the precomputed records while preserving the existing 1e-9 score tie tolerance;
+- carries the accumulated equivalent-eFD count on each partial candidate, avoiding repeated choice-array scans;
+- carries that count through null choices unchanged.
+
+This removes repeated comparator work. The ranking still sorts the same candidate set and uses the same score and tie-break semantics. The unbounded Goal enumeration path is unchanged.
+
+### Batched balance zeroing
+
+Consolidation and local-booking expansion previously called setSearchBalance repeatedly. Each call mapped the complete account-balance array, producing O(A * K) work for K balances zeroed across A accounts. Added zeroSearchBalances, which builds a set of changed account IDs and maps the canonical balance array once: O(A + K) expected time. It preserves the existing account order and unchanged balance values. This helper is covered by a focused primitive test.
+
+### Deliberately deferred items
+
+- Pending-flow merge optimisation: current representation and merge semantics include date/account aggregation and cent rounding. A sorted-merge rewrite needs differential tests for duplicate dates/accounts and rounding-order equivalence before adoption.
+- Incremental state hashes: the state is immutable by convention but child construction and nested flow/obligation arrays need a strict ownership contract. A fingerprint shortcut could introduce collisions or stale identities; JSON canonical identity remains authoritative.
+- Transfer-fee precomputation: the account-pair count is small and the fee config is stable. It should only be added if profiles show fee lookup is material.
+- Weighted expansion-cache eviction: the current cache is entry-bounded but not child-count-bounded. A weighted limit is a sensible follow-up if heap profiling shows material retained-child memory. No arbitrary memory cap is introduced without measurement.
+- Cash-flow schedule caching: amounts, dates, AIT, compounding and leap-year settings all affect results. Existing option-interest caching does not cover complete cash-flow schedules; add only with a complete key and evidence of repeated identical schedules.
+
+### Complexity effect
+
+For the bounded local-combination builder, option score computation changes from repeated comparator-time lookups (up to O(O log O) lookups per account) to O(O) score computations plus O(O log O) numeric comparisons. Equivalent-eFD counting changes from repeated O(A) scans per comparison to O(1) comparison using a carried count; each candidate still incurs O(A) choice-array construction, which is required by the current branch representation.
+
+For balance zeroing, K sequential full-array updates change from O(AK) to O(A+K) expected time. These are operation-count improvements; no wall-clock speedup is claimed until the updated CI benchmark completes on the current head.
+
+### Current verification state
+
+The new primitive unit test and ranking/balance changes are on the same PR branch. Node tests, Absolute R+ sensitivity, Scoped strategy benchmarks, documentation build, CodeQL and dependency review have been triggered for the current head. Results must be recorded here after those workflows finish. Financial parity and the production sensitivity results remain the acceptance gate; runtime improvement alone is insufficient.
