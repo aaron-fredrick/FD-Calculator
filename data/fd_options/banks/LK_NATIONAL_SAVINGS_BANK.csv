@@ -1,0 +1,16 @@
+name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes
+1m,fixed_deposit,1m,6.25,500000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+3m,fixed_deposit,3m,6.75,1000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+4m,fixed_deposit,4m,6.85,500000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+6m,fixed_deposit,6m,7,1000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+7m,fixed_deposit,7m,7.1,500000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+12m,fixed_deposit,12m,7.25,1000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+24m,fixed_deposit,24m,7.75,1000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+36m,fixed_deposit,36m,7.75,25000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+48m,fixed_deposit,48m,8,1000000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+60m,fixed_deposit,60m,8.25,100000,cumulative,,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+12m monthly,fixed_deposit,12m,7,25000,periodic_interest,1m,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+24m monthly,fixed_deposit,24m,7.25,1000000,periodic_interest,1m,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+36m monthly,fixed_deposit,36m,7,1000000,periodic_interest,1m,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+48m monthly,fixed_deposit,48m,7,1000000,periodic_interest,1m,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
+60m monthly,fixed_deposit,60m,7,1000000,periodic_interest,1m,,LKR,https://www.nsb.lk/rates-tarriffs/rupee-deposit-rates/,2026-06-02,direct,Official term deposit schedule effective 2 June 2026; minimum deposits vary by product.
