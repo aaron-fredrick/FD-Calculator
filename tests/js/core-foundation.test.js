@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { addPeriod, daysBetween, parsePeriodDays, formatISODate } from "../../src/core/dates.js";
-import { calcInterest } from "../../src/core/interest.js";
+import { calcInterest, getYearBaseDays } from "../../src/core/interest.js";
 import { Account, FDOption, TransferFeeConfig, PERIODIC_INTEREST, INSTALLMENT } from "../../src/core/models.js";
 import { processOutflows } from "../../src/core/cashflows.js";
 
@@ -13,6 +13,10 @@ test("period arithmetic follows calendar month-end clamping", () => {
 });
 
 test("interest supports actual leap-year bases and daily compounding", () => {
+  assert.equal(getYearBaseDays("2024-01-01"), 366);
+  assert.equal(getYearBaseDays("2025-01-01"), 365);
+  assert.equal(getYearBaseDays("2024-01-01", false), 365);
+  assert.equal(calcInterest(100000, 10, 365, "2024-01-01"), 100000 * 0.10 * 365 / 366);
   assert.equal(calcInterest(100000, 10, 366, "2024-01-01"), 10000);
   assert.ok(calcInterest(100000, 10, 365, "2025-01-01", true) > calcInterest(100000, 10, 365, "2025-01-01"));
 });
