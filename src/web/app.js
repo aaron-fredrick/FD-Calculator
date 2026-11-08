@@ -133,6 +133,7 @@ function wire(){
  $("scenario-form").onsubmit=async e=>{
   e.preventDefault();clearFieldErrors();err("");
   const status=$("simulation-status"),button=$("run"),submissionId=++S.submissionSequence;
+  console.info("[FD Cal][main] Simulation submitted", {submissionId, at:new Date().toISOString()});
   let requestId=null,computeStarted=false,elapsedMs=0;
   S.isPreparing=true;
   status.classList.remove("is-complete","is-success");status.hidden=false;
@@ -157,7 +158,9 @@ function wire(){
     const fingerprint=simulationFingerprint(c);
     requestId=++S.activeRunId;
     S.formEditedWhileRunning=false;$("simulation-edit-note").hidden=true;
+    console.info("[FD Cal][main] Dispatching validated scenario to worker", {requestId,strategy:c.strategy,mode:c.simulation?.mode,accountCount:c.accounts?.length,optionCount:c.options?.length,fingerprintLength:fingerprint.length});
     const run=S.workerRunner.run(createWorkerPayload(c),fingerprint);
+    console.info("[FD Cal][main] Worker runner response", {requestId,started:run.started,reused:run.reused,deduplicated:run.deduplicated,workerActive:!!S.workerRunner.active});
     S.isPreparing=false;
     const strategyName=({gaml:"Absolute R+ search",greedy:"Greedy optimisation",gss:"GSS scoped planning"}[c.strategy]||c.strategy);
     if(run.reused){
@@ -173,7 +176,9 @@ function wire(){
     }
     button.textContent=S.workerRunner.active?"Run updated scenario":"▶ Run simulation";
     await nextPaint();
+    console.info("[FD Cal][main] Awaiting worker result", {requestId,workerActive:!!S.workerRunner.active});
     const rawResult=await run.promise;
+    console.info("[FD Cal][main] Worker promise resolved", {requestId,elapsedMs:Math.round(elapsedMs),valid:rawResult?.valid,bookingCount:rawResult?.bookings?.length});
     if(requestId!==S.activeRunId)return;
     elapsedMs=stopElapsedTimer()||elapsedMs;
     const result=rehydrateSimulationResult(rawResult,FDOption);
@@ -188,6 +193,7 @@ function wire(){
     status.classList.add("is-complete","is-success");
     $("simulation-edit-note").hidden=!S.formEditedWhileRunning;
   }catch(ex){
+    console.error("[FD Cal][main] Simulation submission failed", {submissionId,requestId,workerActive:!!S.workerRunner.active,errorName:ex?.name,errorMessage:ex?.message},ex);
     if(ex?.name==="AbortError")return;
     if(submissionId!==S.submissionSequence)return;
     if(requestId!==null&&requestId!==S.activeRunId)return;
