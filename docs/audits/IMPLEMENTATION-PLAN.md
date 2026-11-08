@@ -1,0 +1,362 @@
+# FD Cal — implementation plan from the engineering audit
+
+**Plan date:** 9 November 2026  
+**Audited source:** `dev` at `a455462a959f37db757970d0a3078a4d9a3ef028`  
+**Working branch:** `audit/rulesets-codebase-review`  
+**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS)  
+**Status:** Owner feedback incorporated; planning only. No application code or financial behaviour has been changed.
+
+## 1. Purpose and constraints
+
+This plan turns the source audit and owner feedback into a staged remediation programme. It is deliberately conservative: fix confirmed trust-boundary and presentation defects without casually changing the financial model, strategy objective, search quality, or the visual improvements already shipped.
+
+The work must follow the project's [Coding](https://github.com/aaron-fredrick/RULESETS/tree/main/Coding), [Web](https://github.com/aaron-fredrick/RULESETS/tree/main/Web), and [UI](https://github.com/aaron-fredrick/RULESETS/tree/main/UI) rulesets. In particular:
+
+- Keep domain calculations, strategy planning, authoritative execution, presentation, and deployment concerns separated.
+- Preserve existing public configuration and result contracts where practical; add explicit fields or aliases before retiring old names.
+- Validate untrusted input at its boundary and encode output for its destination context.
+- Test financial invariants and observable behaviour, not implementation details alone.
+- Measure performance and output quality against a reproducible baseline before accepting search-budget changes.
+- Treat browser rendering, responsive behaviour, keyboard operation, and reduced motion as implementation acceptance criteria, not assumptions.
+
+### Non-regression guardrails
+
+No phase may:
+
+1. Change interest formulas, rounding, day-count treatment, FD eligibility, fee calculation, AIT, payout mechanics, or strategy scoring as a side effect of a UI/report change.
+2. weaken or delete existing tests, strategy parity checks, diagnostics, or financial tolerances to make a change pass.
+3. silently reinterpret an existing configuration field or result property.
+4. replace the existing visual system with new colours, gradients, pill-heavy controls, decorative badges, excessive cards, or a broad redesign.
+5. trade away a proven output or material performance improvement without a measured reason and explicit review.
+
+Before implementation, capture deterministic baseline outputs for representative scenarios and record the audited source SHA. For engine/search changes, compare booking decisions, cash-flow dates and amounts, ending account balances, paid and outstanding outflows, fees, AIT, result metrics, validity, and optimality diagnostics. Run repeated same-runner timing measurements as well as output comparisons.
+
+## 2. Owner feedback and finding disposition
+
+| Finding | Disposition | Plan |
+|---|---|---|
+| **SEC-01** | Accepted — P1 | Fix unsafe account-ID rendering and audit adjacent selector/attribute use. Preserve valid imported IDs. |
+| **FIN-01** | Accepted — P1 | Correct result semantics and UI/report labels. Outflows already participate in runtime and search; do not reimplement them inside individual strategies. |
+| **ENG-01** | Clarify before changing — P2 | Preserve the date-boundary ordering: cash inflows and FD cash flows first, due outflows second, strategy decision third. Do not blindly clamp installment dates; confirm product payout semantics separately. |
+| **ENG-02** | Accepted as an explicit convention to document — P2 | Keep the current elapsed-day calculation and start-date year-base behaviour for now. Verify against representative bank terms before changing the formula. |
+| **SEARCH-01** | Accepted — P2 | Add finite browser defaults for expanded-state and elapsed-time budgets, with explicit unlimited controls. Preserve partial-result/optimality diagnostics. |
+| **DATA-01** | Accepted — P2 | Add per-bank dataset review/update dates, expose selected-bank status/date, and show a clear catalogue disclaimer. Keep source effective date distinct. |
+| **DATA-02** | Closed as intended scope | Senior/minor controls remain candidate-product inclusion filters, not depositor eligibility verification. Keep the existing disclosure; do not add age/guardian onboarding as part of this work. |
+| **DATA-03** | Deferred — owner decision required | No model extension or product activation until the owner clarifies which special-product constraints should be supported. |
+| **DEPLOY-01** | Accepted — P2 | Make the production Pages assembler preserve the public `/dev/` subtree on every normal deployment. |
+| **DATA-04** | Accepted — P3 | Harden CSV structural validation after inventorying all current catalogue files and preserving valid CSV behaviour. |
+| **UI-01** | Accepted — P3 | Route programmatic scrolling through a reduced-motion-aware helper. Preserve normal-motion behaviour and existing transitions. |
+| **QA-01** | Deferred — owner decision required | The finding means there is no automated real-browser end-to-end suite. Decide later whether to introduce Playwright or keep browser checks manual/smoke-only. |
+
+## 3. Detailed workstreams
+
+### Phase 1 — SEC-01: imported account-ID rendering
+
+**Priority:** P1  
+**Primary boundary:** JSON import → configuration validation → account model → DOM rendering.
+
+#### Analysis
+
+The import path accepts account IDs as keys in the imported `accounts` object. The shape validator requires a non-empty string but does not constrain it to a narrow identifier alphabet. `applyConfig()` preserves those keys as account IDs. `renderAccounts()` then interpolates the ID directly into several quoted HTML attributes: the account card's `data-id`, the consolidation radio's `value`, and the remove button's `data-remove-account`.
+
+The existing `esc()` helper is used for labels and other values, but not for these account-ID attributes. A malicious scenario file can therefore break out of an attribute when imported and rendered. This is a real untrusted-file-to-DOM boundary; it does not require a remote attacker to control the application origin.
+
+There are also adjacent uses where IDs are inserted into CSS selector strings during error targeting. Fixing only the visible template interpolation would leave fragile selector construction behind.
+
+#### Implementation plan
+
+1. Trace every use of imported account IDs after `applyConfig()`, including HTML templates, attributes, selectors, event delegation, and error targeting.
+2. Prefer DOM construction and `setAttribute()`/dataset assignment for the account-card fields that carry IDs. If retaining a template in a narrowly scoped area, apply the existing HTML escaping helper consistently to every attribute value.
+3. Remove dynamic selector concatenation where practical. Resolve cards by comparing `dataset.id` to the exact ID, or use a correctly escaped selector only where necessary.
+4. Do **not** impose a new restrictive ID regex as the primary fix. Existing exported/imported scenarios may contain IDs that are valid under the current contract. Output encoding must protect rendering without changing identity or breaking references.
+5. Inspect the account card's delegated interactions after the rendering change: select consolidation account, remove account, sync balances, and retain schedule references.
+
+#### Regression tests and acceptance
+
+- Import a valid legacy scenario with ordinary IDs and verify round-trip export/import.
+- Import adversarial IDs containing quotes, angle brackets, ampersands, apostrophes, whitespace, and Unicode.
+- Use a payload such as `"><img src=x onerror=...>` and assert no element or executable handler is created from the ID.
+- Assert the ID remains exact in the DOM attribute/property and account lookup; primary selection and removal still work.
+- Run all existing configuration, import/export, web, and report tests.
+- Review other `innerHTML` templates for account-ID interpolation; do not broaden this into an unrelated UI rewrite.
+
+**Acceptance:** imported IDs remain data, never markup or executable attributes; existing scenario compatibility and account operations remain intact.
+
+### Phase 2 — FIN-01: separate portfolio value from closing position
+
+**Priority:** P1  
+**Primary boundary:** result model → strategy objective contract → UI/report presentation.
+
+#### What the code currently does
+
+The audit's finding is valid, but it is important to distinguish a result-presentation defect from missing outflow execution:
+
+- `SimulationRuntime.processDate()` credits same-date inflows, FD cash flows, and maturities before settling due outflows.
+- It then applies due outflows according to `strict`, `defer`, or `best_effort`, commits the resulting balances, and only afterwards does the strategy receive its next planning view and choose an action.
+- The shared runtime is the authoritative executor. Greedy, GSS, and Absolute R+ should not each implement a second outflow settlement mechanism.
+- The scoped search state already carries balances, future flows, outstanding obligations, and paid outflows. Its terminal evaluation includes paid amounts and subtracts outstanding liabilities. This is part of the current strategy objective and must not be casually changed.
+- `SimResult.final_value` is calculated from contributed capital plus gross interest less transfer fees and AIT. It does not subtract paid outflows. The UI and HTML report currently describe it as an ending/final portfolio value.
+- `cash_retained` is the sum of ending account balances. `cash_flow_net_worth` subtracts outstanding outflows from those balances. These are much closer to the closing-position concepts the UI needs.
+
+The important design boundary is therefore: **outflow scheduling and settlement remain in the runtime; search strategies reason about the runtime's projected state; result metrics describe the resulting position.** Do not move settlement into strategy implementations or alter the search objective merely to correct a label.
+
+#### Proposed result vocabulary
+
+Introduce explicit names while retaining old properties until every consumer has been audited:
+
+| Proposed name | Meaning | Existing source/compatibility |
+|---|---|---|
+| `contributed_capital` | Opening account capital plus scheduled inflows | Alias of `total_principal` |
+| `pre_withdrawal_value` | Contributed capital plus gross interest, less fees and AIT; does not deduct paid outflows | Alias of existing `final_value` |
+| `total_outflows_paid` | Amount actually paid by the simulation | Existing property |
+| `closing_assets` | Sum of account balances at the simulation boundary after finalization | Alias/explicit name for `cash_retained`; verify all scoped bookings have settled cash flows by the horizon |
+| `outstanding_liabilities` | Remaining unpaid outflow obligations | Sum of `outstanding_outflows[].remaining` |
+| `closing_net_worth` | Closing assets less outstanding liabilities | Alias of existing `cash_flow_net_worth` |
+
+Do not redefine `final_value` in place. It is used outside the display layer, including strategy comparison paths; changing it could silently alter optimisation results or downstream consumers. First inventory all uses, including CLI output, reports, XIRR/cash-flow calculations, strategy scoring, tests, and any exported result contracts.
+
+#### Implementation plan
+
+1. Map all consumers of `final_value`, `final_value_after_ait`, `total_principal`, `cash_retained`, `cash_flow_net_worth`, `total_outflows_paid`, and `outstanding_outflows`.
+2. Confirm and document the current strategy objective: the optimiser evaluates the pre-withdrawal aggregate position and outstanding obligations; it does not simply maximise the amount of cash left after users have spent money. Preserve this objective unless a separate owner decision changes the optimisation goal.
+3. Add explicit semantic getters/serialized fields in the result layer. Keep existing names as compatibility aliases; avoid duplicated mutable state.
+4. Update the web results and standalone HTML report to distinguish pre-withdrawal value from closing assets and closing net worth. Show paid and outstanding outflows as reconciliation details, without turning the results area into a dense set of competing cards.
+5. Update CLI/report labels and documentation consistently. Ensure the report does not call the pre-withdrawal metric the closing portfolio value.
+6. Verify finalization effects: final consolidation fees are included in the closing balance and fee totals; metric getters must reflect the finalized result, not a stale pre-finalization snapshot.
+
+#### Financial regression matrix
+
+- **Simple withdrawal:** LKR 100,000 opening capital, no interest/fees, LKR 40,000 paid outflow → pre-withdrawal value LKR 100,000; closing assets/net worth LKR 60,000.
+- **Deferred obligation:** LKR 100,000 opening capital, LKR 120,000 deferred outflow → closing assets LKR 100,000; outstanding liability LKR 120,000; closing net worth LKR -20,000.
+- **Best effort:** LKR 100,000 available, LKR 120,000 best-effort outflow → LKR 100,000 paid, LKR 20,000 outstanding, closing assets LKR 0, closing net worth LKR -20,000.
+- **Same-day ordering:** same-day inflow is credited before outflow settlement; outflow is settled before the strategy decision. Verify all three steps in the event ledger.
+- **Interest/fees/AIT:** include a matured FD, transfer fee, AIT, and a paid outflow; reconcile every displayed metric to the ledger and ending accounts.
+- **Strategy parity:** run equivalent deterministic scenarios through Greedy, GSS, and Absolute R+; ensure the result vocabulary is consistent and the existing strategy objective/booking decisions do not change merely because labels were corrected.
+- **Compatibility:** verify old result properties, CLI consumers, report generation, worker rehydration, and XIRR inputs remain stable.
+
+**Acceptance:** users can distinguish what the plan generated before withdrawals from what remains at the end; the strategy engine's outflow behaviour and objective are unchanged unless separately approved.
+
+### Phase 3 — ENG-01 and ENG-02: clarify financial timing conventions
+
+**Priority:** P2  
+**Primary boundary:** FD product terms → cash-flow model → date/interest calculation.
+
+#### ENG-01 — payout dates and event ordering
+
+Owner-confirmed event ordering is:
+
+1. Credit all same-date inflows, FD cash flows, and maturities.
+2. Add and settle all due outflows according to their payment policies.
+3. Present the post-settlement balances and obligations to the strategy.
+4. Execute the strategy decision for that date.
+
+This is already the order in the authoritative runtime. Preserve it and add an explicit regression test; do not move outflow handling into strategies.
+
+This ordering does **not**, by itself, settle the separate product-term question in the audit: an `INSTALLMENT` product with a five-month tenor and two-month payout interval currently generates dates at months 2, 4, and 6. Do not blindly clamp the last payment to month 5. First establish what the catalogue's tenor and payout interval mean for the actual bank product:
+- If the contractual final installment is due at maturity, the generated final cash flow should be aligned to maturity.
+- If the contract genuinely pays the final installment after the stated tenor, model the final settlement date explicitly and ensure eligibility/horizon checks use the last contractual cash-flow date rather than assuming maturity and final receipt are identical.
+
+Audit representative source terms and catalogue rows before choosing either model. Add 5m/2m, 5m/6m, exact-divisor, and payout-after-horizon fixtures. Assert that all cash-flow dates are within the contractually modelled availability horizon. Do not change cumulative or periodic-interest schedules as part of this fix.
+
+#### ENG-02 — elapsed-day interest basis
+
+The current implementation calculates interest using the actual elapsed day count, divided by a 365/366 base selected from the accrual start date's calendar year when the leap-year option is enabled. It does not split a multi-year interval into separate calendar-year segments.
+
+Owner feedback indicates that the intended approach is a relative elapsed-day delta, consistent with the convention the project intends to model. Keep the formula unchanged during this plan. Document it precisely in the UI/report and verify it against representative published bank product terms. Do not silently switch to calendar-segment Actual/Actual or another basis. If source evidence later requires a different convention, treat that as a separately reviewed financial-model change with before/after expected-value fixtures.
+
+### Phase 4 — SEARCH-01: bounded browser search with explicit unlimited mode
+
+**Priority:** P2  
+**Primary boundary:** configuration → search loop → worker lifecycle → UI diagnostics.
+
+#### Current state
+
+Absolute R+ currently defaults `max_decisions` to `null`; the browser leaves the decision-cap input blank. The worker runner has a 10-second start-handshake timeout, but clears it after the worker acknowledges `started`. There is no post-start deadline. The runner already has a `cancel()` method, but the UI does not expose a cancellation control.
+
+#### Proposed behaviour
+
+- Add a finite default expanded-state budget and a finite default elapsed-time budget for browser Absolute R+ runs.
+- Initial candidate defaults for benchmarking: **10,000 expanded states** and **30 seconds**. These are starting values, not final constants; calibrate them against representative small, typical, and worst-case scenarios before locking them.
+- Let users choose an explicit unlimited decision budget. Preserve `null` as the configuration representation for unlimited expanded states.
+- Let users set the time limit to **0 for unlimited**. A missing time-limit field in an older configuration should receive the safe default; explicit zero should remain unlimited.
+- Make the distinction visible in the UI. Label the count accurately as expanded states/decisions, not a generic number of alternatives.
+- When the decision or cooperative time budget is reached, return the best feasible incumbent available, mark `optimality_proven: false`, and report the exact stopping reason, configured budget, expanded-state count, and elapsed time.
+- Add a hard worker watchdog as a last-resort safety net, slightly beyond the cooperative search deadline. It should terminate a worker that becomes unresponsive, not be the normal way the search budget is enforced.
+- Expose the existing cancellation capability while a run is active. Cancellation, timeout, and budget-completed-with-incumbent must have distinct status/error handling.
+- If both the decision budget is unlimited and timeout is zero, allow the user to request an unbounded run explicitly. The UI should make the resource implication clear.
+
+#### Architecture and performance safeguards
+
+1. Extend the validated strategy-settings contract deliberately; reject negative, fractional, NaN, and unsupported values.
+2. Keep the search deadline in the search loop, checking at bounded checkpoints and around expensive expansions. Use a monotonic clock and an injectable clock in tests.
+3. Reuse the existing budget-stop/optimality diagnostics where possible; add a reason field rather than creating a parallel result contract.
+4. Keep worker termination and timer cleanup in `SimulationWorkerRunner`; do not put browser timer APIs into core financial logic.
+5. Ensure a timed-out or cancelled worker cannot publish a stale result, and that the next submission works normally.
+6. Benchmark 5k/10k/20k/uncapped expansion limits and 15s/30s/60s time budgets on the same runner. Compare actual financial outputs and feasibility, not only elapsed time. Record whether the incumbent matches the uncapped result on scenarios that can complete uncapped in a reasonable time.
+7. Retain cache limits, beam width, pruning rules, and current strategy parity tests unless measurements justify a separate change.
+
+**Acceptance:** ordinary browser runs terminate within a predictable budget; budget-limited results are never presented as proven optimal; users can explicitly opt into unlimited execution; cancellation and subsequent reuse remain reliable.
+
+### Phase 5 — DATA-01: catalogue freshness and source disclosure
+
+**Priority:** P2  
+**Primary boundary:** bank/product index → bank selector → result/report disclosure.
+
+#### Data contract
+
+Add a per-bank ISO date field to the bank/product index, for example `dataset_updated_at`. It must represent the last date that bank's dataset was reviewed or materially updated in this repository. Maintain it per bank; do not derive it from the latest repository-wide commit, which may have changed an unrelated bank.
+
+Keep this separate from product-level `source_effective_date`:
+- **Dataset last reviewed:** when FD Cal last checked/updated the bank's catalogue data.
+- **Source effective date:** when the bank says the rate schedule itself takes effect.
+- **Source type/status:** official/direct, secondary, or no sufficiently verified public rate data.
+
+Do not invent dates for old rows. Backfill only when Git history or research notes establish a defensible date; otherwise show “Review date not recorded” until the bank is rechecked.
+
+#### UI/report plan
+
+1. Add a concise catalogue disclaimer near bank selection: rates and terms are research data, may be stale or secondary, and must be confirmed with the bank before acting.
+2. For each account's selected bank, show its research/source status and “Dataset last reviewed” date. Keep the detail close to the bank selector; avoid turning every dropdown option into a long paragraph.
+3. Where available, show source effective date separately. Do not imply that the dataset review date is the bank's effective date.
+4. Distinguish populated-direct from populated-secondary entries. Keep banks with no verified rate data disabled as they are now; do not make unverified rows investable just to improve selection coverage.
+5. Include the catalogue disclaimer and relevant source metadata in the standalone report so a saved report retains the data-quality context used for the simulation.
+6. Keep metadata out of financial calculation inputs unless a specific calculation requires it.
+
+#### Acceptance and tests
+
+- Validate date format and missing-date handling in the catalogue loader.
+- Verify every bank selection displays the correct bank-specific metadata, including a secondary-source bank and a no-rate bank.
+- Verify long bank names and small screens do not overflow or create excessive visual density.
+- Confirm the report contains the same source status/date as the catalogue snapshot used by the simulation.
+- Ensure catalogue metadata changes do not alter booking decisions, interest, fees, or strategy fingerprints unless the calculation-relevant product terms changed.
+
+### Phase 6 — DEPLOY-01: preserve the public dev preview on production deployments
+
+**Priority:** P2  
+**Primary boundary:** artifact branches → Pages assembly → public site.
+
+The dev preview is intended to be publicly accessible so users and contributors can verify work. It is not a temporary developer-only path. Every normal production deployment must preserve the current preview at `/dev/`.
+
+#### Implementation plan
+
+1. Port the preview-aware Pages assembler to `main`; do not rely on the dev branch's workflow alone.
+2. Keep the production web/docs artifact refs and dev preview artifact ref independent. Preserve the established `dev_` prefix on persistent dev branches/artifact-state refs.
+3. During assembly, extract production web and docs artifacts first, then extract the dev artifact into `site/dev/` last so root artifacts cannot overwrite the preview subtree.
+4. Keep the shared Pages deployment concurrency group. Production and dev publishes must remain serialized because they deploy one assembled Pages tree.
+5. If the current dev artifact is temporarily unavailable, preserve the last successfully published dev subtree from a known-good baseline rather than silently deleting `/dev/`. Removal should require an explicit, reviewed action.
+6. Keep noindex/canonical metadata and dev-preview banner confined to the dev build. Production root output must remain unchanged by the dev build.
+7. Add deployment contract checks that assert the production root files are unchanged, `/dev/`, `/dev/web/`, and `/dev/docs/` exist, and the preview assets/data/worker URLs resolve under the dev prefix.
+8. Test both directions: a dev publish must preserve production; a main publish must preserve the latest dev preview.
+
+**Acceptance:** routine main and dev deployments both publish the same composed site without deleting or overwriting either component.
+
+### Phase 7 — DATA-04: strict CSV structural validation
+
+**Priority:** P3  
+**Primary boundary:** CSV text → parsed row objects → catalogue loaders.
+
+The current parser rejects unterminated quoted fields and duplicate/empty headers, but maps each data row to the header list using `values[i] ?? ""`. That silently fills missing columns with empty strings and ignores surplus columns. It also needs explicit tests for invalid quote placement and characters after a closing quote.
+
+#### Implementation plan
+
+1. Inventory every current CSV in `data/` and record its header count, row count, empty-line patterns, and any intentional empty trailing fields before enforcing strict row width.
+2. Confirm the parser's supported dialect from the repository data: UTF-8 BOM, CRLF/LF, quoted commas, escaped quotes, multiline quoted values, and trailing empty columns.
+3. Implement a small explicit parser state machine with clear states for unquoted, quoted, and after-closing-quote input. Reject malformed quote placement and unexpected characters after a closing quote.
+4. Require each non-blank data row to have exactly the header field count. Preserve legitimate empty cells; do not silently discard surplus values.
+5. Include source filename and physical/logical row context in errors. Keep the generic parser reusable by both browser and CLI loaders; pass source context from the loader rather than hard-coding file paths into the parser.
+6. Decide and test how fully blank lines are treated; do not accidentally treat a row containing the required number of empty fields as a blank line.
+7. Add fixtures for short rows, long rows, embedded commas, escaped quotes, multiline notes, CRLF, BOM, empty final fields, malformed quotes, and blank lines.
+8. Run the full catalogue inventory and all Node tests before accepting the stricter parser.
+
+**Acceptance:** malformed rows fail loudly with actionable file/row errors; every current production CSV parses without data loss or accidental rejection.
+
+### Phase 8 — UI-01: reduced-motion-aware programmatic scrolling
+
+**Priority:** P3  
+**Primary boundary:** validation/result feedback → browser scrolling behaviour.
+
+The web app has direct smooth-scroll calls when focusing validation errors and when navigating to result/error areas. These bypass the reduced-motion handling already used by the CSS/motion helpers.
+
+W3C documents a JavaScript technique for evaluating `prefers-reduced-motion` (SCR40), and MDN documents the media feature and `scrollIntoView()` behaviour. In particular, `behavior: "auto"` follows computed CSS `scroll-behavior`; if global CSS still says smooth, merely switching JavaScript to `auto` may not remove the animation. Use a central helper and make the reduced-motion path explicitly non-animated, with a CSS fallback for the document scroll container. [W3C SCR40](https://www.w3.org/WAI/WCAG22/Techniques/client-side-script/SCR40) · [MDN prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion) · [MDN scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView).
+
+#### Implementation plan
+
+1. Add one small helper for programmatic scroll requests; replace the direct smooth-scroll calls in validation and result/error navigation.
+2. Read `matchMedia("(prefers-reduced-motion: reduce)")` at the time of the request so a preference change during the session is respected.
+3. In normal mode, preserve the current smooth scroll and alignment.
+4. In reduced mode, use an explicitly non-animated scroll path and ensure CSS `scroll-behavior` cannot reintroduce smooth scrolling.
+5. Keep focus behaviour and error association independent from the scroll animation. Reduced motion must not suppress focus or hide the error.
+6. Test both preference branches, including a runtime preference change if practical. Verify keyboard focus, validation announcement, and result navigation remain unchanged.
+
+This is a targeted accessibility correction, not a motion redesign. Keep existing entrance/exit transitions and motion timing rules intact; only remove the non-essential scroll animation when requested.
+
+### Deferred owner decisions
+
+#### DATA-03 — special-product constraints
+
+The audit notes that the research register includes product maximum amounts and tax-exempt flags that the active FD model does not currently enforce. This matters only if such products are to be activated in the simulation catalogue. No implementation is planned until the owner specifies which constraints are required and which products should be supported. Until then, keep products with unenforced simulation-critical constraints out of the active catalogue.
+
+#### QA-01 — browser automation
+
+The audit did not find Playwright, Cypress, or WebDriver-based browser E2E coverage. Existing Node tests exercise engine, worker contracts, report output, and workflow contracts, but they do not launch a real browser to test the rendered application. This is a test-infrastructure decision, not evidence that existing unit tests are inadequate. Ask the owner whether to add a small Playwright smoke suite or continue with manual browser verification for now.
+
+## 4. Visual and interaction guardrails
+
+All UI work in this plan must preserve the visual-restraint improvements already merged through the recent UI work:
+
+- Reuse existing brand and semantic colour tokens. Do not introduce a new palette or use colour alone to communicate source confidence, errors, or budget status.
+- Use existing success, warning, error, and neutral treatments only where their meaning is appropriate.
+- Keep typography, spacing, and hierarchy restrained. Avoid decorative eyebrow labels, redundant numbering, gradients, excessive dividers, heavy card nesting, and pill-shaped metadata.
+- Use badges only for meaningful status, not as decoration. Prefer concise text for bank provenance and search-budget explanations.
+- Keep explanations short but preserve financial caveats and eligibility disclosures.
+- Preserve current mobile control sizing, focus-visible styling, keyboard operation, and responsive breakpoints.
+- Keep motion purposeful and interruptible. Preserve existing transitions for users who have not requested reduced motion; do not animate the reduced-motion path.
+- Do not add a new visual component if a small inline status/detail beside the existing control communicates the same information.
+
+Relevant guidance: [Visual Design and Restraint](https://github.com/aaron-fredrick/RULESETS/blob/main/UI/visual-design.md), [Motion and Interaction](https://github.com/aaron-fredrick/RULESETS/blob/main/UI/motion.md), and [UI Quality Assurance](https://github.com/aaron-fredrick/RULESETS/blob/main/UI/quality-assurance.md).
+
+## 5. Delivery order and branch strategy
+
+The audit branch remains documentation-only. Do not implement application changes directly on `audit/rulesets-codebase-review`.
+
+Recommended implementation sequence:
+
+1. **SEC-01** — isolated security fix and adversarial import tests.
+2. **FIN-01** — result contract and presentation correction, with strategy scoring frozen and reconciled.
+3. **ENG-01/ENG-02** — only after payout-term and day-count assumptions are documented; keep this separate from FIN-01.
+4. **SEARCH-01** — configuration, search deadline, worker watchdog, cancellation, diagnostics, and benchmark matrix.
+5. **DATA-01** — catalogue metadata, selected-bank disclosure, and report disclaimer.
+6. **DEPLOY-01** — production Pages assembler preservation, tested against both production and dev artifacts.
+7. **DATA-04** — strict CSV parser after current-data inventory.
+8. **UI-01** — targeted reduced-motion scroll helper.
+
+Each implementation should be a focused branch from the current `dev` baseline, with its own tests and review. Merge only after its acceptance criteria pass. Rebase/update from `dev` as needed; do not merge this audit branch wholesale into `main` merely to publish the plan.
+
+## 6. Cross-phase acceptance gates
+
+Before any implementation PR is considered complete:
+
+- [ ] Existing Node test suite passes without weakening assertions.
+- [ ] New regression tests cover the reported defect and adjacent edge cases.
+- [ ] Deterministic financial outputs are compared against the pre-change baseline.
+- [ ] Greedy/GSS/Absolute R+ parity and validity diagnostics remain explainable.
+- [ ] Search runtime is measured on the same runner with repeated runs; output quality is checked alongside elapsed time.
+- [ ] No new console errors, failed requests, or worker lifecycle leaks are introduced.
+- [ ] UI is inspected at narrow mobile, tablet, and desktop viewports.
+- [ ] Keyboard focus, error announcements, and reduced-motion behaviour are verified for affected flows.
+- [ ] Standalone HTML reports are opened and checked independently of the app.
+- [ ] Production and dev Pages trees are both verified after deployment-related changes.
+- [ ] Any unverified browser, screen-reader, financial-source, or bank-contract assumption is explicitly recorded.
+
+## 7. References
+
+### Project rulesets
+- [Coding Practices](https://github.com/aaron-fredrick/RULESETS/tree/main/Coding)
+- [Web Engineering Practices](https://github.com/aaron-fredrick/RULESETS/tree/main/Web)
+- [UI Guidelines](https://github.com/aaron-fredrick/RULESETS/tree/main/UI)
+
+### External accessibility references
+- [W3C — SCR40: using `prefers-reduced-motion` in JavaScript](https://www.w3.org/WAI/WCAG22/Techniques/client-side-script/SCR40)
+- [W3C — Understanding Animation from Interactions](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions)
+- [MDN — `prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion)
+- [MDN — `Element.scrollIntoView()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView)
