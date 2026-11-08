@@ -1,4 +1,5 @@
 import test from "node:test";
+import { escapeHtml } from "../../src/web/escape-html.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -23,4 +24,15 @@ test("specific-date cash flows use a bounded date picker and removable entries",
   assert.match(app, /value<start\|\|value>end/);
   assert.match(app, /String\(x\.dates\)\.split\(","\)/);
   assert.match(styles, /\.date-chip-list/);
+});
+
+test("HTML output encoding protects imported account IDs without changing their data value", () => {
+  const payload = '\"><img src=x onerror=alert(1)>&\'';
+  assert.equal(
+    escapeHtml(payload),
+    "&quot;&gt;&lt;img src=x onerror=alert(1)&gt;&amp;&#39;"
+  );
+  assert.match(app, /data-id=\"'\+esc\(a\.id\)\+'/);
+  assert.match(app, /value=\"'\+esc\(a\.id\)\+'/);
+  assert.match(app, /data-remove-account=\"'\+esc\(a\.id\)\+'/);
 });
