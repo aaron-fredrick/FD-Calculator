@@ -4,9 +4,10 @@ const bad=(p,m)=>{throw new TypeError(p+": "+m)};
 const date=(v,p)=>{if(typeof v!=="string"||!v.trim())bad(p,"expected ISO date or supported keyword");const s=v.trim().toLowerCase();if(["today","start","investment_start","end","investment_end"].includes(s))return;if(/^investment_start\+[1-9][0-9]*[dmy]$/.test(s)){parsePeriod(s.slice(17));return}try{parseISODate(s)}catch{bad(p,"use YYYY-MM-DD, today, start, investment_start, end, investment_end, or investment_start+<period>")}};
 export function validateConfigurationShape(x){
  if(!obj(x))bad("$","must be an object");
- const root=["strategy","options_file","simulation","investment","accounts","consolidation_account_id","inflows","outflows","transfer_fees","compound","ait_enabled","actual_leap_year","gaml_settings","gaml","greedy_settings","greedy","gss_settings","gss","strategy_settings","show_timeline","show_ledger","show_plots","plot_output_dir","report_output_file"];
+ const root=["strategy","options_file","fd_eligibility","simulation","investment","accounts","consolidation_account_id","inflows","outflows","transfer_fees","compound","ait_enabled","actual_leap_year","gaml_settings","gaml","greedy_settings","greedy","gss_settings","gss","strategy_settings","show_timeline","show_ledger","show_plots","plot_output_dir","report_output_file"];
  Object.keys(x).forEach(k=>{if(!root.includes(k))bad(k,"unknown property")});
  if(x.strategy!==undefined&&!["absolute","greedy","gaml","gss"].includes(x.strategy))bad("strategy","must be absolute, greedy, gaml or gss");
+ if(x.fd_eligibility!==undefined){if(!obj(x.fd_eligibility))bad("fd_eligibility","must be an object");Object.keys(x.fd_eligibility).forEach(k=>{if(!["include_senior","include_minor"].includes(k))bad("fd_eligibility."+k,"unknown property")});for(const k of ["include_senior","include_minor"])if(x.fd_eligibility[k]!==undefined&&typeof x.fd_eligibility[k]!=="boolean")bad("fd_eligibility."+k,"must be boolean")}
  for(const k of ["compound","ait_enabled","actual_leap_year","show_timeline","show_ledger","show_plots"])if(x[k]!==undefined&&typeof x[k]!=="boolean")bad(k,"must be boolean");
  for(const k of ["options_file","plot_output_dir","report_output_file"])if(x[k]!==undefined&&(typeof x[k]!=="string"||!x[k].trim()))bad(k,"must be a non-empty string");
  const mode=x.simulation?.mode??"scoped";

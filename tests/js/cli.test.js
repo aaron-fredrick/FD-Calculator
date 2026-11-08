@@ -19,6 +19,41 @@ test("root data catalogues load canonical banks and bank-specific FD products",a
  assert.ok(options.length>0);
  assert.ok(options.every(option=>option.bank_id==="LK_COMMERCIAL_BANK_OF_CEYLON"));
 });
+test("age eligibility research ledger preserves incomplete and verified bank rules",async()=>{
+ const rows=parseCSV(await readFile(join(root,"data/fd_options/age_eligibility.csv"),"utf8"));
+ const peoplesSenior=rows.find(row=>row.bank_id==="LK_PEOPLES_BANK"&&row.product_name==="Parinatha above 60");
+ assert.equal(peoplesSenior.research_status,"rate_product_mapping_conflict");assert.equal(peoplesSenior.product_max_amount,"1500000");assert.equal(peoplesSenior.tax_exempt,"true");
+ const peoplesMinor=rows.find(row=>row.bank_id==="LK_PEOPLES_BANK"&&row.customer_segment==="minor");
+ assert.equal(peoplesMinor.max_age,"18");assert.equal(peoplesMinor.max_age_inclusive,"true");assert.equal(peoplesMinor.guardian_required,"true");
+ assert.equal(peoplesMinor.min_amount,"");assert.equal(peoplesMinor.research_status,"eligibility_verified_rate_terms_incomplete");
+ const sdbMinor=rows.find(row=>row.bank_id==="LK_SANASA_DEVELOPMENT_BANK"&&row.customer_segment==="minor");
+ assert.equal(sdbMinor.max_age,"18");assert.equal(sdbMinor.max_age_inclusive,"false");assert.equal(sdbMinor.guardian_required,"true");assert.equal(sdbMinor.research_status,"verified_in_catalogue");
+});
+
+test("bank data loader preserves verified age-segment product boundaries",async()=>{
+ const index=join(root,"data/fd_options/fd_options.csv");
+ const peoples=await loadFDOptions(index,["LK_PEOPLES_BANK"]);
+ const sey=await loadFDOptions(index,["LK_SEYLAN_BANK"]);
+ const sdb=await loadFDOptions(index,["LK_SANASA_DEVELOPMENT_BANK"]);
+ const rdb=await loadFDOptions(index,["LK_PRADESHIYA_SANWARDHANA_BANK"]);
+ const ntb=await loadFDOptions(index,["LK_NATIONS_TRUST_BANK"]);
+ const parinatha=peoples.filter(option=>option.customer_segment==="senior");
+ assert.equal(parinatha.length,0,"Do not simulate Parinatha while its minimum/cap terms conflict across official pages.");
+ assert.equal(ntb.length,18);assert.ok(ntb.every(option=>option.min_amount===50000));
+ assert.equal(rdb.length,28);
+ assert.equal(rdb.find(option=>option.label.includes("100d")).min_amount,500000);
+ assert.equal(rdb.find(option=>option.label.includes("standard 1m")).min_amount,10000);
+ const sdbSenior=sdb.filter(option=>option.customer_segment==="senior");
+ assert.equal(sdbSenior.length,17);
+ assert.ok(sdbSenior.every(option=>option.min_age===55&&option.min_age_inclusive===false&&option.min_amount===10000));
+ const sdbMinorOptions=sdb.filter(option=>option.customer_segment==="minor");
+ assert.equal(sdbMinorOptions.length,6);
+ assert.ok(sdbMinorOptions.every(option=>option.max_age===18&&option.max_age_inclusive===false&&option.guardian_required===true&&option.min_amount===10000));
+ const seylanSenior=sey.filter(option=>option.customer_segment==="senior");
+ assert.equal(seylanSenior.length,3);
+ assert.ok(seylanSenior.every(option=>option.min_age===60&&option.min_age_inclusive===false&&option.min_amount===100000));
+});
+
 test("Greedy CLI executes from JSON config and writes a standalone report",async()=>{
  const dir=await mkdtemp(join(tmpdir(),"fdcal-cli-")),configPath=join(dir,"scenario.json"),reportPath=join(dir,"report.html");
  const config={strategy:"greedy",options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-04-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"CLI Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath,show_timeline:true,show_ledger:true};

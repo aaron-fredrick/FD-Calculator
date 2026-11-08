@@ -123,6 +123,27 @@
     },
     "simulation": {
       "$ref": "#/$defs/simulation"
+    },
+    "fd_eligibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "include_senior": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include FD products explicitly classified for senior customers."
+        },
+        "include_minor": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include FD products explicitly classified for minor/child customers."
+        }
+      },
+      "default": {
+        "include_senior": false,
+        "include_minor": false
+      },
+      "description": "Optional product-category filters. This does not collect DOB or verify an individual depositor's age."
     }
   },
   "allOf": [

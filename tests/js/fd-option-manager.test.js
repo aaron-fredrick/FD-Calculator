@@ -90,3 +90,16 @@ test("candidate retrieval preserves manager order while filtering account and ho
     [efd, short].filter(item => !item.is_efd).sort(compareFDOptions)
   );
 });
+
+
+test("FD options preserve explicit customer segment and age-boundary semantics", () => {
+  const senior = option({ customer_segment: "senior", min_age: 60, min_age_inclusive: false });
+  const minor = option({ customer_segment: "minor", max_age: 18, max_age_inclusive: false, guardian_required: true });
+  assert.equal(senior.min_age, 60);
+  assert.equal(senior.min_age_inclusive, false);
+  assert.equal(minor.max_age, 18);
+  assert.equal(minor.max_age_inclusive, false);
+  assert.equal(minor.guardian_required, true);
+  assert.notEqual(senior.economic_terms_key, option().economic_terms_key);
+  assert.throws(() => option({ customer_segment: "retired" }), /Invalid FD customer segment/);
+});

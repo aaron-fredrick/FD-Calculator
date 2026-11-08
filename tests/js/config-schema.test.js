@@ -15,6 +15,15 @@ const valid = () => ({
   gaml_settings:{beam_width:256,max_local_branches:null,max_decisions:null}
 });
 
+test("validates optional age-based FD product filters without requiring personal DOB data",()=>{
+  const a=valid();a.fd_eligibility={include_senior:true,include_minor:false};
+  assert.deepEqual(validateConfigurationShape(a).fd_eligibility,{include_senior:true,include_minor:false});
+  const b=valid();b.fd_eligibility={include_senior:"yes"};
+  assert.throws(()=>validateConfigurationShape(b),/fd_eligibility.include_senior: must be boolean/);
+  const c=valid();c.fd_eligibility={include_child:true};
+  assert.throws(()=>validateConfigurationShape(c),/fd_eligibility.include_child: unknown property/);
+});
+
 test("accepts complete current schema, nullable fallback values and date keywords",()=>{
   assert.equal(validateConfigurationShape(valid()).strategy,"gaml");
 });
@@ -90,6 +99,8 @@ test("published JSON schema declares GSS and all strategy settings", () => {
     assert.ok(schema.properties[key], `missing schema property: ${key}`);
   }
   assert.ok(schema.properties.strategy_settings.properties.gss);
+  assert.deepEqual(schema.properties.fd_eligibility.properties.include_senior.type,"boolean");
+  assert.deepEqual(schema.properties.fd_eligibility.properties.include_minor.type,"boolean");
   assert.equal(schema.$defs.gssSettings.properties.small_period_days.minimum, 1);
   assert.equal(schema.$defs.gssSettings.properties.small_period_days.default, 30);
   assert.deepEqual(schema.$defs.simulation.properties.mode.enum, ["scoped"]);
