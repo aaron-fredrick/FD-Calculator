@@ -145,6 +145,7 @@ button:active:not(:disabled){transform:scale(.97)}
 .strategy-settings-stack{display:grid;min-width:0}
 .strategy-settings-stack>*{grid-area:1/1;align-self:start;min-width:0}
 .strategy-settings-stack>[hidden]{display:none!important}
+.account.is-removing,.schedule.is-removing{animation-duration:var(--fd-motion-exit-duration);animation-timing-function:ease-in}
 .account.is-entering,.schedule.is-entering{
  animation:fd-row-enter var(--fd-motion-enter-duration) var(--fd-motion-ease-out) both;
  animation-delay:var(--motion-delay,0ms);
@@ -157,11 +158,12 @@ button:active:not(:disabled){transform:scale(.97)}
  transform:translateX(-50%) translateY(4px) scale(.95);
  transform-origin:50% 100%;
  filter:blur(2px);
- transition:opacity 180ms ease-out,transform 180ms ease-out,filter 180ms ease-out,visibility 0s linear 180ms;
+ transition:opacity 160ms ease-in,transform 160ms ease-in,filter 160ms ease-in,visibility 0s linear 160ms;
 }
 .help-tip:hover::after,.help-tip:focus-visible::after{
  transform:translateX(-50%) translateY(0) scale(1);
  filter:blur(0);
+ transition:opacity 200ms ease-out,transform 200ms ease-out,filter 200ms ease-out,visibility 0s;
  transition-delay:0s;
 }
 .simulation-status.is-success{animation:fd-state-confirm 420ms ease-out}
