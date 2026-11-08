@@ -127,6 +127,16 @@ test("result rehydration restores FDOption methods for report generation", () =>
   assert.equal(typeof result.sorted_dates, "function");
 });
 
+test("worker watchdog terminates a computation that exceeds its search deadline", async () => {
+  const runner = new SimulationWorkerRunner({ workerFactory: factory(), watchdogGraceMs: 5 });
+  const run = runner.run({ gaml_settings: { time_limit_ms: 1 } }, "watchdog");
+  const worker = FakeWorker.instances[0];
+  worker.emit("started", { startedAt: 0 });
+  await assert.rejects(run.promise, { name: "TimeoutError" });
+  assert.equal(worker.terminated, true);
+  assert.equal(runner.active, null);
+});
+
 test("runner resolves successful work and terminates the worker", async () => {
   const runner = new SimulationWorkerRunner({ workerFactory: factory() });
   const run = runner.run({ value: 1 }, "one");
