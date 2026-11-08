@@ -10,7 +10,7 @@ export default defineConfig({
     hostname: 'https://aaron-fredrick.github.io/FD-Calculator/docs/',
   },
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/FD-Calculator/docs/favicon.svg' }],
     ['meta', { name: 'theme-color', content: '#0b0e13' }],
     ['meta', { name: 'color-scheme', content: 'dark light' }],
     ['meta', { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' }],
