@@ -19,6 +19,15 @@ test("root data catalogues load canonical banks and bank-specific FD products",a
  assert.ok(options.length>0);
  assert.ok(options.every(option=>option.bank_id==="LK_COMMERCIAL_BANK_OF_CEYLON"));
 });
+test("age eligibility research ledger preserves incomplete and verified bank rules",async()=>{
+ const rows=parseCSV(await readFile(join(root,"data/fd_options/age_eligibility.csv"),"utf8"));
+ const peoplesMinor=rows.find(row=>row.bank_id==="LK_PEOPLES_BANK"&&row.customer_segment==="minor");
+ assert.equal(peoplesMinor.max_age,"18");assert.equal(peoplesMinor.max_age_inclusive,"true");assert.equal(peoplesMinor.guardian_required,"true");
+ assert.equal(peoplesMinor.min_amount,"");assert.equal(peoplesMinor.research_status,"eligibility_verified_rate_terms_incomplete");
+ const sdbMinor=rows.find(row=>row.bank_id==="LK_SANASA_DEVELOPMENT_BANK"&&row.customer_segment==="minor");
+ assert.equal(sdbMinor.max_age,"");assert.equal(sdbMinor.research_status,"age_cutoff_unverified");
+});
+
 test("bank data loader preserves verified age-segment product boundaries",async()=>{
  const index=join(root,"data/fd_options/fd_options.csv");
  const peoples=await loadFDOptions(index,["LK_PEOPLES_BANK"]);
