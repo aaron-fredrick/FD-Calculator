@@ -25,16 +25,23 @@ test("age eligibility research ledger preserves incomplete and verified bank rul
  assert.equal(peoplesMinor.max_age,"18");assert.equal(peoplesMinor.max_age_inclusive,"true");assert.equal(peoplesMinor.guardian_required,"true");
  assert.equal(peoplesMinor.min_amount,"");assert.equal(peoplesMinor.research_status,"eligibility_verified_rate_terms_incomplete");
  const sdbMinor=rows.find(row=>row.bank_id==="LK_SANASA_DEVELOPMENT_BANK"&&row.customer_segment==="minor");
- assert.equal(sdbMinor.max_age,"");assert.equal(sdbMinor.research_status,"age_cutoff_unverified");
+ assert.equal(sdbMinor.max_age,"18");assert.equal(sdbMinor.max_age_inclusive,"false");assert.equal(sdbMinor.guardian_required,"true");assert.equal(sdbMinor.research_status,"verified_in_catalogue");
 });
 
 test("bank data loader preserves verified age-segment product boundaries",async()=>{
  const index=join(root,"data/fd_options/fd_options.csv");
  const peoples=await loadFDOptions(index,["LK_PEOPLES_BANK"]);
  const sey=await loadFDOptions(index,["LK_SEYLAN_BANK"]);
+ const sdb=await loadFDOptions(index,["LK_SANASA_DEVELOPMENT_BANK"]);
  const parinatha=peoples.filter(option=>option.customer_segment==="senior");
  assert.equal(parinatha.length,12);
  assert.ok(parinatha.every(option=>option.min_age===55&&option.min_age_inclusive===false&&option.max_age_inclusive===true));
+ const sdbSenior=sdb.filter(option=>option.customer_segment==="senior");
+ assert.equal(sdbSenior.length,17);
+ assert.ok(sdbSenior.every(option=>option.min_age===55&&option.min_age_inclusive===false&&option.min_amount===10000));
+ const sdbMinorOptions=sdb.filter(option=>option.customer_segment==="minor");
+ assert.equal(sdbMinorOptions.length,6);
+ assert.ok(sdbMinorOptions.every(option=>option.max_age===18&&option.max_age_inclusive===false&&option.guardian_required===true&&option.min_amount===10000));
  const seylanSenior=sey.filter(option=>option.customer_segment==="senior");
  assert.equal(seylanSenior.length,3);
  assert.ok(seylanSenior.every(option=>option.min_age===60&&option.min_age_inclusive===false&&option.min_amount===100000));
