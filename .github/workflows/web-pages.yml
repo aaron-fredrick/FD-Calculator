@@ -43,7 +43,7 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Build the web component only
         run: bash scripts/build-web-site.sh /tmp/web-site
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: web-site
           path: /tmp/web-site
