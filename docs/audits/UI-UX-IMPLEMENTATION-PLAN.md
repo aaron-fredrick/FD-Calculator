@@ -523,6 +523,7 @@ The programme is complete when:
 - Canonical brand tokens: `src/brand/tokens.css`
 - Web application markup: `src/web/index.html`
 - Web application behaviour: `src/web/app.js`
+- Web motion orchestration: `src/web/motion.js`
 - Simulation engine: `src/core/simulation.js`
 - Strategy implementations: `src/strategies/`
 - Web application styles: `src/web/styles.css`
