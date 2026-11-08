@@ -128,3 +128,52 @@ footer{font-size:12px;line-height:1.55}
 #catalog-status.is-error,#catalog-status-mobile.is-error{color:var(--red)}
 .catalog-status-mobile{display:none;padding:8px 13px;background:var(--panel);border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}
 @media(max-width:620px){.catalog-status-mobile{display:block}}
+
+/* FD Cal motion system: restrained state feedback, anchored to the existing interface. */
+:root{
+ --fd-motion-enter-duration:350ms;
+ --fd-motion-exit-duration:280ms;
+ --fd-motion-ease-out:cubic-bezier(.16,1,.3,1);
+ --fd-motion-ease-in-out:cubic-bezier(.65,0,.35,1);
+}
+.quiet,.secondary,.primary{
+ transition:transform 180ms var(--fd-motion-ease-in-out),background-color 180ms ease-in-out,border-color 180ms ease-in-out,color 180ms ease-in-out;
+}
+button:active:not(:disabled){transform:scale(.97)}
+.remove-icon:active{transform:scale(.97)}
+.card select{transition:border-color 180ms ease-in-out,box-shadow 180ms ease-in-out}
+.strategy-settings-stack{display:grid;min-width:0}
+.strategy-settings-stack>*{grid-area:1/1;align-self:start;min-width:0}
+.strategy-settings-stack>[hidden]{display:none!important}
+.account.is-entering,.schedule.is-entering{
+ animation:fd-row-enter var(--fd-motion-enter-duration) var(--fd-motion-ease-out) both;
+ animation-delay:var(--motion-delay,0ms);
+}
+@keyframes fd-row-enter{
+ from{opacity:0;transform:translateY(8px) scale(.985);filter:blur(1.5px)}
+ to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+}
+.help-tip::after{
+ transform:translateX(-50%) translateY(4px) scale(.95);
+ transform-origin:50% 100%;
+ filter:blur(2px);
+ transition:opacity 180ms ease-out,transform 180ms ease-out,filter 180ms ease-out,visibility 0s linear 180ms;
+}
+.help-tip:hover::after,.help-tip:focus-visible::after{
+ transform:translateX(-50%) translateY(0) scale(1);
+ filter:blur(0);
+ transition-delay:0s;
+}
+.simulation-status.is-success{animation:fd-state-confirm 420ms ease-out}
+@keyframes fd-state-confirm{
+ 0%{box-shadow:0 0 0 0 #55c99a00;border-color:var(--line)}
+ 45%{box-shadow:0 0 0 3px #55c99a2b;border-color:var(--green)}
+ 100%{box-shadow:0 0 0 0 #55c99a00;border-color:var(--line)}
+}
+.strategy-doc-link:active{transform:scale(.97)}
+@media(prefers-reduced-motion:reduce){
+ .account.is-entering,.schedule.is-entering,.simulation-status.is-success{animation:none!important}
+ .quiet,.secondary,.primary,.strategy-doc-link{transition:none!important}
+ button:active:not(:disabled),.remove-icon:active,.strategy-doc-link:active{transform:none!important}
+ .help-tip::after{transition:none!important;filter:none!important}
+}
