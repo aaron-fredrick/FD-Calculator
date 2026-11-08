@@ -956,3 +956,16 @@ Do not add an animation framework, external media, runtime network dependency, d
 - Repeated or implementation-heavy explanations were shortened. Financial assumptions, warnings and validation requirements remain.
 
 **Verification still required:** In a real browser, add/remove multiple dates, change the simulation window after adding dates, import a configuration containing legacy comma-separated dates, select the consolidation account by keyboard and pointer, and confirm report download/open works offline.
+
+## O. Visual restraint and hierarchy
+
+**Audit status:** Initial implementation applied on docs/ui-ux-audit-charles-skills; automated verification pending.
+
+- Removed numbered step eyebrows from the web form and removed the duplicate section numbers from the navigation rail. Descriptive headings and navigation labels remain.
+- Removed the introductory eyebrow and reduced decorative heading treatment.
+- Simplified the web surface styling: page/card gradients removed, card and row corner radii reduced, redundant sub-section divider lines removed, and hint surfaces made quieter.
+- Date chips remain because they represent removable user-entered dates; their shape is less pill-like. Invalid-date styling remains distinct.
+- Removed redundant numbered labels from the standalone report navigation and section headers. The report still retains its section navigation, charts, tables, key calculation emphasis and semantic warning/status treatments.
+- This is a selective application, not a blanket removal of borders, containers, emphasis or visual indicators. Components that communicate structure, state or financial meaning remain.
+
+**Verification still required:** Confirm the report renders and downloads correctly; inspect desktop and mobile layouts; check focus visibility, selected-account state, out-of-period date chips, error/success states and reduced-motion behaviour. Automated CI results are tracked separately from browser-level visual verification.
