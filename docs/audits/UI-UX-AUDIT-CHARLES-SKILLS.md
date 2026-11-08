@@ -906,3 +906,40 @@ The following test cases should be treated as the outstanding end-to-end verific
 - [Node.js test and syntax-check run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569549)
 - [Web component build and deployment run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569572)
 - [Documentation benchmark/build and deployment run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569576)
+
+
+## M. Motion design review — supplied guidelines
+
+**Audit status:** Source-level applicability review. This section records the motion requirements supplied during the FD Cal UI/UX work and evaluates them against the existing financial-planning interface. The implementation decisions and acceptance checks are maintained in the [UI/UX Improvement and Implementation Plan](./UI-UX-IMPLEMENTATION-PLAN.md).
+
+### M.1 Existing motion foundations observed before this follow-up
+
+- Account and cash-flow rows already had an exit animation, but newly inserted rows did not have a corresponding entrance or controlled stagger.
+- Strategy-specific settings were switched with the HTML hidden state; the old settings disappeared immediately rather than transitioning with the newly selected settings.
+- Help tooltips had opacity/visibility feedback, but did not scale from the help trigger or preserve that trigger as their spatial origin.
+- The application already respected reduced-motion preferences globally and used a spinner for simulation progress.
+- Successful simulation completion changed status text, but did not have a distinct success-only confirmation treatment.
+- The interface uses native select, checkbox and radio controls. It does not currently contain custom draggable knobs, draggable cards, sortable lists, or free-moving objects.
+
+### M.2 Applicability decisions
+
+| Guideline | FD Cal assessment |
+|---|---|
+| Ease-out entrances; exits about 20% shorter | Applicable to dynamic rows, result reveal and strategy settings. Keep the existing removal action and data mutation semantics. |
+| 150–250 ms dropdown transitions | Apply to field focus/selection feedback only. Native operating-system select popups remain native and are not replaced or artificially animated. |
+| Ease-in-out on-screen movement; no routine spring bounds | Applicable to button press and small control feedback. Spring/bounce effects are not appropriate for the core financial workflow. |
+| Button press scale 0.97 | Applicable to buttons; disabled controls must not scale. |
+| Stretch moving knobs by 12% | Not applicable while the UI uses native controls and has no custom moving knob. |
+| Success pulse | Applicable to successful simulation completion/reuse only; never use the positive pulse for errors or validation failures. |
+| 30 ms list-row stagger | Applicable to newly inserted account and cash-flow rows. Existing rows must not replay on ordinary re-render. |
+| Trigger-origin popover at 0.95 scale | Applicable to the existing help tooltips; reveal and dismissal should remain anchored to the focused/hovered help trigger. |
+| Rubber-band drag boundaries and arc-based movement | Not applicable without draggable/sortable objects. Do not introduce drag interactions solely to use these effects. |
+| Shared layout IDs | Not applicable to the current DOM flow; there are no shared objects moving between distinct screens. |
+| Mask reveals and icon crossfades | Not required by the current interaction model. Avoid adding masks or icon animation where no meaningful state is being revealed or swapped. |
+| Handheld/tweened motion | No corresponding handheld animation exists in the current product. |
+
+### M.3 Product-specific constraints
+
+FD Cal is a financial planning and optimisation instrument. Motion must clarify configuration changes, progress and completion without implying that a simulation is a real bank action or that a heuristic has guaranteed optimality. Preserve the current brand palette, restrained visual hierarchy, keyboard operation, touch targets, reduced-motion support, worker-backed computation and the separation between the concise in-app summary and detailed standalone report.
+
+Do not add an animation framework, external media, runtime network dependency, decorative motion, or changes to financial calculations to satisfy visual motion guidelines.

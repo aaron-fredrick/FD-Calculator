@@ -114,6 +114,8 @@ test("runner resolves successful work and terminates the worker", async () => {
   const runner = new SimulationWorkerRunner({ workerFactory: factory() });
   const run = runner.run({ value: 1 }, "one");
   const worker = FakeWorker.instances[0];
+  worker.emit("started", { startedAt: 123 });
+  assert.equal(runner.active !== null, true, "start acknowledgement must not settle the run");
   worker.emit("result", { result: makeWorkerResult({ total_interest: 12 }) });
   assert.equal((await run.promise).total_interest, 12);
   assert.equal(worker.terminated, true);

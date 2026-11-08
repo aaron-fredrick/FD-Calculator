@@ -523,6 +523,7 @@ The programme is complete when:
 - Canonical brand tokens: `src/brand/tokens.css`
 - Web application markup: `src/web/index.html`
 - Web application behaviour: `src/web/app.js`
+- Web motion orchestration: `src/web/motion.js`
 - Simulation engine: `src/core/simulation.js`
 - Strategy implementations: `src/strategies/`
 - Web application styles: `src/web/styles.css`
@@ -534,3 +535,56 @@ The programme is complete when:
 - Contributor guide: `CONTRIBUTING.md`
 
 - **2026-11-08 — History cleanup:** consolidated the implementation file changes into one commit after the original planning/audit commits, preserving a short linear history. The branch retains the original audit/plan history and has a consolidated implementation commit.
+
+
+## 12. Motion design audit and implementation
+
+**Purpose:** motion should explain state changes and preserve spatial context in FD Cal, not decorate a financial calculation workflow. The existing palette, component hierarchy, calculation semantics, worker lifecycle, concise in-app result summary and standalone offline report remain unchanged.
+
+### 12.1 Applicable motion rules
+
+| Interaction | Decision | Implementation |
+|---|---|---|
+| New account / inflow / outflow rows | Apply | 350 ms ease-out entrance; newly inserted rows stagger by 30 ms. Existing rows do not replay their entrance when the list is re-rendered. |
+| Removing account / cash-flow rows | Apply | 280 ms exit, exactly 20% shorter than the 350 ms entrance. The existing removal action and data mutation sequence remain intact. |
+| Strategy-specific settings | Apply | Old and new settings panels overlap in one grid cell while the old panel exits and the selected panel enters. Outgoing controls become inert and hidden from assistive technology immediately. |
+| Buttons | Apply | Pressed state scales to 0.97 with a restrained ease-in-out transition. Disabled controls do not scale. |
+| Help tooltips | Apply | 0.95 scale and slight blur resolve from the focused/hovered help trigger in 200 ms; exit returns toward that trigger in 160 ms. |
+| Dropdown controls | Partial | The native operating-system select popup is not animated or replaced. Only the field's focus/border feedback uses a 180 ms transition, preserving native keyboard and platform behaviour. |
+| Successful simulation | Apply | A short, positive confirmation pulse is applied only to successful completion/reuse, not validation or error states. |
+| Results reveal | Apply | The concise results panel uses a 350 ms ease-out entrance; its existing smooth scroll remains spatially tied to the result section. |
+
+### 12.2 Deliberately excluded
+
+The following rules are not forced into the current interface because their required interaction or object model does not exist:
+
+- Stretching a moving knob: FD Cal currently uses native checkbox/radio/select controls, not a custom draggable knob.
+- Rubber-band drag boundaries and arc-based object trajectories: there are no draggable cards, sortable lists or free-moving objects.
+- Shared layout IDs: no cross-screen shared-object transition is needed in the current DOM-based application.
+- Mask-based reveals and icon crossfades: the current interactions do not reveal image/media surfaces or swap icon states in a way that benefits from these techniques.
+- Handheld/tweened motion: there is no handheld-device animation sequence.
+- Spring/bounce motion: excluded from routine financial configuration interactions.
+
+Native select menus remain platform-controlled. No animation framework, external asset, runtime network dependency or new chart/UI library is introduced.
+
+### 12.3 Accessibility, performance and design constraints
+
+- All motion is disabled or reduced to immediate state changes when prefers-reduced-motion: reduce is active.
+- Motion is limited to opacity, transform and small blur changes; no layout-heavy continuous animation is introduced.
+- The 30 ms stagger applies only to newly inserted list rows, not to every re-render.
+- Exiting strategy panels become inert and aria-hidden while they animate out, preventing focus from entering obsolete controls.
+- Existing focus-visible styling, touch targets, brand colours and canonical src/brand/tokens.css values are preserved.
+- No simulation, financial, catalogue, report-data or worker orchestration behaviour is changed by the motion layer.
+
+### 12.4 Motion acceptance checks
+
+- [ ] New rows enter with a 30 ms per-row stagger and existing rows remain visually stable after re-render.
+- [ ] Row exit duration is 280 ms against a 350 ms entrance duration.
+- [ ] Strategy changes show the incoming settings while the previous panel exits; rapid repeated changes do not leave stale panels visible or focusable.
+- [ ] Button press feedback is 0.97 scale and disabled buttons do not animate.
+- [ ] Tooltips originate from and return toward their own trigger.
+- [ ] Only successful simulation completion receives the success pulse.
+- [ ] Reduced-motion mode removes row, panel, tooltip and success animations without hiding information or changing behaviour.
+- [ ] Desktop/mobile layout, keyboard navigation and calculation/report outputs remain unchanged.
+
+**Implementation record — 2026-11-08:** Added a small CSS/WAAPI motion layer to the existing web application. No palette/token, calculation engine, worker, report generator or dependency changes. Real-browser visual and reduced-motion verification remains required after deployment.

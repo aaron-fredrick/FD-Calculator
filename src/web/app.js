@@ -4,6 +4,7 @@ import {addPeriod,formatISODate} from "../core/dates.js";
 import {validateConfiguration,resolveDate} from "../core/configuration.js?v=age-eligibility-1";
 import {validateConfigurationShape} from "../core/config-schema.js?v=age-eligibility-1";
 import {SimulationWorkerRunner,simulationFingerprint,catalogueFingerprint,createWorkerPayload,rehydrateSimulationResult} from "./simulation-runner.js";
+import {animateRemoval,animateNewRows,animateEntrance,transitionStrategySettings} from "./motion.js";
 import {generateHtmlReport} from "../reporting/html.js";
 const DATA_ROOT=new URL(import.meta.url).pathname.includes("/src/web/")?"../../data/":"../data/";
 const $=id=>document.getElementById(id),STORAGE_KEY="fd-cal:draft:v1",S={banks:{},index:{},keys:{},cache:new Map(),lastSimulationKey:null,accounts:[],inflows:[],outflows:[],url:null,raw:null,workerRunner:new SimulationWorkerRunner(),activeRunId:0,submissionSequence:0,isPreparing:false,formEditedWhileRunning:false,computeStartedAt:null,computeTimer:null};
@@ -15,12 +16,8 @@ function stopElapsedTimer(){const elapsed=S.computeStartedAt===null?0:performanc
 function markFormEdited(){if(!S.isPreparing&&!S.workerRunner.active)return;S.formEditedWhileRunning=true;$("simulation-edit-note").hidden=false}
 function syncStrategySettings(strategy=$("strategy-choice").value){
  const greedy=strategy==="greedy";
- const gss=strategy==="gss";
  const gaml=strategy==="gaml";
- $("greedy-settings").hidden=!greedy;
- $("gss-settings").hidden=!gss;
- $("gaml-settings").hidden=!gaml;
- $("gaml-settings-heading").hidden=!gaml;
+ transitionStrategySettings(gaml?"gaml-settings-panel":greedy?"greedy-settings":"gss-settings");
  $("strategy-description").textContent=gaml
   ?"Absolute R+ explores multiple promising future booking paths using bounded search. Search limits trade exploration against runtime; pruning or a decision cap can prevent a global-optimality proof."
   :greedy
@@ -63,12 +60,11 @@ async function init(){setCatalogueReady(false);setCatalogStatus("Loading bank ca
  }catch(e){setCatalogueReady(false);setCatalogStatus("Catalogue unavailable","error");err("The bank catalogue could not be loaded. Check your connection and reload the page. "+(e.message||String(e)))}}
 function bankOptions(selected){return Object.entries(S.banks).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([k,b])=>{let ok=S.index[k]?.research_status!=="no_public_rate_verified";return '<option value="'+esc(k)+'" '+(k===selected?"selected":"")+' '+(!ok?"disabled":"")+'>'+esc(b.name)+(ok?"":" — no rate data")+'</option>'}).join("")}
 function accountOptions(selected){return S.accounts.map(a=>'<option value="'+esc(a.id)+'" '+(a.id===selected?"selected":"")+'>'+esc(a.label||a.id)+'</option>').join("")}
-function animateRemoval(button,card,onComplete){button.disabled=true;button.setAttribute("aria-disabled","true");card.classList.add("is-removing");card.setAttribute("aria-busy","true");let finished=false;const finish=()=>{if(finished)return;finished=true;onComplete()};card.addEventListener("animationend",event=>{if(event.target===card&&event.animationName==="entry-remove")finish()});setTimeout(finish,420)}
-function renderAccounts(){ $("accounts-list").innerHTML=S.accounts.map((a,i)=>'<article class="account" data-id="'+a.id+'"><div class="item-head"><b>Account '+(i+1)+'</b><label class="primary-radio"><input type="radio" name="primary" value="'+a.id+'" '+(a.primary?"checked":"")+'> Final valuation</label><button class="remove-icon" data-remove-account="'+a.id+'" type="button" aria-label="Remove account" title="Remove account"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="account-fields"><label>Bank<select data-bank>'+bankOptions(a.bank_id)+'</select></label><label>Account label<input data-label value="'+esc(a.label)+'" placeholder="Main savings"></label><label>Starting balance (LKR)<input data-balance type="number" min="0" step=".01" value="'+a.balance+'"></label><label class="efd"><input data-efd type="checkbox" '+(a.efd?"checked":"")+'> eFD eligible</label></div></article>').join("");
+function renderAccounts(){const existingIds=new Set([...$("accounts-list").querySelectorAll(".account")].map(card=>card.dataset.id)); $("accounts-list").innerHTML=S.accounts.map((a,i)=>'<article class="account" data-id="'+a.id+'"><div class="item-head"><b>Account '+(i+1)+'</b><label class="primary-radio"><input type="radio" name="primary" value="'+a.id+'" '+(a.primary?"checked":"")+'> Final valuation</label><button class="remove-icon" data-remove-account="'+a.id+'" type="button" aria-label="Remove account" title="Remove account"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="account-fields"><label>Bank<select data-bank>'+bankOptions(a.bank_id)+'</select></label><label>Account label<input data-label value="'+esc(a.label)+'" placeholder="Main savings"></label><label>Starting balance (LKR)<input data-balance type="number" min="0" step=".01" value="'+a.balance+'"></label><label class="efd"><input data-efd type="checkbox" '+(a.efd?"checked":"")+'> eFD eligible</label></div></article>').join("");animateNewRows($("accounts-list"),".account",existingIds);
  $("consolidation-account").innerHTML=S.accounts.map(a=>'<option value="'+a.id+'" '+(a.primary?"selected":"")+'>'+esc(a.label)+' · '+esc(S.banks[a.bank_id]?.name||a.bank_id)+'</option>').join("")}
 function syncAccounts(){document.querySelectorAll(".account").forEach(c=>{let a=S.accounts.find(x=>x.id===c.dataset.id);if(a){a.bank_id=c.querySelector("[data-bank]").value;a.label=c.querySelector("[data-label]").value.trim();a.balance=c.querySelector("[data-balance]").value;a.efd=c.querySelector("[data-efd]").checked}})}
 function addAccount(bank=Object.keys(S.banks).find(k=>S.index[k]?.research_status!=="no_public_rate_verified")){if(!bank)return;S.accounts.push({id:"account_"+id(),bank_id:bank,label:S.banks[bank].name+" account",balance:0,efd:false,primary:!S.accounts.length});renderAccounts();renderSchedules()}
-function renderOne(kind){let list=S[kind+"s"];$(kind+"s-list").innerHTML=list.map((x,i)=>'<article class="schedule" data-kind="'+kind+'" data-id="'+x.id+'"><div class="item-head"><b>'+(kind==="inflow"?"Inflow ":"Outflow ")+(i+1)+'</b><button class="remove-icon" data-remove="'+x.id+'" type="button" aria-label="Remove '+(kind==="inflow"?"inflow":"outflow")+'" title="Remove '+(kind==="inflow"?"inflow":"outflow")+'" ><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="schedule-fields"><label>Name<input data-name value="'+esc(x.name)+'"></label><label>Amount (LKR)<input data-amount type="number" min=".01" step=".01" value="'+esc(x.amount)+'"></label><label>Account<select data-account>'+accountOptions(x.account_id)+'</select></label><label>Schedule<select data-type><option value="recurring" '+(x.type==="recurring"?"selected":"")+'>Recurring</option><option value="scheduled" '+(x.type==="scheduled"?"selected":"")+'>Specific dates</option></select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Interval</span><select data-interval>'+["1m","2m","3m","6m","1y"].map((v,j)=>'<option value="'+v+'" '+(x.interval===v?"selected":"")+'>'+["Monthly","Every 2 months","Quarterly","Every 6 months","Yearly"][j]+'</option>').join("")+'</select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>First date</span><input data-start type="date" value="'+esc(x.start_date)+'"></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Last date</span><input data-end type="date" value="'+esc(x.end_date)+'"></label><label class="wide" data-scheduled '+(x.type!=="scheduled"?"hidden":"")+'><span>Specific dates</span><input data-dates value="'+esc(x.dates||"")+'" placeholder="2027-01-15, 2027-06-15" spellcheck="false" autocomplete="off"><small>Use YYYY-MM-DD, separated by commas. Every date must fall within the investment window.</small></label>'+(kind==="outflow"?'<label><span class="field-label">Payment policy<span class="help-tip" tabindex="0" role="img" aria-label="Outflow payment policy help" data-tooltip="Strict: fail if the account cannot pay the full amount. Defer: carry the full unpaid amount forward. Best effort: pay what is available and carry any remainder forward.">?</span></span><select data-policy>'+["strict","defer","best_effort"].map(v=>'<option value="'+v+'" '+(x.policy===v?"selected":"")+'>'+({strict:"Strict",defer:"Defer",best_effort:"Best effort"}[v])+'</option>').join("")+'</select></label>':"")+'</div></article>').join("")}
+function renderOne(kind){const container=$(kind+"s-list"),existingIds=new Set([...container.querySelectorAll(".schedule")].map(card=>card.dataset.id));let list=S[kind+"s"];container.innerHTML=list.map((x,i)=>'<article class="schedule" data-kind="'+kind+'" data-id="'+x.id+'"><div class="item-head"><b>'+(kind==="inflow"?"Inflow ":"Outflow ")+(i+1)+'</b><button class="remove-icon" data-remove="'+x.id+'" type="button" aria-label="Remove '+(kind==="inflow"?"inflow":"outflow")+'" title="Remove '+(kind==="inflow"?"inflow":"outflow")+'" ><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="schedule-fields"><label>Name<input data-name value="'+esc(x.name)+'"></label><label>Amount (LKR)<input data-amount type="number" min=".01" step=".01" value="'+esc(x.amount)+'"></label><label>Account<select data-account>'+accountOptions(x.account_id)+'</select></label><label>Schedule<select data-type><option value="recurring" '+(x.type==="recurring"?"selected":"")+'>Recurring</option><option value="scheduled" '+(x.type==="scheduled"?"selected":"")+'>Specific dates</option></select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Interval</span><select data-interval>'+["1m","2m","3m","6m","1y"].map((v,j)=>'<option value="'+v+'" '+(x.interval===v?"selected":"")+'>'+["Monthly","Every 2 months","Quarterly","Every 6 months","Yearly"][j]+'</option>').join("")+'</select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>First date</span><input data-start type="date" value="'+esc(x.start_date)+'"></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Last date</span><input data-end type="date" value="'+esc(x.end_date)+'"></label><label class="wide" data-scheduled '+(x.type!=="scheduled"?"hidden":"")+'><span>Specific dates</span><input data-dates value="'+esc(x.dates||"")+'" placeholder="2027-01-15, 2027-06-15" spellcheck="false" autocomplete="off"><small>Use YYYY-MM-DD, separated by commas. Every date must fall within the investment window.</small></label>'+(kind==="outflow"?'<label><span class="field-label">Payment policy<span class="help-tip" tabindex="0" role="img" aria-label="Outflow payment policy help" data-tooltip="Strict: fail if the account cannot pay the full amount. Defer: carry the full unpaid amount forward. Best effort: pay what is available and carry any remainder forward.">?</span></span><select data-policy>'+["strict","defer","best_effort"].map(v=>'<option value="'+v+'" '+(x.policy===v?"selected":"")+'>'+({strict:"Strict",defer:"Defer",best_effort:"Best effort"}[v])+'</option>').join("")+'</select></label>':"")+'</div></article>').join("");animateNewRows(container,".schedule",existingIds)}
 function renderSchedules(){renderOne("inflow");renderOne("outflow")}
 function syncSchedules(){for(let kind of ["inflow","outflow"])document.querySelectorAll('.schedule[data-kind="'+kind+'"]').forEach(c=>{let x=S[kind+"s"].find(v=>v.id===c.dataset.id);if(!x)return;let v=s=>c.querySelector(s)?.value;Object.assign(x,{name:v("[data-name]"),amount:v("[data-amount]"),account_id:v("[data-account]"),type:v("[data-type]"),interval:v("[data-interval]"),start_date:v("[data-start]"),end_date:v("[data-end]"),dates:v("[data-dates]"),policy:v("[data-policy]")||"strict"})})}
 function addPlan(kind){if(!S.accounts.length){err("Add a bank account before creating cash-flow plans.");return}S[kind+"s"].push({id:id(),name:"",amount:"",account_id:S.accounts[0].id,type:"recurring",interval:"1m",start_date:$("start-date").value,end_date:effectiveEndDate(),dates:"",policy:"strict"});renderSchedules()}
@@ -88,7 +84,7 @@ function applyConfig(x){if(!x||typeof x!=="object"||!x.investment||!x.accounts)t
  const datesText=v=>Array.isArray(v)?v.join(","):String(v??"");
  S.inflows=(x.inflows||[]).map(a=>({id:id(),...a,start_date:dateInput(a.start_date,startDate),end_date:dateInput(a.end_date,endDate),dates:datesText(a.dates)}));
  S.outflows=(x.outflows||[]).map(a=>({id:id(),...a,start_date:dateInput(a.start_date,startDate),end_date:dateInput(a.end_date,endDate),dates:datesText(a.dates),policy:a.payment_policy||"strict"}));
- $("include-senior-fds").checked=x.fd_eligibility?.include_senior===true;$("include-minor-fds").checked=x.fd_eligibility?.include_minor===true;$("strategy-choice").value=["greedy","gaml","gss"].includes(x.strategy)?x.strategy:"gaml";syncStrategySettings();$("inter-fee").value=x.transfer_fees?.default_inter_bank_fee??30;$("same-fee").value=x.transfer_fees?.same_bank_fee??0;$("compound").checked=!!x.compound;$("ait").checked=x.ait_enabled??true;$("leap-year").checked=x.actual_leap_year??true;$("beam-width").value=x.gaml_settings?.beam_width??256;$("local-branches").value=x.gaml_settings?.max_local_branches??128;$("decision-cap").value=x.gaml_settings?.max_decisions??"";$("tenor-tiebreaker").value=x.greedy_settings?.tenor_tiebreaker??"shortest";$("plan-tenor-tiebreaker").value=x.greedy_settings?.plan_tenor_tiebreaker??"shortest";$("small-period-days").value=x.gss_settings?.small_period_days??30;$("gaml-settings").hidden=$("strategy-choice").value!=="gaml";$("greedy-settings").hidden=$("strategy-choice").value!=="greedy";renderAccounts();renderSchedules();clearFieldErrors();err("")}
+ $("include-senior-fds").checked=x.fd_eligibility?.include_senior===true;$("include-minor-fds").checked=x.fd_eligibility?.include_minor===true;$("strategy-choice").value=["greedy","gaml","gss"].includes(x.strategy)?x.strategy:"gaml";syncStrategySettings();$("inter-fee").value=x.transfer_fees?.default_inter_bank_fee??30;$("same-fee").value=x.transfer_fees?.same_bank_fee??0;$("compound").checked=!!x.compound;$("ait").checked=x.ait_enabled??true;$("leap-year").checked=x.actual_leap_year??true;$("beam-width").value=x.gaml_settings?.beam_width??256;$("local-branches").value=x.gaml_settings?.max_local_branches??128;$("decision-cap").value=x.gaml_settings?.max_decisions??"";$("tenor-tiebreaker").value=x.greedy_settings?.tenor_tiebreaker??"shortest";$("plan-tenor-tiebreaker").value=x.greedy_settings?.plan_tenor_tiebreaker??"shortest";$("small-period-days").value=x.gss_settings?.small_period_days??30;renderAccounts();renderSchedules();clearFieldErrors();err("")}
 function saveDraft(){try{const draft=raw();localStorage.setItem(STORAGE_KEY,JSON.stringify(draft));S.raw=draft}catch(e){console.warn("FD Cal draft could not be saved:",e)}}
 function restoreDraft(){try{const saved=localStorage.getItem(STORAGE_KEY);if(!saved)return false;applyConfig(JSON.parse(saved));return true}catch(e){console.warn("FD Cal saved draft could not be restored:",e);try{localStorage.removeItem(STORAGE_KEY)}catch{}return false}}
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)}
@@ -123,7 +119,7 @@ function results(r,c,html){
  $("download-report").onclick=()=>download(new Blob([html],{type:"text/html"}),"fd-cal-report.html");
  $("open-report").onclick=()=>window.open(S.url,"_blank","noopener");
  $("download-result-config").onclick=exportRaw;
- $("results").hidden=false;
+ $("results").hidden=false;animateEntrance($("results"));
  $("results").scrollIntoView({behavior:"smooth"});
 }
 function wire(){
@@ -137,9 +133,10 @@ function wire(){
  $("scenario-form").onsubmit=async e=>{
   e.preventDefault();clearFieldErrors();err("");
   const status=$("simulation-status"),button=$("run"),submissionId=++S.submissionSequence;
+  console.info("[FD Cal][main] Simulation submitted", {submissionId, at:new Date().toISOString()});
   let requestId=null,computeStarted=false,elapsedMs=0;
   S.isPreparing=true;
-  status.classList.remove("is-complete");status.hidden=false;
+  status.classList.remove("is-complete","is-success");status.hidden=false;
   try{
     const x=raw();
     if(!x.investment.start_date||(x.simulation.mode==="scoped"&&!x.investment.end_date))throw Error("Complete the dates required by the selected simulation mode.");
@@ -161,7 +158,9 @@ function wire(){
     const fingerprint=simulationFingerprint(c);
     requestId=++S.activeRunId;
     S.formEditedWhileRunning=false;$("simulation-edit-note").hidden=true;
+    console.info("[FD Cal][main] Dispatching validated scenario to worker", {requestId,strategy:c.strategy,mode:c.simulation?.mode,accountCount:c.accounts?.length,optionCount:c.options?.length,fingerprintLength:fingerprint.length});
     const run=S.workerRunner.run(createWorkerPayload(c),fingerprint);
+    console.info("[FD Cal][main] Worker runner response", {requestId,started:run.started,reused:run.reused,deduplicated:run.deduplicated,workerActive:!!S.workerRunner.active});
     S.isPreparing=false;
     const strategyName=({gaml:"Absolute R+ search",greedy:"Greedy optimisation",gss:"GSS scoped planning"}[c.strategy]||c.strategy);
     if(run.reused){
@@ -177,7 +176,9 @@ function wire(){
     }
     button.textContent=S.workerRunner.active?"Run updated scenario":"▶ Run simulation";
     await nextPaint();
+    console.info("[FD Cal][main] Awaiting worker result", {requestId,workerActive:!!S.workerRunner.active});
     const rawResult=await run.promise;
+    console.info("[FD Cal][main] Worker promise resolved", {requestId,elapsedMs:Math.round(elapsedMs),valid:rawResult?.valid,bookingCount:rawResult?.bookings?.length});
     if(requestId!==S.activeRunId)return;
     elapsedMs=stopElapsedTimer()||elapsedMs;
     const result=rehydrateSimulationResult(rawResult,FDOption);
@@ -189,9 +190,10 @@ function wire(){
     status.textContent=run.reused
       ?"Completed result reused; no new computation was required."
       :"Simulation complete in "+elapsedLabel(elapsedMs)+".";
-    status.classList.add("is-complete");
+    status.classList.add("is-complete","is-success");
     $("simulation-edit-note").hidden=!S.formEditedWhileRunning;
   }catch(ex){
+    console.error("[FD Cal][main] Simulation submission failed", {submissionId,requestId,workerActive:!!S.workerRunner.active,errorName:ex?.name,errorMessage:ex?.message},ex);
     if(ex?.name==="AbortError")return;
     if(submissionId!==S.submissionSequence)return;
     if(requestId!==null&&requestId!==S.activeRunId)return;
