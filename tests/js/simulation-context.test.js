@@ -78,4 +78,3 @@ test("goal context derives its safety horizon without a caller-supplied end date
   });
   assert.equal(context.end_iso, "2056-01-31");
 });
-
