@@ -204,6 +204,82 @@ Acceptance criteria:
 - Unavailable functionality is clearly marked as planned/in progress and cannot be mistaken for an active mode.
 - No change to the underlying financial configuration schema or simulation result is introduced without separate approval and regression tests.
 
+### Phase 2A — Non-blocking background computation and run lifecycle
+
+**Priority:** Critical  
+**Goal:** expensive optimisation and simulation work must not block the browser's main thread. The page must remain responsive, continue painting, and communicate honestly that a computation is in progress.
+
+This is a functional performance requirement, not a spinner/visual polish task. The current browser submit flow awaits preparation and then calls the synchronous `simulate(c)` path on the main thread. Awaiting a Promise around synchronous CPU work does not move that work off the main thread; the simulation itself must execute in a Web Worker (or another genuine background execution context).
+
+#### Architecture
+
+1. Introduce a dedicated browser worker entry point for the CPU-intensive simulation path. Keep the existing shared calculation engine and strategy implementations as the source of financial behaviour; do not fork or reimplement the algorithms for the worker.
+2. Use the project's existing module/build system to bundle the worker and its imports. Resolve worker URLs through the bundler-supported module-worker pattern rather than a hand-built production path.
+3. Keep DOM access, form state, status text, elapsed-time display, report Blob creation/download and result rendering on the main thread. The worker receives a serializable, validated computation payload and returns a serializable result payload.
+4. Complete required bank-rate/catalogue loading and configuration validation before dispatching work. Show a preparation/loading state during this stage; distinguish it from the actual CPU computation phase.
+5. Wrap worker execution in a Promise-based runner on the main thread. The Promise must settle exactly once on success, worker-reported error, message deserialisation failure, worker startup failure, timeout if a defensible timeout is adopted, or explicit cancellation/supersession. Always release worker resources and event handlers.
+6. Use structured-clone-safe inputs and outputs. Do not send DOM objects, functions, class instances with required prototype behaviour, or mutable application state. Convert FD options and configuration to the plain serializable representation required by the engine, then reconstruct required domain objects inside the worker where appropriate.
+7. Preserve deterministic parity with the existing CLI/shared engine. Worker execution must call the same `SimulationEngine` and strategy classes with equivalent inputs. Do not change strategy defaults, tie-breakers, numerical precision or financial rules as part of this refactor.
+8. Do not silently fall back to running a heavy simulation synchronously on the main thread if Worker creation fails. Present a recoverable, actionable error. A synchronous fallback would reintroduce the browser-freeze defect this phase is intended to remove.
+9. Avoid unnecessary copying of large catalogue payloads. Measure structured-clone cost; use transferable buffers only where the data format and ownership semantics make this safe. Do not detach buffers or mutate cached catalogue data still needed by the app.
+
+#### Run identity, deduplication and supersession
+
+The runner must have explicit request identity and single-flight semantics.
+
+- Compute a stable request fingerprint from the effective validated scenario, selected strategy settings, relevant financial assumptions and the exact catalogue/data snapshot used. Avoid relying only on raw form JSON if equivalent configurations can serialize differently or catalogue data can change.
+- If a request with the same fingerprint is already running, do not start another worker or duplicate the computation. Reuse/return the in-flight Promise and preserve the existing visible run state. Repeated clicks/submissions must not create duplicate work.
+- Keep the existing completed-result optimisation: if the effective fingerprint is unchanged and the matching result is still valid for the current catalogue snapshot, reuse the completed result rather than recomputing. Make this behaviour clear and do not hide a failed or stale run behind a false cache hit.
+- If the user changes the scenario while a run is in progress and submits the new configuration, treat it as a new request. Use a latest-request-wins policy: cancel/terminate the obsolete worker, invalidate its request identity, and start the new request after its inputs are ready. Do not allow two expensive optimisation jobs to compete for CPU by default.
+- Ignore any late message/result from a superseded worker. Only the currently active request fingerprint may update the result summary, report, cache key or error state.
+- If the user edits the form but does not submit again, the old run may finish, but its result must remain clearly associated with the exact configuration that produced it. Do not imply that it represents unsaved edits. Prefer marking the result as belonging to the last submitted scenario and indicate when the current form differs.
+- Disable only actions that would cause unsafe duplicate execution. Do not freeze the whole form unnecessarily; users should be able to inspect or edit inputs while a computation runs. The run action should clearly communicate whether it will reuse the in-flight request, start a changed scenario, or is temporarily unavailable.
+
+#### Progress and elapsed-time feedback
+
+- Keep a persistent, polite live status region visible throughout preparation and computation. Use text such as “Loading bank data…”, “Preparing scenario…”, and “Computing Absolute R+…” rather than presenting every phase as generic loading.
+- Once the worker actually starts, start a monotonic elapsed-time clock (for example, based on `performance.now()`). Display elapsed time in a human-readable format such as `00:04` or `1m 12s`; update it on the main thread so the page remains responsive.
+- Stop and freeze the compute elapsed timer on success, error or cancellation. Do not include bank-data loading time in the compute-only figure. If total end-to-end duration is useful, label it separately from worker compute duration.
+- On success, show completion and elapsed duration briefly or alongside the result metadata without obscuring the result summary. On failure, retain the useful phase and elapsed context in the error state. On cancellation/supersession, do not announce a successful completion.
+- Do not display a fabricated percentage. Only show determinate progress if the engine exposes meaningful, measured progress events. If it does not, use an indeterminate progress indicator plus elapsed time.
+- Continue to honour reduced-motion preferences. The status text and elapsed duration must remain useful with animation disabled and must not rely on colour alone.
+- Avoid announcing every timer tick through an assertive screen-reader alert. Keep the status region polite and use a sensible announcement cadence; the visual timer can update more frequently than assistive-technology announcements.
+
+#### Failure, cancellation and lifecycle handling
+
+- Handle worker construction failure, import/runtime errors, thrown strategy errors, invalid result payloads and unexpected worker termination.
+- On navigation/unload, supersession or explicit cancellation, terminate the worker and clean up the timer and listeners.
+- Ensure a worker error cannot leave the run button disabled, the spinner active, a stale “computing” message visible or a Promise permanently pending.
+- Ensure a worker result is validated before it is passed to report generation. Report generation remains on the main thread unless separately measured and proven to be a material source of blocking.
+- Keep diagnostic detail for developers while showing a clear user-facing recovery message. Never include private scenario data in telemetry; analytics/telemetry remains deferred.
+
+#### Acceptance criteria
+
+- The expensive simulation executes in a Web Worker, not on the browser main thread.
+- While a deliberately slow test scenario is running, the page continues to paint, scroll, accept safe input edits and respond to browser interactions; the browser does not report the page as unresponsive.
+- The visible status distinguishes preparation from actual computation and names the selected strategy.
+- A live elapsed timer starts when worker computation starts and stops accurately on completion, error or cancellation.
+- Repeated submission of the same in-flight fingerprint starts exactly one computation.
+- Submitting a changed scenario supersedes the old computation; an old worker result cannot overwrite the newer scenario.
+- Re-running an unchanged, already completed scenario reuses the valid result according to the existing cache policy and does not misleadingly display a new computation.
+- Worker and main-thread results match for representative fixtures, including all browser-supported strategies, cash-flow types, fees, AIT settings and edge cases.
+- Worker failure and unsupported environments fail visibly and recoverably; there is no silent synchronous fallback.
+- Existing CLI results and benchmark behaviour remain unchanged.
+- Worker resources, timers and event listeners are cleaned up after every terminal path.
+
+#### Required tests
+
+1. Unit tests for request fingerprint stability and catalogue-snapshot inclusion.
+2. Runner tests for success, error, message error, startup failure, cancellation, supersession and cleanup.
+3. Single-flight test: multiple submissions with one fingerprint dispatch one worker computation.
+4. Supersession test: request B replaces request A; a late response from A is ignored.
+5. Completed-result reuse test: unchanged input and unchanged catalogue reuse the prior result; changed catalogue invalidates it.
+6. Parity tests comparing worker and direct shared-engine outputs for deterministic fixtures.
+7. Browser end-to-end test with an intentionally expensive fixture: verify elapsed time advances and a main-thread heartbeat/UI interaction continues during computation.
+8. Accessibility test for phase announcements, timer labelling and reduced-motion behaviour.
+9. Production-build test confirming the worker is emitted and loads from the deployed web artifact.
+10. Regression test confirming CLI execution remains independent of browser worker infrastructure.
+
 ### Phase 2 — Interaction quality and execution feedback
 
 **Priority:** High  
@@ -339,7 +415,7 @@ Work:
 6. Reconcile summary, report and raw result values for gross interest, AIT, fees, net interest, capital and final value.
 7. Verify report offline operation by disabling network after generation.
 8. Run the full Node.js suite, syntax checks, web build, docs build and relevant component deployment workflows.
-9. Inspect browser console/network logs and verify there are no broken assets, external report requests, layout shifts or uncaught errors.
+9. Inspect browser console/network logs and verify there are no broken assets, external report requests, layout shifts or uncaught errors. Confirm the simulation runs in a worker, the main thread remains responsive, elapsed timing is accurate, and duplicate/superseded requests behave as specified.
 10. Capture before/after screenshots and record the tested source SHA and deployed component artifact SHAs.
 
 Acceptance criteria:
@@ -400,7 +476,7 @@ The audit's RPT-01–RPT-18 matrix remains the detailed report test baseline. Th
 | UX-04 | Planned feature | Inspect unavailable Goal mode | Clearly marked in progress; not selectable; real feedback/contribution route available separately. |
 | UX-05 | Strategy | Switch supported strategies | Only relevant settings appear; descriptions match actual behaviour. |
 | UX-06 | Eligibility | Include age-segmented products | No implication that depositor eligibility has been verified. |
-| UX-07 | Execution | Run a normal and a heavier scenario | Status is truthful; duplicate submission prevented; error recovery works. |
+| UX-07 | Execution | Run a normal and a deliberately expensive scenario | Simulation runs in a worker; UI remains responsive; phase status and elapsed compute time are accurate. |\n| UX-07a | Execution | Submit the same scenario repeatedly while active | One in-flight worker computation only; no duplicate CPU work. |\n| UX-07b | Execution | Change configuration and submit while a run is active | Old run is cancelled/superseded; stale output cannot replace the latest request. |\n| UX-07c | Execution | Re-run an unchanged completed scenario | Valid completed result is reused without pretending a new computation started. |
 | UX-08 | Results | Inspect in-app summary | Only decision-level summary; no booking/history ledger. |
 | UX-09 | Results/report | Compare summary with report | Headline metrics reconcile exactly. |
 | UX-10 | Report | Generate and reopen saved report offline | All report sections, charts and controls work without network. |
@@ -413,7 +489,7 @@ The audit's RPT-01–RPT-18 matrix remains the detailed report test baseline. Th
 
 The programme is complete when:
 
-- The primary scenario workflow is understandable and usable for first-time and experienced users.
+- The primary scenario workflow is understandable and usable for first-time and experienced users.\n- Expensive browser computation runs in a background worker through a Promise-based lifecycle; the UI stays responsive and reports truthful phase/elapsed-time feedback.\n- Identical in-flight requests are single-flight deduplicated; changed requests supersede stale work without allowing stale results to render.
 - Existing brand tokens remain the single source of truth across the app and docs; the report embeds the relevant token values in its own output.
 - The in-app summary remains concise and the standalone report remains the detailed, offline-capable record.
 - Planned/unavailable functionality communicates roadmap intent without pretending to be interactive.
@@ -428,7 +504,7 @@ The programme is complete when:
 - [Audit findings and report test matrix](./UI-UX-AUDIT-CHARLES-SKILLS.md)
 - [Canonical brand tokens](../../src/brand/tokens.css)
 - [Web application markup](../../src/web/index.html)
-- [Web application behaviour](../../src/web/app.js)
+- [Web application behaviour](../../src/web/app.js)\n- [Simulation engine](../../src/core/simulation.js)\n- [Strategy implementations](../../src/strategies/)
 - [Web application styles](../../src/web/styles.css)
 - [Report generator](../../src/reporting/html.js)
 - [Standalone report template](../../src/reporting/template.js)
