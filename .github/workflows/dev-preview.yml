@@ -110,10 +110,9 @@ jobs:
             git rm -rf . >/dev/null 2>&1 || true
           fi
           git clean -fdx
-          mkdir -p dev
-          cp -R "$RUNNER_TEMP/dev-web-site/." dev/
-          mkdir -p dev/docs
-          cp -R "$RUNNER_TEMP/dev-docs-site/docs/." dev/docs/
+          cp -R "$RUNNER_TEMP/dev-web-site/." .
+          mkdir -p docs
+          cp -R "$RUNNER_TEMP/dev-docs-site/docs/." docs/
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
