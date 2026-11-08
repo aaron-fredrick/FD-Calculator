@@ -179,3 +179,18 @@ button:active:not(:disabled){transform:scale(.97)}
  button:active:not(:disabled),.remove-icon:active,.strategy-doc-link:active{transform:none!important}
  .help-tip::after{transition:none!important;filter:none!important}
 }
+
+/* Consolidation selection and specific-date entry controls. */
+.account.is-consolidation{border-color:var(--blue);box-shadow:0 0 0 2px #56b4e926,0 0 18px #56b4e90d}
+.primary-radio{cursor:pointer;color:var(--text)}
+.primary-radio input{accent-color:var(--blue)}
+.date-entry-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.date-entry-row input[type=date]{color-scheme:dark;accent-color:var(--blue)}
+.date-entry-row input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;filter:invert(.78) sepia(.25) saturate(1.2) hue-rotate(165deg)}
+.date-chip-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;min-height:28px}
+.date-chip{display:inline-flex;align-items:center;gap:8px;padding:5px 8px 5px 10px;border:1px solid #36506a;border-radius:8px;background:#172433;color:#d7e8f7;font:11px var(--fd-font-mono)}
+.date-chip button{width:20px;min-height:20px;padding:0;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:15px;line-height:1;cursor:pointer}
+.date-chip button:hover{background:#3a2730;color:#ffc0c5}
+.date-chip.is-outside{border-color:var(--fd-color-danger);color:#ffc0c5}
+.date-empty{align-self:center;font-size:10px}
+@media(max-width:620px){.date-entry-row{grid-template-columns:minmax(0,1fr) auto}.schedule-fields .wide{grid-column:1/-1}}
