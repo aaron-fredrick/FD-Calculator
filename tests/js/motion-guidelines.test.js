@@ -33,6 +33,8 @@ test("tooltips remain anchored to their trigger and strategy panels crossfade in
   assert.match(app, /panel\.inert=true;panel\.setAttribute\("aria-hidden","true"\)/);
   assert.match(app, /duration:MOTION_EXIT_MS/);
   assert.match(app, /duration:MOTION_ENTER_MS/);
+  assert.doesNotMatch(app, /\$\("gaml-settings"\)\.hidden=/);
+  assert.doesNotMatch(app, /\$\("greedy-settings"\)\.hidden=/);
 });
 
 test("success pulse is only applied to successful simulation completion", () => {
