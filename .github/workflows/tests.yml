@@ -2,7 +2,7 @@ name: Node.js tests and syntax checks
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, 'audit/**']
   pull_request:
     branches: [main, dev]
   workflow_dispatch:
