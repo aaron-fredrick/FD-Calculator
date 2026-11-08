@@ -99,6 +99,8 @@ test("published JSON schema declares GSS and all strategy settings", () => {
     assert.ok(schema.properties[key], `missing schema property: ${key}`);
   }
   assert.ok(schema.properties.strategy_settings.properties.gss);
+  assert.deepEqual(schema.properties.fd_eligibility.properties.include_senior.type,"boolean");
+  assert.deepEqual(schema.properties.fd_eligibility.properties.include_minor.type,"boolean");
   assert.equal(schema.$defs.gssSettings.properties.small_period_days.minimum, 1);
   assert.equal(schema.$defs.gssSettings.properties.small_period_days.default, 30);
   assert.deepEqual(schema.$defs.simulation.properties.mode.enum, ["scoped"]);
