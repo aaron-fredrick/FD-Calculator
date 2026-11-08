@@ -121,3 +121,19 @@ test("legacy configuration normalizes as scoped and retains explicit dates", () 
   assert.equal(config.end.toISOString().slice(0, 10), "2026-06-30");
   assert.deepEqual(config.simulation, { mode: "scoped", goal: null });
 });
+
+
+test("age-based FD product filters retain general products and opt into only selected segments", () => {
+  const options = [
+    new FDOption({ label: "general", period_str: "1m", annual_rate: 8, bank_id: "BANK_A" }),
+    new FDOption({ label: "senior", period_str: "1m", annual_rate: 9, bank_id: "BANK_A", customer_segment: "senior", min_age: 60, min_age_inclusive: false }),
+    new FDOption({ label: "minor", period_str: "1m", annual_rate: 9.5, bank_id: "BANK_A", customer_segment: "minor", max_age: 18, guardian_required: true })
+  ];
+  const base = { investment: { start_date: start, end_date: end }, accounts: { main: { bank_id: "BANK_A", balance: 50000 } } };
+  const context = { bankRegistry: { BANK_A: { name: "Bank A" } }, bankKeyById: { BANK_A: "bank_a" }, options };
+  assert.deepEqual(validateConfiguration(base, context).options.map(option => option.label), ["general"]);
+  assert.deepEqual(validateConfiguration({ ...base, fd_eligibility: { include_senior: true } }, context).options.map(option => option.label).sort(), ["general", "senior"]);
+  assert.deepEqual(validateConfiguration({ ...base, fd_eligibility: { include_senior: true, include_minor: true } }, context).options.map(option => option.label).sort(), ["general", "minor", "senior"]);
+  assert.equal(options[1].min_age_inclusive, false);
+  assert.equal(options[2].guardian_required, true);
+});
