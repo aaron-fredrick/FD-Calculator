@@ -125,8 +125,9 @@ function defaultWorkerFactory() {
  * share the active Promise; a changed fingerprint terminates obsolete work.
  */
 export class SimulationWorkerRunner {
-  constructor({ workerFactory = defaultWorkerFactory } = {}) {
+  constructor({ workerFactory = defaultWorkerFactory, watchdogGraceMs = 5000 } = {}) {
     this.workerFactory = workerFactory;
+    this.watchdogGraceMs = watchdogGraceMs;
     this.active = null;
     this.completed = null;
     this.nextId = 1;
@@ -156,7 +157,7 @@ export class SimulationWorkerRunner {
       rejectRun = reject;
     });
     const entry = {
-      id, fingerprint, worker, promise, settled: false,
+      id, fingerprint, worker, promise, payload, settled: false, executionTimer: null,
       settle: (handler, value) => {
         if (entry.settled) return;
         entry.settled = true;
@@ -164,6 +165,7 @@ export class SimulationWorkerRunner {
         worker.onerror = null;
         worker.onmessageerror = null;
         if (entry.handshakeTimer !== null) clearTimeout(entry.handshakeTimer);
+        if (entry.executionTimer !== null) clearTimeout(entry.executionTimer);
         try { worker.terminate(); } catch { /* termination is best-effort cleanup */ }
         if (this.active === entry) this.active = null;
         handler(value);
@@ -182,6 +184,14 @@ export class SimulationWorkerRunner {
       }
       if (message.type === "started") {
         entry.startedAt = message.startedAt;
+        const timeLimitMs = Number(payload?.gaml_settings?.time_limit_ms ?? 0);
+        if (timeLimitMs > 0 && entry.executionTimer === null) {
+          entry.executionTimer = setTimeout(() => {
+            const error = new Error("The simulation worker exceeded the configured search time limit plus its safety grace period.");
+            error.name = "TimeoutError";
+            entry.settle(rejectRun, error);
+          }, timeLimitMs + this.watchdogGraceMs);
+        }
         if (entry.handshakeTimer !== null) {
           clearTimeout(entry.handshakeTimer);
           entry.handshakeTimer = null;
