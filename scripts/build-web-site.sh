@@ -53,7 +53,7 @@ cat > "$output_dir/index.html" <<'EOF'
 </html>
 EOF
 
-if [ "\${FD_CAL_PREVIEW:-false}" = "true" ]; then
+if [ "${FD_CAL_PREVIEW:-false}" = "true" ]; then
   node --input-type=module - "$output_dir" <<'NODE'
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
