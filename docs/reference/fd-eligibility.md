@@ -21,7 +21,7 @@ The browser exposes **Include senior citizen FDs** and **Include child / minor F
 | --- | --- | --- | --- |
 | People's Bank — Parinatha, 55–60 rate band | Product page says over 55; rate page publishes a 55–60 band | Published maturity and monthly rates for 6, 12 and 24 months | [Rates](https://peoplesbank.lk/interest-rates/) · [Term deposit eligibility](https://www.peoplesbank.lk/term-deposits/) |
 | People's Bank — Parinatha, above-60 rate band | Over 60; represented with an exclusive lower bound | Published maturity and monthly rates for 6, 12 and 24 months | [Rates](https://peoplesbank.lk/interest-rates/) · [Term deposit eligibility](https://www.peoplesbank.lk/term-deposits/) |
-| Seylan Bank — Senior Citizens FD | Over 60 years | Published maturity rates for 1, 2, 3, 6, 12, 24, 36, 48 and 60 months; monthly rates for 12–60 months | [Official rate schedule](https://www.seylan.lk/interest-rates?url=senior-citizen-fds) |
+| Seylan Bank — Senior Citizens FD | Over 60 years | Published maturity rates for 1, 48 and 60 months, where the product-specific LKR 100,000 minimum is stated. Other tenures are held back because the reviewed schedule does not give a matching minimum-deposit value | [Official rate schedule](https://www.seylan.lk/interest-rates?url=senior-citizen-fds) |
 
 Rates retain their source effective dates and minimum-deposit values in the CSV rows. They should be checked against the linked bank schedule before an actual placement.
 
