@@ -1173,6 +1173,7 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
     const expanded = expandState(
       rawState, context, settings, "absolute", counters, parentNode?.operation_count ?? 0
     );
+    if (timeExpired()) { budgetStopped = true; budgetStopReason = "time_limit"; }
     if (expanded.terminal) {
       if (evaluateGoal) {
         const score = evaluateGoal(path ?? nodePath(parentNode), expanded.value);
@@ -1183,6 +1184,7 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
       bestNode = counters.bestNode;
       return;
     }
+    if (budgetStopped) return;
     for (const child of expanded.children) {
       const node = child.action ? makeNode(parentNode, child.action, child.date, parentNode?.root_signature ? null : child.root_signature) : parentNode;
       visit(child.state, node);
