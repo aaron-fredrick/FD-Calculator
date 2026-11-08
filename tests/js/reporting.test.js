@@ -4,7 +4,7 @@ import { Account } from "../../src/core/models.js";
 import { Event, EventType } from "../../src/core/events.js";
 import { SimResult } from "../../src/core/results.js";
 import { formatSimulation } from "../../src/reporting/console.js";
-import { generateHtmlReport } from "../../src/reporting/html.js";
+import { generateHtmlReport, formatProductEligibility } from "../../src/reporting/html.js";
 
 test("unsigned carry-forward amounts align numerically with signed timeline amounts", () => {
   const account = new Account({ id: "main", bank_id: "BANK_A", bank_key: "bank_a", label: "Main", balance: 10030 });
@@ -218,4 +218,12 @@ test("goal reports show the canonical consolidation-interest outcome and event p
   const consoleText = formatSimulation(result, config, "goal.json", "fd_options.csv", { color: false, showBookingLedger: false });
   assert.match(consoleText, /GOAL OUTCOME/);
   assert.match(consoleText, /ACHIEVED/);
+});
+
+test("report eligibility summary describes bank catalogue conditions without claiming verification", () => {
+  assert.equal(
+    formatProductEligibility({ customer_segment: "senior", min_age: 60, max_age: 100, min_age_inclusive: false, max_age_inclusive: true, guardian_required: true }),
+    "Senior-citizen product · minimum age > 60; maximum age ≤ 100; parent/guardian required"
+  );
+  assert.match(formatProductEligibility({ customer_segment: "minor" }), /no age conditions recorded in catalogue/);
 });

@@ -15,6 +15,15 @@ const iso = value => {
 const dayCount = (a,b) => Math.round((Date.parse(iso(b)+"T00:00:00")-Date.parse(iso(a)+"T00:00:00"))/86400000);
 const identity = value => String(value ?? "").trim().toUpperCase();
 const payoutName = value => ({cumulative:"Cumulative",periodic_interest:"Periodic interest",installment:"Installment"}[value] || String(value ?? "—"));
+export function formatProductEligibility(option = {}) {
+  const segment = String(option.customer_segment || "general").toLowerCase();
+  const label = segment === "senior" ? "Senior-citizen product" : segment === "minor" ? "Minor product" : "General product";
+  const conditions = [];
+  if (option.min_age !== null && option.min_age !== undefined) conditions.push("minimum age " + (option.min_age_inclusive === false ? ">" : "≥") + " " + option.min_age);
+  if (option.max_age !== null && option.max_age !== undefined) conditions.push("maximum age " + (option.max_age_inclusive === false ? "<" : "≤") + " " + option.max_age);
+  if (option.guardian_required === true) conditions.push("parent/guardian required");
+  return label + " · " + (conditions.length ? conditions.join("; ") : "no age conditions recorded in catalogue");
+}
 const scheduleText = item => item.type === "recurring"
   ? "Every "+(item.interval || "—")+" · "+iso(item.start_date)+" to "+iso(item.end_date)
   : (item.dates || []).map(iso).join(", ");
@@ -207,7 +216,7 @@ function buildExecution(result,accountDisplay) {
       const gross=b.total_interest,netFlows=b.option.applyAITToCashFlows(b.principal,b.cash_flows,result.ait_enabled?result.ait_rate:0);
       const netInterest=netFlows.reduce((s,f)=>s+f.amount,0)-b.principal,ait=gross-netInterest;
       const step=unique.length+i+1;
-      actionParts.push('<div class="instruction booking-instruction"><div class="instruction-title"><span>STEP '+step+'</span> Open the fixed deposit</div><div class="detail-grid"><div><small>Account</small><b>'+esc(accountName)+'</b></div><div><small>Product</small><b>'+esc(product)+' · '+fdType+'</b></div><div><small>Investment amount</small><b>'+money(b.principal)+'</b></div><div><small>Rate / term</small><b>'+Number(b.option.annual_rate).toFixed(3)+'% p.a. · '+esc(b.option.period_str)+'</b></div><div><small>Booking → maturity</small><b>'+start+' → '+maturity+'</b></div><div><small>Payout</small><b>'+esc(payoutName(b.payout_type))+'</b></div></div></div>');
+      actionParts.push('<div class="instruction booking-instruction"><div class="instruction-title"><span>STEP '+step+'</span> Open the fixed deposit</div><div class="detail-grid"><div><small>Account</small><b>'+esc(accountName)+'</b></div><div><small>Product</small><b>'+esc(product)+' · '+fdType+'</b></div><div><small>Investment amount</small><b>'+money(b.principal)+'</b></div><div><small>Rate / term</small><b>'+Number(b.option.annual_rate).toFixed(3)+'% p.a. · '+esc(b.option.period_str)+'</b></div><div><small>Booking → maturity</small><b>'+start+' → '+maturity+'</b></div><div><small>Payout</small><b>'+esc(payoutName(b.payout_type))+'</b></div><div><small>Catalogue eligibility</small><b>'+esc(formatProductEligibility(b.option))+'</b></div></div><p class="muted">Catalogue age and guardian conditions are informational; FD Cal does not verify a depositor’s eligibility. Confirm the current terms with the bank.</p></div>');
       investmentRows.push({account:accountName,product:product+" · "+fdType,principal:amount(b.principal),rate:Number(b.option.annual_rate).toFixed(3)+"%",term:b.option.period_str,booking:start,maturity,gross:amount(gross),ait:amount(ait),net:amount(netInterest)});
       const context=bookingEvents.find(x=>x.booking_ref===ref)?.decision_context||{};
     });
@@ -261,8 +270,12 @@ export function generateHtmlReport(result,config) {
   const fee=config.fee_config||{};
   const xirrValue=xirr(result),gross=Number(result.total_interest||0),ait=Number(result.ait_withheld||0),fees=Number(result.total_transfer_fees||0),net=Number(result.net_interest??result.net_interest_after_ait??gross-ait-fees);
   const totalCapital=Number(result.total_principal||0),yieldPct=totalCapital?net/totalCapital*100:0;
+  const generatedAt=config.report_generated_at?String(config.report_generated_at).replace("T"," ").replace("Z"," UTC"):"Not recorded";
+  const catalogueHash=config.catalogue_fingerprint||"Unavailable in this browser";
   const overview='<div class="overview-grid">'+
     '<article class="panel"><small>Simulation window</small><strong>'+start+' → '+end+'</strong><p>'+days+' calendar days</p></article>'+
+    '<article class="panel"><small>Report generated (device clock, UTC)</small><strong>'+esc(generatedAt)+'</strong><p>Timestamp supplied by this browser.</p></article>'+
+    '<article class="panel"><small>Catalogue snapshot SHA-256</small><strong class="fingerprint">'+esc(catalogueHash)+'</strong><p>Bank/product metadata and fee data used for this run.</p></article>'+
     '<article class="panel"><small>Strategy</small><strong>'+esc(result.strategy_name)+'</strong><p>Selected simulation path</p></article>'+
     '<article class="panel"><small>Interest calculation</small><strong>'+(config.compound?"Compound":"Simple")+'</strong><p>'+(config.actual_leap_year?"Actual leap-year basis":"365-day basis")+'</p></article>'+
     '<article class="panel"><small>Tax treatment</small><strong>'+(result.ait_enabled?"AIT · "+(result.ait_rate*100).toFixed(1)+"%":"AIT disabled")+'</strong><p>Applied to interest payouts</p></article>'+
@@ -342,6 +355,18 @@ export function generateHtmlReport(result,config) {
     return {name:b.option.label+" · "+b.account_id,start:iso(b.start),end:iso(b.end),principal:b.principal,interest:b.total_interest,rate:b.option.annual_rate,color:maturityColorByBank.get(bank)||"#56b4e9"};
   });
   const chartData={...accountChart,cashflows,maturities,grossInterest:gross,returns:[{name:"Net interest",value:net,color:"#55c99a"},{name:"Transfer fees",value:fees,color:"#ef7777"},{name:"AIT withheld",value:ait,color:"#e9ad58"}]};
+  const accountChartRows=[...accountChart.accounts,...accountChart.fd_principal].flatMap(series=>series.points.map(point=>({
+    series:series.name,date:point.date,stage:point.stage,event:point.event,value:amount(point.y)
+  })));
+  const accountChartTable=table("Account and FD principal chart data",[["date","Date"],["stage","Stage"],["event","Event"],["series","Series"],["value","Value (LKR)"]],accountChartRows);
+  const cashflowChartRows=cashflows.flatMap(series=>series.points.map(point=>({
+    date:point.x,series:series.name,value:amount(point.y)
+  })));
+  const cashflowChartTable=table("Cash movement chart data",[["date","Date"],["series","Movement type"],["value","Amount (LKR)"]],cashflowChartRows);
+  const maturityChartTable=table("Maturity chart data",[["name","FD product / account"],["start","Booking date"],["end","Maturity date"],["principal","Principal (LKR)"],["interest","Gross interest (LKR)"],["rate","Nominal rate (%)"]],maturities.map(item=>({
+    ...item,principal:amount(item.principal),interest:amount(item.interest),rate:Number(item.rate).toFixed(3)
+  })));
+  const returnChartTable=table("Return composition chart data",[["name","Component"],["value","Amount (LKR)"]],chartData.returns.map(item=>({name:item.name,value:amount(item.value)})));
   const chartJson=JSON.stringify(chartData).replace(/<\//g,"<\\/");
   const ledger='<details class="collapsible-table"><summary>Ledger entries <span>'+ledgerRows.length+' rows · expand</span></summary><div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount (LKR)</th><th>Description</th><th class="num">Balance after (LKR)</th></tr></thead><tbody>'+(ledgerRows.join("")||'<tr><td colspan="6" class="empty">No events</td></tr>')+'</tbody></table></div></details>';
   const replacements={
@@ -352,7 +377,7 @@ export function generateHtmlReport(result,config) {
     "{{EXECUTION_CONTENT}}":execution.html,
     "{{PORTFOLIO_CONTENT}}":accountTable+investmentTable,
     "{{CASHFLOW_CONTENT}}":'<div class="grid2"><div>'+inflowTable+'</div><div>'+outflowTable+'</div></div>',
-    "{{ANALYTICS_CONTENT}}":'<div class="chart-grid"><article class="chart-panel"><h3>Account cash and bank FD principal</h3><canvas id="account-chart" aria-label="Intra-day account cash and bank fixed deposit principal by event stage"></canvas><p class="muted">Each plotted stage is the state immediately after a ledger event. Account lines show liquid cash; bank FD lines aggregate outstanding principal only. Interest is excluded from FD principal.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas><p class="muted">Positive values are receipts; negative values are uses of cash. Shift + wheel scales vertically; Alt + wheel scales horizontally around the cursor. Use Reset view to restore the full timeline.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas><p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas><p class="muted">Gross interest is split into net interest retained, transfer fees and AIT withheld.</p></article></div>',
+    "{{ANALYTICS_CONTENT}}":'<div class="chart-grid"><article class="chart-panel"><h3>Account cash and bank FD principal</h3><canvas id="account-chart" aria-label="Intra-day account cash and bank fixed deposit principal by event stage"></canvas>'+accountChartTable+'<p class="muted">Each plotted stage is the state immediately after a ledger event. Account lines show liquid cash; bank FD lines aggregate outstanding principal only. Interest is excluded from FD principal.</p></article><article class="chart-panel"><h3>Cash movement timeline</h3><canvas id="cashflow-chart" aria-label="Cash movement timeline"></canvas>'+cashflowChartTable+'<p class="muted">Positive values are receipts; negative values are uses of cash. Shift + wheel scales vertically; Alt + wheel scales horizontally around the cursor. Use Reset view to restore the full timeline.</p></article><article class="chart-panel"><h3>FD maturity schedule</h3><canvas id="maturity-chart" aria-label="FD booking and maturity schedule"></canvas>'+maturityChartTable+'<p class="muted">Bars span each contract booking date to maturity.</p></article><article class="chart-panel"><h3>Return composition</h3><canvas id="returns-chart" aria-label="Net return composition"></canvas>'+returnChartTable+'<p class="muted">Gross interest is split into net interest retained, transfer fees and AIT withheld.</p></article></div>',
     "{{PORTFOLIO_AUDIT_CONTENT}}":capitalTable,
     "{{LEDGER_CONTENT}}":ledger,
     "{{CHART_DATA}}":chartJson

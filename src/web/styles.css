@@ -38,10 +38,10 @@
 
 /* Simulation progress feedback; keep visible even when all rate data is cached. */
 .simulation-status{display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:11px 13px;border:1px solid #344a60;border-radius:9px;background:#142131;color:#c7d8e8;font-size:11px}
-.simulation-status:not([hidden])::before,.primary.is-loading::before{content:"";display:inline-block;width:13px;height:13px;flex:0 0 13px;border:2px solid #7898b3;border-right-color:transparent;border-radius:50%;animation:simulation-spin .7s linear infinite}
+.simulation-status:not([hidden]):not(.is-complete)::before,.primary.is-loading::before{content:"";display:inline-block;width:13px;height:13px;flex:0 0 13px;border:2px solid #7898b3;border-right-color:transparent;border-radius:50%;animation:simulation-spin .7s linear infinite}
 .primary.is-loading{display:inline-flex;align-items:center;justify-content:center;gap:8px;opacity:.9;cursor:progress}
 @keyframes simulation-spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){.simulation-status:not([hidden])::before,.primary.is-loading::before{animation-duration:1.8s}}
+@media(prefers-reduced-motion:reduce){.simulation-status:not([hidden]):not(.is-complete)::before,.primary.is-loading::before{animation-duration:1.8s}}
 
 /* Public GitHub support-ticket entry point. */
 .support-link{display:inline-flex;align-items:center;gap:5px;text-decoration:none;white-space:nowrap}
@@ -117,3 +117,14 @@ footer{font-size:12px;line-height:1.55}
 /* Simulation-mode fields override the card label/grid display rules. */
 #scoped-end-field[hidden],#duration-field[hidden]{display:none!important}
 .grid.two>.wide{grid-column:1/-1}
+
+.simulation-elapsed{display:block;margin:-6px 0 10px;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.simulation-edit-note{display:block;margin:-4px 0 12px;color:var(--amber);font-size:11px}
+
+.strategy-row{grid-template-columns:minmax(0,1fr)}
+.strategy-description{margin:12px 0 0}
+
+#catalog-status.is-loading,#catalog-status-mobile.is-loading{color:var(--muted)}
+#catalog-status.is-error,#catalog-status-mobile.is-error{color:var(--red)}
+.catalog-status-mobile{display:none;padding:8px 13px;background:var(--panel);border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}
+@media(max-width:620px){.catalog-status-mobile{display:block}}

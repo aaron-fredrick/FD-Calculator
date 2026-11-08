@@ -18,7 +18,7 @@ The bank product CSVs can record:
 | `min_age_inclusive`, `max_age_inclusive` | Whether the corresponding boundary is inclusive |
 | `guardian_required` | Whether the source explicitly requires a parent or guardian |
 
-The browser exposes **Include senior citizen FDs** and **Include child / minor FDs** switches. They default off, preserve all general products, and add only the selected age-segment products. The switches do not collect a date of birth or claim that a particular person qualifies. A bank's wording such as “over 60” is stored as a strict lower bound, not silently rounded to “60+”.
+The browser exposes **Include senior citizen FDs** and **Include child / minor FDs** switches. They default off, preserve all general products, and add only the selected age-segment products. The switches do not collect a date of birth or claim that a particular person qualifies. For products actually booked by a simulation, the standalone report displays the age bounds, inclusive/exclusive boundary and guardian requirement recorded in the catalogue. These conditions remain informational and must be confirmed with the bank. A bank's wording such as “over 60” is stored as a strict lower bound, not silently rounded to “60+”.
 
 ## Verified products currently represented in the rate catalogue
 

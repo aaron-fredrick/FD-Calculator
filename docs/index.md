@@ -18,6 +18,10 @@ features:
     details: The CLI and browser application share the same financial models, simulation lifecycle and strategy implementations.
   - title: Understand each strategy
     details: Compare Greedy, Absolute R+, GSS and Absolute R by their scoped decision process, search limits and optimality guarantees.
+  - title: Responsive browser runs
+    details: CPU-intensive simulations run in a native module worker while the browser remains available for interaction.
+  - title: Portable reports
+    details: Inspect a standalone offline report with the selected portfolio, cash movements, chart data and full event ledger.
   - title: Trace the architecture
     details: Follow the boundaries between simulation, FD option management, strategies, reporting and runtime adapters.
 ---

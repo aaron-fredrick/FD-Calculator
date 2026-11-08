@@ -1,6 +1,6 @@
 # FD Cal browser app
 
-This static application source imports the same runtime-neutral configuration validator, Greedy/Absolute R+ and GSS strategies, and HTML report generator as the Node.js CLI.
+This static application source imports the same runtime-neutral configuration validator, Greedy/Absolute R+ and GSS strategies, and HTML report generator as the Node.js CLI. CPU-intensive simulation runs in a native ES-module Web Worker; the worker entry point, task adapter and Promise runner are copied as ordinary static files. No bundler or new runtime dependency is required.
 
 ## Local preview (PowerShell)
 
