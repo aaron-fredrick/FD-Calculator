@@ -27,7 +27,7 @@ test("specific-date cash flows use a bounded date picker and removable entries",
 });
 
 test("HTML output encoding protects imported account IDs without changing their data value", () => {
-  const payload = '\"><img src=x onerror=alert(1)>&\'';
+  const payload = "\"><img src=x onerror=alert(1)>&'";
   assert.equal(
     escapeHtml(payload),
     "&quot;&gt;&lt;img src=x onerror=alert(1)&gt;&amp;&#39;"
