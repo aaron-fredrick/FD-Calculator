@@ -227,3 +227,19 @@ test("report eligibility summary describes bank catalogue conditions without cla
   );
   assert.match(formatProductEligibility({ customer_segment: "minor" }), /no age conditions recorded in catalogue/);
 });
+
+test("standalone report includes selected-bank source status and honest review-date fallback", () => {
+  const result = new SimResult({
+    strategy_name: "Greedy", total_principal: 1000, end_date: "2026-02-01",
+    accounts: { main: { id: "main", label: "Main", bank_id: "BANK_A", bank_key: "bank_a", balance: 1000 } },
+    timeline: {}, bookings: []
+  });
+  const html = generateHtmlReport(result, {
+    start: new Date("2026-01-01"), end: new Date("2026-02-01"),
+    bank_registry: { BANK_A: { name: "Bank A" } },
+    bank_dataset_registry: { BANK_A: { research_status: "populated_secondary", dataset_reviewed_at: "" } }
+  });
+  assert.match(html, /Selected-bank source status/);
+  assert.match(html, /populated_secondary/);
+  assert.match(html, /Review date not recorded/);
+});
