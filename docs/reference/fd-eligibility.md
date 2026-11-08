@@ -37,6 +37,10 @@ Rates retain their source effective dates and minimum-deposit values in the CSV 
 - **SDB Upahara senior FD:** the page reviewed describes the product as for customers over 55 and publishes a separate rate schedule, but the current rate effective date conflicts with a later rate date already recorded in the normal-rate dataset. The senior rows are held back pending reconciliation.
 - **HDFC Vishrama Udana** and **SMIB Senior Citizen FD:** official product pages state an over-60 eligibility rule. Their senior product rates are not added here until a current, matching rate schedule is verified.
 
+## Research ledger
+
+The machine-readable research ledger includes products whose eligibility is known even when a current matching rate or minimum deposit is not yet safe to simulate: [age_eligibility.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/main/data/fd_options/age_eligibility.csv). Its `research_status` distinguishes catalogue-ready entries from incomplete or conflicting evidence.
+
 ## Data policy
 
 No age threshold is inferred from a product name, tax treatment, general account eligibility or another bank's rules. No dummy rates are inserted. If a bank publishes a rate but omits an age cutoff, or publishes eligibility but not a current rate, that information remains documented as incomplete rather than becoming an optimisable product.
