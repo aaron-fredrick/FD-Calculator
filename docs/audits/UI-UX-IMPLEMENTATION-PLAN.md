@@ -548,7 +548,7 @@ The programme is complete when:
 | Removing account / cash-flow rows | Apply | 280 ms exit, exactly 20% shorter than the 350 ms entrance. The existing removal action and data mutation sequence remain intact. |
 | Strategy-specific settings | Apply | Old and new settings panels overlap in one grid cell while the old panel exits and the selected panel enters. Outgoing controls become inert and hidden from assistive technology immediately. |
 | Buttons | Apply | Pressed state scales to 0.97 with a restrained ease-in-out transition. Disabled controls do not scale. |
-| Help tooltips | Apply | 0.95 scale and slight blur resolve from the focused/hovered help trigger; exit returns toward that trigger. |
+| Help tooltips | Apply | 0.95 scale and slight blur resolve from the focused/hovered help trigger in 200 ms; exit returns toward that trigger in 160 ms. |
 | Dropdown controls | Partial | The native operating-system select popup is not animated or replaced. Only the field's focus/border feedback uses a 180 ms transition, preserving native keyboard and platform behaviour. |
 | Successful simulation | Apply | A short, positive confirmation pulse is applied only to successful completion/reuse, not validation or error states. |
 | Results reveal | Apply | The concise results panel uses a 350 ms ease-out entrance; its existing smooth scroll remains spatially tied to the result section. |
