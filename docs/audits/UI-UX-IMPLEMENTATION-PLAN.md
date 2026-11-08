@@ -533,4 +533,4 @@ The programme is complete when:
 - [Getting started guide](../guide/getting-started.md)
 - Contributor guide: `CONTRIBUTING.md`
 
-- **2026-11-08 — History cleanup:** consolidated the implementation file changes into one commit after the original planning/audit commits, leaving the feature branch seven commits ahead of `main` and zero behind.
+- **2026-11-08 — History cleanup:** consolidated the implementation file changes into one commit after the original planning/audit commits, preserving a short linear history. The branch currently contains nine commits ahead of `main` and zero behind.
