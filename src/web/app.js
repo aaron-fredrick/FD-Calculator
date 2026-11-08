@@ -8,6 +8,8 @@ import {generateHtmlReport} from "../reporting/html.js";
 const DATA_ROOT=new URL(import.meta.url).pathname.includes("/src/web/")?"../../data/":"../data/";
 const $=id=>document.getElementById(id),STORAGE_KEY="fd-cal:draft:v1",S={banks:{},index:{},keys:{},cache:new Map(),lastSimulationKey:null,accounts:[],inflows:[],outflows:[],url:null,raw:null,workerRunner:new SimulationWorkerRunner(),activeRunId:0,submissionSequence:0,isPreparing:false,formEditedWhileRunning:false,computeStartedAt:null,computeTimer:null};
 const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+const MOTION_ENTER_MS=350,MOTION_EXIT_MS=280,MOTION_STAGGER_MS=30;
+let strategyTransitionSequence=0;
 function elapsedLabel(milliseconds){const total=Math.max(0,Math.floor(milliseconds/1000)),hours=Math.floor(total/3600),minutes=Math.floor((total%3600)/60),seconds=total%60;return hours?[hours,minutes,seconds].map(value=>String(value).padStart(2,"0")).join(":"):[minutes,seconds].map(value=>String(value).padStart(2,"0")).join(":")}
 function updateElapsedTimer(){if(S.computeStartedAt===null)return;const timer=$("simulation-elapsed");timer.textContent="Elapsed "+elapsedLabel(performance.now()-S.computeStartedAt)}
 function startElapsedTimer(restart=false){if(restart)stopElapsedTimer();if(S.computeTimer!==null)return;S.computeStartedAt=performance.now();$("simulation-elapsed").hidden=false;updateElapsedTimer();S.computeTimer=setInterval(updateElapsedTimer,250)}
@@ -15,12 +17,8 @@ function stopElapsedTimer(){const elapsed=S.computeStartedAt===null?0:performanc
 function markFormEdited(){if(!S.isPreparing&&!S.workerRunner.active)return;S.formEditedWhileRunning=true;$("simulation-edit-note").hidden=false}
 function syncStrategySettings(strategy=$("strategy-choice").value){
  const greedy=strategy==="greedy";
- const gss=strategy==="gss";
  const gaml=strategy==="gaml";
- $("greedy-settings").hidden=!greedy;
- $("gss-settings").hidden=!gss;
- $("gaml-settings").hidden=!gaml;
- $("gaml-settings-heading").hidden=!gaml;
+ setStrategySettingsPanel(gaml?"gaml-settings-panel":greedy?"greedy-settings":"gss-settings");
  $("strategy-description").textContent=gaml
   ?"Absolute R+ explores multiple promising future booking paths using bounded search. Search limits trade exploration against runtime; pruning or a decision cap can prevent a global-optimality proof."
   :greedy
@@ -63,12 +61,63 @@ async function init(){setCatalogueReady(false);setCatalogStatus("Loading bank ca
  }catch(e){setCatalogueReady(false);setCatalogStatus("Catalogue unavailable","error");err("The bank catalogue could not be loaded. Check your connection and reload the page. "+(e.message||String(e)))}}
 function bankOptions(selected){return Object.entries(S.banks).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([k,b])=>{let ok=S.index[k]?.research_status!=="no_public_rate_verified";return '<option value="'+esc(k)+'" '+(k===selected?"selected":"")+' '+(!ok?"disabled":"")+'>'+esc(b.name)+(ok?"":" — no rate data")+'</option>'}).join("")}
 function accountOptions(selected){return S.accounts.map(a=>'<option value="'+esc(a.id)+'" '+(a.id===selected?"selected":"")+'>'+esc(a.label||a.id)+'</option>').join("")}
-function animateRemoval(button,card,onComplete){button.disabled=true;button.setAttribute("aria-disabled","true");card.classList.add("is-removing");card.setAttribute("aria-busy","true");let finished=false;const finish=()=>{if(finished)return;finished=true;onComplete()};card.addEventListener("animationend",event=>{if(event.target===card&&event.animationName==="entry-remove")finish()});setTimeout(finish,420)}
-function renderAccounts(){ $("accounts-list").innerHTML=S.accounts.map((a,i)=>'<article class="account" data-id="'+a.id+'"><div class="item-head"><b>Account '+(i+1)+'</b><label class="primary-radio"><input type="radio" name="primary" value="'+a.id+'" '+(a.primary?"checked":"")+'> Final valuation</label><button class="remove-icon" data-remove-account="'+a.id+'" type="button" aria-label="Remove account" title="Remove account"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="account-fields"><label>Bank<select data-bank>'+bankOptions(a.bank_id)+'</select></label><label>Account label<input data-label value="'+esc(a.label)+'" placeholder="Main savings"></label><label>Starting balance (LKR)<input data-balance type="number" min="0" step=".01" value="'+a.balance+'"></label><label class="efd"><input data-efd type="checkbox" '+(a.efd?"checked":"")+'> eFD eligible</label></div></article>').join("");
+function animateRemoval(button,card,onComplete){
+ button.disabled=true;button.setAttribute("aria-disabled","true");card.classList.add("is-removing");card.setAttribute("aria-busy","true");
+ let finished=false;const finish=()=>{if(finished)return;finished=true;onComplete()};
+ card.addEventListener("animationend",event=>{if(event.target===card&&event.animationName==="entry-remove")finish()});
+ setTimeout(finish,MOTION_EXIT_MS+70);
+}
+function animateNewRows(container,selector,existingIds){
+ if(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches)return;
+ let staggerIndex=0;
+ container.querySelectorAll(selector).forEach(card=>{
+  if(existingIds.has(card.dataset.id))return;
+  card.style.setProperty("--motion-delay",(staggerIndex++*MOTION_STAGGER_MS)+"ms");
+  card.classList.add("is-entering");
+  card.addEventListener("animationend",event=>{
+   if(event.target!==card||event.animationName!=="fd-row-enter")return;
+   card.classList.remove("is-entering");card.style.removeProperty("--motion-delay");
+  },{once:true});
+ });
+}
+function animateEntrance(element){
+ if(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches||typeof element.animate!=="function")return;
+ const animation=element.animate(
+  [{opacity:0,transform:"translateY(10px) scale(.99)",filter:"blur(2px)"},{opacity:1,transform:"translateY(0) scale(1)",filter:"blur(0)"}],
+  {duration:MOTION_ENTER_MS,easing:"cubic-bezier(.16,1,.3,1)"}
+ );
+ animation.onfinish=()=>animation.cancel();
+}
+function setStrategySettingsPanel(activeId){
+ const ids=["greedy-settings","gss-settings","gaml-settings-panel"];
+ const panels=ids.map(id=>$(id)),active=$(activeId),sequence=++strategyTransitionSequence;
+ panels.forEach(panel=>panel.getAnimations?.().forEach(animation=>animation.cancel()));
+ const reduced=window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+ if(reduced||typeof active.animate!=="function"){
+  panels.forEach(panel=>{const selected=panel===active;panel.hidden=!selected;panel.inert=!selected;if(selected)panel.removeAttribute("aria-hidden");else panel.setAttribute("aria-hidden","true")});
+  return;
+ }
+ active.hidden=false;active.inert=false;active.removeAttribute("aria-hidden");
+ panels.filter(panel=>panel!==active&&!panel.hidden).forEach(panel=>{
+  panel.inert=true;panel.setAttribute("aria-hidden","true");
+  const animation=panel.animate(
+   [{opacity:1,transform:"translateY(0) scale(1)",filter:"blur(0)"},{opacity:0,transform:"translateY(-5px) scale(.99)",filter:"blur(1px)"}],
+   {duration:MOTION_EXIT_MS,easing:"ease-in",fill:"both"}
+  );
+  animation.onfinish=()=>{if(sequence===strategyTransitionSequence&&panel!==$(activeId)){panel.hidden=true;animation.cancel()}};
+ });
+ panels.filter(panel=>panel!==active&&panel.hidden).forEach(panel=>{panel.inert=true;panel.setAttribute("aria-hidden","true")});
+ const entering=active.animate(
+  [{opacity:0,transform:"translateY(7px) scale(.985)",filter:"blur(1.5px)"},{opacity:1,transform:"translateY(0) scale(1)",filter:"blur(0)"}],
+  {duration:MOTION_ENTER_MS,easing:"cubic-bezier(.16,1,.3,1)"}
+ );
+ entering.onfinish=()=>entering.cancel();
+}
+function renderAccounts(){const existingIds=new Set([...$("accounts-list").querySelectorAll(".account")].map(card=>card.dataset.id)); $("accounts-list").innerHTML=S.accounts.map((a,i)=>'<article class="account" data-id="'+a.id+'"><div class="item-head"><b>Account '+(i+1)+'</b><label class="primary-radio"><input type="radio" name="primary" value="'+a.id+'" '+(a.primary?"checked":"")+'> Final valuation</label><button class="remove-icon" data-remove-account="'+a.id+'" type="button" aria-label="Remove account" title="Remove account"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="account-fields"><label>Bank<select data-bank>'+bankOptions(a.bank_id)+'</select></label><label>Account label<input data-label value="'+esc(a.label)+'" placeholder="Main savings"></label><label>Starting balance (LKR)<input data-balance type="number" min="0" step=".01" value="'+a.balance+'"></label><label class="efd"><input data-efd type="checkbox" '+(a.efd?"checked":"")+'> eFD eligible</label></div></article>').join("");animateNewRows($("accounts-list"),".account",existingIds);
  $("consolidation-account").innerHTML=S.accounts.map(a=>'<option value="'+a.id+'" '+(a.primary?"selected":"")+'>'+esc(a.label)+' · '+esc(S.banks[a.bank_id]?.name||a.bank_id)+'</option>').join("")}
 function syncAccounts(){document.querySelectorAll(".account").forEach(c=>{let a=S.accounts.find(x=>x.id===c.dataset.id);if(a){a.bank_id=c.querySelector("[data-bank]").value;a.label=c.querySelector("[data-label]").value.trim();a.balance=c.querySelector("[data-balance]").value;a.efd=c.querySelector("[data-efd]").checked}})}
 function addAccount(bank=Object.keys(S.banks).find(k=>S.index[k]?.research_status!=="no_public_rate_verified")){if(!bank)return;S.accounts.push({id:"account_"+id(),bank_id:bank,label:S.banks[bank].name+" account",balance:0,efd:false,primary:!S.accounts.length});renderAccounts();renderSchedules()}
-function renderOne(kind){let list=S[kind+"s"];$(kind+"s-list").innerHTML=list.map((x,i)=>'<article class="schedule" data-kind="'+kind+'" data-id="'+x.id+'"><div class="item-head"><b>'+(kind==="inflow"?"Inflow ":"Outflow ")+(i+1)+'</b><button class="remove-icon" data-remove="'+x.id+'" type="button" aria-label="Remove '+(kind==="inflow"?"inflow":"outflow")+'" title="Remove '+(kind==="inflow"?"inflow":"outflow")+'" ><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="schedule-fields"><label>Name<input data-name value="'+esc(x.name)+'"></label><label>Amount (LKR)<input data-amount type="number" min=".01" step=".01" value="'+esc(x.amount)+'"></label><label>Account<select data-account>'+accountOptions(x.account_id)+'</select></label><label>Schedule<select data-type><option value="recurring" '+(x.type==="recurring"?"selected":"")+'>Recurring</option><option value="scheduled" '+(x.type==="scheduled"?"selected":"")+'>Specific dates</option></select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Interval</span><select data-interval>'+["1m","2m","3m","6m","1y"].map((v,j)=>'<option value="'+v+'" '+(x.interval===v?"selected":"")+'>'+["Monthly","Every 2 months","Quarterly","Every 6 months","Yearly"][j]+'</option>').join("")+'</select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>First date</span><input data-start type="date" value="'+esc(x.start_date)+'"></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Last date</span><input data-end type="date" value="'+esc(x.end_date)+'"></label><label class="wide" data-scheduled '+(x.type!=="scheduled"?"hidden":"")+'><span>Specific dates</span><input data-dates value="'+esc(x.dates||"")+'" placeholder="2027-01-15, 2027-06-15" spellcheck="false" autocomplete="off"><small>Use YYYY-MM-DD, separated by commas. Every date must fall within the investment window.</small></label>'+(kind==="outflow"?'<label><span class="field-label">Payment policy<span class="help-tip" tabindex="0" role="img" aria-label="Outflow payment policy help" data-tooltip="Strict: fail if the account cannot pay the full amount. Defer: carry the full unpaid amount forward. Best effort: pay what is available and carry any remainder forward.">?</span></span><select data-policy>'+["strict","defer","best_effort"].map(v=>'<option value="'+v+'" '+(x.policy===v?"selected":"")+'>'+({strict:"Strict",defer:"Defer",best_effort:"Best effort"}[v])+'</option>').join("")+'</select></label>':"")+'</div></article>').join("")}
+function renderOne(kind){const container=$(kind+"s-list"),existingIds=new Set([...container.querySelectorAll(".schedule")].map(card=>card.dataset.id));let list=S[kind+"s"];container.innerHTML=list.map((x,i)=>'<article class="schedule" data-kind="'+kind+'" data-id="'+x.id+'"><div class="item-head"><b>'+(kind==="inflow"?"Inflow ":"Outflow ")+(i+1)+'</b><button class="remove-icon" data-remove="'+x.id+'" type="button" aria-label="Remove '+(kind==="inflow"?"inflow":"outflow")+'" title="Remove '+(kind==="inflow"?"inflow":"outflow")+'" ><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="schedule-fields"><label>Name<input data-name value="'+esc(x.name)+'"></label><label>Amount (LKR)<input data-amount type="number" min=".01" step=".01" value="'+esc(x.amount)+'"></label><label>Account<select data-account>'+accountOptions(x.account_id)+'</select></label><label>Schedule<select data-type><option value="recurring" '+(x.type==="recurring"?"selected":"")+'>Recurring</option><option value="scheduled" '+(x.type==="scheduled"?"selected":"")+'>Specific dates</option></select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Interval</span><select data-interval>'+["1m","2m","3m","6m","1y"].map((v,j)=>'<option value="'+v+'" '+(x.interval===v?"selected":"")+'>'+["Monthly","Every 2 months","Quarterly","Every 6 months","Yearly"][j]+'</option>').join("")+'</select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>First date</span><input data-start type="date" value="'+esc(x.start_date)+'"></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Last date</span><input data-end type="date" value="'+esc(x.end_date)+'"></label><label class="wide" data-scheduled '+(x.type!=="scheduled"?"hidden":"")+'><span>Specific dates</span><input data-dates value="'+esc(x.dates||"")+'" placeholder="2027-01-15, 2027-06-15" spellcheck="false" autocomplete="off"><small>Use YYYY-MM-DD, separated by commas. Every date must fall within the investment window.</small></label>'+(kind==="outflow"?'<label><span class="field-label">Payment policy<span class="help-tip" tabindex="0" role="img" aria-label="Outflow payment policy help" data-tooltip="Strict: fail if the account cannot pay the full amount. Defer: carry the full unpaid amount forward. Best effort: pay what is available and carry any remainder forward.">?</span></span><select data-policy>'+["strict","defer","best_effort"].map(v=>'<option value="'+v+'" '+(x.policy===v?"selected":"")+'>'+({strict:"Strict",defer:"Defer",best_effort:"Best effort"}[v])+'</option>').join("")+'</select></label>':"")+'</div></article>').join("");animateNewRows(container,".schedule",existingIds)}
 function renderSchedules(){renderOne("inflow");renderOne("outflow")}
 function syncSchedules(){for(let kind of ["inflow","outflow"])document.querySelectorAll('.schedule[data-kind="'+kind+'"]').forEach(c=>{let x=S[kind+"s"].find(v=>v.id===c.dataset.id);if(!x)return;let v=s=>c.querySelector(s)?.value;Object.assign(x,{name:v("[data-name]"),amount:v("[data-amount]"),account_id:v("[data-account]"),type:v("[data-type]"),interval:v("[data-interval]"),start_date:v("[data-start]"),end_date:v("[data-end]"),dates:v("[data-dates]"),policy:v("[data-policy]")||"strict"})})}
 function addPlan(kind){if(!S.accounts.length){err("Add a bank account before creating cash-flow plans.");return}S[kind+"s"].push({id:id(),name:"",amount:"",account_id:S.accounts[0].id,type:"recurring",interval:"1m",start_date:$("start-date").value,end_date:effectiveEndDate(),dates:"",policy:"strict"});renderSchedules()}
@@ -123,7 +172,7 @@ function results(r,c,html){
  $("download-report").onclick=()=>download(new Blob([html],{type:"text/html"}),"fd-cal-report.html");
  $("open-report").onclick=()=>window.open(S.url,"_blank","noopener");
  $("download-result-config").onclick=exportRaw;
- $("results").hidden=false;
+ $("results").hidden=false;animateEntrance($("results"));
  $("results").scrollIntoView({behavior:"smooth"});
 }
 function wire(){
@@ -139,7 +188,7 @@ function wire(){
   const status=$("simulation-status"),button=$("run"),submissionId=++S.submissionSequence;
   let requestId=null,computeStarted=false,elapsedMs=0;
   S.isPreparing=true;
-  status.classList.remove("is-complete");status.hidden=false;
+  status.classList.remove("is-complete","is-success");status.hidden=false;
   try{
     const x=raw();
     if(!x.investment.start_date||(x.simulation.mode==="scoped"&&!x.investment.end_date))throw Error("Complete the dates required by the selected simulation mode.");
@@ -189,7 +238,7 @@ function wire(){
     status.textContent=run.reused
       ?"Completed result reused; no new computation was required."
       :"Simulation complete in "+elapsedLabel(elapsedMs)+".";
-    status.classList.add("is-complete");
+    status.classList.add("is-complete","is-success");
     $("simulation-edit-note").hidden=!S.formEditedWhileRunning;
   }catch(ex){
     if(ex?.name==="AbortError")return;
