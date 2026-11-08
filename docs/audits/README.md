@@ -3,13 +3,14 @@
 **Audit date:** 8 November 2026  
 **Audited source:** `dev` at `a455462a959f37db757970d0a3078a4d9a3ef028`  
 **Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS)  
-**Status:** Static engineering review; findings are recommendations for triage, not changes already applied.
+**Status:** Static engineering review with owner feedback incorporated. The implementation plan is documentation only; no application changes have been applied.
 
 ## Reports
 
 | Report | Coverage |
 |---|---|
-| [Executive summary](EXECUTIVE-SUMMARY.md) | Priority-ranked findings and recommended remediation order |
+| [Executive summary](EXECUTIVE-SUMMARY.md) | Priority-ranked findings, owner dispositions and remediation order |
+| [Implementation plan](IMPLEMENTATION-PLAN.md) | Detailed analysis, implementation phases, acceptance criteria and non-regression guardrails |
 | [Engine and financial core](ENGINE-CORE.md) | Dates, interest, FD cash flows, simulation lifecycle, balances and results |
 | [Strategies and search](STRATEGIES-AND-SEARCH.md) | Greedy, GSS, Absolute R, Absolute R+, search budgets, parity and architecture |
 | [Web UI, UX and accessibility](WEB-UI-UX-ACCESSIBILITY.md) | Form flows, responsive layout, motion, keyboard and screen-reader semantics |
@@ -31,20 +32,17 @@ This is a risk-based, subsystem-level source audit of the active JavaScript engi
 ## Severity
 
 - **P1 — High:** credible security exposure or materially misleading financial output. Address before broad use.
-- **P2 — Medium:** correctness, eligibility, runtime, data-trust or deployment risk with meaningful user impact.
+- **P2 — Medium:** correctness, runtime, data-trust or deployment risk with meaningful user impact.
 - **P3 — Low:** accessibility, maintainability, observability or test-quality improvement; schedule after higher-risk work.
 
 Each finding includes evidence, impact, and a concrete recommendation. A finding marked *assumption to confirm* should be resolved against bank/product terms before changing the model.
 
 ## Verification boundary
 
-The Node.js test workflow passed on the audited dev revision `a455462a959f37db757970d0a3078a4d9a3ef028` (run [42509949387](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42509949387)). The dev-preview build/deployment is still running and is not yet considered verified. No manual browser or screen-reader session was performed as part of this source review.
+The Node.js test workflow passed on the audited dev revision `a455462a959f37db757970d0a3078a4d9a3ef028` (run [42509949387](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42509949387)). The audit did not include a manual browser or screen-reader session. Deployment status is tracked separately from source-level findings.
 
-## Recommended workflow
+## Planning status
 
-1. Resolve P1 security and financial-output findings.
-2. Resolve P2 financial model and catalogue-trust questions with regression fixtures.
-3. Add runtime limits/cancellation and improve eligibility disclosure.
-4. Complete browser, keyboard, reduced-motion and standalone-report QA.
-5. Split large modules only after behaviour is protected by tests.
-6. Keep this audit branch as a report-only review until findings are triaged into scoped implementation branches or commits.
+Owner feedback has been recorded in the [implementation plan](IMPLEMENTATION-PLAN.md). SEC-01 and FIN-01 are accepted P1 work; SEARCH-01, DATA-01 and DEPLOY-01 are accepted workstreams. ENG-01 requires product-term clarification before changing payout dates; ENG-02 retains the current elapsed-day convention pending source verification. DATA-02 is an intentional scope boundary. DATA-03 and QA-01 are deferred for owner decisions.
+
+The audit branch remains report/plan-only. Implementation should proceed in focused branches from `dev`, with the plan's regression and non-regression gates.
