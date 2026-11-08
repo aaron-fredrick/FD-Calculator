@@ -111,6 +111,7 @@ export default defineConfig({
         collapsed: true,
         items: [
           { text: 'FD option management', link: '/reference/CODEBASE#fd-option-manager' },
+          { text: 'Age-based FD eligibility', link: '/reference/fd-eligibility' },
           { text: 'Shared modules', link: '/reference/CODEBASE#shared-modules' },
         ],
       },
