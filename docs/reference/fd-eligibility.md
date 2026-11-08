@@ -1,3 +1,8 @@
+---
+title: Age-based FD eligibility
+description: Bank-specific senior and minor fixed-deposit age rules, verified product rates, catalogue fields and current coverage limits.
+---
+
 # Age-based FD eligibility
 
 Some Sri Lankan banks publish separate fixed-deposit products or rates for senior customers and minors. These are **product eligibility rules**, not universal age rules: each bank defines its own cutoff, boundary wording, minimum deposit, permitted tenure and account-opening requirements.
