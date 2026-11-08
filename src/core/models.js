@@ -40,7 +40,7 @@ export class TransferFeeConfig {
 }
 
 export class FDOption {
-  constructor({ label, period_str, annual_rate, min_amount = 25000, payout_type = CUMULATIVE, payout_period_str = "", bank_key = "", is_efd = false, bank_id = "", customer_segment = "general", min_age = null, max_age = null, min_age_inclusive = true, max_age_inclusive = true, guardian_required = false }) {
+  constructor({ label, period_str, annual_rate, min_amount = 25000, payout_type = CUMULATIVE, payout_period_str = "", bank_key = "", is_efd = false, bank_id = "", customer_segment = "general", min_age = null, max_age = null, min_age_inclusive = true, max_age_inclusive = true, guardian_required = null }) {
     this.label = label;
     this.period_str = period_str;
     this.annual_rate = annual_rate;
@@ -61,7 +61,7 @@ export class FDOption {
     if (this.min_age !== null && this.max_age !== null && this.min_age > this.max_age) throw new RangeError("min_age cannot exceed max_age.");
     this.min_age_inclusive = Boolean(min_age_inclusive);
     this.max_age_inclusive = Boolean(max_age_inclusive);
-    this.guardian_required = Boolean(guardian_required);
+    this.guardian_required = guardian_required === "" || guardian_required === undefined || guardian_required === null ? null : Boolean(guardian_required);
     this.days = parsePeriodDays(period_str);
     this.payout_period_days = payout_period_str ? parsePeriodDays(payout_period_str) : this.days;
   }
