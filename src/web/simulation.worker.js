@@ -8,7 +8,7 @@ const TRUSTED_MESSAGE_ORIGINS = new Set([
 
 self.addEventListener("message", event => {
   const origin = event.origin;
-  if (origin && !TRUSTED_MESSAGE_ORIGINS.has(origin)) return;
+  if (!origin || !TRUSTED_MESSAGE_ORIGINS.has(origin)) return;
 
   const message = event.data;
   if (!message || message.type !== "simulate") return;
