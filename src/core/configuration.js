@@ -137,8 +137,14 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
   const consolidationAccountId = String(raw.consolidation_account_id ?? accounts[0].id).trim();
   if (!accountIds.has(consolidationAccountId)) throw new RangeError("consolidation_account_id must reference a configured account.");
   if (!Array.isArray(options) || options.length === 0) throw new TypeError("At least one FD option must be loaded.");
+  const fdEligibility = raw.fd_eligibility ?? {};
+  const eligibleOptions = options.filter(option => {
+    const segment = option.customer_segment ?? "general";
+    return segment === "general" || (segment === "senior" && fdEligibility.include_senior === true) || (segment === "minor" && fdEligibility.include_minor === true);
+  });
+  if (!eligibleOptions.length) throw new RangeError("No FD products match the selected age-based product filters. Enable senior citizen or minor FDs, or select general products.");
   for (const account of accounts) {
-    const eligible = options.some(option => (!option.bank_identity || option.bank_identity === account.bank_identity) && account.canUseOption(option));
+    const eligible = eligibleOptions.some(option => (!option.bank_identity || option.bank_identity === account.bank_identity) && account.canUseOption(option));
     if (!eligible) throw new RangeError(`Account ${account.id} has no compatible FD products.`);
   }
 
@@ -199,7 +205,7 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     small_period_days: positiveInteger(gssRaw.small_period_days, "gss_settings.small_period_days", 30)
   };
   return {
-    start, end, simulation: { mode: simulationMode, goal }, accounts, accountIds, bankIds, options, consolidation_account_id: consolidationAccountId,
+    start, end, simulation: { mode: simulationMode, goal }, accounts, accountIds, bankIds, options: eligibleOptions, fd_eligibility: { include_senior: fdEligibility.include_senior === true, include_minor: fdEligibility.include_minor === true }, consolidation_account_id: consolidationAccountId,
     inflow_schedule: inflows.schedule, inflow_summaries: inflows.summaries,
     outflow_schedule: outflows.schedule, outflow_summaries: outflows.summaries,
     fee_config: feeConfig, strategy, gaml_settings: gamlSettings, greedy_settings: greedySettings, gss_settings: gssSettings, compound,
