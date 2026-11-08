@@ -44,3 +44,11 @@ test("HTML output encoding protects imported account IDs without changing their 
   assert.match(app, /value=\"'\+esc\(a\.id\)\+'/);
   assert.match(app, /data-remove-account=\"'\+esc\(a\.id\)\+'/);
 });
+
+test("selected bank cards disclose catalogue source status and review date", () => {
+  assert.match(app, /function bankDisclosure\(bankId\)/);
+  assert.match(app, /dataset_reviewed_at\|\|"Review date not recorded"/);
+  assert.match(app, /data-bank-source/);
+  assert.match(app, /c\.bank_dataset_registry=S\.index/);
+  assert.match(page, /Secondary sources and missing review dates may be stale/);
+});
