@@ -5,6 +5,7 @@ This directory is the canonical source for shared visual identity tokens used by
 ## Source of truth
 
 - `tokens.css` — canonical colors, semantic roles, font stacks, and shared design primitives.
+- `report-tokens.js` — generated copy of the canonical `:root` block embedded into standalone HTML reports. Do not edit it by hand; regenerate with `npm run build:report-tokens` and verify with `npm run check:report-tokens`.
 - `src/web/styles.css` — web-app component/layout styling. It should consume brand tokens rather than redefine brand values.
 - `docs/.vitepress/theme/custom.css` — VitePress theme mapping. It imports the same token file and maps VitePress variables to FD Cal tokens.
 
@@ -46,4 +47,4 @@ Do not introduce a second palette or independently select brand typography in ei
 2. Component-specific shades may remain local only when they are genuinely structural details; shared surface, text, border, and status colors belong here.
 3. Preserve the dark appearance across the app and documentation.
 4. Maintain accessible contrast and visible keyboard focus states.
-5. When changing a token, check both `/web/` and `/docs/` at desktop and mobile widths.
+5. When changing a token, regenerate the report token module, then check `/web/`, `/docs/` and a newly generated standalone report at desktop and mobile widths. The report embeds the token block; it never fetches `tokens.css` when opened.
