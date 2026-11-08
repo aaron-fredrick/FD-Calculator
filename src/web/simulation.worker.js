@@ -1,19 +1,15 @@
 import { runSimulationTask } from "./simulation-task.js";
+import { isSimulationRequest } from "./simulation-worker-protocol.js";
 
 const LOG = "[FD Cal][worker]";
 
 self.addEventListener("message", event => {
-  if (event.origin !== self.location.origin) {
-    console.warn(LOG, "Rejected message from unexpected origin", {
-      receivedOrigin: event.origin,
-      workerOrigin: self.location.origin
-    });
-    return;
-  }
-
   const message = event.data;
-  if (!message || message.type !== "simulate") {
-    console.warn(LOG, "Ignored unsupported message", { type: message?.type });
+  if (!isSimulationRequest(message)) {
+    console.warn(LOG, "Ignored invalid simulation request", {
+      type: message?.type,
+      id: message?.id
+    });
     return;
   }
 
@@ -26,8 +22,6 @@ self.addEventListener("message", event => {
     accountCount: payload?.accounts?.length,
     optionCount: payload?.options?.length,
     inflowCount: payload?.inflow_schedule?.length,
-    workerOrigin: self.location.origin,
-    messageOrigin: event.origin
   });
 
   // Acknowledge receipt before entering the synchronous simulation engine.
