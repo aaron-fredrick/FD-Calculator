@@ -36,7 +36,7 @@ jobs:
       - uses: actions/configure-pages@v6
       - name: Find the last successfully deployed source revision
         id: live
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const deployments = await github.paginate(github.rest.repos.listDeployments, {
@@ -262,7 +262,7 @@ jobs:
           fi
       - name: Remove superseded Pages deployment records
         continue-on-error: true
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const deployments = await github.paginate(github.rest.repos.listDeployments, {
