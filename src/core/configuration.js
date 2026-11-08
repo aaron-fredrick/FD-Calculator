@@ -190,10 +190,17 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     if (!Number.isInteger(number) || number < 1) throw new RangeError(field + " must be a positive integer" + (allowNull ? " or null." : "."));
     return number;
   };
+  const nonNegativeInteger = (value, field, fallback) => {
+    if (value === undefined) return fallback;
+    const number = Number(value);
+    if (!Number.isInteger(number) || number < 0) throw new RangeError(field + " must be a non-negative integer.");
+    return number;
+  };
   const gamlSettings = {
     beam_width: positiveInteger(gamlRaw.beam_width, "gaml_settings.beam_width", 256),
     max_local_branches: positiveInteger(gamlRaw.max_local_branches, "gaml_settings.max_local_branches", 128, true),
-    max_decisions: positiveInteger(gamlRaw.max_decisions ?? gamlRaw.state_cap, "gaml_settings.max_decisions", null, true)
+    max_decisions: positiveInteger(gamlRaw.max_decisions ?? gamlRaw.state_cap, "gaml_settings.max_decisions", null, true),
+    time_limit_ms: nonNegativeInteger(gamlRaw.time_limit_ms, "gaml_settings.time_limit_ms", 0)
   };
   const greedyRaw = raw.greedy_settings ?? raw.greedy ?? raw.strategy_settings?.greedy ?? {};
   const greedySettings = {
