@@ -34,11 +34,11 @@ Rates retain their source effective dates and minimum-deposit values in the CSV 
 
 ## Identified products not yet added as simulated rate rows
 
-- **People's Bank Minor FD:** the bank says the product is for children up to 18 years, can be opened by a parent or guardian, and pays 0.5 percentage points above normal FD rates. The product page does not clearly publish a separate minimum deposit or complete product-specific rate/tenure table. We are not copying the adult minimum or deriving simulated rates until the minor product's terms are confirmed.
-- **RDB Senior Citizen FD:** the official schedule states over 60 and publishes one-year maturity and monthly rates, but does not state a senior-product minimum. The general FD minimum is not borrowed; the senior option remains in the research ledger only.
-- **Nations Trust Bank — Nations Prabuddha Senior Citizen FD:** the official key facts document confirms an over-60 product with 12–60 month tenures and monthly or maturity payout. Current senior-specific rates are not yet confirmed.
-- **Sampath Bank — Sanhinda senior special FD:** the official declaration confirms resident Sri Lankan citizens over 60 and a scheme-wide LKR 1.5 million deposit cap across banks. Current product rates and full terms are not yet confirmed.
-- **HDFC Vishrama Udana** and **SMIB Senior Citizen FD:** official product pages state an over-60 eligibility rule. Their senior product rates are not added here until a current, matching rate schedule is verified.
+- **[People's Bank Minor FD](https://www.peoplesbank.lk/term-deposite/):** the bank says the product is for children up to 18 years, can be opened by a parent or guardian, and pays 0.5 percentage points above normal FD rates. The product page does not clearly publish a separate minimum deposit or complete product-specific rate/tenure table. We are not copying the adult minimum or deriving simulated rates until the minor product's terms are confirmed.
+- **[RDB Senior Citizen FD](https://www.rdb.lk/interest-rates/):** the official schedule states over 60 and publishes one-year maturity and monthly rates, but does not state a senior-product minimum. The general FD minimum is not borrowed; the senior option remains in the research ledger only.
+- **[Nations Trust Bank — Nations Prabuddha Senior Citizen FD](https://www.nationstrust.com/images/pdf/key-facts-doc/kfd-senior-citizen-savings-en.pdf):** the official key facts document confirms an over-60 product with 12–60 month tenures and monthly or maturity payout. Current senior-specific rates are not yet confirmed.
+- **[Sampath Bank — Sanhinda senior special FD](https://www.sampath.lk/api/uploads/senior_citizen_opening_special_fd_accounts_d3405c3b1a_a20fdec085.pdf):** the official declaration confirms resident Sri Lankan citizens over 60 and a scheme-wide LKR 1.5 million deposit cap across banks. Current product rates and full terms are not yet confirmed.
+- **[HDFC Vishrama Udana](https://www.hdfc.lk/fd-%26-investments/vishrama-udana-fixed-deposit)** and **[SMIB Senior Citizen FD](https://www.smib.lk/en/investments/senior-citizen-fixed-deposits):** official product pages state an over-60 eligibility rule. Their senior product rates are not added here until a current, matching rate schedule is verified.
 
 ## Research ledger
 
