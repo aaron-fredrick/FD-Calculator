@@ -40,7 +40,7 @@ export class TransferFeeConfig {
 }
 
 export class FDOption {
-  constructor({ label, period_str, annual_rate, min_amount = 25000, payout_type = CUMULATIVE, payout_period_str = "", bank_key = "", is_efd = false, bank_id = "" }) {
+  constructor({ label, period_str, annual_rate, min_amount = 25000, payout_type = CUMULATIVE, payout_period_str = "", bank_key = "", is_efd = false, bank_id = "", customer_segment = "general", min_age = null, max_age = null, min_age_inclusive = true, max_age_inclusive = true, guardian_required = false }) {
     this.label = label;
     this.period_str = period_str;
     this.annual_rate = annual_rate;
@@ -53,6 +53,15 @@ export class FDOption {
     this.bank_key = bank_key;
     this.bank_id = bank_id;
     this.is_efd = Boolean(is_efd);
+    this.customer_segment = String(customer_segment || "general").trim().toLowerCase();
+    if (!["general", "senior", "minor"].includes(this.customer_segment)) throw new RangeError(`Invalid FD customer segment: ${customer_segment}`);
+    this.min_age = min_age === "" || min_age === undefined ? null : min_age === null ? null : Number(min_age);
+    this.max_age = max_age === "" || max_age === undefined ? null : max_age === null ? null : Number(max_age);
+    for (const [field, value] of [["min_age", this.min_age], ["max_age", this.max_age]]) if (value !== null && (!Number.isInteger(value) || value < 0 || value > 130)) throw new RangeError(`${field} must be an integer from 0 to 130 or null.`);
+    if (this.min_age !== null && this.max_age !== null && this.min_age > this.max_age) throw new RangeError("min_age cannot exceed max_age.");
+    this.min_age_inclusive = Boolean(min_age_inclusive);
+    this.max_age_inclusive = Boolean(max_age_inclusive);
+    this.guardian_required = Boolean(guardian_required);
     this.days = parsePeriodDays(period_str);
     this.payout_period_days = payout_period_str ? parsePeriodDays(payout_period_str) : this.days;
   }
