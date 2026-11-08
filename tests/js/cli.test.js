@@ -42,7 +42,7 @@ test("bank data loader preserves verified age-segment product boundaries",async(
  assert.equal(ntb.length,18);assert.ok(ntb.every(option=>option.min_amount===50000));
  assert.equal(rdb.length,28);
  assert.equal(rdb.find(option=>option.label.includes("100d")).min_amount,500000);
- assert.equal(rdb.find(option=>option.label.includes("standard 1m")).min_amount,5000);
+ assert.equal(rdb.find(option=>option.label.includes("standard 1m")).min_amount,10000);
  const sdbSenior=sdb.filter(option=>option.customer_segment==="senior");
  assert.equal(sdbSenior.length,17);
  assert.ok(sdbSenior.every(option=>option.min_age===55&&option.min_age_inclusive===false&&option.min_amount===10000));
