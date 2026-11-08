@@ -7,6 +7,7 @@ import { SearchStrategyBase } from "./search-strategy-base.js";
  * - beam_width: retained frontier states per layer (default 256)
  * - max_local_branches: top partial local-booking combinations (default 128; null = exhaustive)
  * - max_decisions: optional hard expanded-state budget (default unlimited)
+ * - time_limit_ms: cooperative search deadline in milliseconds (0 = unlimited)
  */
 export class AbsolutePlusStrategy extends SearchStrategyBase {
   constructor(settings = {}) {
