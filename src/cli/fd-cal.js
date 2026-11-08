@@ -53,6 +53,7 @@ async function main() {
     options: loaded.options, today: todayLocal()
   });
   config.bank_registry = loaded.bankRegistry;
+  config.bank_dataset_registry = loaded.bankDatasetRegistry;
   config.options_path = loaded.optionsPath;
   config.source_path = loaded.resolvedConfig;
 
