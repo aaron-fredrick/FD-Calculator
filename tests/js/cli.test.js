@@ -19,6 +19,18 @@ test("root data catalogues load canonical banks and bank-specific FD products",a
  assert.ok(options.length>0);
  assert.ok(options.every(option=>option.bank_id==="LK_COMMERCIAL_BANK_OF_CEYLON"));
 });
+test("bank data loader preserves verified age-segment product boundaries",async()=>{
+ const index=join(root,"data/fd_options/fd_options.csv");
+ const peoples=await loadFDOptions(index,["LK_PEOPLES_BANK"]);
+ const sey=await loadFDOptions(index,["LK_SEYLAN_BANK"]);
+ const parinatha=peoples.filter(option=>option.customer_segment==="senior");
+ assert.equal(parinatha.length,12);
+ assert.ok(parinatha.every(option=>option.min_age===55&&option.min_age_inclusive===false&&option.max_age_inclusive===true));
+ const seylanSenior=sey.filter(option=>option.customer_segment==="senior");
+ assert.equal(seylanSenior.length,3);
+ assert.ok(seylanSenior.every(option=>option.min_age===60&&option.min_age_inclusive===false&&option.min_amount===100000));
+});
+
 test("Greedy CLI executes from JSON config and writes a standalone report",async()=>{
  const dir=await mkdtemp(join(tmpdir(),"fdcal-cli-")),configPath=join(dir,"scenario.json"),reportPath=join(dir,"report.html");
  const config={strategy:"greedy",options_file:join(root,"data/fd_options/fd_options.csv"),investment:{start_date:"2026-01-01",end_date:"2026-04-01"},accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",label:"CLI Test Account",balance:30000,supports_efd:true}},consolidation_account_id:"main",inflows:[],outflows:[],transfer_fees:{default_inter_bank_fee:30,same_bank_fee:0},compound:false,ait_enabled:true,actual_leap_year:true,report_output_file:reportPath,show_timeline:true,show_ledger:true};
