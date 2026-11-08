@@ -34,12 +34,14 @@ test("bank data loader preserves verified age-segment product boundaries",async(
  const sey=await loadFDOptions(index,["LK_SEYLAN_BANK"]);
  const sdb=await loadFDOptions(index,["LK_SANASA_DEVELOPMENT_BANK"]);
  const rdb=await loadFDOptions(index,["LK_PRADESHIYA_SANWARDHANA_BANK"]);
+ const ntb=await loadFDOptions(index,["LK_NATIONS_TRUST_BANK"]);
  const parinatha=peoples.filter(option=>option.customer_segment==="senior");
  assert.equal(parinatha.length,12);
  const parinatha55=parinatha.filter(option=>option.label.includes("55-60"));
  const parinatha60=parinatha.filter(option=>option.label.includes("over-60"));
  assert.equal(parinatha55.length,6);assert.ok(parinatha55.every(option=>option.min_age===55&&option.min_age_inclusive===false&&option.max_age===60&&option.max_age_inclusive===true));
  assert.equal(parinatha60.length,6);assert.ok(parinatha60.every(option=>option.min_age===60&&option.min_age_inclusive===false&&option.max_age===null));
+ assert.equal(ntb.length,18);assert.ok(ntb.every(option=>option.min_amount===50000));
  assert.equal(rdb.length,28);
  assert.equal(rdb.find(option=>option.label.includes("100d")).min_amount,500000);
  assert.equal(rdb.find(option=>option.label.includes("standard 1m")).min_amount,5000);
