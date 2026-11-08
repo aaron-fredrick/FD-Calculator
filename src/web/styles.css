@@ -240,3 +240,13 @@ button:active:not(:disabled){transform:scale(.97)}
   .date-entry-row input[type="date"]{min-width:0;width:100%;flex-basis:100%}
   .date-entry-row button{width:100%}
 }
+
+/* Visual restraint: retain hierarchy and grouping without decorative repetition. */
+body{background:var(--bg)}
+.intro h1{letter-spacing:normal}
+.eyebrow,.step{letter-spacing:normal;text-transform:none;font-weight:700}
+.card{background:var(--panel);border-radius:10px;box-shadow:none}
+.account,.schedule{border-radius:8px}
+.subhead.separated{border-top:0;padding-top:8px;margin-top:18px}
+.hint{background:var(--panel2);border:0;border-left:2px solid var(--line);border-radius:4px;padding:9px 12px}
+.date-chip{border-radius:7px;background:var(--panel)}

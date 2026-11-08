@@ -602,3 +602,18 @@ Native select menus remain platform-controlled. No animation framework, external
 | Artifact handling | Keep generated HTML transient in memory for open/download; do not persist report artifacts in local storage or upload them. | Only user-initiated download creates a file; object URLs are revoked after use/replacement. |
 
 **Implementation record — 2026-11-08:** Applied the above changes on the existing UI/UX branch. Browser interaction and offline report checks remain required before sign-off.
+
+## 14. Visual restraint and hierarchy
+
+**Purpose:** Apply the design anti-pattern guidance selectively. Keep components that communicate state, support navigation or group complex financial inputs; remove decoration that does not improve comprehension.
+
+| Area | Change | Acceptance condition |
+|---|---|---|
+| Web form hierarchy | Remove repeated numbered step labels and the introductory eyebrow; keep descriptive section headings and the compact section navigation. | Users can identify each section without duplicate numbering or decorative labels. |
+| Typography | Remove unnecessary uppercase/letter-spaced eyebrow treatment and negative heading tracking. | Headings remain distinct and readable without decorative typography. |
+| Surface styling | Replace repeated page/card gradients, reduce excessive corner rounding and remove redundant sub-section divider lines. | Primary sections remain visually grouped; controls and functional states retain clear boundaries. |
+| Hints and date chips | Use quieter hint surfaces and less pill-like date chips. | Hints remain discoverable; date chips remain clearly removable and invalid dates remain conspicuous. |
+| Standalone report | Remove redundant section-number labels from navigation and content; simplify repeated gradient/card styling. | Report navigation and section headings remain understandable; financial emphasis and table grouping remain intact. |
+| Selective emphasis | Retain meaningful emphasis for the key calculation, status, errors, warnings and selected account. | No functional state is weakened or confused with decoration. |
+
+**Implementation record — 2026-11-08:** Applied to src/web/index.html, src/web/styles.css and src/reporting/template.js. Automated checks are running; visual review at desktop/mobile breakpoints and report inspection remain required. Do not remove functional chips, validation states, meaningful financial emphasis or report navigation merely to satisfy a blanket anti-pattern rule.
