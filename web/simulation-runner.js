@@ -163,12 +163,14 @@ export class SimulationWorkerRunner {
         worker.onmessage = null;
         worker.onerror = null;
         worker.onmessageerror = null;
+        if (entry.handshakeTimer !== null) clearTimeout(entry.handshakeTimer);
         try { worker.terminate(); } catch { /* termination is best-effort cleanup */ }
         if (this.active === entry) this.active = null;
         handler(value);
       }
     };
     entry.cancel = message => entry.settle(rejectRun, abortError(message));
+    entry.handshakeTimer = null;
     this.active = entry;
 
     worker.onmessage = event => {
@@ -178,8 +180,27 @@ export class SimulationWorkerRunner {
         entry.settle(rejectRun, new Error("The simulation worker returned an unexpected response."));
         return;
       }
+      if (message.type === "started") {
+        entry.startedAt = message.startedAt;
+        if (entry.handshakeTimer !== null) {
+          clearTimeout(entry.handshakeTimer);
+          entry.handshakeTimer = null;
+        }
+        console.info("[FD Cal][main] Worker acknowledged simulation start", {
+          id,
+          fingerprint,
+          workerStartedAt: message.startedAt
+        });
+        return;
+      }
       if (message.type === "result") {
         const result = message.result;
+        console.info("[FD Cal][main] Worker result received", {
+          id,
+          elapsedMs: message.elapsedMs,
+          valid: result?.valid,
+          bookingCount: result?.bookings?.length
+        });
         if (!result || result.valid !== true || !Array.isArray(result.bookings) ||
             !result.end_date || !result.timeline || typeof result.timeline !== "object" ||
             !result.accounts || typeof result.accounts !== "object") {
@@ -189,6 +210,11 @@ export class SimulationWorkerRunner {
         this.completed = { fingerprint, result };
         entry.settle(resolveRun, result);
       } else if (message.type === "error") {
+        console.error("[FD Cal][main] Worker reported simulation failure", {
+          id,
+          elapsedMs: message.elapsedMs,
+          error: message.error
+        });
         const error = new Error(message.error?.message || "The simulation worker failed.");
         error.name = message.error?.name || "Error";
         entry.settle(rejectRun, error);
@@ -199,6 +225,13 @@ export class SimulationWorkerRunner {
     worker.onerror = event => {
       event?.preventDefault?.();
       if (this.active !== entry || entry.settled) return;
+      console.error("[FD Cal][main] Worker runtime error", {
+        id,
+        message: event?.message,
+        filename: event?.filename,
+        lineno: event?.lineno,
+        colno: event?.colno
+      }, event);
       entry.settle(rejectRun, new Error(event?.message || "The simulation worker stopped unexpectedly."));
     };
     worker.onmessageerror = () => {
@@ -208,6 +241,11 @@ export class SimulationWorkerRunner {
 
     try {
       worker.postMessage({ id, type: "simulate", payload });
+      entry.handshakeTimer = setTimeout(() => {
+        if (this.active !== entry || entry.settled || entry.startedAt !== undefined) return;
+        console.error("[FD Cal][main] Worker did not acknowledge the request", { id, fingerprint });
+        entry.settle(rejectRun, new Error("The simulation worker did not acknowledge the request within 10 seconds. Check the worker console for startup or message-rejection errors."));
+      }, 10000);
     } catch (error) {
       entry.settle(rejectRun, error);
     }
