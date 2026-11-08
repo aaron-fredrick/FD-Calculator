@@ -34,11 +34,11 @@ jobs:
         env:
           FD_CAL_PREVIEW: "true"
         run: |
-          bash scripts/build-web-site.sh "$RUNNER_TEMP/dev-web-site"
-          test -s "$RUNNER_TEMP/dev-web-site/index.html"
-          test -s "$RUNNER_TEMP/dev-web-site/web/index.html"
-          grep -q 'DEV PREVIEW' "$RUNNER_TEMP/dev-web-site/web/index.html"
-          grep -q 'noindex,nofollow' "$RUNNER_TEMP/dev-web-site/web/index.html"
+          bash scripts/build-web-site.sh "$GITHUB_WORKSPACE/dev-build/web-site"
+          test -s "$GITHUB_WORKSPACE/dev-build/web-site/index.html"
+          test -s "$GITHUB_WORKSPACE/dev-build/web-site/web/index.html"
+          grep -q 'DEV PREVIEW' "$GITHUB_WORKSPACE/dev-build/web-site/web/index.html"
+          grep -q 'noindex,nofollow' "$GITHUB_WORKSPACE/dev-build/web-site/web/index.html"
       - name: Generate Scoped Range benchmark data
         run: node scripts/strategy-sensitivity.js
       - name: Generate Absolute R+ benchmark data
@@ -49,26 +49,28 @@ jobs:
         env:
           FD_CAL_PREVIEW: "true"
         run: |
-          bash scripts/build-docs-site.sh "$RUNNER_TEMP/dev-docs-site"
-          test -s "$RUNNER_TEMP/dev-docs-site/docs/index.html"
-          grep -q 'noindex,nofollow' "$RUNNER_TEMP/dev-docs-site/docs/index.html"
-          test ! -e "$RUNNER_TEMP/dev-docs-site/sitemap.xml"
+          bash scripts/build-docs-site.sh "$GITHUB_WORKSPACE/dev-build/docs-site"
+          test -s "$GITHUB_WORKSPACE/dev-build/docs-site/docs/index.html"
+          grep -q 'noindex,nofollow' "$GITHUB_WORKSPACE/dev-build/docs-site/docs/index.html"
+          test ! -e "$GITHUB_WORKSPACE/dev-build/docs-site/sitemap.xml"
       - uses: actions/upload-artifact@v6
         with:
           name: dev-web-site
-          path: ${{ runner.temp }}/dev-web-site
+          path: dev-build/web-site
           if-no-files-found: error
           retention-days: 1
       - uses: actions/upload-artifact@v6
         with:
           name: dev-docs-site
-          path: ${{ runner.temp }}/dev-docs-site
+          path: dev-build/docs-site
           if-no-files-found: error
           retention-days: 1
 
   publish:
     if: github.ref == 'refs/heads/dev' && needs.build.result == 'success'
     needs: build
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -89,9 +91,11 @@ jobs:
           name: dev-docs-site
           path: ${{ runner.temp }}/dev-docs-site
       - name: Publish a versioned preview tree on its own branch
+        id: publish
         shell: bash
         run: |
           set -euo pipefail
+          echo "published=false" >> "$GITHUB_OUTPUT"
           git fetch --no-tags origin dev
           source_sha="$(git rev-parse HEAD)"
           latest_dev_sha="$(git rev-parse origin/dev)"
@@ -118,9 +122,10 @@ jobs:
           git add -A
           git commit -m "pages: publish dev preview from ${source_sha}"
           git push origin "HEAD:refs/heads/$branch"
+          echo "published=true" >> "$GITHUB_OUTPUT"
 
   deploy:
-    if: github.ref == 'refs/heads/dev' && needs.publish.result == 'success'
+    if: github.ref == 'refs/heads/dev' && needs.publish.outputs.published == 'true'
     needs: publish
     uses: ./.github/workflows/pages.yml
     permissions:

@@ -84,3 +84,20 @@ test("component build scripts consume generated data without fingerprint publica
   assert.match(preservation, /last successful/);
   assert.doesNotMatch(preservation, /validate-scoped-benchmark-data/);
 });
+
+
+test("dev preview is path-isolated and included in the shared Pages assembly", () => {
+  const pages = read(".github/workflows/pages.yml");
+  const preview = read(".github/workflows/dev-preview.yml");
+  assert.match(pages, /dev_pages-preview-artifact/);
+  assert.match(pages, /mkdir -p site\/dev/);
+  assert.match(pages, /dev_pages-deploy-state/);
+  assert.match(pages, /site\/dev\/web\/index\.html/);
+  assert.match(preview, /branches: \[dev\]/);
+  assert.match(preview, /FD_CAL_PREVIEW: "true"/);
+  assert.match(preview, /name: dev-web-site/);
+  assert.match(preview, /name: dev-docs-site/);
+  assert.match(preview, /dev_pages-preview-artifact/);
+  assert.match(preview, /noindex,nofollow/);
+  assert.match(preview, /needs\.publish\.outputs\.published == 'true'/);
+});

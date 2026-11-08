@@ -8,7 +8,8 @@ The browser application and documentation have independent build and publication
 | `docs.yml` | Documentation pull requests | Build VitePress and verify generated documentation layout before merge. |
 | `web-pages.yml` | Relevant web/runtime/data pushes to `main`, or manual dispatch | Build only the browser application and publish its independent Pages artifact. It does not wait for benchmark generation. |
 | `docs-pages.yml` | Every push to `main`, or manual dispatch | Run the Scoped Range and Absolute R+ page benchmarks independently, validate both datasets, build the docs with those run-local results, and publish the docs component. |
-| `pages.yml` | Called by the web or docs producer | Assemble the latest web and docs component artifacts and deploy the complete GitHub Pages site. It has no push or workflow_run trigger. |
+| `dev-preview.yml` | Push to `dev`, or manual dispatch on `dev` | Build the web and docs preview with dev-prefixed paths/noindex metadata, publish `dev_pages-preview-artifact`, then call the shared Pages assembler. |
+| `pages.yml` | Called by the web, docs or dev-preview producer | Assemble the latest production web/docs artifacts plus the optional dev preview subtree and deploy the complete GitHub Pages site. It has no push or workflow_run trigger. |
 | `strategy-sensitivity.yml` | Relevant source/data/script pushes to feature or chore branches, relevant PRs to `main`, or manual dispatch | Run Scoped Range strategy and Absolute R+ parameter benchmarks for development and PR validation on non-main refs. Main-branch benchmark ownership belongs to `docs-pages.yml`. |
 | `goal-achievement-sensitivity.yml` | Relevant source/data/script pushes to feature or chore branches, or manual dispatch | Run the separate Goal development benchmark suite. |
 | `codeql.yml` | Push/PR to `main`, weekly schedule, or manual dispatch | Run extended CodeQL analysis. |
@@ -51,3 +52,18 @@ Keep path filters aligned with actual runtime dependencies:
 - Every push to main runs the docs benchmark workflow, so a relevant source or data change is measured by both page-specific benchmark jobs before docs publication.
 - Benchmark result JSON is generated in the workflow workspace and is not a source dependency for the web producer.
 - Documentation-only edits also receive fresh page benchmark data on the next main push, as requested.
+
+
+## Dev preview
+
+The `dev` branch builds a preview at `/FD-Calculator/dev/`:
+
+- Web app: `/FD-Calculator/dev/web/`
+- Documentation: `/FD-Calculator/dev/docs/`
+- Build outputs are short-lived Actions artifacts named `dev-web-site` and `dev-docs-site`.
+- The published preview tree is stored on `dev_pages-preview-artifact`; the shared deployment state is stored on `dev_pages-deploy-state`.
+- All preview HTML is marked `noindex,nofollow`; the web app carries a visible DEV PREVIEW banner and the preview does not publish a sitemap.
+- The publish job checks that `dev` has not advanced during the build. A stale build is not published and does not trigger a Pages deployment.
+- GitHub Pages still has one whole-site deployment. The assembler overlays the dev tree at `site/dev/` while keeping production web/docs at their normal paths. A later production deployment must use the preview-aware assembler or it will remove the preview path.
+
+The preview-aware assembler currently exists on `dev`. Merge that Pages workflow change to `main` before relying on `/dev/` surviving future production deployments.
