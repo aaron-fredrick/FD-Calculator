@@ -163,12 +163,14 @@ export class SimulationWorkerRunner {
         worker.onmessage = null;
         worker.onerror = null;
         worker.onmessageerror = null;
+        if (entry.handshakeTimer !== null) clearTimeout(entry.handshakeTimer);
         try { worker.terminate(); } catch { /* termination is best-effort cleanup */ }
         if (this.active === entry) this.active = null;
         handler(value);
       }
     };
     entry.cancel = message => entry.settle(rejectRun, abortError(message));
+    entry.handshakeTimer = null;
     this.active = entry;
 
     worker.onmessage = event => {
@@ -180,6 +182,10 @@ export class SimulationWorkerRunner {
       }
       if (message.type === "started") {
         entry.startedAt = message.startedAt;
+        if (entry.handshakeTimer !== null) {
+          clearTimeout(entry.handshakeTimer);
+          entry.handshakeTimer = null;
+        }
         console.info("[FD Cal][main] Worker acknowledged simulation start", {
           id,
           fingerprint,
@@ -235,6 +241,11 @@ export class SimulationWorkerRunner {
 
     try {
       worker.postMessage({ id, type: "simulate", payload });
+      entry.handshakeTimer = setTimeout(() => {
+        if (this.active !== entry || entry.settled || entry.startedAt !== undefined) return;
+        console.error("[FD Cal][main] Worker did not acknowledge the request", { id, fingerprint });
+        entry.settle(rejectRun, new Error("The simulation worker did not acknowledge the request within 10 seconds. Check the worker console for startup or message-rejection errors."));
+      }, 10000);
     } catch (error) {
       entry.settle(rejectRun, error);
     }
