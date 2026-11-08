@@ -111,7 +111,7 @@ function results(r,c,html){
  ]:[
   ["Gross interest",r.total_interest,"money"],["AIT withheld",r.ait_withheld,"money"],
   ["Transfer fees",r.total_transfer_fees,"money"],["Net interest",r.net_interest_after_ait,"money"],
-  ["Final value",r.final_value_after_ait,"money"],["Capital invested",r.total_principal,"money"]
+  ["Pre-withdrawal value",r.pre_withdrawal_value,"money"],["Outflows paid",r.total_outflows_paid,"money"],["Outstanding liabilities",r.outstanding_liabilities,"money"],["Closing net worth",r.closing_net_worth,"money"],["Capital invested",r.contributed_capital,"money"]
  ];
  $("metrics").innerHTML=vals.map((x,i)=>{
   const value=x[2]==="money"?moneyValue(x[1]):x[2]==="days"?(x[1]===null||x[1]===undefined?"—":Number(x[1]).toLocaleString("en-LK")+" days"):(x[1]??"Not achieved");
