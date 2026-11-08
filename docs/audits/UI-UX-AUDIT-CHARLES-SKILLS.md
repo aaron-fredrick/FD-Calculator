@@ -943,3 +943,16 @@ The following test cases should be treated as the outstanding end-to-end verific
 FD Cal is a financial planning and optimisation instrument. Motion must clarify configuration changes, progress and completion without implying that a simulation is a real bank action or that a heuristic has guaranteed optimality. Preserve the current brand palette, restrained visual hierarchy, keyboard operation, touch targets, reduced-motion support, worker-backed computation and the separation between the concise in-app summary and detailed standalone report.
 
 Do not add an animation framework, external media, runtime network dependency, decorative motion, or changes to financial calculations to satisfy visual motion guidelines.
+
+
+## N. Concise copy, account selection and cash-flow date entry
+
+**Audit status:** Implemented on `docs/ui-ux-audit-charles-skills`; source-contract and report tests added. Browser-level interaction verification remains pending.
+
+- Consolidation selection is a single radio choice on each account card. The selected card receives an accent outline; the separate consolidation dropdown is removed.
+- Specific-date cash flows use a native date picker, an **Add date** action and removable date chips. The hint says to add one or more dates.
+- The date picker minimum and maximum follow the selected simulation start and end dates. Existing entries outside a subsequently narrowed period remain visible and are marked invalid rather than silently discarded; configuration validation still rejects out-of-period dates.
+- Report-only generation timestamps and catalogue SHA-256 fingerprints are removed. They are volatile/internal metadata, not simulation results. Generated reports remain open/download outputs; no report artifact is written to local storage or uploaded.
+- Repeated or implementation-heavy explanations were shortened. Financial assumptions, warnings and validation requirements remain.
+
+**Verification still required:** In a real browser, add/remove multiple dates, change the simulation window after adding dates, import a configuration containing legacy comma-separated dates, select the consolidation account by keyboard and pointer, and confirm report download/open works offline.

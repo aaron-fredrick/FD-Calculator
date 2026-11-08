@@ -270,12 +270,8 @@ export function generateHtmlReport(result,config) {
   const fee=config.fee_config||{};
   const xirrValue=xirr(result),gross=Number(result.total_interest||0),ait=Number(result.ait_withheld||0),fees=Number(result.total_transfer_fees||0),net=Number(result.net_interest??result.net_interest_after_ait??gross-ait-fees);
   const totalCapital=Number(result.total_principal||0),yieldPct=totalCapital?net/totalCapital*100:0;
-  const generatedAt=config.report_generated_at?String(config.report_generated_at).replace("T"," ").replace("Z"," UTC"):"Not recorded";
-  const catalogueHash=config.catalogue_fingerprint||"Unavailable in this browser";
   const overview='<div class="overview-grid">'+
     '<article class="panel"><small>Simulation window</small><strong>'+start+' → '+end+'</strong><p>'+days+' calendar days</p></article>'+
-    '<article class="panel"><small>Report generated (device clock, UTC)</small><strong>'+esc(generatedAt)+'</strong><p>Timestamp supplied by this browser.</p></article>'+
-    '<article class="panel"><small>Catalogue snapshot SHA-256</small><strong class="fingerprint">'+esc(catalogueHash)+'</strong><p>Bank/product metadata and fee data used for this run.</p></article>'+
     '<article class="panel"><small>Strategy</small><strong>'+esc(result.strategy_name)+'</strong><p>Selected simulation path</p></article>'+
     '<article class="panel"><small>Interest calculation</small><strong>'+(config.compound?"Compound":"Simple")+'</strong><p>'+(config.actual_leap_year?"Actual leap-year basis":"365-day basis")+'</p></article>'+
     '<article class="panel"><small>Tax treatment</small><strong>'+(result.ait_enabled?"AIT · "+(result.ait_rate*100).toFixed(1)+"%":"AIT disabled")+'</strong><p>Applied to interest payouts</p></article>'+

@@ -588,3 +588,17 @@ Native select menus remain platform-controlled. No animation framework, external
 - [ ] Desktop/mobile layout, keyboard navigation and calculation/report outputs remain unchanged.
 
 **Implementation record — 2026-11-08:** Added a small CSS/WAAPI motion layer to the existing web application. No palette/token, calculation engine, worker, report generator or dependency changes. Real-browser visual and reduced-motion verification remains required after deployment.
+
+
+## 13. Copy density, consolidation selector and specific-date input
+
+| Area | Change | Acceptance condition |
+|---|---|---|
+| Explanatory copy | Shorten repeated or implementation-heavy descriptions without removing financial assumptions or validation guidance. | Core labels, caveats and errors remain unambiguous. |
+| Consolidation account | Use one radio selection per account card; outline the selected card and remove the duplicate dropdown. | Exactly one account is selected; selection survives add/remove, import and draft restore. |
+| Specific-date inflows/outflows | Replace comma-separated free text with a date picker, Add date action and removable date chips. | One or more dates can be entered; exported configuration remains a dates array. |
+| Date bounds | Set picker min/max from the selected simulation period. Preserve and visibly flag existing dates made invalid by a later period change. | New dates outside the period cannot be added; validation rejects retained out-of-range dates. |
+| Report metadata | Remove volatile report-generation timestamp and internal catalogue fingerprint from the user-facing report. | No technical metadata is rendered; report remains self-contained/offline. |
+| Artifact handling | Keep generated HTML transient in memory for open/download; do not persist report artifacts in local storage or upload them. | Only user-initiated download creates a file; object URLs are revoked after use/replacement. |
+
+**Implementation record — 2026-11-08:** Applied the above changes on the existing UI/UX branch. Browser interaction and offline report checks remain required before sign-off.

@@ -36,9 +36,10 @@ test("generated HTML report has no external runtime resource dependencies", () =
   assert.doesNotMatch(html, /<script\b[^>]*\bsrc\s*=|<link\b[^>]*\bhref\s*=\s*["']https?:|@import\s+url\s*\(\s*["']?https?:|url\s*\(\s*["']?https?:/i);
   assert.match(html, /--fd-color-bg:\s*#0b0e13/);
   assert.match(html, /<script id="fd-report-data" type="application\/json">/);
-  assert.match(html, /Report generated/);
-  assert.ok(html.includes("2026-11-08 12:00:00.000 UTC"));
-  assert.ok(html.includes("a".repeat(64)));
-  assert.ok(html.includes("this file may contain account labels, balances"));
+  assert.doesNotMatch(html, /Report generated \(device clock, UTC\)/);
+  assert.doesNotMatch(html, /Catalogue snapshot SHA-256/);
+  assert.doesNotMatch(html, /2026-11-08 12:00:00\.000 UTC/);
+  assert.doesNotMatch(html, new RegExp("a".repeat(64)));
+  assert.ok(html.includes("This report contains account balances and transaction details. Keep it private."));
   for (const title of ["Account and FD principal chart data", "Cash movement chart data", "Maturity chart data", "Return composition chart data"]) assert.ok(html.includes(title), title + " should be available without chart hover");
 });

@@ -1,0 +1,26 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const app = readFileSync(new URL("../../src/web/app.js", import.meta.url), "utf8");
+const page = readFileSync(new URL("../../src/web/index.html", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../../src/web/styles.css", import.meta.url), "utf8");
+
+test("consolidation uses one account-card radio selector with selected-card styling", () => {
+  assert.match(app, /name="primary"/);
+  assert.match(app, /is-consolidation/);
+  assert.match(styles, /\.account\.is-consolidation/);
+  assert.doesNotMatch(page, /id="consolidation-account"/);
+  assert.doesNotMatch(app, /\$\("consolidation-account"\)/);
+});
+
+test("specific-date cash flows use a bounded date picker and removable entries", () => {
+  assert.match(app, /data-date-entry type="date"/);
+  assert.match(app, /min=.*start-date.*max=.*effectiveEndDate/);
+  assert.match(app, /data-add-date/);
+  assert.match(app, /data-remove-date/);
+  assert.match(app, /Add one or more dates with the date picker/);
+  assert.match(app, /value<start\|\|value>end/);
+  assert.match(app, /String\(x\.dates\)\.split\(","\)/);
+  assert.match(styles, /\.date-chip-list/);
+});
