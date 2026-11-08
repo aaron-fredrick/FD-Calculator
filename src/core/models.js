@@ -67,7 +67,7 @@ export class FDOption {
   }
   get bank_identity() { return this.bank_id || this.bank_key; }
   get economic_terms_key() {
-    return JSON.stringify([this.bank_identity, this.days, this.annual_rate, this.min_amount, this.payout_type, this.payout_period_str]);
+    return JSON.stringify([this.bank_identity, this.days, this.annual_rate, this.min_amount, this.payout_type, this.payout_period_str, this.customer_segment, this.min_age, this.max_age, this.min_age_inclusive, this.max_age_inclusive, this.guardian_required]);
   }
   maturityDate(start) { return addPeriod(start, this.period_str); }
   fitsBefore(start, end) { return this.maturityDate(start) <= new Date(end); }
