@@ -257,7 +257,7 @@ export function generateHtmlReport(result,config) {
   const catalogueRows=[...new Map(Object.values(result.accounts||{}).map(account=>{
     const id=account.bank_id||account.bank_key||"";
     const entry=config.bank_dataset_registry?.[id]||{};
-    return [id,{bank:bankNames[id]||id,status:entry.research_status||"Source status not recorded",reviewed:entry.dataset_reviewed_at||"Review date not recorded"}];
+    const labels={populated_direct:"Direct bank source",populated_secondary:"Secondary source",no_public_rate_verified:"No public rate verified"};return [id,{bank:bankNames[id]||id,status:labels[entry.research_status]||entry.research_status||"Source status not recorded",reviewed:entry.dataset_reviewed_at||"Review date not recorded"}];
   })).values()];
   const catalogueTable=table("Selected-bank source status",[["bank","Bank"],["status","Catalogue source status"],["reviewed","Last reviewed"]],catalogueRows);
   const accountTable=table("Accounts",[["label","Account"],["id","Account ID"],["bank","Bank"],["balance","Opening balance (LKR)"],["efd","eFD capability"],["role","Role"]],accountRows);
