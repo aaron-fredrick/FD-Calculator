@@ -39,10 +39,13 @@ test("strategy modules do not own actual runtime execution or finalization", asy
 });
 
 test("CLI and browser production entry points execute through SimulationEngine", async () => {
-  const [cli, web] = await Promise.all([
+  const [cli, web, workerTask] = await Promise.all([
     readFile(new URL("../../src/cli/fd-cal.js", import.meta.url), "utf8"),
-    readFile(new URL("../../src/web/app.js", import.meta.url), "utf8")
+    readFile(new URL("../../src/web/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../../src/web/simulation-task.js", import.meta.url), "utf8")
   ]);
   assert.match(cli, /SimulationEngine/);
-  assert.match(web, /SimulationEngine/);
+  assert.match(web, /SimulationWorkerRunner/);
+  assert.doesNotMatch(web, /new SimulationEngine\(\)/);
+  assert.match(workerTask, /SimulationEngine/);
 });

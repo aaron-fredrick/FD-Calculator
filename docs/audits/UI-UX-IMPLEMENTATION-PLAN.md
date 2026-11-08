@@ -1,9 +1,21 @@
 # FD Cal UI/UX Improvement and Implementation Plan
 
-**Status:** Proposed implementation plan; no application code changes authorised by this document alone  
+**Status:** Implementation in progress; this plan is the execution source of truth  
 **Branch:** `docs/ui-ux-audit-charles-skills`  
 **Parent audit:** [UI/UX Audit Findings — Charles Skills Review](./UI-UX-AUDIT-CHARLES-SKILLS.md)  
 **Product:** FD Cal — Sri Lankan fixed-deposit portfolio planning and optimisation
+
+## Execution log
+
+- **2026-11-08 — Phase 0 source revalidation:** the branch head before implementation was `251d31a57983b1f106c62bae26f6389ac4a5cbf3`, with `main` as its merge base and no behind commits. The source tree still contains the synchronous `simulate(c)` call after catalogue loading; UI-009 remains applicable. The canonical token file is unchanged. The current app is native browser ES modules, not a Vite/bundler project; the worker design is therefore native module-worker loading, with no new build dependency.
+- **Phase 0 evidence still pending:** this session has no working local GitHub network route or browser-capture runtime. A local clone attempt failed at DNS resolution, so no npm test baseline, browser screenshots, viewport/keyboard checks or report-size measurement are claimed. The existing CI workflow runs on pull requests to `main`, not pushes to this feature branch; use the draft PR CI as the executable integration gate once the first coherent implementation slice is ready.
+- **2026-11-08 — Phase 2A implementation started:** added a module worker, a pure shared-engine task adapter, a Promise-based single-flight runner, effective-config/catalogue fingerprinting, completed-result reuse, supersession/cancellation, result rehydration for report generation, elapsed-time and submitted-config feedback, plus runner and strategy-parity tests. This remains in progress pending CI and browser verification.
+- **2026-11-08 — Phase 1 implementation:** clarified first-use/privacy copy, aligned the investment-window heading with the journey rail, explained final-valuation consolidation, scheduled-date syntax and outflow payment policies, added strategy-specific descriptions and a distinct search-limits heading, preserved the disabled Goal mode while linking to the feature-request route, and surfaced catalogue age/guardian conditions in report booking details without changing the simulation-context option contract.
+- **2026-11-08 — Phase 2 implementation:** catalogue-dependent form and import/export controls are gated until both bank/product catalogues load; loading/error/ready states are announced and remain visible on mobile. Unexpected calculation errors are kept generic for users while diagnostics are sent to the developer console without scenario payloads. Existing focus-visible, tooltip keyboard focus, reduced-motion and touch-target rules were retained.
+- **2026-11-08 — Phase 3 implementation:** the concise in-app summary contract remains unchanged. The standalone report now carries a device-clock UTC timestamp, a SHA-256 fingerprint of the exact product/bank/fee snapshot, privacy and nominal-rate/XIRR explanations, product age-condition details, and collapsible keyboard-accessible data tables adjacent to each canvas chart. Report CSS now embeds a generated copy of the canonical brand token block; generation and drift-check scripts plus offline-output tests were added.
+- **2026-11-08 — Phase 4 implementation:** updated the getting-started journey, project overview, age-eligibility reference, brand-token instructions and documentation home page to describe worker execution, scenario stages, privacy, offline reports, manual eligibility verification and the distinction between summary and full report.
+- **Verification state:** code-level contract tests and CI artifact checks have been added, but have not yet been executed in this session. The draft PR CI run and real-browser desktop/mobile/keyboard/reduced-motion/print checks remain mandatory before marking the implementation verified. Phase 5 is therefore still open.
+- **Deferrals:** Section 7 remains unchanged. Analytics/telemetry, broad SEO expansion, decorative redesign/new palette, animation/chart/UI frameworks, financial-engine changes, backend/accounts and automated bank/eligibility verification remain out of scope. No deferred item is being pulled into this implementation.
 
 ## 1. Purpose
 
@@ -168,8 +180,8 @@ The phases are ordered to reduce rework. Each phase should be completed and veri
 Work:
 1. Read the audit and this plan before implementation.
 2. Re-fetch the current source and compare it with the audit's reviewed revision.
-3. Reproduce the relevant current states in a real browser at desktop and mobile widths.
-4. Record screenshots for the first-use state, populated configuration, validation errors, loading/run state, result summary, generated report and documentation pages.
+3. Reproduce the relevant current states in a real browser at desktop and mobile widths when a browser runtime is available.
+4. Record screenshots for the first-use state, populated configuration, validation errors, loading/run state, result summary, generated report and documentation pages. If browser capture is unavailable, record this as pending evidence; do not infer visual success from source inspection.
 5. Identify which findings are still present, already fixed, or no longer relevant.
 6. Record the current test baseline and report size baseline.
 
@@ -214,7 +226,7 @@ This is a functional performance requirement, not a spinner/visual polish task. 
 #### Architecture
 
 1. Introduce a dedicated browser worker entry point for the CPU-intensive simulation path. Keep the existing shared calculation engine and strategy implementations as the source of financial behaviour; do not fork or reimplement the algorithms for the worker.
-2. Use the project's existing module/build system to bundle the worker and its imports. Resolve worker URLs through the bundler-supported module-worker pattern rather than a hand-built production path.
+2. The current web app is a static native-ES-module application: `package.json` has no bundler/build dependency and `src/web/README.md` documents direct static serving. Do not introduce a bundler for this work. Load the worker with the browser-native module-worker form `new Worker(new URL("./simulation.worker.js", import.meta.url), { type: "module" })`; keep the worker and its task module beside the app entry point, and verify the isolated web artifact preserves their relative paths/imports.
 3. Keep DOM access, form state, status text, elapsed-time display, report Blob creation/download and result rendering on the main thread. The worker receives a serializable, validated computation payload and returns a serializable result payload.
 4. Complete required bank-rate/catalogue loading and configuration validation before dispatching work. Show a preparation/loading state during this stage; distinguish it from the actual CPU computation phase.
 5. Wrap worker execution in a Promise-based runner on the main thread. The Promise must settle exactly once on success, worker-reported error, message deserialisation failure, worker startup failure, timeout if a defensible timeout is adopted, or explicit cancellation/supersession. Always release worker resources and event handlers.
@@ -445,11 +457,12 @@ Recommended delivery order:
 
 1. Phase 0 baseline and finding triage.
 2. Phase 1 first-use and configuration comprehension.
-3. Phase 2 interaction and execution feedback.
-4. Phase 3A summary contract and 3B report content/traceability.
-5. Phase 3C standalone token packaging and 3D report accessibility/responsive/print.
-6. Phase 4 user documentation.
-7. Phase 5 cross-surface verification.
+3. Phase 2A worker-based computation and run lifecycle (critical dependency for trustworthy execution feedback).
+4. Phase 2 interaction and execution feedback.
+5. Phase 3A summary contract and 3B report content/traceability.
+6. Phase 3C standalone token packaging and 3D report accessibility/responsive/print.
+7. Phase 4 user documentation.
+8. Phase 5 cross-surface verification.
 
 Keep each PR focused. Prefer one coherent workflow or report concern per PR rather than a large “UI cleanup” change. Do not mix calculation-engine refactors into UI commits. If a visual correction exposes a financial-model ambiguity, document it and open a separate issue instead of silently changing the model.
 
@@ -502,13 +515,15 @@ The programme is complete when:
 ## 11. Source references
 
 - [Audit findings and report test matrix](./UI-UX-AUDIT-CHARLES-SKILLS.md)
-- [Canonical brand tokens](../../src/brand/tokens.css)
-- [Web application markup](../../src/web/index.html)
-- [Web application behaviour](../../src/web/app.js)\n- [Simulation engine](../../src/core/simulation.js)\n- [Strategy implementations](../../src/strategies/)
-- [Web application styles](../../src/web/styles.css)
-- [Report generator](../../src/reporting/html.js)
-- [Standalone report template](../../src/reporting/template.js)
-- [Documentation VitePress configuration](../.vitepress/config.mts)
-- [Documentation theme](../.vitepress/theme/custom.css)
+- Canonical brand tokens: `src/brand/tokens.css`
+- Web application markup: `src/web/index.html`
+- Web application behaviour: `src/web/app.js`
+- Simulation engine: `src/core/simulation.js`
+- Strategy implementations: `src/strategies/`
+- Web application styles: `src/web/styles.css`
+- Report generator: `src/reporting/html.js`
+- Standalone report template: `src/reporting/template.js`
+- Documentation VitePress configuration: `docs/.vitepress/config.mts`
+- Documentation theme: `docs/.vitepress/theme/custom.css`
 - [Getting started guide](../guide/getting-started.md)
-- [Contributing guide](../../CONTRIBUTING.md)
+- Contributor guide: `CONTRIBUTING.md`

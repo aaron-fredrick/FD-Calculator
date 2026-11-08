@@ -4,10 +4,14 @@
   "private": true,
   "type": "module",
   "description": "Shared JavaScript fixed-deposit optimization engine with Node.js CLI and browser UI",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test",
     "test:unit": "node --test tests/js/**/*.test.js",
-    "cli": "node src/cli/fd-cal.js"
+    "cli": "node src/cli/fd-cal.js",
+    "build:report-tokens": "node scripts/generate-report-tokens.js",
+    "check:report-tokens": "node scripts/generate-report-tokens.js --check"
   }
 }

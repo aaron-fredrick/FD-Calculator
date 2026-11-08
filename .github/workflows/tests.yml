@@ -2,7 +2,7 @@ name: Node.js tests and syntax checks
 
 on:
   push:
-    branches: [main]
+    branches: [main, docs/ui-ux-audit-charles-skills]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -26,6 +26,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Verify generated report tokens
+        run: npm run check:report-tokens
       - name: Run test suite
         run: npm test
       - name: Syntax-check application, benchmark and test modules
@@ -36,6 +38,9 @@ jobs:
         run: |
           bash scripts/build-web-site.sh "$RUNNER_TEMP/web-site"
           test -s "$RUNNER_TEMP/web-site/web/index.html"
+          test -s "$RUNNER_TEMP/web-site/web/simulation.worker.js"
+          test -s "$RUNNER_TEMP/web-site/web/simulation-task.js"
+          test -s "$RUNNER_TEMP/web-site/web/simulation-runner.js"
       - name: Build the preserved documentation baseline
         run: |
           bash scripts/build-docs-preservation.sh "$RUNNER_TEMP/docs-baseline"
