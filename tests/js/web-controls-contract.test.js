@@ -26,6 +26,14 @@ test("specific-date cash flows use a bounded date picker and removable entries",
   assert.match(styles, /\.date-chip-list/);
 });
 
+test("browser search defaults are finite and unlimited modes are explicit", () => {
+  assert.match(page, /id="decision-cap"[^>]*value="10000"/);
+  assert.match(page, /id="time-limit-seconds"[^>]*value="30"/);
+  assert.match(page, /id="unlimited-decision-cap"/);
+  assert.match(page, /id="cancel-run"/);
+  assert.match(app, /time_limit_ms:Number\(\$\("time-limit-seconds"\)\.value\)\*1000/);
+});
+
 test("HTML output encoding protects imported account IDs without changing their data value", () => {
   const payload = "\"><img src=x onerror=alert(1)>&'";
   assert.equal(
