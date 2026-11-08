@@ -12,6 +12,7 @@ npm install --no-save --package-lock=false vitepress@2.0.0-alpha.21
 npm exec -- vitepress build docs
 cp src/brand/favicon.svg site/docs/favicon.svg
 
+if [ "${FD_CAL_PREVIEW:-false}" != "true" ]; then
 python3 - <<'PY'
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -31,10 +32,15 @@ for url in (
         ET.SubElement(item, f"{{{namespace}}}loc").text = url
 ET.ElementTree(sitemap).write(site / "sitemap.xml", encoding="utf-8", xml_declaration=True)
 PY
+fi
 
 rm -rf "$output_dir"/*
 mkdir -p "$output_dir/docs"
 cp -R site/docs/. "$output_dir/docs/"
-cp site/sitemap.xml "$output_dir/sitemap.xml"
+if [ "${FD_CAL_PREVIEW:-false}" != "true" ]; then
+  cp site/sitemap.xml "$output_dir/sitemap.xml"
+else
+  rm -f "$output_dir/docs/sitemap.xml"
+fi
 test -s "$output_dir/docs/index.html"
-test -s "$output_dir/sitemap.xml"
+if [ "${FD_CAL_PREVIEW:-false}" != "true" ]; then test -s "$output_dir/sitemap.xml"; fi

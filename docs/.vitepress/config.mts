@@ -1,19 +1,22 @@
 import { defineConfig } from 'vitepress'
 
+const preview = process.env.FD_CAL_PREVIEW === 'true'
+const origin = 'https://aaron-fredrick.github.io/FD-Calculator'
+const siteBase = preview ? '/FD-Calculator/dev/' : '/FD-Calculator/'
+const docsBase = siteBase + 'docs/'
+
 export default defineConfig({
   title: 'FD Cal',
   description: 'Documentation for FD Cal — fixed-deposit planning, strategies and the shared calculation engine.',
-  base: '/FD-Calculator/docs/',
+  base: docsBase,
   outDir: '../site/docs',
   lastUpdated: true,
-  sitemap: {
-    hostname: 'https://aaron-fredrick.github.io/FD-Calculator/docs/',
-  },
+  ...(preview ? {} : { sitemap: { hostname: origin + docsBase } }),
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/FD-Calculator/docs/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: docsBase + 'favicon.svg' }],
     ['meta', { name: 'theme-color', content: '#0b0e13' }],
     ['meta', { name: 'color-scheme', content: 'dark light' }],
-    ['meta', { name: 'robots', content: 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' }],
+    ['meta', { name: 'robots', content: preview ? 'noindex,nofollow' : 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1' }],
     ['meta', { name: 'author', content: 'FD Cal contributors' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'FD Cal' }],
@@ -30,7 +33,7 @@ export default defineConfig({
     const route = relativePath === 'index.md'
       ? ''
       : relativePath.replace(/index\.md$/, '').replace(/\.md$/, '.html');
-    const canonical = 'https://aaron-fredrick.github.io/FD-Calculator/docs/' + route;
+    const canonical = origin + docsBase + route;
     const description = pageData.frontmatter.description || 'FD Cal documentation for fixed-deposit planning, investment strategies, bank product data and the shared simulation engine.';
     pageData.frontmatter.head ??= [];
     pageData.frontmatter.head.push(
@@ -51,7 +54,7 @@ export default defineConfig({
       { text: 'Overview', link: '/' },
       { text: 'Strategies', link: '/STRATEGIES' },
       { text: 'Architecture', link: '/reference/CODEBASE' },
-      { text: 'Open app', link: 'https://aaron-fredrick.github.io/FD-Calculator/web/' },
+      { text: 'Open app', link: origin + siteBase + 'web/' },
     ],
 
     sidebar: [

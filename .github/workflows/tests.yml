@@ -2,9 +2,9 @@ name: Node.js tests and syntax checks
 
 on:
   push:
-    branches: [main, docs/ui-ux-audit-charles-skills]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -47,4 +47,4 @@ jobs:
           test -s "$RUNNER_TEMP/docs-baseline/docs/index.html"
       - name: Parse all GitHub Actions workflow YAML files
         run: |
-          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file, aliases: true); puts "Validated #{file}" }' .github/workflows/pages.yml .github/workflows/web-pages.yml .github/workflows/docs-pages.yml .github/workflows/strategy-sensitivity.yml .github/workflows/tests.yml
+          ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file, aliases: true); puts "Validated #{file}" }' .github/workflows/pages.yml .github/workflows/web-pages.yml .github/workflows/docs-pages.yml .github/workflows/strategy-sensitivity.yml .github/workflows/dev-preview.yml .github/workflows/tests.yml

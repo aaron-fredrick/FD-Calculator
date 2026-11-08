@@ -25,6 +25,7 @@ jobs:
       changed: ${{ steps.assemble.outputs.changed }}
       web_sha: ${{ steps.assemble.outputs.web_sha }}
       docs_sha: ${{ steps.assemble.outputs.docs_sha }}
+      dev_sha: ${{ steps.assemble.outputs.dev_sha }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -176,6 +177,21 @@ jobs:
           echo "web_sha=$web_sha" >> "$GITHUB_OUTPUT"
           echo "docs_sha=$docs_sha" >> "$GITHUB_OUTPUT"
 
+          dev_ref=""
+          if git ls-remote --exit-code origin refs/heads/dev_pages-preview-artifact >/dev/null 2>&1; then
+            dev_ref="dev_pages-preview-artifact"
+            git fetch --no-tags origin "refs/heads/$dev_ref:refs/remotes/origin/$dev_ref"
+            dev_sha="$(git rev-parse "origin/$dev_ref")"
+            mkdir -p site/dev
+            git archive "origin/$dev_ref" | tar -x -C site/dev
+            test -s site/dev/index.html
+            test -s site/dev/web/index.html
+            test -s site/dev/docs/index.html
+          else
+            dev_sha=""
+          fi
+          echo "dev_sha=$dev_sha" >> "$GITHUB_OUTPUT"
+
           git archive "origin/$web_ref" | tar -x -C site
           git archive "origin/$docs_ref" | tar -x -C site
           touch site/.nojekyll
@@ -187,21 +203,24 @@ jobs:
 
           previous_web_sha=""
           previous_docs_sha=""
-          if git ls-remote --exit-code origin refs/heads/pages-deploy-state >/dev/null 2>&1; then
-            git fetch --no-tags origin refs/heads/pages-deploy-state:refs/remotes/origin/pages-deploy-state
-            if git show origin/pages-deploy-state:deployment.json > /tmp/pages-deployment-state.json 2>/dev/null; then
+          previous_dev_sha=""
+          state_branch="dev_pages-deploy-state"
+          if git ls-remote --exit-code origin "refs/heads/$state_branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$state_branch:refs/remotes/origin/$state_branch"
+            if git show "origin/$state_branch:deployment.json" > /tmp/pages-deployment-state.json 2>/dev/null; then
               previous_web_sha="$(jq -r '.web_artifact_sha // empty' /tmp/pages-deployment-state.json)"
               previous_docs_sha="$(jq -r '.docs_artifact_sha // empty' /tmp/pages-deployment-state.json)"
+              previous_dev_sha="$(jq -r '.dev_preview_sha // empty' /tmp/pages-deployment-state.json)"
             fi
           fi
 
           echo "ready=true" >> "$GITHUB_OUTPUT"
-          if [ "$web_sha" = "$previous_web_sha" ] && [ "$docs_sha" = "$previous_docs_sha" ]; then
+          if [ "$web_sha" = "$previous_web_sha" ] && [ "$docs_sha" = "$previous_docs_sha" ] && [ "$dev_sha" = "$previous_dev_sha" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Both component revisions are already deployed; skipping duplicate Pages deployment."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Assembled web $web_ref ($web_sha) and docs $docs_ref ($docs_sha)."
+            echo "Assembled web $web_ref ($web_sha), docs $docs_ref ($docs_sha), and dev preview ${dev_ref:-none} ($dev_sha)."
           fi
 
       - uses: actions/upload-pages-artifact@v5
@@ -241,9 +260,10 @@ jobs:
         env:
           WEB_SHA: ${{ needs.assemble.outputs.web_sha }}
           DOCS_SHA: ${{ needs.assemble.outputs.docs_sha }}
+          DEV_SHA: ${{ needs.assemble.outputs.dev_sha }}
         run: |
           set -euo pipefail
-          branch="pages-deploy-state"
+          branch="dev_pages-deploy-state"
           if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
             git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
             git checkout -B "$branch" "refs/remotes/origin/$branch"
@@ -252,7 +272,7 @@ jobs:
             git rm -rf . >/dev/null 2>&1 || true
           fi
           git clean -fd
-          printf '{\n  "web_artifact_sha": "%s",\n  "docs_artifact_sha": "%s"\n}\n' "$WEB_SHA" "$DOCS_SHA" > deployment.json
+          printf '{\n  "web_artifact_sha": "%s",\n  "docs_artifact_sha": "%s",\n  "dev_preview_sha": "%s"\n}\n' "$WEB_SHA" "$DOCS_SHA" "$DEV_SHA" > deployment.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add deployment.json

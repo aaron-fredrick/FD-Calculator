@@ -1,0 +1,131 @@
+name: Build and publish the isolated dev preview
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dev-preview-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 210
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: dev
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Build the web preview
+        env:
+          FD_CAL_PREVIEW: "true"
+        run: |
+          bash scripts/build-web-site.sh "$RUNNER_TEMP/dev-web-site"
+          test -s "$RUNNER_TEMP/dev-web-site/index.html"
+          test -s "$RUNNER_TEMP/dev-web-site/web/index.html"
+          grep -q 'DEV PREVIEW' "$RUNNER_TEMP/dev-web-site/web/index.html"
+          grep -q 'noindex,nofollow' "$RUNNER_TEMP/dev-web-site/web/index.html"
+      - name: Generate Scoped Range benchmark data
+        run: node scripts/strategy-sensitivity.js
+      - name: Generate Absolute R+ benchmark data
+        run: node scripts/gaml-sensitivity.js
+      - name: Validate benchmark datasets
+        run: node scripts/validate-scoped-benchmark-data.js
+      - name: Build the documentation preview
+        env:
+          FD_CAL_PREVIEW: "true"
+        run: |
+          bash scripts/build-docs-site.sh "$RUNNER_TEMP/dev-docs-site"
+          test -s "$RUNNER_TEMP/dev-docs-site/docs/index.html"
+          grep -q 'noindex,nofollow' "$RUNNER_TEMP/dev-docs-site/docs/index.html"
+          test ! -e "$RUNNER_TEMP/dev-docs-site/sitemap.xml"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dev-web-site
+          path: \${{ runner.temp }}/dev-web-site
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@v6
+        with:
+          name: dev-docs-site
+          path: \${{ runner.temp }}/dev-docs-site
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    if: github.ref == 'refs/heads/dev' && needs.build.result == 'success'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: dev-preview-artifact
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: dev
+          fetch-depth: 0
+      - uses: actions/download-artifact@v6
+        with:
+          name: dev-web-site
+          path: \${{ runner.temp }}/dev-web-site
+      - uses: actions/download-artifact@v6
+        with:
+          name: dev-docs-site
+          path: \${{ runner.temp }}/dev-docs-site
+      - name: Publish a versioned preview tree on its own branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin dev
+          source_sha="$(git rev-parse HEAD)"
+          latest_dev_sha="$(git rev-parse origin/dev)"
+          if [ "$source_sha" != "$latest_dev_sha" ]; then
+            echo "::notice::dev advanced while the preview was building; this stale preview will not be published."
+            exit 0
+          fi
+
+          branch="dev_pages-preview-artifact"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            git checkout -B "$branch" "refs/remotes/origin/$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+          else
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          git clean -fdx
+          mkdir -p dev
+          cp -R "$RUNNER_TEMP/dev-web-site/." dev/
+          mkdir -p dev/docs
+          cp -R "$RUNNER_TEMP/dev-docs-site/docs/." dev/docs/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "pages: publish dev preview from \${source_sha}"
+          git push origin "HEAD:refs/heads/$branch"
+
+  deploy:
+    if: github.ref == 'refs/heads/dev' && needs.publish.result == 'success'
+    needs: publish
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+      deployments: write

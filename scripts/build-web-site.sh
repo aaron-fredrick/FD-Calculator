@@ -53,5 +53,28 @@ cat > "$output_dir/index.html" <<'EOF'
 </html>
 EOF
 
+if [ "\${FD_CAL_PREVIEW:-false}" = "true" ]; then
+  node --input-type=module - "$output_dir" <<'NODE'
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+const root = process.argv[2];
+const origin = "https://aaron-fredrick.github.io/FD-Calculator";
+for (const [path, canonical] of [
+  [join(root, "index.html"), origin + "/dev/"],
+  [join(root, "web/index.html"), origin + "/dev/web/"],
+]) {
+  let html = readFileSync(path, "utf8");
+  html = html.replace(/<meta name="robots" content="[^"]*">/i, '<meta name="robots" content="noindex,nofollow">');
+  html = html.replace(/<link rel="canonical" href="[^"]*">/i, '<link rel="canonical" href="' + canonical + '">');
+  if (path.endsWith("/web/index.html")) {
+    html = html.replaceAll(origin + "/web/", origin + "/dev/web/");
+    html = html.replace("<body>", '<body><div class="dev-preview-banner" role="status">DEV PREVIEW · Not production</div>');
+    html = html.replace("</head>", '<style>.dev-preview-banner{position:sticky;top:0;z-index:10000;padding:7px 14px;text-align:center;background:#7c2d12;color:#fff;font:600 12px/1.4 system-ui;letter-spacing:.04em}</style></head>');
+  }
+  writeFileSync(path, html);
+}
+NODE
+fi
+
 test -s "$output_dir/web/index.html"
 test -s "$output_dir/index.html"
