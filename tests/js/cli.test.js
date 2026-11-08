@@ -21,6 +21,8 @@ test("root data catalogues load canonical banks and bank-specific FD products",a
 });
 test("age eligibility research ledger preserves incomplete and verified bank rules",async()=>{
  const rows=parseCSV(await readFile(join(root,"data/fd_options/age_eligibility.csv"),"utf8"));
+ const peoplesSenior=rows.find(row=>row.bank_id==="LK_PEOPLES_BANK"&&row.product_name==="Parinatha above 60");
+ assert.equal(peoplesSenior.research_status,"rate_product_mapping_conflict");assert.equal(peoplesSenior.product_max_amount,"1500000");assert.equal(peoplesSenior.tax_exempt,"true");
  const peoplesMinor=rows.find(row=>row.bank_id==="LK_PEOPLES_BANK"&&row.customer_segment==="minor");
  assert.equal(peoplesMinor.max_age,"18");assert.equal(peoplesMinor.max_age_inclusive,"true");assert.equal(peoplesMinor.guardian_required,"true");
  assert.equal(peoplesMinor.min_amount,"");assert.equal(peoplesMinor.research_status,"eligibility_verified_rate_terms_incomplete");
@@ -36,11 +38,7 @@ test("bank data loader preserves verified age-segment product boundaries",async(
  const rdb=await loadFDOptions(index,["LK_PRADESHIYA_SANWARDHANA_BANK"]);
  const ntb=await loadFDOptions(index,["LK_NATIONS_TRUST_BANK"]);
  const parinatha=peoples.filter(option=>option.customer_segment==="senior");
- assert.equal(parinatha.length,12);
- const parinatha55=parinatha.filter(option=>option.label.includes("55-60"));
- const parinatha60=parinatha.filter(option=>option.label.includes("over-60"));
- assert.equal(parinatha55.length,6);assert.ok(parinatha55.every(option=>option.min_age===55&&option.min_age_inclusive===false&&option.max_age===60&&option.max_age_inclusive===true));
- assert.equal(parinatha60.length,6);assert.ok(parinatha60.every(option=>option.min_age===60&&option.min_age_inclusive===false&&option.max_age===null));
+ assert.equal(parinatha.length,0,"Do not simulate Parinatha while its minimum/cap terms conflict across official pages.");
  assert.equal(ntb.length,18);assert.ok(ntb.every(option=>option.min_amount===50000));
  assert.equal(rdb.length,28);
  assert.equal(rdb.find(option=>option.label.includes("100d")).min_amount,500000);
