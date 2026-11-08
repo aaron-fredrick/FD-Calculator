@@ -43,7 +43,7 @@ function safeSimulationError(error){
 function showError(message,displayMessage=message){clearFieldErrors();err(displayMessage);let target=null,detail=String(message||"");
  const accountMatch=detail.match(/accounts\[([^\]]+)\]\.([a-z_]+)/i);
  if(accountMatch){const row=[...document.querySelectorAll(".account")].find(n=>n.dataset.id===accountMatch[1]);const field=accountMatch[2];target=row?.querySelector(field==="balance"?"[data-balance]":field==="label"?"[data-label]":field==="supports_efd"?"[data-efd]":"[data-bank]")}
- if(!target&&/consolidation_account_id/i.test(detail))target=$("consolidation-account");
+ if(!target&&/consolidation_account_id/i.test(detail))target=document.querySelector('input[name="primary"]');
  if(!target&&/investment (start|end) date/i.test(detail))target=$(detail.match(/investment (start|end) date/i)[1].toLowerCase()+"-date");
  if(!target){for(const kind of ["inflow","outflow"]){const item=S[kind+"s"].find(x=>detail.startsWith(kind+" "+x.name+" "));if(item){const row=document.querySelector('.schedule[data-id="'+item.id+'"]');target=row?.querySelector(detail.includes("amount")?"[data-amount]":detail.includes("account")?"[data-account]":detail.includes("interval")?"[data-interval]":detail.includes("payment_policy")?"[data-policy]":item.type==="scheduled"?"[data-dates]":"[data-end]");break}}}
  if(!target&&/unknown bank_id|no compatible FD products|no FD option index|no FD product rows/i.test(detail)){const idMatch=detail.match(/Account ([^ ]+)/i);const row=idMatch&&[...document.querySelectorAll(".account")].find(n=>n.dataset.id===idMatch[1]);target=row?.querySelector("[data-bank]")}
