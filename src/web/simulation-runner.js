@@ -178,8 +178,23 @@ export class SimulationWorkerRunner {
         entry.settle(rejectRun, new Error("The simulation worker returned an unexpected response."));
         return;
       }
+      if (message.type === "started") {
+        entry.startedAt = message.startedAt;
+        console.info("[FD Cal][main] Worker acknowledged simulation start", {
+          id,
+          fingerprint,
+          workerStartedAt: message.startedAt
+        });
+        return;
+      }
       if (message.type === "result") {
         const result = message.result;
+        console.info("[FD Cal][main] Worker result received", {
+          id,
+          elapsedMs: message.elapsedMs,
+          valid: result?.valid,
+          bookingCount: result?.bookings?.length
+        });
         if (!result || result.valid !== true || !Array.isArray(result.bookings) ||
             !result.end_date || !result.timeline || typeof result.timeline !== "object" ||
             !result.accounts || typeof result.accounts !== "object") {
@@ -189,6 +204,11 @@ export class SimulationWorkerRunner {
         this.completed = { fingerprint, result };
         entry.settle(resolveRun, result);
       } else if (message.type === "error") {
+        console.error("[FD Cal][main] Worker reported simulation failure", {
+          id,
+          elapsedMs: message.elapsedMs,
+          error: message.error
+        });
         const error = new Error(message.error?.message || "The simulation worker failed.");
         error.name = message.error?.name || "Error";
         entry.settle(rejectRun, error);
@@ -199,6 +219,13 @@ export class SimulationWorkerRunner {
     worker.onerror = event => {
       event?.preventDefault?.();
       if (this.active !== entry || entry.settled) return;
+      console.error("[FD Cal][main] Worker runtime error", {
+        id,
+        message: event?.message,
+        filename: event?.filename,
+        lineno: event?.lineno,
+        colno: event?.colno
+      }, event);
       entry.settle(rejectRun, new Error(event?.message || "The simulation worker stopped unexpectedly."));
     };
     worker.onmessageerror = () => {
