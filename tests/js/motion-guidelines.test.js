@@ -1,22 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { MOTION_TIMING } from "../../src/web/motion.js";
 
-const [styles, app, html, tokens, packageJson] = await Promise.all([
+const [styles, app, html, tokens, packageJson, motionModule] = await Promise.all([
   readFile(new URL("../../src/web/styles.css", import.meta.url), "utf8"),
   readFile(new URL("../../src/web/app.js", import.meta.url), "utf8"),
   readFile(new URL("../../src/web/index.html", import.meta.url), "utf8"),
   readFile(new URL("../../src/brand/tokens.css", import.meta.url), "utf8"),
-  readFile(new URL("../../package.json", import.meta.url), "utf8")
+  readFile(new URL("../../package.json", import.meta.url), "utf8"),
+  readFile(new URL("../../src/web/motion.js", import.meta.url), "utf8")
 ]);
 
 test("motion timing keeps exits 20 percent shorter than entrances", () => {
   const enter = Number(styles.match(/--fd-motion-enter-duration:\s*(\d+)ms/)?.[1]);
   const exit = Number(styles.match(/--fd-motion-exit-duration:\s*(\d+)ms/)?.[1]);
-  assert.equal(enter, 350);
-  assert.equal(exit, 280);
-  assert.equal(exit / enter, 0.8);
-  assert.match(app, /MOTION_STAGGER_MS=30/);
+  assert.equal(enter, MOTION_TIMING.enter);
+  assert.equal(exit, MOTION_TIMING.exit);
+  assert.equal(MOTION_TIMING.exit / MOTION_TIMING.enter, 0.8);
+  assert.equal(MOTION_TIMING.stagger, 30);
+  assert.match(app, /animateNewRows/);
 });
 
 test("buttons use the specified pressed scale and reduced motion is respected", () => {
@@ -32,9 +35,10 @@ test("tooltips remain anchored to their trigger and strategy panels crossfade in
   assert.match(styles, /opacity 160ms ease-in/);
   assert.match(html, /class="strategy-settings-stack"/);
   assert.match(html, /id="gaml-settings-panel"/);
-  assert.match(app, /panel\.inert=true;panel\.setAttribute\("aria-hidden","true"\)/);
-  assert.match(app, /duration:MOTION_EXIT_MS/);
-  assert.match(app, /duration:MOTION_ENTER_MS/);
+  assert.match(motionModule, /panel\.inert = true/);
+  assert.match(motionModule, /duration: MOTION_TIMING\.exit/);
+  assert.match(motionModule, /duration: MOTION_TIMING\.enter/);
+  assert.match(app, /transitionStrategySettings/);
   assert.doesNotMatch(app, /\$\("gaml-settings"\)\.hidden=/);
   assert.doesNotMatch(app, /\$\("greedy-settings"\)\.hidden=/);
 });
