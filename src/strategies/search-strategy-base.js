@@ -1465,23 +1465,21 @@ export class SearchStrategyBase {
     const goalSearchBudget = goalMode ? (this.max_decisions ?? 5000) : this.max_decisions;
     const settings = {
       maxDecisions: goalSearchBudget, maxLocalBranches: this.max_local_branches,
-      beamWidth: this.beam_width, timeLimitMs: this.time_limit_ms, endDate: context.endDate
+      beamWidth: this.beam_width, ...(this.time_limit_ms > 0 ? { timeLimitMs: this.time_limit_ms } : {}), endDate: context.endDate
     };
     const searchStartedAt = this.clock();
     const budget = { deadlineAt: this.time_limit_ms > 0 ? searchStartedAt + this.time_limit_ms : null, now: this.clock };
     const search = this.mode === "absolute"
       ? runAbsolute(initial, context, settings, counters, evaluateGoal, initialGoalScore, budget)
       : runGaml(initial, context, settings, counters, evaluateGoal, initialGoalScore, budget);
-    const elapsedMs = Math.max(0, this.clock() - searchStartedAt);
     const diagnostics = {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
       beam_pruned: search.beamPruned || 0, beam_duplicate_pruned: search.beamDuplicatePruned || 0, local_combination_pruned: counters.localPruned,
       root_strategy_peak: search.rootPeak || 0,
       budget_stopped: Boolean(search.budgetStopped),
-      budget_stop_reason: search.budgetStopReason ?? null,
-      time_budget_ms: this.time_limit_ms,
-      elapsed_ms: Math.round(elapsedMs),
+      ...(search.budgetStopped ? { budget_stop_reason: search.budgetStopReason ?? "expanded_state_limit" } : {}),
+      ...(this.time_limit_ms > 0 ? { time_budget_ms: this.time_limit_ms } : {}),
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
       budget_frontier_checkpoints: search.budgetFrontierCheckpoints?.length ?? 0,
       state_memo_size: counters.memo.size,
