@@ -1,0 +1,39 @@
+# Age-based FD eligibility
+
+Some Sri Lankan banks publish separate fixed-deposit products or rates for senior customers and minors. These are **product eligibility rules**, not universal age rules: each bank defines its own cutoff, boundary wording, minimum deposit, permitted tenure and account-opening requirements.
+
+## How FD Cal represents age eligibility
+
+The bank product CSVs can record:
+
+| Field | Meaning |
+| --- | --- |
+| `customer_segment` | `general`, `senior` or `minor` |
+| `min_age`, `max_age` | Published lower and upper age bounds; blank means the bank did not publish that bound in the source we verified |
+| `min_age_inclusive`, `max_age_inclusive` | Whether the corresponding boundary is inclusive |
+| `guardian_required` | Whether the source explicitly requires a parent or guardian |
+
+The browser exposes **Include senior citizen FDs** and **Include child / minor FDs** switches. They default off, preserve all general products, and add only the selected age-segment products. The switches do not collect a date of birth or claim that a particular person qualifies. A bank's wording such as “over 60” is stored as a strict lower bound, not silently rounded to “60+”.
+
+## Verified products currently represented in the rate catalogue
+
+| Bank / product | Published age rule | Dataset coverage | Source |
+| --- | --- | --- | --- |
+| People's Bank — Parinatha, 55–60 rate band | Product page says over 55; rate page publishes a 55–60 band | Published maturity and monthly rates for 6, 12 and 24 months | [Rates](https://peoplesbank.lk/interest-rates/) · [Term deposit eligibility](https://www.peoplesbank.lk/term-deposits/) |
+| People's Bank — Parinatha, above-60 rate band | Over 60; represented with an exclusive lower bound | Published maturity and monthly rates for 6, 12 and 24 months | [Rates](https://peoplesbank.lk/interest-rates/) · [Term deposit eligibility](https://www.peoplesbank.lk/term-deposits/) |
+| Seylan Bank — Senior Citizens FD | Over 60 years | Published maturity rates for 1, 2, 3, 6, 12, 24, 36, 48 and 60 months; monthly rates for 12–60 months | [Official rate schedule](https://www.seylan.lk/interest-rates?url=senior-citizen-fds) |
+
+Rates retain their source effective dates and minimum-deposit values in the CSV rows. They should be checked against the linked bank schedule before an actual placement.
+
+## Identified products not yet added as simulated rate rows
+
+- **People's Bank Minor FD:** the bank says the product is for children up to 18 years, can be opened by a parent or guardian, and pays 0.5 percentage points above normal FD rates. The product page does not clearly publish a separate minimum deposit or complete product-specific rate/tenure table. We are not copying the adult minimum or deriving simulated rates until the minor product's terms are confirmed.
+- **SDB Minor FD:** the official rate page publishes a Minor FD rate table, but the page reviewed does not state a precise age boundary or guardian requirement. It is not yet tagged with an assumed age cap.
+- **SDB Upahara senior FD:** the page reviewed describes the product as for customers over 55 and publishes a separate rate schedule, but the current rate effective date conflicts with a later rate date already recorded in the normal-rate dataset. The senior rows are held back pending reconciliation.
+- **HDFC Vishrama Udana** and **SMIB Senior Citizen FD:** official product pages state an over-60 eligibility rule. Their senior product rates are not added here until a current, matching rate schedule is verified.
+
+## Data policy
+
+No age threshold is inferred from a product name, tax treatment, general account eligibility or another bank's rules. No dummy rates are inserted. If a bank publishes a rate but omits an age cutoff, or publishes eligibility but not a current rate, that information remains documented as incomplete rather than becoming an optimisable product.
+
+Age eligibility is evaluated at the product/account-opening point where the bank's terms say so. Where the bank does not specify the exact reference date or boundary, the catalogue must retain that uncertainty rather than invent a rule.
