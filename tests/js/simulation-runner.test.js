@@ -6,6 +6,7 @@ import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { AbsolutePlusStrategy } from "../../src/strategies/absolute-plus.js";
 import { GSSStrategy } from "../../src/strategies/gss.js";
 import { runSimulationTask } from "../../src/web/simulation-task.js";
+import { isSimulationRequest } from "../../src/web/simulation-worker-protocol.js";
 import {
   SimulationWorkerRunner, simulationFingerprint, catalogueFingerprint, createWorkerPayload,
   rehydrateSimulationResult
@@ -46,6 +47,22 @@ function config(overrides = {}) {
     ...overrides
   };
 }
+
+test("dedicated worker accepts valid requests without relying on event.origin", () => {
+  const request = {
+    id: 1,
+    type: "simulate",
+    payload: { strategy: "gaml", accounts: [], options: [] }
+  };
+  // The handler validates event.data only. An empty MessageEvent.origin does
+  // not cause a valid message from the app-owned Worker channel to be rejected.
+  assert.equal(isSimulationRequest(request), true);
+  assert.equal(isSimulationRequest({ ...request, id: 0 }), false);
+  assert.equal(isSimulationRequest({ ...request, id: "1" }), false);
+  assert.equal(isSimulationRequest({ ...request, type: "unknown" }), false);
+  assert.equal(isSimulationRequest({ ...request, payload: null }), false);
+  assert.equal(isSimulationRequest(null), false);
+});
 
 test("fingerprint is stable across object-key order and includes catalogue changes", () => {
   const a = config();
