@@ -36,3 +36,40 @@ test("invalid event and booking financial values are rejected", () => {
   const option = new FDOption({ label: "1m", period_str: "1m", annual_rate: 8 });
   assert.throws(() => new Booking({ option, principal: 0, start: "2026-01-01", cash_flows: [{ date: "2026-02-01", amount: 1 }] }), /positive/);
 });
+
+test("result exposes distinct pre-withdrawal and closing-position metrics", () => {
+  const result = new SimResult({
+    strategy_name: "Greedy",
+    total_principal: 100000,
+    end_date: "2026-12-31",
+    accounts: { a: { balance: 60000 } },
+    total_outflows_paid: 40000,
+    outstanding_outflows: []
+  });
+  assert.equal(result.contributed_capital, 100000);
+  assert.equal(result.pre_withdrawal_value, 100000);
+  assert.equal(result.total_outflows_paid, 40000);
+  assert.equal(result.closing_assets, 60000);
+  assert.equal(result.outstanding_liabilities, 0);
+  assert.equal(result.closing_net_worth, 60000);
+});
+
+test("closing net worth deducts deferred and partially unpaid outflows", () => {
+  const deferred = new SimResult({
+    strategy_name: "Greedy", total_principal: 100000, end_date: "2026-12-31",
+    accounts: { a: { balance: 100000 } },
+    outstanding_outflows: [{ name: "rent", remaining: 120000 }]
+  });
+  assert.equal(deferred.closing_assets, 100000);
+  assert.equal(deferred.outstanding_liabilities, 120000);
+  assert.equal(deferred.closing_net_worth, -20000);
+
+  const partial = new SimResult({
+    strategy_name: "Greedy", total_principal: 100000, end_date: "2026-12-31",
+    accounts: { a: { balance: 0 } }, total_outflows_paid: 100000,
+    outstanding_outflows: [{ name: "rent", remaining: 20000 }]
+  });
+  assert.equal(partial.total_outflows_paid, 100000);
+  assert.equal(partial.closing_assets, 0);
+  assert.equal(partial.closing_net_worth, -20000);
+});
