@@ -518,13 +518,13 @@ The numbering continues from UI-024. These findings add product-context and cros
 
 ### C.3 Results interpretation and user confidence
 
-**Finding UI-034 — The in-page result and standalone report serve different levels of detail without an explicit user-level explanation of their relationship**
+**Finding UI-034 — The in-page result summary and standalone HTML report need a deliberately strict division of detail**
 
-- **Area:** Results / report continuity.
-- **Observation:** The in-page result displays aggregate metrics and offers Open report, Download HTML report and Download config JSON actions. The shared HTML report generator builds a more detailed standalone report with portfolio/event history, ledger and investment execution details.
-- **Concern:** The user must infer which questions are answered by the summary and which require opening the report. The distinction between a summary metric, a simulated action sequence and an executable bank instruction is especially important in a financial planning tool.
+- **Area:** Results hierarchy / report continuity.
+- **Observation:** The in-page result currently presents six top-line metrics: gross interest, AIT withheld, transfer fees, net interest, final value and capital invested. It then offers Open report, Download HTML report and Download config JSON actions. The standalone HTML report contains the detailed portfolio, booking/execution plan, analytics, cash-flow schedules, capital movements and full event ledger.
+- **Concern:** This is the correct product-level separation and must be preserved. The in-page result is a summary, not a second copy of the full report. Adding every FD booking, maturity, transfer, event or historical ledger entry to the result summary would duplicate the report, increase result-screen density and make the primary outcome harder to scan. The summary should communicate the overall outcome and clearly hand off to the full report for detail. This finding is a preservation constraint, not a request to expand the summary.
 - **Evidence:** `src/web/index.html`, results section; `src/web/app.js`, `results()`; `src/reporting/html.js`; `src/reporting/template.js`.
-- **Status:** Separate result surfaces and report-generation implementation verified; rendered report usability not tested.
+- **Status:** Current six-metric summary and separate report implementation source-verified. The summary/report division is an explicit product requirement. Runtime presentation not browser-tested.
 
 **Finding UI-035 — Benchmark pages can be mistaken for user-specific recommendations unless their role is understood**
 
@@ -628,3 +628,279 @@ When using this audit as context for a later UI/UX or product-experience task:
 - [Docs Pages workflow](https://github.com/aaron-fredrick/FD-Calculator/blob/main/.github/workflows/docs-pages.yml)
 - [Pages assembly/deployment workflow](https://github.com/aaron-fredrick/FD-Calculator/blob/main/.github/workflows/pages.yml)
 - [Deployment component state](https://github.com/aaron-fredrick/FD-Calculator/tree/pages-deploy-state)
+
+
+---
+
+# Addendum — report-surface audit, output separation and verification sweep
+
+**Review date:** 8 November 2026  
+**Application/docs source revision:** `e952c9509be8d9ac57f7fd0ceb6f1221094e10dc`  
+**Current audit branch:** `docs/ui-ux-audit-charles-skills`  
+**Scope:** Read-only review of the current web result summary, report generator/template, report-specific tests, GitHub Actions evidence and recorded Pages component state. No application, report or workflow code was changed.
+
+## G. Explicit result-summary versus full-report contract
+
+The in-app result summary and the standalone HTML report are two different presentation layers for the same simulation result. They must not be treated as interchangeable.
+
+### G.1 In-app result summary
+
+The result summary is intended to answer, at a glance:
+
+- What was the overall financial outcome?
+- How much gross interest was generated?
+- How much AIT was withheld?
+- How much was paid in transfer fees?
+- What was the net interest?
+- What was the final simulated portfolio value?
+- How much capital was invested?
+
+The current web implementation displays these six metrics for the scoped result:
+
+1. Gross interest.
+2. AIT withheld.
+3. Transfer fees.
+4. Net interest.
+5. Final value.
+6. Capital invested.
+
+It also identifies the selected simulation period and strategy, and exposes actions to open/download the full HTML report or download the configuration.
+
+**The summary must remain a summary.** It should not become a condensed ledger or a duplicate of the standalone report. Individual FD bookings, product-by-product details, maturity dates, chronological histories, transfer records, cash-flow event histories, chart series and full accounting entries belong in the full report. The summary's purpose is to make the result quickly understandable and direct the user to the report when they need supporting detail.
+
+This is an explicit product constraint for future work. Do not interpret the existence of detailed report sections as evidence that those same sections should be copied into the in-app summary. Conversely, do not remove detailed evidence from the full report merely to keep the summary short.
+
+### G.2 Standalone HTML report
+
+The HTML report is the detailed, portable record of how the simulation reached its result. It is generated from the same simulation result/configuration and is offered as both an in-browser new tab and a downloadable standalone `.html` file.
+
+The current report template has eight navigable sections:
+
+1. Scenario overview.
+2. Portfolio outcome.
+3. Execution plan.
+4. Performance analysis.
+5. Investment portfolio.
+6. Scheduled cash flows.
+7. Capital movements.
+8. Full event ledger.
+
+The report's depth is intentional. It is the place for individual bookings, rates/tenures, account-level allocation, event progression, cash movements, maturity information, cash-flow schedules and supporting accounting detail. Several tables and decision groups use native collapsible `details/summary` elements so long content can remain collapsed until requested.
+
+The report describes the execution plan as a **chronological manual bank checklist**. It also states that final valuation sweeps are not executable tasks. The application separately states that FD Cal does not execute transfers or open deposits. Future work must preserve this distinction: generated actions are simulated/manual reference information, not bank instructions or transactions performed by the software.
+
+## H. Standalone HTML report findings
+
+These findings extend the audit to the report as a distinct user-facing deliverable.
+
+### H.1 Report purpose, structure and navigation
+
+**Finding UI-042 — The standalone report is a full audit/explanation surface, not a second summary card**
+
+- **Area:** Report purpose / output hierarchy.
+- **Observation:** The report template contains eight sections covering scenario assumptions, portfolio outcome, execution, analytics, selected investments, scheduled cash flows, capital movements and the complete ledger. The in-app result view contains only six aggregate metrics and report/config actions.
+- **Concern:** The distinction is valuable and should remain explicit across future UI work. If the report is shortened until it no longer provides the booking and accounting evidence, users lose the ability to inspect how the summary was produced. If the in-app summary is expanded to reproduce report details, the result screen becomes unnecessarily dense.
+- **Evidence:** `src/web/index.html`, result section; `src/web/app.js`, `results()`; `src/reporting/template.js`, `REPORT_TEMPLATE`; `src/reporting/html.js`, `generateHtmlReport()`.
+- **Status:** Source-verified product structure; actual user comprehension not tested.
+
+**Finding UI-043 — The report is long by design, with navigation and progressive disclosure carrying much of its usability burden**
+
+- **Area:** Information architecture / report length.
+- **Observation:** The report provides an eight-section navigation rail. Large tables such as accounts, selected FDs, inflows, outflows and ledger entries are rendered in collapsible native details elements. Decision/event groups in the execution section are also expandable.
+- **Concern:** The report can contain a substantial amount of information for multi-account, multi-booking or cash-flow-heavy scenarios. The navigation and collapsed tables reduce initial density, but the report's practical scanability, section orientation and ability to find a particular FD or event have not been tested with a long realistic report.
+- **Evidence:** `src/reporting/template.js`, section navigation and report CSS; `src/reporting/html.js`, `table()`, `buildExecution()` and report section assembly.
+- **Status:** Source-verified; large-report runtime and usability testing outstanding.
+
+**Finding UI-044 — The execution plan is labelled as a manual checklist, but individual action wording still needs careful interpretation**
+
+- **Area:** Financial safety / simulated actions.
+- **Observation:** The report labels the execution section “Execution plan” and describes it as a chronological manual bank checklist. Individual cards use action language such as “Transfer funds” and “Open the fixed deposit”, with account, destination, product, amount, rate, term, booking and maturity details. The report notes that final valuation sweeps are not executable tasks; the app says no bank transfer or FD opening is executed.
+- **Concern:** Action-oriented language is useful for a user reviewing a proposed plan, but can be mistaken for a transaction confirmation or a guaranteed instruction if the surrounding manual/simulated status is overlooked. The report must not imply that a bank has accepted a placement, that a transfer has occurred, or that the quoted product remains available.
+- **Evidence:** `src/reporting/template.js`, report header and Execution plan introduction; `src/reporting/html.js`, `buildExecution()`; `src/web/index.html`, results disclaimer.
+- **Status:** Wording and safeguards source-verified; interpretation not user-tested.
+
+### H.2 Report data, provenance and financial interpretation
+
+**Finding UI-045 — The report shows selected product terms but does not make per-product source freshness immediately auditable**
+
+- **Area:** Data provenance / rate confidence.
+- **Observation:** The selected fixed-deposit table records account, product, principal, rate, term, booking date, maturity, gross interest, AIT and net interest. The scenario overview records interest calculation, AIT treatment, consolidation account and default transfer fees. The detailed catalogue/reference documentation contains source and effective-date context, but the inspected report output does not visibly attach the source URL or source-effective date to each selected product row.
+- **Concern:** A user reviewing a downloaded report later may be able to see which product and rate the simulation used but may not be able to determine from the report alone when that rate/term was verified or retrieve the source used for that row. This matters because FD rates, minimums and eligibility can change.
+- **Evidence:** `src/reporting/html.js`, `investmentTable`, `overview` and `accountRows`; `docs/reference/fd-eligibility.md`; bank product catalogue data.
+- **Status:** Report fields source-verified; provenance absence applies to the inspected generated report structure, not necessarily every underlying catalogue record.
+
+**Finding UI-046 — The report's annualised money-weighted return needs to remain distinguishable from a bank's advertised annual rate**
+
+- **Area:** Financial metric interpretation.
+- **Observation:** The portfolio outcome can include “Annualised money-weighted return” calculated by the report's XIRR routine. The report explains that XIRR accounts for the timing of deposits and withdrawals. Separately, the selected FD table displays each product's nominal annual rate.
+- **Concern:** These are different measures. A user may compare the portfolio-level XIRR directly with an FD product's advertised annual rate without accounting for cash-flow timing, portfolio composition, fees, withholding and the distinction between a portfolio money-weighted return and a product rate.
+- **Evidence:** `src/reporting/html.js`, `xirr()`, `yieldPct`, portfolio outcome and investment table.
+- **Status:** Calculation and labels source-verified; metric comprehension not user-tested.
+
+**Finding UI-047 — The downloaded report is a portable file containing detailed financial scenario information**
+
+- **Area:** Privacy / report portability.
+- **Observation:** The app creates the report as a Blob from the generated HTML string, can open it in a new tab and can download it as `fd-cal-report.html`. The report embeds chart data and includes account labels, balances, configured cash-flow schedules, selected products, booking details and the event ledger. The report is designed to work offline.
+- **Concern:** Local processing means the application does not need to upload this scenario, but the downloaded file can still expose sensitive financial planning information if it is shared, emailed, synced to a shared folder or opened on a shared device. The app's local-processing message does not by itself explain the contents and portability of the report file.
+- **Evidence:** `src/web/app.js`, `results()`, report Blob and download handlers; `src/reporting/html.js`, embedded chart data and report generation; `src/reporting/template.js`.
+- **Status:** Source-verified; user awareness and actual file-sharing behaviour not tested.
+
+**Finding UI-048 — The report's long tables rely on horizontal scrolling at narrow widths**
+
+- **Area:** Responsive report tables.
+- **Observation:** Report tables have a minimum width of approximately 640 CSS pixels and are placed in wrappers with horizontal overflow. The report CSS includes mobile breakpoints and adjusts layout, but the table content remains wider than a narrow phone viewport.
+- **Concern:** Horizontal scrolling is a reasonable way to preserve financial table columns, but users need to discover the scroll affordance and keep row/column context while navigating wide tables on touch devices. This is especially relevant to the full event ledger.
+- **Evidence:** `src/reporting/template.js`, `.table-wrap`, table minimum-width rules and mobile media queries.
+- **Status:** CSS behaviour source-verified; actual mobile scrolling and column comprehension not tested.
+
+### H.3 Report interaction and accessibility
+
+**Finding UI-049 — Report charts are primarily pointer-interactive and do not expose a complete keyboard interaction path in the inspected source**
+
+- **Area:** Accessibility / analytics charts.
+- **Observation:** The four chart canvases have `aria-label` descriptions. Chart hover details are driven by pointer movement and pointer events; wheel zoom and pointer interaction are implemented. The inspected report template does not assign a tab stop to the canvas or show keyboard handlers for moving chart focus/selection. The report does include focus-visible styling for focusable controls.
+- **Concern:** A screen-reader or keyboard-only user may receive the canvas label but cannot necessarily inspect individual data points, series or hover values using the keyboard. A label describing the chart is not equivalent to a textual representation of the chart's values. The report's tables and ledger provide related data, but they are not established as complete, equivalent alternatives for every chart.
+- **Evidence:** `src/reporting/template.js`, canvas markup, chart JS pointer handlers, wheel handler and focus-visible CSS; `src/reporting/html.js`, `chartData` and analytics section.
+- **Status:** Source-level accessibility concern; keyboard and screen-reader behaviour not tested in a browser.
+
+**Finding UI-050 — The report has print and reduced-motion CSS support, but neither has been validated against a real generated report**
+
+- **Area:** Print / motion preferences.
+- **Observation:** The report stylesheet contains a `prefers-reduced-motion: reduce` rule and an `@media print` rule that hides the sidebar and adjusts report content for printing. Additional chart/decision controls also reduce transitions under reduced-motion preferences.
+- **Concern:** The existence of CSS is positive but does not prove that a long report prints without clipped tables, missing chart context, awkward page breaks or unreadable colours. It also does not establish that every animated or interactive behaviour is appropriately handled by assistive technology.
+- **Evidence:** `src/reporting/template.js`, `REPORT_CSS`.
+- **Status:** Source-verified positive support; print preview, PDF output and reduced-motion runtime behaviour not tested.
+
+**Finding UI-051 — The report's chart interaction has no verified non-pointer equivalent for its detailed hover/zoom affordances**
+
+- **Area:** Accessibility / chart controls.
+- **Observation:** The report provides chart hover cards, wheel zoom and reset controls. Some chart series controls are buttons, but point inspection and pointer-anchored details are implemented through pointer events. No keyboard-specific point navigation was identified in the inspected report JavaScript.
+- **Concern:** Keyboard users may be able to reach and operate some controls without being able to reproduce the detailed point inspection available to pointer users. Touch pointer support does not resolve keyboard or screen-reader access.
+- **Evidence:** `src/reporting/template.js`, `REPORT_JS`, chart event listeners and chart toolbar construction.
+- **Status:** Source-level concern; requires runtime accessibility testing. This overlaps UI-049 intentionally: UI-049 records the chart's semantic/alternative-content issue, while this finding records the interaction parity issue.
+
+**Finding UI-052 — The report is standalone/offline-capable, but the generated file does not visibly identify a generation timestamp or exact catalogue snapshot**
+
+- **Area:** Report traceability / reproducibility.
+- **Observation:** The report header shows the simulation period and strategy. Its overview shows modelling assumptions and transfer-fee defaults; selected FD rows show the product terms used. The inspected template does not visibly include a report-generated timestamp, source commit, catalogue fingerprint or explicit data snapshot identifier.
+- **Concern:** A saved report can be revisited well after rates or product terms have changed. Without a clear generated-at and data-version reference, users may have difficulty distinguishing an old simulation from a current one or reproducing the exact catalogue state later.
+- **Evidence:** `src/reporting/template.js`, report header; `src/reporting/html.js`, `overview`, `investmentTable` and report replacement values.
+- **Status:** Not identified in inspected generated report structure; verify runtime output and any metadata injected by another layer before treating as an absolute absence.
+
+## I. Live and automated verification sweep
+
+This section records what could be tested or verified during this pass. It distinguishes executed CI evidence from source inspection and from browser tests that remain outstanding.
+
+### I.1 Successful automated test run on the reviewed application revision
+
+The latest successful Node.js test/syntax/build workflow found for the current main source revision was:
+
+- [Node.js tests and syntax checks — run 42474569549](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569549)
+- **Branch:** `main`
+- **Source SHA:** `e952c9509be8d9ac57f7fd0ceb6f1221094e10dc`
+- **Runner:** Node.js 22
+- **Test result:** 187 passed, 0 failed, 0 skipped.
+- **Test duration:** approximately 12.99 seconds.
+- **Additional successful steps:** JavaScript syntax checks across `src`, `scripts` and `tests/js`; shell syntax checks for component build scripts; isolated web artifact build; preserved documentation baseline build; YAML parsing of the GitHub Actions workflows.
+- **Dependency audit in the install step:** npm reported 0 vulnerabilities for the installed dependency set at that run.
+
+The successful suite includes report-specific tests, including:
+
+- Greedy CLI execution producing a standalone report.
+- Account-chart colour progression and bank grouping.
+- Single-account chart colour normalisation.
+- Cash-movement chart event colours and separation of FD principal, interest and AIT.
+- Cursor-anchored wheel zoom and reset controls.
+- Report layout, decision accents, maturity colours and chart hover controls.
+- Goal-report consolidation-interest outcome and event progression.
+
+The test log records all 187 tests passing. These are automated Node.js tests, not end-to-end browser tests.
+
+### I.2 Successful web component build and Pages deployment
+
+- [Build and publish FD Cal web component — run 42474569572](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569572)
+- **Source SHA:** `e952c9509be8d9ac57f7fd0ceb6f1221094e10dc`
+- Successful jobs: web build, artifact publication, Pages assembly, Pages deployment and deployment-state recording.
+- The build step created the isolated web artifact and uploaded it successfully.
+
+### I.3 Successful documentation benchmark/build and Pages deployment
+
+- [Benchmark and publish FD Cal documentation — run 42474569576](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569576)
+- **Source SHA:** `e952c9509be8d9ac57f7fd0ceb6f1221094e10dc`
+- Successful jobs: Scoped Range benchmark, Absolute R+ benchmark, docs build from that run's generated data, artifact publication, Pages assembly, deployment and deployment-state recording.
+- The run validated 324 Scoped Range observations across 108 scenarios, four two-year cash-flow sweeps and 15 Absolute R+ parameter observations.
+- VitePress completed its build and rendered the documentation pages successfully.
+
+### I.4 Recorded deployment component consistency
+
+The current `pages-deploy-state/deployment.json` was fetched and reports:
+
+- Web artifact SHA: `00afe0afacbdb0601d6ba95eee3b515eb5c338c8`
+- Docs artifact SHA: `e401a1703217717b3da7a790d261f7dcf324bc67`
+
+The corresponding artifact commit messages identify source revision `e952c9509be8d9ac57f7fd0ceb6f1221094e10dc` for both components. The recorded web and docs artifacts therefore correspond to the same application/documentation source revision in this snapshot.
+
+### I.5 What was not possible in this pass
+
+The following are **not** claimed as completed:
+
+- Direct interactive browser operation of the hosted Pages site.
+- A real scenario submission through the deployed web UI.
+- A real report download/open interaction from the deployed UI.
+- Cross-browser testing, mobile-device testing or responsive screenshot capture.
+- Keyboard-only and screen-reader inspection of the report.
+- Browser print preview or PDF generation from a generated report.
+- A representative large report generated from a real multi-account, multi-booking scenario and inspected visually.
+- Live network failure/slow catalogue loading and browser persistence tests.
+
+The available GitHub connector allowed source, published artifact branches, workflow runs, job steps and job logs to be inspected. Direct access to the public GitHub Pages host was not available through the browser retrieval channel in this execution environment. A local clone was also attempted, but this environment could not resolve `github.com`; therefore no local Playwright/browser session or local npm test rerun was possible. The successful GitHub Actions run above is the available execution evidence and is explicitly tied to the main source SHA, not to a fresh test run on this documentation-only audit branch.
+
+## J. Future test matrix for the result summary and HTML report
+
+The following test cases should be treated as the outstanding end-to-end verification scope. They are test requirements, not claims that the tests have already passed.
+
+| ID | Surface | Scenario / action | What must be observed |
+|---|---|---|---|
+| RPT-01 | In-app summary | Run a simple single-account, single-booking scenario | Summary remains concise; shows top-line metrics and period/strategy; no booking/history table appears in the summary. |
+| RPT-02 | Summary → report | Open report and download report for the same result | Both report actions produce the same complete report content; summary does not duplicate report sections. |
+| RPT-03 | Full report | Scenario with multiple accounts and multiple FD bookings | Each booking is traceable to account, bank/product, principal, rate, term, booking date and maturity. |
+| RPT-04 | Full report | Scenario with recurring and one-off inflows | Scheduled cash-flow summary and ledger reconcile with simulation events. |
+| RPT-05 | Full report | Scenario with strict and best-effort outflows, including unpaid remainder | Paid and outstanding obligations are visibly distinguishable; warnings match simulation result fields. |
+| RPT-06 | Full report | Scenario with inter-bank and same-bank transfers plus fees | Sending/receiving movements and fees reconcile; no duplicated manual action is presented. |
+| RPT-07 | Full report | Cumulative, periodic-interest and installment FD products | Execution, maturity and cash-flow histories reflect the correct payout type and do not double-count principal or interest. |
+| RPT-08 | Full report | AIT on/off and simple/compound calculation variants | Summary and report metrics reconcile with the same calculation settings. |
+| RPT-09 | Full report | Senior/minor product inclusion | Selected product terms are shown, and report language does not imply that the depositor's age/eligibility was verified. |
+| RPT-10 | Report analytics | Inspect all four charts with pointer, touch and keyboard | Values/series can be inspected without relying exclusively on hover; labels and alternative data are meaningful. |
+| RPT-11 | Report tables | Expand/collapse each table and navigate the full ledger | Native details controls work with keyboard/screen reader; row counts and empty states are accurate. |
+| RPT-12 | Responsive | Open a long report at 360, 390, 768, 1024 and desktop widths | Navigation remains usable; wide tables can be horizontally explored without losing row/column context. |
+| RPT-13 | Print | Print preview a long report and save to PDF | Navigation is appropriately omitted; sections, tables, warnings and charts remain readable and are not clipped. |
+| RPT-14 | Offline | Download report, disconnect network, reopen file | Report content and chart code work without external network dependencies. |
+| RPT-15 | Data integrity | Compare summary values with report outcome and raw simulation result | Gross interest, AIT, fees, net interest, capital and final value reconcile; no report-only arithmetic drift. |
+| RPT-16 | Privacy | Inspect report contents and share/save workflow | Users can recognise that the portable HTML file contains account labels, scenario amounts and event history before sharing it. |
+| RPT-17 | Traceability | Generate reports before/after a catalogue update | Report makes it possible to identify the catalogue/rate snapshot used for a historical simulation. |
+| RPT-18 | Large output | Generate hundreds/thousands of ledger events | Report generation, open, expand/collapse, chart render and print remain responsive and stable. |
+
+## K. Instructions for future workflows — result/report separation
+
+1. Preserve the in-app result summary as a concise overview. Do not add individual bookings, maturity history, chronological event rows, transfer ledger entries or full cash-flow history to it.
+2. Keep detailed booking, execution, portfolio, cash-flow, analytics and ledger content in the standalone HTML report.
+3. The summary and report must be generated from the same simulation result/configuration; do not independently recalculate headline figures in the UI.
+4. Ensure that the summary's headline values reconcile exactly with the corresponding report outcome and simulation result.
+5. Keep the report clearly labelled as a simulated/manual planning document. It is not a transaction receipt, bank confirmation or executable instruction.
+6. Preserve offline operation and local-data expectations when changing report generation or download behaviour.
+7. Treat report charts as an accessibility surface in their own right. Canvas labels alone do not prove keyboard or screen-reader access to the underlying data.
+8. Re-run the report-specific automated tests and add end-to-end browser coverage when report presentation or interactions change.
+9. Record the exact source SHA and Pages component SHAs when validating the deployed report-producing application.
+10. Do not claim browser-level validation based only on passing unit tests, a successful static build or a successful Pages deployment.
+
+## L. Additional report evidence links
+
+- [Report generator](https://github.com/aaron-fredrick/FD-Calculator/blob/main/src/reporting/html.js)
+- [Standalone report template, CSS and JavaScript](https://github.com/aaron-fredrick/FD-Calculator/blob/main/src/reporting/template.js)
+- [Report-specific automated tests](https://github.com/aaron-fredrick/FD-Calculator/blob/main/tests/js/reporting.test.js)
+- [Result model tests](https://github.com/aaron-fredrick/FD-Calculator/blob/main/tests/js/results.test.js)
+- [Report chart colour tests](https://github.com/aaron-fredrick/FD-Calculator/blob/main/tests/js/report-chart-colors.test.js)
+- [Web result summary and report actions](https://github.com/aaron-fredrick/FD-Calculator/blob/main/src/web/app.js)
+- [Node.js test and syntax-check run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569549)
+- [Web component build and deployment run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569572)
+- [Documentation benchmark/build and deployment run](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42474569576)
