@@ -13,6 +13,8 @@ It is intended as durable context for subsequent agentic workflows. Future agent
 
 **This document records findings, not implementation instructions.** It does not prescribe fixes, select a redesign, author implementation tasks, or authorise code changes. Findings should be independently revalidated against the current application before implementation because the source may change after this audit.
 
+The prioritised response to these findings, including product direction, preserved behaviours, implementation phases and acceptance criteria, is documented separately in the [UI/UX Improvement and Implementation Plan](./UI-UX-IMPLEMENTATION-PLAN.md). Keep this audit as the evidence/findings record and use the plan as the implementation roadmap.
+
 ### Scope reviewed
 
 Primary FD Cal files inspected:
