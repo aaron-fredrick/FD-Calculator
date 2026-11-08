@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-06T07:47:38.796Z",
+  "generated_at": "2026-11-08T10:22:07.653Z",
   "start_date": "2026-11-05",
   "scenario": {
     "horizon_months": 24,
@@ -20,6 +20,24 @@
     "max_local_branches": 48,
     "max_decisions": 5000
   },
+  "repeat_measurements": {
+    "warmup_runs": 1,
+    "measured_runs": 7,
+    "durations_ms": [
+      5417.73,
+      5522.36,
+      5564.71,
+      5510.46,
+      5566.99,
+      5555.37,
+      5587.17
+    ],
+    "median_ms": 5555.37,
+    "p95_ms": 5587.17,
+    "min_ms": 5417.73,
+    "max_ms": 5587.17,
+    "financial_result_stable": true
+  },
   "results": [
     {
       "sweep": "beam_width",
@@ -33,7 +51,7 @@
       "beam_pruned": 12500,
       "local_combination_pruned": 1148,
       "optimality_proven": false,
-      "duration_ms": 884.07
+      "duration_ms": 1175.94
     },
     {
       "sweep": "beam_width",
@@ -47,7 +65,7 @@
       "beam_pruned": 25505,
       "local_combination_pruned": 1148,
       "optimality_proven": false,
-      "duration_ms": 1434.16
+      "duration_ms": 2193.89
     },
     {
       "sweep": "beam_width",
@@ -55,13 +73,13 @@
       "beam_width": 96,
       "max_local_branches": 48,
       "max_decisions": 5000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63302.37,
+      "final_value": 363302.37,
       "expanded_states": 2791,
       "beam_pruned": 72870,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4823.53
+      "duration_ms": 5697.11
     },
     {
       "sweep": "beam_width",
@@ -69,13 +87,13 @@
       "beam_width": 192,
       "max_local_branches": 48,
       "max_decisions": 5000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63335.29,
+      "final_value": 363335.29,
       "expanded_states": 5000,
-      "beam_pruned": 143644,
+      "beam_pruned": 143661,
       "local_combination_pruned": 22300,
       "optimality_proven": false,
-      "duration_ms": 9372.7
+      "duration_ms": 11748.3
     },
     {
       "sweep": "beam_width",
@@ -83,13 +101,13 @@
       "beam_width": 256,
       "max_local_branches": 48,
       "max_decisions": 5000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63480.56,
+      "final_value": 363480.56,
       "expanded_states": 5000,
-      "beam_pruned": 161182,
+      "beam_pruned": 162146,
       "local_combination_pruned": 28870,
       "optimality_proven": false,
-      "duration_ms": 10694.51
+      "duration_ms": 14024.02
     },
     {
       "sweep": "local_branch_limit",
@@ -97,13 +115,13 @@
       "beam_width": 96,
       "max_local_branches": 16,
       "max_decisions": 5000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 62908.53,
+      "final_value": 362908.53,
       "expanded_states": 2824,
       "beam_pruned": 64995,
       "local_combination_pruned": 19220,
       "optimality_proven": false,
-      "duration_ms": 4371.56
+      "duration_ms": 5144.79
     },
     {
       "sweep": "local_branch_limit",
@@ -111,13 +129,13 @@
       "beam_width": 96,
       "max_local_branches": 32,
       "max_decisions": 5000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63500.93,
+      "final_value": 363500.93,
       "expanded_states": 2832,
       "beam_pruned": 68699,
       "local_combination_pruned": 16135,
       "optimality_proven": false,
-      "duration_ms": 4576.09
+      "duration_ms": 5498.04
     },
     {
       "sweep": "local_branch_limit",
@@ -125,13 +143,13 @@
       "beam_width": 96,
       "max_local_branches": 48,
       "max_decisions": 5000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63302.37,
+      "final_value": 363302.37,
       "expanded_states": 2791,
       "beam_pruned": 72870,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4841.68
+      "duration_ms": 5419.52
     },
     {
       "sweep": "local_branch_limit",
@@ -145,7 +163,7 @@
       "beam_pruned": 79838,
       "local_combination_pruned": 5975,
       "optimality_proven": false,
-      "duration_ms": 5256.41
+      "duration_ms": 5487.3
     },
     {
       "sweep": "local_branch_limit",
@@ -159,7 +177,7 @@
       "beam_pruned": 77928,
       "local_combination_pruned": 4501,
       "optimality_proven": false,
-      "duration_ms": 5164.15
+      "duration_ms": 5566.06
     },
     {
       "sweep": "decision_cap",
@@ -167,13 +185,13 @@
       "beam_width": 96,
       "max_local_branches": 48,
       "max_decisions": 500,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63302.37,
+      "final_value": 363302.37,
       "expanded_states": 500,
-      "beam_pruned": 15420,
+      "beam_pruned": 17167,
       "local_combination_pruned": 1148,
       "optimality_proven": false,
-      "duration_ms": 971.47
+      "duration_ms": 1431.47
     },
     {
       "sweep": "decision_cap",
@@ -181,13 +199,13 @@
       "beam_width": 96,
       "max_local_branches": 48,
       "max_decisions": 1000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63302.37,
+      "final_value": 363302.37,
       "expanded_states": 1000,
-      "beam_pruned": 32295,
+      "beam_pruned": 34342,
       "local_combination_pruned": 4654,
       "optimality_proven": false,
-      "duration_ms": 2196.13
+      "duration_ms": 2928.4
     },
     {
       "sweep": "decision_cap",
@@ -195,13 +213,13 @@
       "beam_width": 96,
       "max_local_branches": 48,
       "max_decisions": 2500,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63302.37,
+      "final_value": 363302.37,
       "expanded_states": 2500,
-      "beam_pruned": 72820,
+      "beam_pruned": 72828,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4843.21
+      "duration_ms": 5404.89
     },
     {
       "sweep": "decision_cap",
@@ -209,13 +227,13 @@
       "beam_width": 96,
       "max_local_branches": 48,
       "max_decisions": 5000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63302.37,
+      "final_value": 363302.37,
       "expanded_states": 2791,
       "beam_pruned": 72870,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4855.07
+      "duration_ms": 5433.27
     },
     {
       "sweep": "decision_cap",
@@ -223,13 +241,13 @@
       "beam_width": 96,
       "max_local_branches": 48,
       "max_decisions": 10000,
-      "net_interest": 61886.03,
-      "final_value": 361886.03,
+      "net_interest": 63302.37,
+      "final_value": 363302.37,
       "expanded_states": 2791,
       "beam_pruned": 72870,
       "local_combination_pruned": 12912,
       "optimality_proven": false,
-      "duration_ms": 4768.04
+      "duration_ms": 5448.68
     }
   ]
 }
