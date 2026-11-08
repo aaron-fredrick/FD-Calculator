@@ -10,7 +10,7 @@ Reviewed the configuration boundary, account/FD models, interest calculation, ca
 
 **Severity: P2**
 
-**Evidence:** [src/core/models.js L101-L109](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js#L101-L109).
+**Evidence:** [src/core/models.js L101-L109](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js#L101-L109).
 
 The installment branch appends each date generated from the payout interval and stops only when the date is greater than or equal to maturity. It then returns those dates unchanged. If the interval does not divide the tenor, the last date is later than maturity. For example, a five-month FD with a two-month payout interval generates months 2, 4 and 6. A payout interval longer than the tenor also produces a single cash flow after maturity.
 
@@ -22,7 +22,7 @@ The installment branch appends each date generated from the payout interval and 
 
 **Severity: P2**
 
-**Evidence:** [src/core/interest.js L3-L18](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/interest.js#L3-L18); [src/core/models.js L79-L83](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js#L79-L83).
+**Evidence:** [src/core/interest.js L3-L18](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/interest.js#L3-L18); [src/core/models.js L79-L83](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js#L79-L83).
 
 When `actual_leap_year` is enabled, `getYearBaseDays` selects 365 or 366 from the calendar year of `onDate`. `calcInterest` then applies that one denominator to every day in the interval. A cumulative FD spanning multiple calendar years is not split into yearly accrual segments. A tenor starting in a non-leap year and crossing a leap year therefore uses 365 throughout; a tenor starting in a leap year and crossing a non-leap year uses 366 throughout.
 
@@ -32,7 +32,7 @@ When `actual_leap_year` is enabled, `getYearBaseDays` selects 365 or 366 from th
 
 ### ENG-03 — Financial invariants are mostly distributed across constructors and runtime code
 
-**Evidence:** [config-schema.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/config-schema.js), [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/configuration.js), [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js), [simulation-runtime.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/simulation-runtime.js).
+**Evidence:** [config-schema.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/config-schema.js), [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/configuration.js), [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js), [simulation-runtime.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/simulation-runtime.js).
 
 The boundary validation is reasonably strict, but some model invariants still rely on catalogue quality or calling conventions. Examples include positive FD tenor/rate assumptions, the exact meaning of an installment payout schedule, and the selected leap-year/day-count basis. The CSV loader accepts a zero minimum amount and finite but negative rates; the FD model's period parser accepts zero-length periods.
 
@@ -42,7 +42,7 @@ The boundary validation is reasonably strict, but some model invariants still re
 
 ### ENG-04 — AIT is supplied as a fixed 10% engine assumption
 
-**Evidence:** [src/core/configuration.js L207-L213](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/configuration.js#L207-L213).
+**Evidence:** [src/core/configuration.js L207-L213](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/configuration.js#L207-L213).
 
 The validated configuration returns `ait_rate: 0.10`; the input schema exposes only an enable/disable switch, not a rate or effective date.
 
@@ -58,7 +58,7 @@ The engine has both contributed-capital/return arithmetic and ending cash/liabil
 
 ## Positive observations
 
-- Dates are parsed as strict ISO calendar dates and normalized to UTC-midnight values in [dates.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/dates.js).
+- Dates are parsed as strict ISO calendar dates and normalized to UTC-midnight values in [dates.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/dates.js).
 - The configuration schema rejects unknown top-level, account, schedule and strategy-setting properties.
 - Outflow policies are explicit (`strict`, `defer`, `best_effort`) and schedule validation checks account references and date bounds.
 - Balance provenance is separated into principal, uncredited interest and counted interest, which supports the goal-credit accounting model.

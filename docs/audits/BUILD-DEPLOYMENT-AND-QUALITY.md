@@ -4,7 +4,7 @@
 
 **Severity: P2**
 
-**Evidence:** GitHub Pages project hosting publishes one site tree at the project root. The new dev workflow publishes a separate branch `dev_pages-preview-artifact`, and the dev version of [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/.github/workflows/pages.yml) assembles that tree under `site/dev/` alongside the production web/docs artifact branches.
+**Evidence:** GitHub Pages project hosting publishes one site tree at the project root. The new dev workflow publishes a separate branch `dev_pages-preview-artifact`, and the dev version of [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/.github/workflows/pages.yml) assembles that tree under `site/dev/` alongside the production web/docs artifact branches.
 
 **Impact:** the path is isolated in the deployed file tree, but it is not a separate Pages environment or independent deployment target. A dev deployment re-deploys the complete assembled site. More importantly, the current **main** version of `pages.yml` does not include the dev artifact. After the preview-aware workflow deploys, a later production deployment using the old main assembler can remove `/dev/`.
 

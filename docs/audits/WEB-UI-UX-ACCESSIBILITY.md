@@ -10,7 +10,7 @@ Reviewed the browser form structure, account and cash-flow editors, strategy con
 
 **Severity: P3**
 
-**Evidence:** [app.js L35](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L35), [app.js L51](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L51), [app.js L124](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L124).
+**Evidence:** [app.js L35](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L35), [app.js L51](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L51), [app.js L124](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L124).
 
 Validation errors and the result section call `scrollIntoView({ behavior: "smooth" })` directly. The CSS and motion helpers support reduced motion, but these JavaScript calls do not check `prefers-reduced-motion`.
 
@@ -22,7 +22,7 @@ Validation errors and the result section call `scrollIntoView({ behavior: "smoot
 
 **Severity: P3**
 
-**Evidence:** [app.js L67](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L67) renders the outflow help marker as a focusable `span` with `role="img"`, an aria-label of “Outflow payment policy help”, and tooltip text in a CSS `data-tooltip` pseudo-element.
+**Evidence:** [app.js L67](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L67) renders the outflow help marker as a focusable `span` with `role="img"`, an aria-label of “Outflow payment policy help”, and tooltip text in a CSS `data-tooltip` pseudo-element.
 
 **Impact:** the actual Strict/Defer/Best effort explanation is not programmatically associated with the payment-policy control. A screen reader may announce only a generic “help” image, not the tooltip content.
 
@@ -30,7 +30,7 @@ Validation errors and the result section call `scrollIntoView({ behavior: "smoot
 
 ### UI-03 — Inline validation messages are not explicitly associated with their fields
 
-**Evidence:** [app.js L34-L35](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L34-L35) adds `aria-invalid` and appends a visual `small.field-error`, but does not assign the message an ID or add that ID to the field's `aria-describedby`.
+**Evidence:** [app.js L34-L35](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L34-L35) adds `aria-invalid` and appends a visual `small.field-error`, but does not assign the message an ID or add that ID to the field's `aria-describedby`.
 
 **Impact:** focus moves to the invalid field, but assistive technology is not guaranteed to announce the corresponding error message.
 

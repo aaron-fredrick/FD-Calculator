@@ -5,10 +5,10 @@
 **Severity: P1**
 
 **Evidence:**
-- [config-schema.js L25-L26](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/config-schema.js#L25-L26) requires account IDs to be non-empty but does not constrain their characters.
-- [app.js L214](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L214) parses an imported JSON file, validates its configuration and applies it.
-- [app.js L84](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L84) uses each imported account object key as the account ID.
-- [app.js L63](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L63) inserts `a.id` directly into `data-id`, radio `value` and `data-remove-account` attributes inside an `innerHTML` template. The local `esc` helper is used for labels but not for the ID.
+- [config-schema.js L25-L26](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/config-schema.js#L25-L26) requires account IDs to be non-empty but does not constrain their characters.
+- [app.js L214](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L214) parses an imported JSON file, validates its configuration and applies it.
+- [app.js L84](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L84) uses each imported account object key as the account ID.
+- [app.js L63](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L63) inserts `a.id` directly into `data-id`, radio `value` and `data-remove-account` attributes inside an `innerHTML` template. The local `esc` helper is used for labels but not for the ID.
 
 **Impact:** a crafted JSON file can supply an account ID containing quotes/HTML and break out of an attribute when the user imports it. This is a client-side DOM-XSS path in the public application origin. It requires the victim to import a malicious scenario file, but the import feature is an explicit untrusted-file boundary.
 
@@ -30,7 +30,7 @@
 
 ## PRIV-01 — Local scenario drafts persist without an in-app clear/retention control
 
-**Evidence:** [app.js L10](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L10) defines a localStorage draft key; [app.js L89-L90](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js#L89-L90) saves and restores the scenario.
+**Evidence:** [app.js L10](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L10) defines a localStorage draft key; [app.js L89-L90](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L89-L90) saves and restores the scenario.
 
 **Impact:** account labels, balances, inflow/outflow schedules and other personal planning data remain in browser storage until overwritten or manually cleared through browser controls. The app accurately says the draft stays in the browser, but users are not given a clear in-app deletion path or retention explanation.
 
