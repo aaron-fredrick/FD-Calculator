@@ -15,6 +15,15 @@ const valid = () => ({
   gaml_settings:{beam_width:256,max_local_branches:null,max_decisions:null}
 });
 
+test("validates optional age-based FD product filters without requiring personal DOB data",()=>{
+  const a=valid();a.fd_eligibility={include_senior:true,include_minor:false};
+  assert.deepEqual(validateConfigurationShape(a).fd_eligibility,{include_senior:true,include_minor:false});
+  const b=valid();b.fd_eligibility={include_senior:"yes"};
+  assert.throws(()=>validateConfigurationShape(b),/fd_eligibility.include_senior: must be boolean/);
+  const c=valid();c.fd_eligibility={include_child:true};
+  assert.throws(()=>validateConfigurationShape(c),/fd_eligibility.include_child: unknown property/);
+});
+
 test("accepts complete current schema, nullable fallback values and date keywords",()=>{
   assert.equal(validateConfigurationShape(valid()).strategy,"gaml");
 });
