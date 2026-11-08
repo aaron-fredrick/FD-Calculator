@@ -28,6 +28,8 @@ test("buttons use the specified pressed scale and reduced motion is respected", 
 test("tooltips remain anchored to their trigger and strategy panels crossfade in one stack", () => {
   assert.match(styles, /transform-origin:50% 100%/);
   assert.match(styles, /scale\(\.95\)/);
+  assert.match(styles, /opacity 200ms ease-out/);
+  assert.match(styles, /opacity 160ms ease-in/);
   assert.match(html, /class="strategy-settings-stack"/);
   assert.match(html, /id="gaml-settings-panel"/);
   assert.match(app, /panel\.inert=true;panel\.setAttribute\("aria-hidden","true"\)/);
