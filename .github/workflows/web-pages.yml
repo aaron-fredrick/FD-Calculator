@@ -64,7 +64,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: web-site
           path: /tmp/web-site

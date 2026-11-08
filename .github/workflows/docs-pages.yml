@@ -136,12 +136,12 @@ jobs:
         with:
           node-version: 22
       - name: Restore this run's Scoped Range data
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: scoped-range-benchmark-data
           path: docs/strategies/benchmarks
       - name: Restore this run's Absolute R+ data
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: absolute-r-plus-benchmark-data
           path: docs/strategies/benchmarks
@@ -170,7 +170,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: docs-site
           path: /tmp/docs-site
