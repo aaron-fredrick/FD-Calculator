@@ -381,7 +381,7 @@ export function generateHtmlReport(result,config) {
   })));
   const returnChartTable=table("Return composition chart data",[["name","Component"],["value","Amount (LKR)"]],chartData.returns.map(item=>({name:item.name,value:amount(item.value)})));
   const chartJson=JSON.stringify(chartData).replace(/<\//g,"<\\/");
-  const ledger='<details class="collapsible-table"><summary>Ledger entries <span>'+ledgerRows.length+' rows · expand</span></summary><div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount (LKR)</th><th>Description</th><th class="num">Balance after (LKR)</th></tr></thead><tbody>'+(ledgerRows.join("")||'<tr><td colspan="6" class="empty">No events</td></tr>')+'</tbody></table></div></details>';
+  const ledger='<details class="collapsible-table"><summary>Ledger entries <span>'+ledgerRows.length+' rows · expand</span></summary><div class="table-wrap"><table><thead><tr><th scope="col">Date</th><th scope="col">Account</th><th scope="col">Event</th><th scope="col" class="num">Amount (LKR)</th><th scope="col">Description</th><th scope="col" class="num">Balance after (LKR)</th></tr></thead><tbody>'+(ledgerRows.join("")||'<tr><td colspan="6" class="empty">No events</td></tr>')+'</tbody></table></div></details>';
   const replacements={
     "{{REPORT_TITLE}}":"FD Cal · Simulation Report",
     "{{REPORT_PERIOD}}":start+" — "+end+" · "+days+" calendar days · "+result.strategy_name+" strategy",
