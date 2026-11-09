@@ -90,7 +90,7 @@ DATA-02 is an accepted product-scope boundary. DATA-03 and QA-01 remain deferred
 ## Release and verification caveats
 
 - The source audit is not formal financial verification, a penetration test, or bank-product certification.
-- The Node test workflow passed on the audited source revision, but that does not prove rendered browser behaviour or financial-product correctness.
+- The Node.js test/syntax workflow and independent dev web build passed on the exact audited `dev` commit; the dev docs/benchmark workflow was still running when checked. These checks do not prove rendered browser behaviour, screen-reader output, or financial-product correctness.
 - No manual browser, screen-reader, or full WCAG assessment was completed as part of the static audit.
 - The dev preview is a subtree of the same GitHub Pages site. Production and dev deployments must be serialized and both must preserve the other's published files.
 - PR #75 contains the security, result, search-budget and catalogue-disclosure implementation now merged to `dev`; PR #80 contains the dev publishing split now merged to `dev`.
