@@ -2,6 +2,8 @@
 
 ## DATA-01 — Product-source provenance is not visible in the user-facing workflow
 
+**Current status: PARTIAL in PR #75.** Per-bank `dataset_reviewed_at` and `research_status` are shown beside the bank selector and in the report. Product-level `source_url`, `source_effective_date`, source notes and caveats are not yet propagated to each selected product/report row; this finding remains open for that missing provenance.
+
 **Severity: P2**
 
 **Evidence:**
@@ -17,6 +19,8 @@
 
 ## DATA-02 — Senior/minor selection is not an actual depositor eligibility check
 
+**Current status: CLOSED AS AN OWNER-CONFIRMED SCOPE DECISION.** The toggles intentionally filter candidate products; FD Cal does not verify depositor age, guardian status or bank onboarding eligibility. Retain the disclosure and do not represent the toggles as verification.
+
 **Severity: P2**
 
 **Evidence:** [configuration.js L140-L148](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/configuration.js#L140-L148) includes senior/minor products when the corresponding boolean is true. The web form stores these booleans in [app.js L76-L88](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L76-L88). It does not collect depositor age or guardian status. The report explicitly states that catalogue age and guardian conditions are informational and are not verified ([html.js L219](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/reporting/html.js#L219)).
@@ -31,6 +35,8 @@ Do not imply that a category toggle is proof of eligibility.
 
 ## DATA-03 — The active FD model cannot yet represent all special-product constraints
 
+**Current status: DEFERRED.** No owner-approved scope for modelling the special-product constraints has been supplied. Keep products with unenforced simulation-critical constraints outside the active catalogue.
+
 **Evidence:** the research register [age_eligibility.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/data/fd_options/age_eligibility.csv) contains fields such as `product_max_amount` and `tax_exempt`. The active [FDOption model](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js) and data loaders currently model minimum amount and age/segment fields, but not product maximum amount or tax-exempt treatment.
 
 **Impact:** products with scheme-wide caps, product caps or special tax treatment must remain excluded from simulation until those rules can be enforced. Reusing general FD rates or minimums for a special product can create an invalid plan.
@@ -38,6 +44,8 @@ Do not imply that a category toggle is proof of eligibility.
 **Recommendation:** extend the domain model only when a real product requires it: maximum amount, per-customer/scheme-wide cap, tax treatment, required documentation/guardian and any renewal/eligibility conditions. Add validation and tests before moving a research-register row into the active product catalogue.
 
 ## DATA-04 — CSV rows are not checked for exact field count
+
+**Current status: OPEN.** `src/io/csv.js` was not changed by the remediation PRs; strict row-width and malformed-quote validation remain outstanding.
 
 **Severity: P3**
 
@@ -49,6 +57,8 @@ Do not imply that a category toggle is proof of eligibility.
 
 ## DATA-05 — Transfer-fee assumptions are not a full transfer-channel model
 
+**Current status: OPEN / documented limitation.** No channel/tier/privilege model has been added; keep fees explicitly described as estimates.
+
 **Evidence:** [data/banks/banks.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/data/banks/banks.csv) records bank fee values and notes that distinguish online/mobile CEFT, OTC, SLIPS, fallback CBSL maxima and assumptions. The active fee model chooses same-bank or domestic inter-bank fees per source bank; it does not model all channels, transaction tiers, customer privileges or limits.
 
 **Impact:** a single fee per bank/channel class can be a useful planning approximation, but it is not a complete bank tariff model. The catalogue itself records conflicts and fallback assumptions (for example, bank-published values that differ from a CBSL digital CEFT maximum).
@@ -56,6 +66,8 @@ Do not imply that a category toggle is proof of eligibility.
 **Recommendation:** keep the current model labelled “estimated transfer fee”. If channel selection materially changes outcomes, add a transfer method dimension (digital CEFT, OTC CEFT, SLIPS, internal transfer), transaction tier and effective date. Do not resolve contradictory sources by silently selecting one.
 
 ## DATA-06 — Bank-rate freshness and secondary sources need a visible warning policy
+
+**Current status: PARTIAL.** Bank source status and review dates are now visible, but no freshness threshold, stale-data policy or product-level confidence/effective-date disclosure has been completed.
 
 The index distinguishes `populated_direct`, `populated_secondary`, `no_public_rate_verified` and other research statuses. The web UI disables only the last category. A populated secondary compilation is usable by the engine but should not look identical to a current official schedule.
 

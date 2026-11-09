@@ -1,10 +1,10 @@
 # FD Cal — implementation plan from the engineering audit
 
 **Plan date:** 9 November 2026  
-**Audited source:** `dev` at `a455462a959f37db757970d0a3078a4d9a3ef028`  
+**Re-audited source:** `dev` at `caccaf26b4415ae783959e888ff45e33becdadf6`  
 **Working branch:** `audit/rulesets-codebase-review`  
-**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS)  
-**Status:** Owner feedback incorporated; planning only. No application code or financial behaviour has been changed.
+**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`  
+**Status:** Re-audited after PRs #75 and #80. Core remediations are already merged to `dev`; this plan now distinguishes completed implementation, partial work, open findings and deferred owner decisions. This update is documentation-only.
 
 ## 1. Purpose and constraints
 
@@ -52,6 +52,7 @@ Before implementation, capture deterministic baseline outputs for representative
 
 ### Phase 1 — SEC-01: imported account-ID rendering
 
+**Status:** **Completed** Implemented and merged to `dev` in PR #75; adversarial regression coverage is included.  
 **Priority:** P1  
 **Primary boundary:** JSON import → configuration validation → account model → DOM rendering.
 
@@ -84,6 +85,7 @@ There are also adjacent uses where IDs are inserted into CSS selector strings du
 
 ### Phase 2 — FIN-01: separate portfolio value from closing position
 
+**Status:** **Completed** Explicit result semantics, UI/report labels and reconciliation tests are merged to `dev` in PR #75.  
 **Priority:** P1  
 **Primary boundary:** result model → strategy objective contract → UI/report presentation.
 
@@ -138,6 +140,7 @@ Do not redefine `final_value` in place. It is used outside the display layer, in
 
 ### Phase 3 — ENG-01 and ENG-02: clarify financial timing conventions
 
+**Status:** **Partial** Event-order regression coverage and the start-year denominator explanation are present; installment contract validation and bank-term verification remain. No financial formula or payout date was changed.  
 **Priority:** P2  
 **Primary boundary:** FD product terms → cash-flow model → date/interest calculation.
 
@@ -166,6 +169,7 @@ Owner feedback indicates that the intended approach is a relative elapsed-day de
 
 ### Phase 4 — SEARCH-01: bounded browser search with explicit unlimited mode
 
+**Status:** **Implemented** Browser defaults, cooperative stopping, watchdog, cancellation and regression tests are merged to `dev` in PR #75. Benchmark calibration remains a follow-up gate.  
 **Priority:** P2  
 **Primary boundary:** configuration → search loop → worker lifecycle → UI diagnostics.
 
@@ -199,6 +203,7 @@ Absolute R+ currently defaults `max_decisions` to `null`; the browser leaves the
 
 ### Phase 5 — DATA-01: catalogue freshness and source disclosure
 
+**Status:** **Partial** Bank review dates/source status and report disclosure are merged to `dev`; product-level source URLs/effective dates are not yet propagated.  
 **Priority:** P2  
 **Primary boundary:** bank/product index → bank selector → result/report disclosure.
 
@@ -232,6 +237,7 @@ Do not invent dates for old rows. Backfill only when Git history or research not
 
 ### Phase 6 — DEPLOY-01: preserve the public dev preview on production deployments
 
+**Status:** **Partial** PR #80 splits dev web/docs publishing and adds dev-side assembly. `main` still uses an assembler without `/dev/` extraction, so the production-preservation acceptance criterion is not met yet.  
 **Priority:** P2  
 **Primary boundary:** artifact branches → Pages assembly → public site.
 
@@ -252,6 +258,7 @@ The dev preview is intended to be publicly accessible so users and contributors 
 
 ### Phase 7 — DATA-04: strict CSV structural validation
 
+**Status:** **Open** No parser hardening has been applied.  
 **Priority:** P3  
 **Primary boundary:** CSV text → parsed row objects → catalogue loaders.
 
@@ -272,6 +279,7 @@ The current parser rejects unterminated quoted fields and duplicate/empty header
 
 ### Phase 8 — UI-01: reduced-motion-aware programmatic scrolling
 
+**Status:** **Open** The app still calls smooth `scrollIntoView` directly in validation and result navigation.  
 **Priority:** P3  
 **Primary boundary:** validation/result feedback → browser scrolling behaviour.
 
@@ -317,20 +325,20 @@ Relevant guidance: [Visual Design and Restraint](https://github.com/aaron-fredri
 
 ## 5. Delivery order and branch strategy
 
-The audit branch remains documentation-only. Do not implement application changes directly on `audit/rulesets-codebase-review`.
+The earlier audit implementation was delivered on this same branch and merged to `dev` through PR #75; the dev preview workflow changes were then merged through PR #80. This branch is now being used to maintain the audit record. Keep subsequent application fixes in focused branches from `dev`; update this branch with audit evidence/status only.
 
 Recommended implementation sequence:
 
-1. **SEC-01** — isolated security fix and adversarial import tests.
-2. **FIN-01** — result contract and presentation correction, with strategy scoring frozen and reconciled.
-3. **ENG-01/ENG-02** — only after payout-term and day-count assumptions are documented; keep this separate from FIN-01.
-4. **SEARCH-01** — configuration, search deadline, worker watchdog, cancellation, diagnostics, and benchmark matrix.
-5. **DATA-01** — catalogue metadata, selected-bank disclosure, and report disclaimer.
-6. **DEPLOY-01** — production Pages assembler preservation, tested against both production and dev artifacts.
-7. **DATA-04** — strict CSV parser after current-data inventory.
-8. **UI-01** — targeted reduced-motion scroll helper.
+1. **DEPLOY-01** — port the preview-aware assembler to `main`; test both production and dev publishes preserve the other subtree.
+2. **DATA-01 / FIN-03** — complete product-level source URL/effective-date propagation into the UI and standalone report.
+3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
+4. **DATA-04** — inventory current CSVs, then enforce strict row width/quoting with actionable errors.
+5. **UI-01 / UI-02 / UI-03** — reduced-motion scrolling, accessible tooltip semantics and field-error associations.
+6. **PRIV-01 / WEB-SEC-02** — local draft deletion/retention control and static-hosting security-header strategy.
+7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
+8. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
 
-Each implementation should be a focused branch from the current `dev` baseline, with its own tests and review. Merge only after its acceptance criteria pass. Rebase/update from `dev` as needed; do not merge this audit branch wholesale into `main` merely to publish the plan.
+Each new implementation should be a focused branch from the current `dev` baseline, with its own tests and review. Merge only after its acceptance criteria pass. Rebase/update from `dev` as needed; do not merge this audit branch wholesale into `main` merely to publish the plan.
 
 ## 6. Cross-phase acceptance gates
 

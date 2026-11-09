@@ -2,6 +2,8 @@
 
 ## SEC-01 — Imported account IDs are interpolated into HTML without escaping
 
+**Current status: COMPLETED in PR #75.** The account-card `data-id`, radio `value` and remove-button attribute now pass IDs through the shared HTML encoder. The ID itself is not restricted, preserving import compatibility. See `src/web/escape-html.js`, `src/web/app.js` and the adversarial security regression tests.
+
 **Severity: P1**
 
 **Evidence:**
@@ -30,6 +32,8 @@
 
 ## PRIV-01 — Local scenario drafts persist without an in-app clear/retention control
 
+**Current status: OPEN.** Drafts still use `localStorage`; no user-facing clear-saved-draft action or retention explanation was found in the current UI.
+
 **Evidence:** [app.js L10](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L10) defines a localStorage draft key; [app.js L89-L90](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L89-L90) saves and restores the scenario.
 
 **Impact:** account labels, balances, inflow/outflow schedules and other personal planning data remain in browser storage until overwritten or manually cleared through browser controls. The app accurately says the draft stays in the browser, but users are not given a clear in-app deletion path or retention explanation.
@@ -37,6 +41,8 @@
 **Recommendation:** add a visible “Clear saved draft” action with confirmation; explain that drafts remain in this browser profile until cleared. Keep export/import local and avoid transmitting scenario data. Do not add analytics or replay tools without a separate privacy review.
 
 ## WEB-SEC-02 — Static hosting still needs an explicit security-header strategy
+
+**Current status: OPEN / hosting constraint.** The app remains on GitHub Pages and no verifiable response-header policy was established by the reviewed repository files. Document the limits accurately; move hosting only if the required header controls justify it.
 
 GitHub Pages does not provide arbitrary per-route response headers through a repository file in the same way as a configurable origin server. The reviewed app should therefore document which controls are available at the hosting layer and avoid claiming that a `robots.txt` file is a security boundary. If a stronger Content-Security-Policy, Referrer-Policy or Permissions-Policy is required, use a hosting layer that can emit those headers or an accurately tested meta-policy where suitable. A CSP meta element is not equivalent to a full response header and has limitations.
 

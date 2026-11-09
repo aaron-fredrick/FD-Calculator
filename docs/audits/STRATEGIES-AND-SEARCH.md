@@ -8,6 +8,8 @@ Reviewed Greedy, GSS, Absolute R, Absolute R+, shared search primitives, search 
 
 ### SEARCH-01 — Scoped Absolute R+ has no default expansion budget or post-start execution timeout
 
+**Current status: IMPLEMENTED in PR #75.** Browser configuration now defaults to 10,000 expanded states and 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, optimality diagnostics, cancellation and a post-start worker watchdog. Regression coverage was added. The planned repeated 5k/10k/20k/uncapped benchmark calibration remains a follow-up; do not treat the candidate defaults as empirically optimal yet.
+
 **Severity: P2**
 
 **Evidence:** [SearchStrategyBase constructor L1342-L1357](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/search-strategy-base.js#L1342-L1357) defaults `max_decisions` to `null). [GAML run loop L1246-L1284](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/search-strategy-base.js#L1246-L1284) continues while the beam is non-empty and only enforces a cap when one is configured. The UI leaves the decision-cap field blank by default ([app.js L76](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L76)). The worker runner clears its handshake timer after the worker sends `started` ([simulation-runner.js L184-L193](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/simulation-runner.js#L184-L193)); there is no execution deadline after that acknowledgement.
@@ -18,6 +20,8 @@ Reviewed Greedy, GSS, Absolute R, Absolute R+, shared search primitives, search 
 
 ### SEARCH-02 — Large strategy modules concentrate several independent responsibilities
 
+**Current status: OPEN.** No module extraction/refactor has been applied; preserve the current parity tests while planning any decomposition.
+
 **Evidence:** [search-strategy-base.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/search-strategy-base.js) is a large shared module containing state representation, option selection, cache management, branch expansion, bounds, scoring, beam search, exhaustive search, goal evaluation and path replay. [gss.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/gss.js) is also a large strategy module with recursive planning and execution logic.
 
 **Impact:** changes to one search concern can affect several modes. The cost is not merely file length: it is the number of domain responsibilities and invariants that must be held in working memory during a change.
@@ -25,6 +29,8 @@ Reviewed Greedy, GSS, Absolute R, Absolute R+, shared search primitives, search 
 **Recommendation:** after correctness findings are resolved and parity tests are stable, extract cohesive modules such as search-state/keying, bounds and scoring, expansion generation, beam/exhaustive orchestration, and path replay. Keep strategy contracts small and avoid splitting into one-function files.
 
 ### SEARCH-03 — GSS and search paths contain independent future-planning logic that needs continued parity protection
+
+**Current status: OPEN / ongoing control.** Existing parity and runtime-replay tests are positive controls, but the independent planning logic remains and new event/fee/product rules still require cross-strategy parity fixtures.
 
 **Evidence:** [gss.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/gss.js) contains its own future liquidity reservation, plan generation and recursive wait/reforecast paths; [search-strategy-base.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/search-strategy-base.js) also constructs hypothetical future states before replaying a selected path through `SimulationEngine`.
 

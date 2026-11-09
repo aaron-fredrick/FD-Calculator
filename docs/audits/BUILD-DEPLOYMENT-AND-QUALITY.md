@@ -2,6 +2,8 @@
 
 ## DEPLOY-01 — The dev preview and production share one GitHub Pages deployment
 
+**Current status: PARTIAL in PR #80.** Dev web/docs publishing is now independent, and the `dev` Pages assembler composes the two dev components under `/dev/`. However, the current `main` `.github/workflows/pages.yml` still assembles only production web/docs artifacts and does not extract the dev preview. A production deployment from `main` can therefore still remove `/dev/` until the preview-aware assembler is ported and tested on `main`.
+
 **Severity: P2**
 
 **Evidence:** GitHub Pages project hosting publishes one site tree at the project root. The new dev workflow publishes a separate branch `dev_pages-preview-artifact`, and the dev version of [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/.github/workflows/pages.yml) assembles that tree under `site/dev/` alongside the production web/docs artifact branches.
@@ -38,6 +40,8 @@ After deployment, verify these paths:
 Check that each page uses noindex metadata, all relative assets/data/worker requests stay under the dev path, the app displays the dev banner, and the production root still serves the main artifacts.
 
 ## QA-01 — The automated suite is strong on Node contracts but lacks browser-level coverage
+
+**Current status: DEFERRED — owner decision required.** The latest Node/build/workflow suite passes, but there is still no Playwright/Cypress/WebDriver browser suite or screenshot/visual-regression runner. Decide whether to add a small smoke suite or retain manual browser QA.
 
 **Evidence:** the repository contains tests for configuration, dates/foundations, cash-flow components, account provenance, runtime/ledger, strategy parity, search, worker contracts, report output, motion guidelines and Pages workflow contracts. The workflow runs `npm test`, syntax checks and static build checks.
 

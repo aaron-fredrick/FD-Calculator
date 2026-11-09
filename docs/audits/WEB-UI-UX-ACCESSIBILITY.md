@@ -8,6 +8,8 @@ Reviewed the browser form structure, account and cash-flow editors, strategy con
 
 ### UI-01 — Programmatic smooth scrolling does not respect reduced-motion preference
 
+**Current status: OPEN.** The current `app.js` still calls `scrollIntoView({ behavior: "smooth" })` for validation and result navigation; no reduced-motion-aware helper has replaced these calls.
+
 **Severity: P3**
 
 **Evidence:** [app.js L35](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L35), [app.js L51](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L51), [app.js L124](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L124).
@@ -20,6 +22,8 @@ Validation errors and the result section call `scrollIntoView({ behavior: "smoot
 
 ### UI-02 — Help tooltip content is not exposed as a reliable accessible description
 
+**Current status: OPEN.** The help marker still relies on CSS tooltip content rather than a keyboard/touch-operable control with an associated description.
+
 **Severity: P3**
 
 **Evidence:** [app.js L67](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L67) renders the outflow help marker as a focusable `span` with `role="img"`, an aria-label of “Outflow payment policy help”, and tooltip text in a CSS `data-tooltip` pseudo-element.
@@ -29,6 +33,8 @@ Validation errors and the result section call `scrollIntoView({ behavior: "smoot
 **Recommendation:** use a real button or a labelled help control with an adjacent element carrying an ID and `role="tooltip"`; connect it with `aria-describedby`. Ensure the explanation can be opened and dismissed with keyboard and touch, not hover alone.
 
 ### UI-03 — Inline validation messages are not explicitly associated with their fields
+
+**Current status: OPEN.** `markField()` still sets `aria-invalid` and appends a visual error, but does not set `aria-describedby` to the error element.
 
 **Evidence:** [app.js L34-L35](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L34-L35) adds `aria-invalid` and appends a visual `small.field-error`, but does not assign the message an ID or add that ID to the field's `aria-describedby`.
 

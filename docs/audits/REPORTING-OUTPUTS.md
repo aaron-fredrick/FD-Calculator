@@ -2,6 +2,8 @@
 
 ## FIN-01 — “Final value” is not the closing portfolio value after withdrawals
 
+**Current status: COMPLETED in PR #75.** The result model exposes `contributed_capital`, `pre_withdrawal_value`, `closing_assets`, `outstanding_liabilities` and `closing_net_worth`; web and standalone report output now distinguish these measures. `tests/js/results.test.js` covers paid, deferred and partially unpaid outflows.
+
 **Severity: P1**
 
 **Evidence:**
@@ -36,13 +38,19 @@ For the scoped mode, reconcile the closing value against ending account balances
 
 ### FIN-02 — “Capital invested” is broader than the actual FD principal booked
 
+**Current status: COMPLETED in PR #75.** The user-facing metric is now labelled “Capital contributed” in the web and report outputs, avoiding the implication that all contributed capital was actually booked into FDs.
+
 The web metric reads `total_principal`, which the runtime sets to opening capital plus all inflows. That is capital contributed/available over the horizon, not necessarily the sum of principal actually placed into fixed deposits. Rename the metric to “Capital contributed” or add a separate actual-FD-principal total.
 
 ### FIN-03 — The report needs source provenance beside each simulated product
 
+**Current status: PARTIAL in PR #75.** The report now includes selected-bank source status and dataset review date. Product-level source URLs, source effective dates and per-product research caveats are not yet carried through the result/report model.
+
 The product report includes name, rate, tenor, payout and catalogue eligibility, but not the source URL, source effective date, research status or source type. See [DATA-01](DATA-AND-FINANCIAL-ASSUMPTIONS.md#data-01--source-provenance-is-not-visible-in-the-simulation).
 
 ### QA-REP-01 — Test the actual downloaded HTML, not only string fragments
+
+**Current status: OPEN.** Node assertions cover report structure, but no real-browser offline-open/print/accessibility check has been recorded.
 
 The tests assert report markup, chart JSON and token contracts, but a browser test should open the downloaded report offline and verify chart initialization, collapsible tables, long content, print layout, keyboard access and no external network dependency.
 
