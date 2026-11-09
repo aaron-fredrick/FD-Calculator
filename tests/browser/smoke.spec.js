@@ -178,7 +178,7 @@ test("a default scenario runs and produces an independently openable HTML report
   });
   expect(printTableLayout.tableWrapDisplay).toBe("block");
   expect(printTableLayout.tableMinWidth).toBe("0px");
-  expect(printTableLayout.tableWidth).toBeLessThanOrEqual(printTableLayout.viewportWidth + 1);
+  expect(printTableLayout.tableWidth, JSON.stringify(printTableLayout)).toBeLessThanOrEqual(printTableLayout.viewportWidth + 1);
   await expect(reportPage.locator("body")).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
