@@ -390,9 +390,15 @@ export class SimulationRuntime {
         balance_after: balances.get(target.id), total_balance_after: this.#totalBalance(balances),
         decision_context: decisionContextOverride ?? item.decision_context ?? { action: actionName.toLowerCase(), balances_before: balancesBeforeBooking }
       }));
-      netFlows.forEach((flow, index) => {
+      // Contractual payout generation and the simulation event window are
+      // separate concerns. Keep the complete contractual flows on the booking
+      // for financial disclosure, but never schedule an event outside this run.
+      const inWindowFlows = netFlows.filter(flow =>
+        flow.date >= this.context.start && flow.date <= this.context.end
+      );
+      inWindowFlows.forEach((flow, index) => {
         const maturity = flow.date.getTime() === booking.end.getTime() &&
-          (option.payout_type === "cumulative" || index === netFlows.length - 1);
+          (option.payout_type === "cumulative" || index === inWindowFlows.length - 1);
         this.schedule(new Event({
           event_type: maturity ? EventType.MATURITY : EventType.CASH_FLOW,
           on_date: flow.date, amount: flow.amount,
