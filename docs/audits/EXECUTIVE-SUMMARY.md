@@ -10,7 +10,7 @@ FD Cal has a solid foundation: the browser and CLI share the JavaScript engine; 
 
 The remediation pass has closed the two highest-risk defects: imported account IDs are now encoded at the DOM boundary, and result output distinguishes pre-withdrawal value from closing assets/liabilities/net worth. Absolute R+ now has finite browser defaults, cooperative time limits, cancellation and a worker watchdog. Bank source status/review dates are visible. The dev web/docs publishers are now independent.
 
-The remaining material gaps are installment-product contract semantics, product-level source metadata, accessible help/error descriptions, privacy controls, and browser-level QA. Crawler controls are in place: the production sitemap includes the canonical root and `/web/` URLs, while preview output is excluded and marked noindex. The `dev` deployment pipeline now composes the preview under `/dev/`; porting that preservation behaviour to `main` is deliberately outside this pass and will be revisited when work moves to `main`. The project is still not financially certified or fully accessibility-verified.
+The remaining material gaps are installment-product contract semantics, product-level source metadata, privacy controls, and browser-level QA. Crawler controls are in place: the production sitemap includes the canonical root and `/web/` URLs, while preview output is excluded and marked noindex. The `dev` deployment pipeline now composes the preview under `/dev/`; porting that preservation behaviour to `main` is deliberately outside this pass and will be revisited when work moves to `main`. The project is still not financially certified or fully accessibility-verified.
 
 ## Priority findings
 
@@ -37,8 +37,8 @@ The remaining material gaps are installment-product contract semantics, product-
 | DEPLOY-01 | **P2** | Dev Pages assembly must retain the `/dev/` preview subtree | **Completed on `dev`** — independent dev publishers and assembler are present; `main` port deferred | [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/.github/workflows/pages.yml) |
 
 | UI-01 | **P3** | Programmatic scrolling must respect reduced-motion preference | **Implemented on this branch; CI passed, pending dev shipment** | [motion.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/motion.js) |
-| UI-02 | **P3** | Help tooltip lacks a reliable accessible description and touch operation | **Open** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
-| UI-03 | **P3** | Inline validation errors lack aria-describedby association | **Open** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
+| UI-02 | **P3** | Help tooltip needs programmatic content and touch operation | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
+| UI-03 | **P3** | Inline validation errors need programmatic field association | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
 | PRIV-01 | **P2/P3** | Local drafts lack an in-app clear/retention control | **Open** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
 | WEB-SEC-02 | **P2/P3** | Static hosting has no verified response-header strategy | **Open / hosting constraint** | [SECURITY.md](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/SECURITY.md) |
 | QA-01 | **Deferred** | No automated real-browser end-to-end suite | **Deferred** | [tests/](https://github.com/aaron-fredrick/FD-Calculator/tree/dev/tests) |
@@ -80,7 +80,7 @@ The remaining material gaps are installment-product contract semantics, product-
 2. **ENG-01/ENG-02:** validate installment and elapsed-day conventions against representative bank terms before changing financial calculations.
 3. **DATA-04:** inventory current CSVs, then enforce exact row widths and strict quote handling.
 4. Preserve crawler controls: keep `/dev/` excluded by the root robots policy, keep preview HTML noindex, and ensure the production sitemap contains canonical production routes only.
-5. **UI-02/03:** fix tooltip semantics and field-error associations. UI-01 is implemented on the working branch and awaits dev shipment.
+5. **UI-01/02/03:** implemented on the working branch with contract/unit coverage; pending dev shipment and browser/assistive-technology verification.
 6. **PRIV-01 / WEB-SEC-02:** add a local-draft deletion/retention control and document the static-hosting security-header boundary.
 7. **QA-01 / QA-REP-01:** decide on browser automation and verify the app/report in a real browser.
 8. **Main integration (later):** when work moves to `main`, port and verify the preview-aware assembler there; this is not a current `dev` blocker.
