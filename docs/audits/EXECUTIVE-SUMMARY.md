@@ -77,3 +77,12 @@ The audit is a risk-based source review, not formal verification, financial-prod
 Cross-strategy test coverage was extended to exercise FD booking, installment cash flows, terminal maturity and transfer-fee accounting across all four strategies. Workflow [42585867964](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42585867964) passed all automated steps.
 
 SEARCH-03 remains **partial**: scheduled future-outflow liquidity reservation is not closed. An exploratory strict-outflow scenario exposed a Greedy planning gap; no strategy code change for that gap is retained. The next implementation gate is an agreed, tested reservation contract across Greedy, GSS, Absolute R and Absolute R+, preserving existing strategy migration tests. This checkpoint is therefore not a full financial-parity sign-off.
+
+
+## 9 November 2026 — ship-gate recheck
+
+- Current head: `22a191948611451b7853cf5bdf06142eee3e96e8`.
+- Latest full CI: [42586136672](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42586136672) — successful. The Node.js test job completed successfully; the preceding run [42586033663](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42586033663) also passed.
+- The added parity fixture covers eligible FD booking, installment cash flows, maturity and transfer-fee accounting. Existing strict/deferred outflow parity remains green.
+- **Do not mark ready to merge yet.** SEARCH-03 still has an identified Greedy future-obligation liquidity-reservation gap: funds needed for a later strict obligation may be invested before the due date. The attempted strategy-side adjustment did not preserve the established migration parity baseline and is not present in the current head. No fix is claimed.
+- Next bounded completion point: define and test future-obligation reservation semantics at the shared planning/runtime boundary, then add the smallest regression fixture that proves the Greedy issue is resolved without changing established strategy parity. Do not start broader strategy refactoring or unrelated QA/data-review phases in this step.
