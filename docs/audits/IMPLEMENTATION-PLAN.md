@@ -40,9 +40,9 @@ Before implementation, capture deterministic baseline outputs for representative
 | **FIN-02** | **Completed — PR #75** | The metric is labelled “Capital contributed”, not “Capital invested”. |
 | **FIN-03 / DATA-01** | **Completed — PR #81 squash-merged to dev** | Product source URL, effective date, source type and notes flow through web/CLI, worker and reports. |
 | **ENG-01** | **Implemented on follow-up branch** | Generated contractual payout events are filtered to the active simulation window; the simulation end is never extended and no final payout is clamped to maturity. Regression coverage passes. |
-| **ENG-02** | **Implemented on follow-up branch** | Formula retained; start-year 365/366 basis documented in a concise note and disclosed in the UI and standalone report. Reviewed public bank sources do not establish a universal day-count basis. |
+| **ENG-02** | **Implemented on follow-up branch** | Formula retained; start-year 365/366 basis is documented and disclosed in the web UI and standalone report. Reviewed public bank sources do not establish a universal day-count basis. |
 | **ENG-03** | **Implemented on follow-up branch** | FDOption constructor enforces core term invariants; browser/CLI loaders isolate invalid rows with diagnostics; maturity horizon remains enforced. |
-| **ENG-04** | **Implemented on follow-up branch** | Lightweight AIT assumption ID/effective date/source metadata and UI reference added; no broad tax-regime engine. |
+| **ENG-04** | **Implemented on follow-up branch — CI passed** | Lightweight AIT assumption ID/effective date/verification date and official IRD source link are present in the engine/UI; no broad tax-regime or individual relief engine. |
 | **SEARCH-01** | **Implemented — PR #75; calibration completed on follow-up branch** | The 5k/10k/20k/unlimited × 15/30/60s matrix returned identical financial results on the harder test; the 5k cap did not bind. Keep 10k/30s and explicit longer/unlimited controls. See [calibration report](SEARCH-BUDGET-CALIBRATION.md). |
 | **SEARCH-02 / SEARCH-03** | **Open / ongoing control** | Large modules remain; existing parity/replay tests are positive controls, but new financial rules need cross-strategy parity fixtures. |
 | **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
@@ -55,7 +55,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **WEB-SEC-02** | **Open — GitHub Pages retained by owner decision** | Keep Pages; verify actual production/dev headers and document the response-header limitations. No proxy/CDN migration planned. |
 | **QA-01** | **Implemented on follow-up branch — CI passed** | Playwright Chromium smoke suite runs for pushes and PRs targeting dev/main. |
 | **QA-REP-01** | **Partial — initial browser verification implemented** | Playwright downloads the generated HTML report, opens it independently via file URL, checks core content and print-media rendering. Large-table, long-label, keyboard and full print-layout checks remain. |
-| **DATA-05 / DATA-06** | **Research/implementation follow-up** | Keep simplified transfer fees; implement 180/365-day freshness warnings using actual source-review dates. Existing review-date fields are blank. |
+| **DATA-05 / DATA-06** | **Research complete; DATA-06 implementation partial** | Transfer-fee model remains intentionally simplified with channel research documented. Freshness classifier and UI warnings are implemented; all 29 bank review dates remain blank and must be populated only after actual source rechecks. |
 
 ## 2A. Owner feedback received on 9 November 2026
 
@@ -64,17 +64,17 @@ The following decisions supersede earlier open/deferred owner-decision language 
 | Workstream | Owner decision | Implementation status after this update |
 |---|---|---|
 | ENG-01 | Keep the product payout sequence; filter generated payout events to the simulation window. Never extend the simulation end date or clamp a late installment to maturity. Product maturity must still fit within the simulation window. | Implemented on this branch: runtime schedules only in-window payout events; regression tests cover 5m/2m products with 5m and 6m windows. Full contractual booking flows remain available for disclosure. |
-| ENG-02 | Keep the start-year 365/366 elapsed-day denominator. Explain it briefly and retain cross-year/leap-year tests. | Formula unchanged; [short convention note](../finance/INTEREST-DAY-COUNT.md) added. UI/report explanation remains to be wired. |
+| ENG-02 | Keep the start-year 365/366 elapsed-day denominator. Explain it briefly and retain cross-year/leap-year tests. | Formula unchanged; [short convention note](../finance/INTEREST-DAY-COUNT.md) added, and the convention is disclosed in the web UI and standalone report. |
 | ENG-03 | Add central product-term validation; maturity must fit within the simulation period. Keep special product constraints separate until model workflow is designed. | Implemented on this branch: constructor validation, row-level loader isolation and runtime maturity check; CI unit tests pass. |
-| ENG-04 | Keep the current 10% Sri Lankan interest AIT assumption, with a lightweight version identifier, effective date and official source disclosure. Do not build a broad tax-regime engine now. | Version metadata and UI source disclosure added on this branch; tests/CI pending. |
+| ENG-04 | Keep the current 10% Sri Lankan interest AIT assumption, with a lightweight version identifier, effective date and official source disclosure. Do not build a broad tax-regime engine now. | Version metadata, IRD source disclosure and qualification that individual relief/exemptions may apply are implemented; contract tests pass in CI. |
 | DATA-03 | Research special FDs, but do not activate or implement them yet. | Research register added; implementation explicitly deferred. |
 | DATA-05 | Keep simplified transfer-fee modelling; research and document limitations only. | Research register added; model unchanged. |
-| DATA-06 | Use actual source-review date; warn at 180 days and strongly at 365 days. Missing dates remain explicitly unverified. Keep source-effective, source-review and repository-update dates distinct. | Freshness classifier and bank-selector warnings added; `dataset_reviewed_at` remains blank in all 29 bank index rows, so source review/date population remains. |
+| DATA-06 | Use actual source-review date; warn at 180 days and strongly at 365 days. Missing dates remain explicitly unverified. Keep source-effective, source-review and repository-update dates distinct. | Classifier and bank-selector warnings are implemented; all 29 index review dates remain blank, so bank-by-bank source review and date population remain. |
 | WEB-SEC-02 | Retain GitHub Pages. | No hosting migration planned; verify deployed headers and document residual limits. |
-| SEARCH-01 | Keep 10,000 expanded states / 30 seconds as baseline; compare 5k/10k/20k/uncapped with longer time budgets and measure quality, not runtime alone. | Benchmark matrix documented; controlled execution remains. |
+| SEARCH-01 | Keep 10,000 expanded states / 30 seconds as baseline; compare 5k/10k/20k/uncapped with longer time budgets and measure quality, not runtime alone. | The 12-point matrix is complete on the harder 60-month scenario plus a 24-month control; outputs were identical, 5k did not bind, and longer budgets explored more states without improving the candidate. No optimality proof. |
 | SEARCH-02 | Prepare a staged module decomposition plan; no broad rewrite. | Decomposition boundaries documented; code refactor deferred until parity baselines. |
 | SEARCH-03 | Preserve cross-strategy parity, especially authoritative outflow execution and liquidity reservations. | Ongoing regression requirement; add fixtures with each relevant financial-rule change. |
-| QA-01 / QA-REP-01 | Add browser-driven tests to CI for pushes and PRs to `dev` and `main`; cover app, simulation, report, mobile and accessibility. | Initial Playwright suite, offline report check, mobile/reduced-motion/keyboard smoke tests and CI integration implemented; full accessibility/report QA remains. |
+| QA-01 / QA-REP-01 | Add browser-driven tests to CI for pushes and PRs to `dev` and `main`; cover app, simulation, report, mobile and accessibility. | QA-01 is implemented and CI passes six Chromium smoke tests. QA-REP-01 remains partial: independent report opening and print-media smoke checks exist; large-table/long-label and full print-layout QA remain. |
 | Legal/privacy | General non-sensitive support may use public issues; personal/privacy/security matters use `a.n.r.fredrick@gmail.com`. Use Sri Lanka as proposed governing law, subject to mandatory laws elsewhere. | Contact text and terms updated on this branch; legal status research recorded. Lawyer review still recommended before commercial operation. |
 
 ### Current source and scope notes
@@ -329,7 +329,7 @@ The audit notes that the research register includes product maximum amounts and 
 
 #### QA-01 — browser automation
 
-The audit did not find Playwright, Cypress, or WebDriver-based browser E2E coverage. Existing Node tests exercise engine, worker contracts, report output, and workflow contracts, but they do not launch a real browser to test the rendered application. This is a test-infrastructure decision, not evidence that existing unit tests are inadequate. Ask the owner whether to add a small Playwright smoke suite or continue with manual browser verification for now.
+A Playwright Chromium smoke suite is now implemented in `tests/browser/` and runs in the Node CI workflow for pushes to `dev`, `main` and audit branches, and pull requests targeting `dev` or `main`. It covers production startup/privacy preferences, legal navigation, dev-preview path/noindex, mobile overflow, keyboard focus/reduced motion, and a default simulation with an independently opened HTML report. Expand the suite incrementally; do not introduce broad screenshot snapshots before the smoke tests are stable.
 
 ## 4. Visual and interaction guardrails
 
