@@ -50,7 +50,7 @@ function showError(message,displayMessage=message){clearFieldErrors();err(displa
  if(!target&&/investment|date/i.test(detail))target=$("end-date");
  if(target)markField(target,detail);else scrollElementIntoView($("error"),{block:"center"})
 }
-async function csv(path){let r=await fetch(path);if(!r.ok)throw Error("Unable to load "+path+" ("+r.status+")");return parseCSV(await r.text())}
+async function csv(path){let r=await fetch(path);if(!r.ok)throw Error("Unable to load "+path+" ("+r.status+")");return parseCSV(await r.text(),path)}
 async function init(){setCatalogueReady(false);setCatalogStatus("Loading bank catalogue…","loading");try{
  $("start-date").value=today();let end=new Date();end.setFullYear(end.getFullYear()+1);$("end-date").value=[end.getFullYear(),String(end.getMonth()+1).padStart(2,"0"),String(end.getDate()).padStart(2,"0")].join("-");renderSimulationMode();
  const [banks,index]=await Promise.all([csv(DATA_ROOT+"banks/banks.csv"),csv(DATA_ROOT+"fd_options/fd_options.csv")]);
