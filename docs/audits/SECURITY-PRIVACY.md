@@ -32,13 +32,13 @@
 
 ## PRIV-01 — Local scenario draft deletion and retention
 
-**Current status: IMPLEMENTED on this branch; CI passed.** The UI states that draft data is stored only in the current browser until the user clears it. A visible `Clear saved draft` button requests confirmation and removes the `fd-cal:draft:v1` localStorage entry. The current form remains in the active tab; the status message explains that editing it will create a new saved draft. The click handler stops propagation so the surrounding form click-to-save handler cannot immediately recreate the deleted entry.
+**Current status: COMPLETED — PR #81 squash-merged to dev.** The UI states that draft data is stored only in the current browser until the user clears it. A visible `Clear saved draft` button requests confirmation and removes the `fd-cal:draft:v1` localStorage entry. The current form remains in the active tab; the status message explains that editing it will create a new saved draft. The click handler stops propagation so the surrounding form click-to-save handler cannot immediately recreate the deleted entry.
 
 **Evidence:** [draft save/restore/clear logic](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js), [retention notice and control](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/index.html), [privacy regression contract](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/tests/js/web-controls-contract.test.js).
 
 **Boundary:** this control deletes FD Cal's saved draft key only. It does not clear browser history, downloads, exported JSON files, other sites' storage, or the currently displayed in-memory form. No scenario data transmission or analytics was added.
 
-**Acceptance:** met on this branch. Retention is explained; deletion is user-initiated and confirmed; the deleted draft is not re-saved by the same click. CI passed; pending shipment to `dev`.
+**Acceptance:** met on `dev`. Retention is explained; deletion is user-initiated and confirmed; the deleted draft is not re-saved by the same click.
 
 
 ## WEB-SEC-02 — Static hosting needs an explicit security-header strategy
@@ -73,7 +73,7 @@ Do not treat a `_headers` file or workflow-generated artifact as proof that GitH
 
 ## PRIV-02 — Public privacy notice, terms and preference management
 
-**Current status: IMPLEMENTED on this branch; CI validation pending.**
+**Current status: COMPLETED — PR #81 squash-merged to dev; follow-up legal/contact review added on this branch.**
 
 - Added public Privacy Policy and Terms & Conditions pages under the web application.
 - Added a first-visit privacy banner. A saved preference suppresses the banner on subsequent visits.
@@ -83,4 +83,6 @@ Do not treat a `_headers` file or workflow-generated artifact as proof that GitH
 - The legal pages explain local scenario processing, the local draft's indefinite retention until user deletion/browser clearing, in-memory worker execution, client-generated reports and exports, static asset requests, hosting-layer request logs, and the absence of a current FD Cal analytics integration.
 - The production sitemap includes both legal pages; the web build copies them with the application assets.
 
-**Verification boundary:** this is a product-accurate informational notice based on the current repository implementation, not a legal opinion. Operator identity/contact details and applicable jurisdictional language should be reviewed before production publication. Browser-level visual and keyboard testing remains required.
+**Contact routes:** general, non-sensitive support may use public GitHub issues. Personal-data, privacy and confidential security matters use `a.n.r.fredrick@gmail.com`; do not invite users to post sensitive details publicly. `SECURITY.md` retains GitHub private vulnerability reporting and adds the private email as a fallback.
+
+**Legal research:** Terms now propose Sri Lankan governing law subject to mandatory laws elsewhere. The privacy notice records the DPA's staged PDPA commencement position as of November 2026 and links the official notice. This is engineering/product research, not legal advice; obtain a Sri Lankan lawyer's review before commercial operation or adding server-side personal-data processing. Browser-level visual and keyboard testing remains required.
