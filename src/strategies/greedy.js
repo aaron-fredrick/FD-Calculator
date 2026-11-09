@@ -66,7 +66,7 @@ function selectFastestGoalOption(candidates, principal, date, aitRate, compound,
   )[0]?.option ?? null;
 }
 
-export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker, goalMode = false, reservedBalances = {}) {
+export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker, goalMode = false) {
   const active = Object.values(accounts).filter(account => account.balance > EPS);
   if (!active.length) return { type: "CARRY", carries: [] };
   const splitBookings = [], splitCarries = [];
@@ -76,16 +76,13 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
       splitCarries.push(account);
       continue;
     }
-    const available = Math.max(0, account.balance - Number(reservedBalances[account.id] ?? 0));
-    if (available <= EPS) { splitCarries.push(account); continue; }
-    const eligible = optionManager.getEligibleOptions({ account, amount: available, investmentDate: today, simulationEndDate: end });
+    const eligible = optionManager.getEligibleOptions({ account, amount: account.balance, investmentDate: today, simulationEndDate: end });
     const option = goalMode
-      ? selectFastestGoalOption(eligible, available, today, aitRate, compound, actualLeapYear)
+      ? selectFastestGoalOption(eligible, account.balance, today, aitRate, compound, actualLeapYear)
       : selectBestOption(eligible, tenorTieBreaker);
     if (!option) { splitCarries.push(account); continue; }
-    const interest = option.totalInterestOn(available, today, compound, actualLeapYear);
-    splitBookings.push({ account, option, principal: available, interest, rate: option.annual_rate, days: option.days });
-    if (available < account.balance - EPS) splitCarries.push(account);
+    const interest = option.totalInterestOn(account.balance, today, compound, actualLeapYear);
+    splitBookings.push({ account, option, principal: account.balance, interest, rate: option.annual_rate, days: option.days });
     splitGross += interest;
   }
   let split = null;
@@ -105,21 +102,14 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
     let deployable = 0, feesToday = 0, feesEval = 0;
     for (const source of Object.values(accounts)) {
       if (source.balance <= EPS) continue;
-      const available = Math.max(0, source.balance - Number(reservedBalances[source.id] ?? 0));
-      if (source.id === target.id) {
-        deployable += available;
-        if (available < source.balance - EPS) carries.push(source);
-        continue;
-      }
-      if (available <= EPS) { carries.push(source); continue; }
+      if (source.id === target.id) { deployable += source.balance; continue; }
       const fee = feeConfig.getFee(source.bank_identity, target.bank_identity);
-      if (available <= fee) { carries.push(source); continue; }
-      const net = available - fee;
+      if (source.balance <= fee) { carries.push(source); continue; }
+      const net = source.balance - fee;
       deployable += net;
       feesToday += fee;
       feesEval += source.id === consolidationId ? 2 * fee : target.id === consolidationId ? fee : 2 * fee;
-      transfers.push({ src: source, tgt: target, amount: available, fee, net });
-      if (available < source.balance - EPS) carries.push(source);
+      transfers.push({ src: source, tgt: target, amount: source.balance, fee, net });
     }
     if (!transfers.length) continue;
     const eligible = optionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: end });
@@ -209,24 +199,12 @@ export class GreedyStrategy {
           id: account.id, bank_id: account.bank_id, bank_key: account.bank_key,
           label: account.label, balance: account.balance, supports_efd: account.supports_efd
         })]));
-        const reservedBalances = {};
-        for (const item of view.pending_outflows ?? []) {
-          const id = String(item.account_id);
-          reservedBalances[id] = (reservedBalances[id] ?? 0) + Number(item.remaining ?? item.amount ?? 0);
-        }
-        for (const [date, entries] of Object.entries(context.outflows ?? {})) {
-          if (date <= view.date) continue;
-          for (const item of entries) {
-            const id = String(item.account_id);
-            reservedBalances[id] = (reservedBalances[id] ?? 0) + Number(item.amount ?? 0);
-          }
-        }
         const plan = pickDailyGreedyPlan(
           accounts, context.options, optionManager, parseISODate(view.date), context.end,
           context.fee_config, context.consolidation_account_id,
           this.compound, this.actual_leap_year, this.effective_ait_rate,
           this.tenor_tiebreaker, this.plan_tenor_tiebreaker,
-          context.simulation?.mode === "goal", reservedBalances
+          context.simulation?.mode === "goal"
         );
         const carries = (plan.carries || []).map(account => account.id);
         if (plan.type === "SPLIT") {
