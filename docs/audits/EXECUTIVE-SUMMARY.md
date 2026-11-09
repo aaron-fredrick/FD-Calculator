@@ -10,7 +10,7 @@ FD Cal has a solid foundation: the browser and CLI share the JavaScript engine; 
 
 The remediation pass has closed the two highest-risk defects: imported account IDs are now encoded at the DOM boundary, and result output distinguishes pre-withdrawal value from closing assets/liabilities/net worth. Absolute R+ now has finite browser defaults, cooperative time limits, cancellation and a worker watchdog. Bank source status/review dates are visible. The dev web/docs publishers are now independent.
 
-The remaining material gaps are installment-product contract semantics, bank-level source metadata completeness, main-branch preservation of `/dev/`, strict CSV validation, reduced-motion scrolling, accessible help/error descriptions, privacy controls, and browser-level QA. The project is still not financially certified or fully accessibility-verified.
+The remaining material gaps are installment-product contract semantics, product-level source metadata, strict CSV validation, reduced-motion scrolling, accessible help/error descriptions, privacy controls, browser-level QA, and complete crawler/sitemap coverage. The `dev` deployment pipeline now composes the preview under `/dev/`; porting that preservation behaviour to `main` is deliberately outside this pass and will be revisited when work moves to `main`. The project is still not financially certified or fully accessibility-verified.
 
 ## Priority findings
 
@@ -34,7 +34,8 @@ The remaining material gaps are installment-product contract semantics, bank-lev
 | DATA-04 | **P3** | CSV parser does not enforce exact row field counts | **Open** | [csv.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/io/csv.js) |
 | DATA-05 | **P2/P3** | Transfer fees are not a full transfer-channel model | **Open / documented limitation** | [banks.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/data/banks/banks.csv) |
 | DATA-06 | **P2** | Rate freshness and secondary-source warning policy is incomplete | **Partial** | [fd_options.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/data/fd_options/fd_options.csv) |
-| DEPLOY-01 | **P2** | Production Pages assembly must preserve /dev/ | **Partial** — dev side complete; main still missing it | [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/main/.github/workflows/pages.yml) |
+| DEPLOY-01 | **P2** | Dev Pages assembly must retain the `/dev/` preview subtree | **Completed on `dev`** — independent dev publishers and assembler are present; `main` port deferred | [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/.github/workflows/pages.yml) |
+| SEO-01 | **P2/P3** | Sitemap omits the canonical `/web/` application route; crawler policy must keep `/dev/` excluded | **Open** — robots/noindex protections exist; sitemap coverage is incomplete | [robots.txt](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/robots.txt), [VitePress config](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/docs/.vitepress/config.mts) |
 | UI-01 | **P3** | Programmatic smooth scrolling ignores reduced-motion preference | **Open** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
 | UI-02 | **P3** | Help tooltip lacks a reliable accessible description and touch operation | **Open** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
 | UI-03 | **P3** | Inline validation errors lack aria-describedby association | **Open** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
@@ -55,7 +56,8 @@ The remaining material gaps are installment-product contract semantics, bank-lev
 | **DATA-01** | Show when each bank's dataset was last updated/reviewed and add a disclaimer | **Partially implemented in PR #75.** Bank-specific source status/review date and report disclosure exist; product-level source URLs/effective dates and full provenance remain. |
 | **DATA-02** | Eligibility verification is the user's responsibility; FD Cal is not a bank onboarding/security gate | Treat senior/minor toggles as inclusion filters. Retain a clear disclaimer; do not add age/guardian verification as part of this work. |
 | **DATA-03** | Scope not yet clear | Defer until the owner specifies which special-product constraints should be modelled. Keep products with unenforced critical terms out of the active catalogue. |
-| **DEPLOY-01** | Dev preview is intentionally public for users and contributors | **Partially implemented in PR #80.** Dev web/docs publishing and dev-side assembly are split; `main` Pages workflow still needs the preview-aware assembler before this is complete. |
+| **DEPLOY-01** | Dev preview is intentionally public for users and contributors | **Completed for the current `dev` delivery path in PR #80.** Separate dev web/docs artifacts are assembled under `/dev/`; preview HTML is noindex and the root crawler policy disallows the subtree. Porting the assembler to `main` is deferred until main-branch work begins. |
+| **SEO-01** | Production pages should be discoverable; preview pages must not be indexed | The root `robots.txt` disallows `/FD-Calculator/dev/` and declares the sitemap. Dev web output receives `noindex,nofollow`; VitePress omits sitemap generation in preview mode. The production sitemap is generated from docs only and omits the indexable `/web/` application route. Add the canonical app URL while keeping all `/dev/` URLs excluded. |
 | **DATA-04** | Needs investigation and a safe implementation plan | Inventory all CSV files first, then enforce exact row widths and valid quoting with actionable errors. |
 | **UI-01** | Include in the implementation plan | Centralize programmatic scrolling and honor `prefers-reduced-motion` without changing normal-motion transitions. |
 | **QA-01** | Needs owner decision | Finding means no automated real-browser E2E suite was found. Defer the choice between Playwright smoke coverage and manual browser verification. |
@@ -74,13 +76,14 @@ The remaining material gaps are installment-product contract semantics, bank-lev
 
 ## Recommended implementation order
 
-1. **DEPLOY-01:** port the preview-aware assembler to `main` and prove that production deployments retain `/dev/`.
-2. **DATA-01:** complete product-level source URL/effective-date propagation and source caveats.
-3. **ENG-01/ENG-02:** validate installment and elapsed-day conventions against representative bank terms before changing financial calculations.
-4. **DATA-04:** inventory current CSVs, then enforce exact row widths and strict quote handling.
+1. **DATA-01 / FIN-03:** complete product-level source URL/effective-date propagation and source caveats.
+2. **ENG-01/ENG-02:** validate installment and elapsed-day conventions against representative bank terms before changing financial calculations.
+3. **DATA-04:** inventory current CSVs, then enforce exact row widths and strict quote handling.
+4. **SEO-01:** add the canonical `/web/` route to the production sitemap and retain explicit `/dev/` exclusion across robots, sitemap and generated metadata.
 5. **UI-01/02/03:** fix reduced-motion scrolling, tooltip semantics and field-error associations.
 6. **PRIV-01 / WEB-SEC-02:** add a local-draft deletion/retention control and document the static-hosting security-header boundary.
 7. **QA-01 / QA-REP-01:** decide on browser automation and verify the app/report in a real browser.
+8. **Main integration (later):** when work moves to `main`, port and verify the preview-aware assembler there; this is not a current `dev` blocker.
 
 DATA-02 is an accepted product-scope boundary. DATA-03 and QA-01 remain deferred for owner decisions. Detailed phases, regression cases, and non-regression gates are in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md).
 
