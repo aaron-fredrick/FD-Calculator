@@ -235,14 +235,17 @@ Keep 10,000 / 30 seconds as the default. Keep longer/unlimited controls for user
 
 #### Data contract
 
-Use the existing per-bank ISO `dataset_reviewed_at` field in `data/fd_options/fd_options.csv` as the source-review date. Do not populate it from Git merge/file-modification dates. A separate `dataset_updated_at` field is optional only if the UI later needs to expose repository-edit time independently.
+Use three independent per-bank fields in `data/fd_options/fd_options.csv`, defined in the [bank dataset metadata contract](../data/BANK-DATA-METADATA.md):
 
-Keep this separate from product-level `source_effective_date`:
-- **Dataset last reviewed:** when FD Cal last checked the bank's source and mapped terms. This is the freshness-policy input.
-- **Source effective date:** when the bank says the rate schedule itself takes effect.
-- **Source type/status:** official/direct, secondary, or no sufficiently verified public rate data.
+- **`dataset_reviewed_at`:** when FD Cal last rechecked the bank's source material. This is the freshness-policy input.
+- **`dataset_updated_at`:** when the bank's economic product data last materially changed (rate, tenor, minimum, payout terms, eligibility or another simulation input).
+- **`dataset_schema_version`:** the version of the CSV row schema. Increment this for structural migrations such as adding or renaming columns.
 
-Do not invent review dates for old rows. The current 29 index rows are blank; show “Review date not recorded / freshness unverified” until the source is rechecked. Apply a review-due warning at 180 days and a stronger stale warning at 365 days.
+A schema-only migration must preserve both dates exactly. Do not treat a schema migration, Git commit, file modification, release or deployment as evidence that the economic data changed or the source was reviewed. A source recheck with no catalogue change advances only `dataset_reviewed_at`; a confirmed economic-data change advances `dataset_updated_at`. Keep both blank when the date is unknown.
+
+Keep product-level `source_effective_date` separate: it is the effective date stated by the bank for an individual rate/product row, not the repository update date. Keep source type/status distinct as well.
+
+The current 29 index rows have blank review and economic-update dates; show “Review date not recorded / freshness unverified” until a source is actually rechecked. Apply a review-due warning at 180 days and a stronger stale warning at 365 days.
 
 #### UI/report plan
 
