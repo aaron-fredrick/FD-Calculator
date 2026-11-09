@@ -82,7 +82,8 @@ test("cash movement chart uses stable event-specific colors and separates FD pri
   };
   const html = generateHtmlReport(result, config);
   assert.match(html, /<th scope="col">/, "report data tables must expose column headers to assistive technology");
-  assert.match(html, /@media print[\\s\\S]*min-width:0!important/, "print tables must release screen minimum widths");
+  assert.ok(html.includes(".collapsible-table:not([open])>.table-wrap{display:block!important}"), "collapsed report tables must expand for printing");
+  assert.ok(html.includes(".table-wrap table,table{width:100%!important;min-width:0!important"), "print tables must release screen minimum widths");
   const json = html.match(/<script id="fd-report-data" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
   assert.ok(json, "report should embed chart data");
   const flows = JSON.parse(json).cashflows;
