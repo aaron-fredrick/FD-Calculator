@@ -1,5 +1,5 @@
 import { Event, EventType } from "./events.js";
-import { Account } from "./models.js";
+import { Account, AIT_RATE } from "./models.js";
 import { Booking, SimResult } from "./results.js";
 import { formatISODate, parseISODate, daysBetween } from "./dates.js";
 import { SimulationState, validateStrategySignal, StrategySignalType, StrategyDecisionType } from "./strategy-contracts.js";
@@ -21,7 +21,7 @@ const keyDate = key => String(key).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"
 export class SimulationRuntime {
   constructor(context, {
     strategy_name = "Strategy", compound = false, actual_leap_year = true,
-    ait_enabled = false, ait_rate = 0.10, outflow_account_tiebreak = false,
+    ait_enabled = false, ait_rate = AIT_RATE, outflow_account_tiebreak = false,
     outflow_due_date_sort = "iso", round_balances = false, opening_trigger_always = false
   } = {}) {
     if (!context?.accounts?.length || !context?.options?.length) {
