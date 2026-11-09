@@ -329,3 +329,13 @@ body{background:var(--bg)}
 
 /* Keep the local-draft status legible alongside footer actions. */
 .footer-status{color:var(--fd-color-text-muted);font-size:11px}
+
+
+/* Align account controls independently from variable-length catalogue metadata. */
+.account-fields{grid-template-columns:minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr) auto;align-items:stretch}
+.account-fields>label:not(.efd){display:grid;grid-template-rows:minmax(2.8em,auto) 44px;align-content:start;min-width:0}
+.account-fields>label:not(.efd)>input,.account-fields>label:not(.efd)>select{align-self:end}
+.account-fields>.efd{align-self:end;min-height:44px;padding:0 0 2px;display:flex!important;align-items:center;white-space:normal}
+.bank-source-disclosure{grid-column:1/-1;display:flex!important;align-items:center;min-height:28px;margin:0;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);line-height:1.4}
+@media(max-width:850px){.account-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.account-fields>.efd{align-self:center}}
+@media(max-width:620px){.account-fields{grid-template-columns:1fr}.account-fields>label:not(.efd){grid-template-rows:auto 44px}.bank-source-disclosure{grid-column:1}}
