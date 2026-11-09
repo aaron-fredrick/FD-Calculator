@@ -67,7 +67,7 @@ Those fields are now correctly quoted. The bank fee source URL and product prove
 
 ## DATA-06 — Bank-rate freshness and secondary sources need a visible warning policy
 
-**Current status: PARTIAL — owner thresholds approved.** Warn after 180 days since actual source review and show a stronger stale warning after 365 days. The existing `dataset_reviewed_at` field in `data/fd_options/fd_options.csv` is blank for all 29 indexed banks; do not substitute Git merge timestamps. Keep source effective date, source-review date and repository dataset-update date distinct. See [owner-feedback research](OWNER-FEEDBACK-RESEARCH.md).
+**Current status: METADATA CONTRACT IMPLEMENTED; SOURCE REVIEW PENDING.** Freshness warnings use only `dataset_reviewed_at` (due at 180 days; stale at 365). The index separately records `dataset_updated_at` for material economic-data changes and `dataset_schema_version` for structural migrations. Schema-only migrations preserve both dates. All 29 indexed banks still have blank review/update dates because no source recheck has yet justified populating them. Do not infer dates from Git or file timestamps. See the [metadata contract](../data/BANK-DATA-METADATA.md) and [owner-feedback research](OWNER-FEEDBACK-RESEARCH.md).
 
 The index distinguishes `populated_direct`, `populated_secondary`, `no_public_rate_verified` and other research statuses. The web UI disables only the last category. A populated secondary compilation is usable by the engine but should not look identical to a current official schedule.
 
