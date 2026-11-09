@@ -49,6 +49,9 @@ test("selected bank cards disclose catalogue source status and review date", () 
   assert.match(app, /function bankDisclosure\(bankId\)/);
   assert.match(app, /getDatasetFreshness\(entry\.dataset_reviewed_at\)\.label/);
   assert.match(app, /data-bank-source/);
+  assert.match(app, /class="bank-source-disclosure" data-bank-source/);
+  assert.match(styles, /\.account-fields\{[^}]*align-items:stretch/);
+  assert.match(styles, /\.bank-source-disclosure\{grid-column:1\/-1/);
   assert.match(app, /c\.bank_dataset_registry=S\.index/);
   assert.match(page, /Secondary sources and missing review dates may be stale/);
 });
@@ -116,7 +119,7 @@ test("Google analytics is loaded only after explicit consent and sends no scenar
   assert.match(app, /CLARITY_PROJECT_ID="zb1y50hjaw"/);
   assert.match(app, /analytics_Storage:"granted",ad_Storage:"denied"/);
   assert.match(app, /analytics_Storage:"denied",ad_Storage:"denied"/);
-  assert.match(app, /script\.src="https:\/\/www\.clarity\.ms\/tag\/"+CLARITY_PROJECT_ID/);
+  assert.match(app, /script\.src="https:\/\/www\.clarity\.ms\/tag\/"\+CLARITY_PROJECT_ID/);
   assert.match(page, /Microsoft Clarity load only if you allow analytics/);
   assert.match(page, /Microsoft Clarity/);
   for (const legalPage of ["privacy.html", "terms.html"]) {
