@@ -82,7 +82,7 @@ test("mobile viewport renders without document-level horizontal overflow", async
       containers: Object.fromEntries(["html", "body", "main", ".layout", ".rail", ".content", "#scenario-form", "#accounts"].map(selector => [selector, rect(selector)]))
     };
   });
-  expect(dimensions.content, JSON.stringify(dimensions.offenders)).toBeLessThanOrEqual(dimensions.viewport + 1);
+  expect(dimensions.content, JSON.stringify({ offenders: dimensions.offenders, containers: dimensions.containers })).toBeLessThanOrEqual(dimensions.viewport + 1);
 });
 
 test("a default scenario runs and produces an independently openable HTML report", async ({ page, context }) => {
