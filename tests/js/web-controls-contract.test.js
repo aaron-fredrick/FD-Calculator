@@ -63,7 +63,7 @@ test("unlimited expanded states uses a compact checkbox control", () => {
 
 
 test("inline validation errors are programmatically associated and cleaned up safely", () => {
-  assert.match(app, /note\.id="field-error-"\+\+\(\?fieldErrorSequence\)/);
+  assert.match(app, /note\.id="field-error-"\+\(\+\+fieldErrorSequence\)/);
   assert.match(app, /el\.setAttribute\("aria-describedby",describedBy\.join\(" "\)\)/);
   assert.match(app, /const noteIds=new Set\(notes\.map\(note=>note\.id\)\.filter\(Boolean\)\)/);
   assert.match(app, /filter\(id=>id&&!noteIds\.has\(id\)\)/);
