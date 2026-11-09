@@ -23,7 +23,7 @@ on:
 permissions:
   contents: read
 
-# Every main push gets its own benchmark run. The component publisher and
+# Every relevant dev push gets its own benchmark run. The component publisher and
 # reusable Pages deployer have their own non-cancelling concurrency controls.
 concurrency:
   group: dev-docs-benchmark-${{ github.sha }}
@@ -184,7 +184,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: pages-artifact-docs
+      group: dev-pages-artifact-docs
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
