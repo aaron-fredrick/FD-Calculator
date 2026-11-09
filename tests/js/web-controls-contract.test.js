@@ -85,8 +85,10 @@ test("help tips expose accessible names and support pointer, keyboard and touch 
 test("users can delete the browser-local draft without the form click handler recreating it", () => {
   assert.match(page, /id="clear-draft"/);
   assert.match(page, /id="draft-storage-status"/);
+  assert.match(page, /until you clear it/);
   assert.match(app, /function clearSavedDraft\(event\)/);
   assert.match(app, /event\.stopPropagation\(\)/);
+  assert.match(app, /window\.confirm\(/);
   assert.match(app, /localStorage\.removeItem\(STORAGE_KEY\)/);
   assert.match(app, /addEventListener\("click",clearSavedDraft\)/);
 });
