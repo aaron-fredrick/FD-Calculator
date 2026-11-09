@@ -207,6 +207,8 @@ function results(r,c,html){
  scrollElementIntoView($("results"));
 }
 const PRIVACY_STORAGE_KEY="fd-cal:privacy-preferences:v1";
+const GTM_CONTAINER_ID="GTM-TNC567R4";
+let analyticsEnabled=false,googleTagManagerLoaded=false;
 function readPrivacyPreferences(){
  try{const value=JSON.parse(localStorage.getItem(PRIVACY_STORAGE_KEY)||"null");if(value&&value.version===1)return{necessary:true,analytics:value.analytics===true};}catch(error){console.warn("FD Cal privacy preferences could not be read:",error)}
  return null;
@@ -216,15 +218,44 @@ function savePrivacyPreferences(analytics){
  try{localStorage.setItem(PRIVACY_STORAGE_KEY,JSON.stringify(value));return true}
  catch(error){console.warn("FD Cal privacy preferences could not be saved:",error);return false}
 }
+function initialiseGoogleTagQueue(){
+ window.dataLayer=window.dataLayer||[];
+ window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};
+ window.gtag("js",new Date());
+ window.gtag("consent","default",{analytics_storage:"denied",ad_storage:"denied",ad_user_data:"denied",ad_personalization:"denied"});
+}
+function applyAnalyticsConsent(allowAnalytics){
+ initialiseGoogleTagQueue();
+ window.gtag("consent","update",{analytics_storage:allowAnalytics?"granted":"denied",ad_storage:"denied",ad_user_data:"denied",ad_personalization:"denied"});
+ analyticsEnabled=allowAnalytics===true;
+ if(!analyticsEnabled)return;
+ if(!googleTagManagerLoaded){
+  const script=document.createElement("script");
+  script.async=true;
+  script.src="https://www.googletagmanager.com/gtm.js?id="+encodeURIComponent(GTM_CONTAINER_ID);
+  script.dataset.fdCalAnalytics="true";
+  document.head.append(script);
+  googleTagManagerLoaded=true;
+ }
+ window.gtag("event","page_view",{page_title:document.title,page_path:window.location.pathname});
+}
+function trackAnalyticsEvent(eventName){
+ if(!analyticsEnabled||typeof window.gtag!=="function")return;
+ window.gtag("event",eventName);
+}
 function setupPrivacyControls(){
  const banner=$("privacy-banner"),dialog=$("privacy-preferences-dialog"),analytics=$("privacy-analytics");
+ const saved=readPrivacyPreferences();
+ initialiseGoogleTagQueue();
  const closeDialog=()=>{dialog.hidden=true;$("open-privacy-preferences").focus()};
- const openDialog=()=>{const saved=readPrivacyPreferences();analytics.checked=saved?.analytics===true;dialog.hidden=false;analytics.focus()};
+ const openDialog=()=>{const current=readPrivacyPreferences();analytics.checked=current?.analytics===true;dialog.hidden=false;analytics.focus()};
  const commit=allowAnalytics=>{
   if(!savePrivacyPreferences(allowAnalytics)){alert("Your preference could not be saved in this browser. Check site-storage permissions and try again.");return}
+  applyAnalyticsConsent(allowAnalytics);
   banner.hidden=true;dialog.hidden=true;
  };
- if(!readPrivacyPreferences())banner.hidden=false;
+ if(!saved)banner.hidden=false;
+ else if(saved.analytics)applyAnalyticsConsent(true);
  $("privacy-reject").addEventListener("click",()=>commit(false));
  $("privacy-accept").addEventListener("click",()=>commit(true));
  $("privacy-customise").addEventListener("click",openDialog);
@@ -259,6 +290,7 @@ $("strategy-choice").addEventListener("change",()=>syncStrategySettings());$("si
   e.preventDefault();clearFieldErrors();err("");
   const status=$("simulation-status"),button=$("run"),cancelButton=$("cancel-run"),submissionId=++S.submissionSequence;cancelButton.hidden=true;
   console.info("[FD Cal][main] Simulation submitted", {submissionId, at:new Date().toISOString()});
+  trackAnalyticsEvent("simulation_start");
   let requestId=null,computeStarted=false,elapsedMs=0;
   S.isPreparing=true;
   status.classList.remove("is-complete","is-success");status.hidden=false;
@@ -314,6 +346,7 @@ $("strategy-choice").addEventListener("change",()=>syncStrategySettings());$("si
     status.textContent=run.reused
       ?"Completed result reused; no new computation was required."
       :"Simulation complete in "+elapsedLabel(elapsedMs)+".";
+    trackAnalyticsEvent("simulation_complete");
     status.classList.add("is-complete","is-success");
     $("simulation-edit-note").hidden=!S.formEditedWhileRunning;
   }catch(ex){
