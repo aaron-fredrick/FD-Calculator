@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { join, relative } from "node:path";
 import test from "node:test";
 import { parseCSV } from "../../src/io/csv.js";
+import { loadFDOptions } from "../../src/io/data-loader.js";
 
 const dataRoot = fileURLToPath(new URL("../../data/", import.meta.url));
 
@@ -76,4 +77,14 @@ test("comma-containing source metadata remains in the correct bank and product f
   );
   assert.match(dfcc[1].notes, /as confirmed by the user/);
   assert.match(dfcc[1].notes, /AER excluded/);
+});
+
+
+test("CLI catalogue loader retains product source URL, type and notes", async () => {
+  const options = await loadFDOptions(join(dataRoot, "fd_options/fd_options.csv"), ["LK_COMMERCIAL_BANK_OF_CEYLON"]);
+  const option = options[0];
+  assert.equal(option.source_type, "direct");
+  assert.equal(option.source_url, "https://www.combank.lk/rates-tariff");
+  assert.match(option.source_notes, /Effective date not displayed/);
+  assert.match(option.source_notes, /fixed-deposits/);
 });
