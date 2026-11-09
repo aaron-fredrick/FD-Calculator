@@ -161,9 +161,24 @@ test("a default scenario runs and produces an independently openable HTML report
   await reportPage.setViewportSize({ width: 320, height: 800 });
   const screenOverflow = await reportPage.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,
-    viewportWidth: document.documentElement.clientWidth
+    viewportWidth: document.documentElement.clientWidth,
+    offenders: [...document.querySelectorAll("body *")].map(element => {
+      const rect = element.getBoundingClientRect();
+      return {
+        tag: element.tagName.toLowerCase(),
+        id: element.id,
+        className: typeof element.className === "string" ? element.className : "",
+        left: Math.round(rect.left),
+        right: Math.round(rect.right),
+        width: Math.round(rect.width),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        overflowX: getComputedStyle(element).overflowX
+      };
+    }).filter(item => item.right > document.documentElement.clientWidth + 1)
+      .slice(0, 20)
   }));
-  expect(screenOverflow.documentWidth).toBeLessThanOrEqual(screenOverflow.viewportWidth + 1);
+  expect(screenOverflow.documentWidth, JSON.stringify(screenOverflow)).toBeLessThanOrEqual(screenOverflow.viewportWidth + 1);
 
   await reportPage.emulateMedia({ media: "print" });
   expect(await reportPage.evaluate(() => window.matchMedia("print").matches)).toBe(true);
