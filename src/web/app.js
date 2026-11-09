@@ -121,6 +121,16 @@ function applyConfig(x){if(!x||typeof x!=="object"||!x.investment||!x.accounts)t
  $("include-senior-fds").checked=x.fd_eligibility?.include_senior===true;$("include-minor-fds").checked=x.fd_eligibility?.include_minor===true;$("strategy-choice").value=["greedy","gaml","gss"].includes(x.strategy)?x.strategy:"gaml";syncStrategySettings();$("inter-fee").value=x.transfer_fees?.default_inter_bank_fee??30;$("same-fee").value=x.transfer_fees?.same_bank_fee??0;$("compound").checked=!!x.compound;$("ait").checked=x.ait_enabled??true;$("leap-year").checked=x.actual_leap_year??true;$("beam-width").value=x.gaml_settings?.beam_width??256;$("local-branches").value=x.gaml_settings?.max_local_branches??128;const hasCap=Object.prototype.hasOwnProperty.call(x.gaml_settings,"max_decisions")||Object.prototype.hasOwnProperty.call(x.gaml_settings,"state_cap");const configuredCap=Object.prototype.hasOwnProperty.call(x.gaml_settings,"max_decisions")?x.gaml_settings.max_decisions:x.gaml_settings.state_cap??10000;$("unlimited-decision-cap").checked=hasCap&&configuredCap===null;$("decision-cap").disabled=hasCap&&configuredCap===null;$("decision-cap").value=configuredCap===null?10000:configuredCap;$("time-limit-seconds").value=(x.gaml_settings?.time_limit_ms??30000)/1000;$("tenor-tiebreaker").value=x.greedy_settings?.tenor_tiebreaker??"shortest";$("plan-tenor-tiebreaker").value=x.greedy_settings?.plan_tenor_tiebreaker??"shortest";$("small-period-days").value=x.gss_settings?.small_period_days??30;renderAccounts();renderSchedules();clearFieldErrors();err("")}
 function saveDraft(){try{const draft=raw();localStorage.setItem(STORAGE_KEY,JSON.stringify(draft));S.raw=draft}catch(e){console.warn("FD Cal draft could not be saved:",e)}}
 function restoreDraft(){try{const saved=localStorage.getItem(STORAGE_KEY);if(!saved)return false;applyConfig(JSON.parse(saved));return true}catch(e){console.warn("FD Cal saved draft could not be restored:",e);try{localStorage.removeItem(STORAGE_KEY)}catch{}return false}}
+function clearSavedDraft(){
+ try{
+  localStorage.removeItem(STORAGE_KEY);
+  S.raw=null;
+  $("draft-storage-status").textContent="Saved draft cleared from this browser. Current inputs remain in this tab; editing them will save a new draft.";
+ }catch(error){
+  console.warn("FD Cal saved draft could not be cleared:",error);
+  $("draft-storage-status").textContent="The saved draft could not be cleared. Check this browser’s site-storage permissions.";
+ }
+}
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)}
 function exportRaw(){download(new Blob([JSON.stringify(raw(),null,2)],{type:"application/json"}),"fd-cal-config.json")}
 function results(r,c,html){
@@ -157,6 +167,7 @@ function results(r,c,html){
  scrollElementIntoView($("results"));
 }
 function wire(){
+ $("clear-draft").addEventListener("click",clearSavedDraft);
  document.addEventListener("click",event=>{
   const tip=event.target.closest?.(".help-tip")||null;
   document.querySelectorAll('.help-tip[aria-expanded="true"]').forEach(openTip=>{
