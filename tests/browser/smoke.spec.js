@@ -1,5 +1,4 @@
 import { readFile } from "node:fs/promises";
-import { pathToFileURL } from "node:url";
 import { test, expect } from "@playwright/test";
 
 test("production web app loads and privacy preferences can be changed", async ({ page }) => {
@@ -140,7 +139,7 @@ test("a default scenario runs and produces an independently openable HTML report
   const reportHtml = await readFile(reportPath, "utf8");
 
   const reportPage = await context.newPage();
-  await reportPage.goto(pathToFileURL(reportPath).href);
+  await reportPage.setContent(reportHtml, { waitUntil: "load" });
   await expect(reportPage.locator("body")).toContainText("Simulation Report");
   await reportPage.evaluate(() => {
     const details = document.createElement("details");
