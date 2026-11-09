@@ -249,13 +249,13 @@ Do not invent dates for old rows. Backfill only when Git history or research not
 **Priority:** P2  
 **Primary boundary:** dev component artifacts → Pages assembly → `/FD-Calculator/dev/`.
 
-The current delivery target is `dev`. Do not block this work on changes to `main`. The dev branch's assembler includes the preview components and shares the Pages deployment concurrency group. Persistent preview artifact/state branches use the `dev_` prefix. The root production `robots.txt` disallows the preview subtree, and the dev web/docs HTML builds emit noindex metadata.
+The current delivery target is `dev`. Do not block this work on changes to `main`. The dev branch's assembler includes the preview components and shares the Pages deployment concurrency group. Persistent preview artifact/state branches use the `dev_` prefix. The root `robots.txt` allows crawlers to fetch preview pages so search engines can observe the generated `noindex,nofollow` directives; preview URLs are excluded from sitemap output.
 
 **Completed acceptance evidence:**
 1. Dev web and docs publishing are independent, so a web-only change does not wait for benchmark/documentation generation.
 2. The dev assembler extracts the independently published dev components into `site/dev/` and checks for `index.html`, `web/index.html` and `docs/index.html`.
 3. Dev output is built with `FD_CAL_PREVIEW=true`, path-prefixed URLs and a visible preview banner.
-4. Dev HTML receives `noindex,nofollow`; the root crawler policy disallows `/FD-Calculator/dev/`.
+4. Dev HTML receives `noindex,nofollow`; the root `robots.txt` does not block crawling, allowing search engines to process the noindex directive. Preview URLs are omitted from sitemap output.
 5. The user confirmed the merged dev preview is functioning.
 
 **Deferred, not a current blocker:** when work moves to `main`, port the preview-aware assembler and verify that a normal production deployment preserves the latest dev subtree. Do not make or audit that main-branch change in this phase.
