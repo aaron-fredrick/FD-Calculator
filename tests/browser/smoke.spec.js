@@ -140,7 +140,7 @@ test("a default scenario runs and produces an independently openable HTML report
 
   const reportPage = await context.newPage();
   await reportPage.setContent(reportHtml, { waitUntil: "load" });
-  await expect(reportPage.locator("body")).toContainText("Simulation Report");
+  await expect(reportPage.locator("body")).toContainText("Investment simulation report");
   await reportPage.evaluate(() => {
     const details = document.createElement("details");
     details.className = "collapsible-table print-stress-case";
