@@ -33,10 +33,10 @@ This is a risk-based, subsystem-level source audit of the active JavaScript engi
 
 | Status | Findings | Meaning |
 |---|---|---|
-| **Completed** | SEC-01, FIN-01 | Implemented on `dev`, with regression coverage. |
+| **Completed** | SEC-01, FIN-01, FIN-02, ENG-05 | Implemented on `dev`, with regression coverage. |
 | **Implemented; follow-up gate** | SEARCH-01 | Core behaviour and tests are in place; benchmark calibration remains. |
-| **Partial** | ENG-01, ENG-02, DATA-01, DEPLOY-01 | Part of the requirement is delivered; a specific contract, source, or deployment gap remains. |
-| **Open** | ENG-03/04, DATA-04/05/06, FIN-03, SEARCH-02/03, UI-01/02/03, PRIV-01, WEB-SEC-02, QA-REP-01 | Not yet resolved. |
+| **Partial** | ENG-01, ENG-02, DATA-01, DATA-06, DEPLOY-01 | Part of the requirement is delivered; a specific contract, source, or deployment gap remains. |
+| **Open** | ENG-03/04, DATA-04/05, FIN-03, SEARCH-02/03, UI-01/02/03, PRIV-01, WEB-SEC-02, QA-REP-01 | Not yet resolved. |
 | **Scope closed** | DATA-02 | Owner-confirmed product scope; no eligibility-verification feature planned. |
 | **Deferred** | DATA-03, QA-01 | Requires a separate owner decision. |
 
