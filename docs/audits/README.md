@@ -37,9 +37,10 @@ This is a risk-based source audit against all applicable Coding, UI and Web rule
 | Status | Findings | Meaning |
 |---|---|---|
 | **Completed on dev** | SEC-01, FIN-01, FIN-02, ENG-05, DEPLOY-01, UI-01/02/03, DATA-01/04, FIN-03, PRIV-01/02 | Implemented and included in PR #81 squash merge; rendered browser QA remains for UI/report/legal presentation. |
-| **Implemented on follow-up branch** | ENG-01, ENG-02, ENG-03, ENG-04, QA-01 (initial smoke suite; wider accessibility QA remains) |
-| **Owner-approved implementation pending** | DATA-06, QA-REP-01 | Simulation-window payout filtering, central product validation, source-review freshness and browser-driven tests remain. |
-| **Owner-approved scope / research only** | DATA-03, DATA-05, SEARCH-01, SEARCH-02/03, WEB-SEC-02 | Keep the interest formula; lightweight AIT source metadata; special FD and transfer research only; preserve search defaults pending benchmark; plan staged decomposition/parity; retain GitHub Pages. |
+| **Implemented on follow-up branch** | ENG-01, ENG-02, ENG-03, ENG-04, SEARCH-01, QA-01 (initial smoke suite; wider accessibility QA remains) |
+| **Owner-approved implementation pending** | DATA-06, QA-REP-01 | Populate defensible per-bank review dates and complete wider report/accessibility verification. |
+| **Research only** | DATA-03, DATA-05 | Special FD constraints and transfer-channel tariffs are documented; no simulation or fee-model changes were made. |
+| **Architecture plan / hosting decision** | SEARCH-02/03, WEB-SEC-02 | Staged search decomposition and cross-strategy outflow parity are documented; GitHub Pages is retained. |
 | **Scope closed** | DATA-02 | Age-segment toggles remain candidate filters, not eligibility verification. |
 
 ## Severity
