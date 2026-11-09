@@ -181,3 +181,32 @@ test("Greedy skips a higher-ranked unsafe tenor and selects a tenor maturing on 
   assert.ok(bookings[0]?.label?.includes("Lower-rate 30d"),
     "Greedy should reject the higher-ranked 90-day option and use the 30-day option");
 });
+
+
+test("Greedy reserves cumulative strict outflows due before a candidate matures", () => {
+  const input = {
+    options: [
+      new FDOption({ label: "Higher-rate 90d", period_str: "90d", annual_rate: 12,
+        min_amount: 25000, bank_id: "BANK_A", bank_key: "a" }),
+      new FDOption({ label: "Lower-rate 60d", period_str: "60d", annual_rate: 11,
+        min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    start: "2026-01-01",
+    end: "2026-06-01",
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    inflow_account_id: "main",
+    consolidation_account_id: "main",
+    outflow_schedule: {
+      "2026-01-31": [{ account_id: "main", amount: 30000, name: "First strict bill", payment_policy: "strict" }],
+      "2026-02-15": [{ account_id: "main", amount: 30000, name: "Second strict bill", payment_policy: "strict" }]
+    }
+  };
+  const result = new SimulationEngine().run(new GreedyStrategy(), input);
+  const bookings = Object.values(result.timeline).flat()
+    .filter(event => event.event_type === "booking");
+  assert.equal(result.valid, true);
+  assert.equal(result.total_outflows_paid, 60000,
+    "Greedy must reserve both obligations that fall due before the 90-day maturity");
+  assert.equal(bookings[0]?.amount, 40000,
+    "Greedy should invest only the balance remaining after both strict obligations are reserved");
+});
