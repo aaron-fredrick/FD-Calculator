@@ -9,7 +9,7 @@ import {animateRemoval,animateNewRows,animateEntrance,transitionStrategySettings
 import {generateHtmlReport} from "../reporting/html.js";
 const DATA_ROOT=new URL(import.meta.url).pathname.includes("/src/web/")?"../../data/":"../data/";
 const $=id=>document.getElementById(id),STORAGE_KEY="fd-cal:draft:v1",S={banks:{},index:{},keys:{},cache:new Map(),lastSimulationKey:null,accounts:[],inflows:[],outflows:[],url:null,raw:null,workerRunner:new SimulationWorkerRunner(),activeRunId:0,submissionSequence:0,isPreparing:false,formEditedWhileRunning:false,computeStartedAt:null,computeTimer:null};
-const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));let fieldErrorSequence=0;
 function elapsedLabel(milliseconds){const total=Math.max(0,Math.floor(milliseconds/1000)),hours=Math.floor(total/3600),minutes=Math.floor((total%3600)/60),seconds=total%60;return hours?[hours,minutes,seconds].map(value=>String(value).padStart(2,"0")).join(":"):[minutes,seconds].map(value=>String(value).padStart(2,"0")).join(":")}
 function updateElapsedTimer(){if(S.computeStartedAt===null)return;const timer=$("simulation-elapsed");timer.textContent="Elapsed "+elapsedLabel(performance.now()-S.computeStartedAt)}
 function startElapsedTimer(restart=false){if(restart)stopElapsedTimer();if(S.computeTimer!==null)return;S.computeStartedAt=performance.now();$("simulation-elapsed").hidden=false;updateElapsedTimer();S.computeTimer=setInterval(updateElapsedTimer,250)}
@@ -31,8 +31,35 @@ function renderSimulationMode(){$("simulation-mode").value="scoped";$("scoped-en
 const id=()=>Math.random().toString(36).slice(2,9),err=m=>{$("error").textContent=m;$("error").hidden=!m};
 function setCatalogStatus(message,state){for(const status of [$("catalog-status"),$("catalog-status-mobile")]){status.textContent=message;status.classList.remove("is-loading","is-ready","is-error");if(state)status.classList.add("is-"+state)}}
 function setCatalogueReady(ready){const form=$("scenario-form");form.setAttribute("aria-busy",String(!ready));form.querySelectorAll("input,select,button").forEach(control=>{control.disabled=!ready});$("import-config").disabled=!ready;$("export-config").disabled=!ready}
-function clearFieldErrors(){document.querySelectorAll(".field-error").forEach(n=>n.remove());document.querySelectorAll(".invalid-field").forEach(n=>n.classList.remove("invalid-field"));document.querySelectorAll('[aria-invalid="true"]').forEach(n=>n.removeAttribute("aria-invalid"))}
-function markField(el,message){if(!el)return;const label=el.closest("label")||el.parentElement;if(!label)return;label.classList.add("invalid-field");el.setAttribute("aria-invalid","true");const note=document.createElement("small");note.className="field-error";note.textContent=message;label.append(note);el.focus({preventScroll:true});scrollElementIntoView(el,{block:"center"})}
+function clearFieldErrors(){
+ const notes=[...document.querySelectorAll(".field-error")];
+ const noteIds=new Set(notes.map(note=>note.id).filter(Boolean));
+ document.querySelectorAll("[aria-describedby]").forEach(el=>{
+  const remaining=(el.getAttribute("aria-describedby")||"").split(/\s+/).filter(id=>id&&!noteIds.has(id));
+  if(remaining.length)el.setAttribute("aria-describedby",remaining.join(" "));
+  else el.removeAttribute("aria-describedby");
+ });
+ notes.forEach(note=>note.remove());
+ document.querySelectorAll(".invalid-field").forEach(n=>n.classList.remove("invalid-field"));
+ document.querySelectorAll("[aria-invalid=true]").forEach(n=>n.removeAttribute("aria-invalid"));
+}
+function markField(el,message){
+ if(!el)return;
+ const label=el.closest("label")||el.parentElement;
+ if(!label)return;
+ label.classList.add("invalid-field");
+ el.setAttribute("aria-invalid","true");
+ const note=document.createElement("small");
+ note.className="field-error";
+ note.id="field-error-"+(++fieldErrorSequence);
+ note.textContent=message;
+ const describedBy=(el.getAttribute("aria-describedby")||"").split(/\s+/).filter(Boolean);
+ if(!describedBy.includes(note.id))describedBy.push(note.id);
+ el.setAttribute("aria-describedby",describedBy.join(" "));
+ label.append(note);
+ el.focus({preventScroll:true});
+ scrollElementIntoView(el,{block:"center"});
+}
 function safeSimulationError(error){
  const message=String(error?.message||error||"");
  if(/^(Complete the dates|Add at least one account|No investable capital|Every account needs|The strategy could not satisfy|Invalid |Unknown |Outflow |Inflow |Account |Investment |No compatible FD products|No FD option|No FD product rows|Unable to load)/i.test(message))return message;
