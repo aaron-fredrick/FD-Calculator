@@ -57,7 +57,7 @@ Those fields are now correctly quoted. The bank fee source URL and product prove
 
 ## DATA-05 — Transfer-fee assumptions are not a full transfer-channel model
 
-**Current status: OPEN / documented limitation.** No channel/tier/privilege model has been added; keep fees explicitly described as estimates.
+**Current status: DOCUMENTED LIMITATION — owner confirmed simplified model.** No channel/tier/privilege model is planned in this pass; keep fees explicitly described as estimates. Regulatory and bank tariff examples are recorded in [owner-feedback research](OWNER-FEEDBACK-RESEARCH.md).
 
 **Evidence:** [data/banks/banks.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/data/banks/banks.csv) records bank fee values and notes that distinguish online/mobile CEFT, OTC, SLIPS, fallback CBSL maxima and assumptions. The active fee model chooses same-bank or domestic inter-bank fees per source bank; it does not model all channels, transaction tiers, customer privileges or limits.
 
@@ -67,7 +67,7 @@ Those fields are now correctly quoted. The bank fee source URL and product prove
 
 ## DATA-06 — Bank-rate freshness and secondary sources need a visible warning policy
 
-**Current status: PARTIAL.** Bank source status and review dates are now visible, but no freshness threshold, stale-data policy or product-level confidence/effective-date disclosure has been completed.
+**Current status: METADATA CONTRACT IMPLEMENTED; SOURCE REVIEW PENDING.** Freshness warnings use only `dataset_reviewed_at` (due at 180 days; stale at 365). The index separately records `dataset_updated_at` for material economic-data changes and `dataset_schema_version` for structural migrations. Schema-only migrations preserve both dates. All 29 indexed banks still have blank review/update dates because no source recheck has yet justified populating them. Do not infer dates from Git or file timestamps. See the [metadata contract](../data/BANK-DATA-METADATA.md) and [owner-feedback research](OWNER-FEEDBACK-RESEARCH.md).
 
 The index distinguishes `populated_direct`, `populated_secondary`, `no_public_rate_verified` and other research statuses. The web UI disables only the last category. A populated secondary compilation is usable by the engine but should not look identical to a current official schedule.
 

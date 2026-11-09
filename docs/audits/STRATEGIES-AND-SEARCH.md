@@ -8,7 +8,7 @@ Reviewed Greedy, GSS, Absolute R, Absolute R+, shared search primitives, search 
 
 ### SEARCH-01 — Scoped Absolute R+ has no default expansion budget or post-start execution timeout
 
-**Current status: IMPLEMENTED in PR #75.** Browser configuration now defaults to 10,000 expanded states and 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, optimality diagnostics, cancellation and a post-start worker watchdog. Regression coverage was added. The planned repeated 5k/10k/20k/uncapped benchmark calibration remains a follow-up; do not treat the candidate defaults as empirically optimal yet.
+**Current status: IMPLEMENTED in PR #75.** Browser configuration now defaults to 10,000 expanded states and 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, optimality diagnostics, cancellation and a post-start worker watchdog. Regression coverage was added. The owner confirmed these as the baseline defaults. The controlled 5k/10k/20k/uncapped × 15/30/60-second matrix is complete on a 60-month scenario with monthly inflows and strict outflows, plus a 24-month baseline control. All 12 harder-scenario runs returned identical financial outputs; the 5k cap did not bind, and longer time budgets increased explored states without improving the candidate. No run proved optimality. See [search budget calibration](SEARCH-BUDGET-CALIBRATION.md).
 
 **Severity: P2**
 
@@ -16,7 +16,7 @@ Reviewed Greedy, GSS, Absolute R, Absolute R+, shared search primitives, search 
 
 **Impact:** a large or pathological scenario can keep a worker occupied for an unbounded duration. The UI shows elapsed time but has no explicit cancel action. A worker protects the main thread from synchronous search work, but it does not guarantee bounded resource consumption or a clear user recovery path.
 
-**Recommendation:** add a documented default decision/time budget for browser runs, expose “cancel”, and enforce a post-start deadline. When a budget stops search, surface `optimality_proven: false` and the exact budget/expanded-state count. Keep an explicit opt-in for unbounded CLI runs if needed.
+**Recommendation:** keep 10,000 / 30 seconds, retain explicit longer/unlimited controls, and preserve honest optimality diagnostics. Do not increase the default timeout or reduce the state cap based on this limited scenario set. Investigate beam width and local branch limits separately if further search-quality work is justified.
 
 ### SEARCH-02 — Large strategy modules concentrate several independent responsibilities
 
@@ -30,7 +30,7 @@ Reviewed Greedy, GSS, Absolute R, Absolute R+, shared search primitives, search 
 
 ### SEARCH-03 — GSS and search paths contain independent future-planning logic that needs continued parity protection
 
-**Current status: OPEN / ongoing control.** Existing parity and runtime-replay tests are positive controls, but the independent planning logic remains and new event/fee/product rules still require cross-strategy parity fixtures.
+**Current status: PARTIAL / ongoing control.** A new `tests/js/cross-strategy-outflow-parity.test.js` runs Greedy, GSS, Absolute R and Absolute R+ against the same strict/deferred outflow scenario and compares validity, paid obligations, outstanding liabilities and ending cash. This fixture has no eligible FD booking, so it does not yet prove parity for booking selection, maturity/installment payouts, transfer fees or liquidity reserved for future obligations. Add those cases before treating the parity workstream as closed. The shared `SimulationRuntime` remains authoritative for actual settlement and replay.
 
 **Evidence:** [gss.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/gss.js) contains its own future liquidity reservation, plan generation and recursive wait/reforecast paths; [search-strategy-base.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/search-strategy-base.js) also constructs hypothetical future states before replaying a selected path through `SimulationEngine`.
 

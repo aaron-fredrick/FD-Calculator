@@ -14,13 +14,13 @@
 - Dev output uses the `/FD-Calculator/dev/` base, noindex metadata and a visible preview banner.
 - Persistent dev artifact/state refs use the `dev_` prefix.
 - The Pages deployment concurrency group serializes site deployments.
-- The production root `robots.txt` disallows the dev subtree.
+- The root `robots.txt` permits crawling so search engines can read the preview pages' `noindex,nofollow` directives; preview URLs remain excluded from the production sitemap.
 
 **Deferred follow-up:** when work moves to `main`, port and verify the preview-aware assembler there so a main deployment also retains the latest dev subtree. Do not change or block the current dev pipeline for that future task.
 
 ## Crawler and sitemap controls — verified positive control
 
-**Current status: IMPLEMENTED on `dev`; no open SEO-01 finding.** The production docs build starts with the VitePress documentation sitemap, merges the canonical site root and `/web/` application URL into it, and publishes the assembled file at the site root. The preview build skips sitemap assembly and removes any docs sitemap from its output. The root `robots.txt` disallows `/FD-Calculator/dev/` and declares the production sitemap. The dev web build rewrites canonical URLs and sets `noindex,nofollow`; VitePress preview metadata also sets noindex.
+**Current status: IMPLEMENTED on `dev`; no open SEO-01 finding.** The production docs build starts with the VitePress documentation sitemap, merges the canonical site root and `/web/` application URL into it, and publishes the assembled file at the site root. The preview build skips sitemap assembly and removes any docs sitemap from its output. The root `robots.txt` permits crawling and declares the production sitemap; dev preview HTML carries `noindex,nofollow` and preview URLs are excluded from the sitemap. The dev web build rewrites canonical URLs and sets `noindex,nofollow`; VitePress preview metadata also sets noindex.
 
 **Evidence:** [docs build script](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/scripts/build-docs-site.sh), [VitePress config](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/docs/.vitepress/config.mts), [robots.txt](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/robots.txt), [dev web build](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/scripts/build-web-site.sh).
 
@@ -52,7 +52,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 
 ## QA-01 — The automated suite is strong on Node contracts but lacks browser-level coverage
 
-**Current status: DEFERRED — owner decision required.** The latest Node/build/workflow suite passes, but there is still no Playwright/Cypress/WebDriver browser suite or screenshot/visual-regression runner. Decide whether to add a small smoke suite or retain manual browser QA.
+**Current status: IMPLEMENTED ON FOLLOW-UP BRANCH; AUTOMATED CI GREEN.** A Playwright Chromium smoke suite runs in the shared test workflow for pushes to `dev`/`main` and PRs targeting those branches. Full workflow [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592) passed the Node suite, syntax checks, production/dev builds, all six browser tests, documentation-preservation build and workflow YAML parsing. The suite covers app startup/privacy preferences, legal navigation, dev-preview noindex/path prefix, mobile overflow, keyboard focus/reduced motion, and an independently opened report with semantic headers, 320px overflow and print-width checks. Broader offline/chart report checks, actual print/PDF pagination, screen-reader, contrast and 200–400% zoom QA remain.
 
 **Evidence:** the repository contains tests for configuration, dates/foundations, cash-flow components, account provenance, runtime/ledger, strategy parity, search, worker contracts, report output, motion guidelines and Pages workflow contracts. The workflow runs `npm test`, syntax checks and static build checks.
 
@@ -70,7 +70,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 ## CI and release quality
 
 - The Node.js test/syntax workflow passed on audited `dev` commit `caccaf26b4415ae783959e888ff45e33becdadf6` ([run 42553842534](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842534)); the independent dev web build/publish also passed ([run 42553842533](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842533)). The docs/benchmark publishing workflow was in progress when checked ([run 42553842591](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842591)).
-- No manual browser QA, Lighthouse run, WCAG audit, CSP/header scan or external dependency/security scan was completed during this source review.
+- No manual screen-reader/WCAG review, Lighthouse run, deployed CSP/header scan or external dependency/security scan was completed during this source review. The latest CI failure is tracked in the implementation plan.
 - `npm ci` reports no installed dependencies beyond the project itself; VitePress is installed separately by the documentation build script without updating the lockfile. This is reproducible only to the extent that the VitePress version is pinned by the script.
 - Action references use version tags rather than immutable commit SHAs. Consider SHA pinning for higher supply-chain assurance, with automated update tooling.
 - Benchmark validation checks expected observation counts and parameter sweeps; it does not independently validate every bank-rate source or the financial correctness of each observation.
@@ -79,7 +79,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 
 1. Keep the preview and production deployments serialized.
 2. Preserve the previous successful production artifact if a component build fails.
-3. Preserve the verified crawler controls: keep preview pages out of production sitemaps, disallow `/FD-Calculator/dev/` in the root robots policy, and set noindex on every preview HTML entry point.
+3. Preserve the verified crawler controls: keep preview pages out of production sitemaps, keep the dev preview crawlable so crawlers can read `noindex,nofollow`, and exclude preview URLs from the production sitemap.
 4. Add a smoke test for generated URLs and worker/module loading under the project subpath.
 5. Defer porting the preview-aware Pages assembler to `main` until main-branch work begins; the current delivery target is `dev`.
 6. Add a concise deployment runbook documenting how to inspect/roll back web, docs and dev artifact refs.

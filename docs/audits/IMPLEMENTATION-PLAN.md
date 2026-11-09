@@ -1,10 +1,10 @@
 # FD Cal — implementation plan from the engineering audit
 
 **Plan date:** 9 November 2026  
-**Re-audited source:** `dev` at `caccaf26b4415ae783959e888ff45e33becdadf6`  
-**Working branch:** `audit/rulesets-codebase-review`  
+**Re-audited source:** `dev` at squash merge `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a`  
+**Working branch:** `audit/owner-feedback-followups`  
 **Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`  
-**Status:** Re-audited after PRs #75 and #80. Core remediations are already merged to `dev`; this plan now distinguishes completed implementation, partial work, open findings and deferred owner decisions. The audit record is updated alongside focused implementation fixes on this working branch.
+**Status:** PR #81 was squash-merged to `dev` on 9 November 2026. This follow-up branch records the owner's latest decisions, verified external research, and the remaining implementation/QA work. The owner-feedback research register supersedes older open/deferred labels where it records a later decision.
 
 ## 1. Purpose and constraints
 
@@ -38,23 +38,50 @@ Before implementation, capture deterministic baseline outputs for representative
 | **SEC-01** | **Completed — PR #75** | Imported account IDs are encoded at all three account-card attribute sinks; adversarial regression coverage is present. |
 | **FIN-01** | **Completed — PR #75** | Explicit pre-withdrawal and closing-position metrics are exposed in the result model, UI and report; paid/deferred outflow reconciliation is tested. |
 | **FIN-02** | **Completed — PR #75** | The metric is labelled “Capital contributed”, not “Capital invested”. |
-| **FIN-03 / DATA-01** | **Implemented on this branch; CI passed** | Product source URL, effective date, source type and notes are loaded by web/CLI paths, restored after worker execution, and displayed in HTML and console reports. Missing dates are labelled not recorded. Pending dev shipment. |
-| **ENG-01** | **Partial** | Runtime event ordering is regression-tested. Installment payment dates can still extend beyond nominal maturity; verify contractual terms before changing the schedule model. |
-| **ENG-02** | **Partial** | The start-year 365/366 denominator is documented here. Formula remains unchanged; representative bank-term verification and user-facing explanation remain. |
-| **ENG-03 / ENG-04** | **Open** | Central product-term invariants and versioned AIT assumptions are not implemented. |
-| **SEARCH-01** | **Implemented — PR #75** | Browser defaults are 10,000 expanded states / 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, watchdog, cancellation and diagnostics. Benchmark calibration remains. |
-| **SEARCH-02 / SEARCH-03** | **Open / ongoing control** | Large modules remain; existing parity/replay tests are positive controls, but new financial rules need cross-strategy parity fixtures. |
+| **FIN-03 / DATA-01** | **Completed — PR #81 squash-merged to dev** | Product source URL, effective date, source type and notes flow through web/CLI, worker and reports. |
+| **ENG-01** | **Implemented on follow-up branch** | Generated contractual payout events are filtered to the active simulation window; the simulation end is never extended and no final payout is clamped to maturity. Regression coverage passes. |
+| **ENG-02** | **Implemented on follow-up branch** | Formula retained; start-year 365/366 basis is documented and disclosed in the web UI and standalone report. Reviewed public bank sources do not establish a universal day-count basis. |
+| **ENG-03** | **Implemented on follow-up branch** | FDOption constructor enforces core term invariants; browser/CLI loaders isolate invalid rows with diagnostics; maturity horizon remains enforced. |
+| **ENG-04** | **Implemented on follow-up branch — CI passed** | Lightweight AIT assumption ID/effective date/verification date and official IRD source link are present in the engine/UI; no broad tax-regime or individual relief engine. |
+| **SEARCH-01** | **Implemented — PR #75; calibration completed on follow-up branch** | The 5k/10k/20k/unlimited × 15/30/60s matrix returned identical financial results on the harder test; the 5k cap did not bind. Keep 10k/30s and explicit longer/unlimited controls. See [calibration report](SEARCH-BUDGET-CALIBRATION.md). |
+| **SEARCH-02 / SEARCH-03** | **SEARCH-02 deferred; SEARCH-03 improved, broader parity still open** | Greedy now reserves strict outflows due before candidate maturity, ranks eligible options and falls through to the next safe candidate. Regression tests cover retained cash, maturity-on-due-date fallback and cumulative obligations. Shared runtime settlement remains authoritative; broader planner/parity cases remain. |
 | **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
 | **DATA-03** | **Deferred** | Keep special products with unenforced caps/tax/eligibility constraints out of the active catalogue until the owner defines the supported scope. |
 | **DEPLOY-01** | **Completed on `dev` — PR #80** | Independent dev web/docs publishers and dev-side assembly publish a working preview under `/dev/`. Porting the assembler to `main` is deferred until main-branch work begins. |
-| **DATA-04** | **Implemented on this branch; CI passed** | All 33 catalogue CSVs are inventoried; 93 rows with unquoted comma-containing metadata were repaired across three files; parser enforces strict quotes and exact row width with source/line diagnostics. Pending dev shipment. |
-| **UI-01** | **Implemented on this branch; pending dev shipment** | A shared scroll helper checks the current reduced-motion preference and selects non-animated or smooth scrolling accordingly; unit tests cover both branches. |
-| **UI-02 / UI-03** | **Implemented on this branch; CI passed** | Help controls are native disclosure buttons with accessible names and touch/keyboard operation; generated field errors are associated through `aria-describedby` and cleaned up without removing unrelated descriptions. Pending dev shipment. |
-| **PRIV-01** | **Implemented on this branch; CI passed** | Browser-local retention is disclosed; a confirmation-protected action removes the saved draft without re-saving it from the form click handler. Pending dev shipment. |
-| **WEB-SEC-02** | **Open — hosting decision required** | GitHub.com Pages does not provide a repository-controlled response-header policy. The boundary and options are documented; verify actual production/dev response headers and decide whether a CDN/proxy or hosting migration is justified. |
-| **QA-01** | **Deferred — owner decision required** | Decide whether to introduce Playwright smoke coverage or retain manual browser verification. |
-| **QA-REP-01** | **Open** | The downloaded standalone report has not been independently verified in a real browser. |
-| **DATA-05 / DATA-06** | **Open / partial** | Transfer-channel modelling remains out of scope; freshness/source warnings are only partially surfaced. |
+| **DATA-04** | **Completed — PR #81 squash-merged to dev** | All 33 catalogue CSVs are inventoried; 93 malformed rows were repaired across three files; strict parser and source/line diagnostics are in dev. |
+| **UI-01** | **Completed — PR #81 squash-merged to dev** | Shared scroll helper respects the current reduced-motion preference; unit tests cover both branches. |
+| **UI-02 / UI-03** | **Completed — PR #81 squash-merged to dev** | Native help disclosure buttons and field-associated validation errors are in dev; rendered assistive-technology QA remains. |
+| **PRIV-01** | **Completed — PR #81 squash-merged to dev** | Browser-local retention and confirmation-protected saved-draft deletion are in dev. |
+| **WEB-SEC-02** | **Open — GitHub Pages retained by owner decision** | Keep Pages; verify actual production/dev headers and document the response-header limitations. No proxy/CDN migration planned. |
+| **QA-01** | **Implemented; CI green** | Playwright runs on pushes to `dev`, `main` and audit branches and PRs targeting `dev`/`main`. Event-ledger headers carry `scope=col`; mobile navigation overflow is contained. Full workflow [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592) passed, including all six Chromium browser tests, builds and YAML validation. |
+| **QA-REP-01** | **Partial — automated smoke checks green** | The downloaded report opens independently; semantic column headers, 320px document overflow and print table width assertions now pass in workflow [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592). Offline network behaviour, chart initialization, realistic large ledgers and manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom review remain. |
+| **DATA-05 / DATA-06** | **Research complete; metadata contract implemented; source review pending** | Transfer-fee model remains intentionally simplified. The bank options index now separates economic-data update date, source-review date and CSV schema version; all dates remain blank until verified bank-by-bank. Schema-only migrations must not advance data dates. |
+
+## 2A. Owner feedback received on 9 November 2026
+
+The following decisions supersede earlier open/deferred owner-decision language in this plan. Full evidence and source links are in [Owner feedback research](OWNER-FEEDBACK-RESEARCH.md).
+
+| Workstream | Owner decision | Implementation status after this update |
+|---|---|---|
+| ENG-01 | Keep the product payout sequence; filter generated payout events to the simulation window. Never extend the simulation end date or clamp a late installment to maturity. Product maturity must still fit within the simulation window. | Implemented on this branch: runtime schedules only in-window payout events; regression tests cover 5m/2m products with 5m and 6m windows. Full contractual booking flows remain available for disclosure. |
+| ENG-02 | Keep the start-year 365/366 elapsed-day denominator. Explain it briefly and retain cross-year/leap-year tests. | Formula unchanged; [short convention note](../finance/INTEREST-DAY-COUNT.md) added, and the convention is disclosed in the web UI and standalone report. |
+| ENG-03 | Add central product-term validation; maturity must fit within the simulation period. Keep special product constraints separate until model workflow is designed. | Implemented on this branch: constructor validation, row-level loader isolation and runtime maturity check; CI unit tests pass. |
+| ENG-04 | Keep the current 10% Sri Lankan interest AIT assumption, with a lightweight version identifier, effective date and official source disclosure. Do not build a broad tax-regime engine now. | Version metadata, IRD source disclosure and qualification that individual relief/exemptions may apply are implemented; contract tests pass in CI. |
+| DATA-03 | Research special FDs, but do not activate or implement them yet. | Research register added; implementation explicitly deferred. |
+| DATA-05 | Keep simplified transfer-fee modelling; research and document limitations only. | Research register added; model unchanged. |
+| DATA-06 | Use actual source-review date; warn at 180 days and strongly at 365 days. Track economic-data changes separately from schema-only migrations. | Classifier and bank-selector warnings remain based on `dataset_reviewed_at`. The index now records `dataset_updated_at` and `dataset_schema_version`; the loader validates/exposes them and the migration helper preserves dates when only the schema version changes. Dates remain blank pending actual source rechecks; see [metadata contract](../data/BANK-DATA-METADATA.md). |
+| WEB-SEC-02 | Retain GitHub Pages. | No hosting migration planned; verify deployed headers and document residual limits. |
+| SEARCH-01 | Keep 10,000 expanded states / 30 seconds as baseline; compare 5k/10k/20k/uncapped with longer time budgets and measure quality, not runtime alone. | The 12-point matrix is complete on the harder 60-month scenario plus a 24-month control; outputs were identical, 5k did not bind, and longer budgets explored more states without improving the candidate. No optimality proof. |
+| SEARCH-02 | Prepare a staged module decomposition plan; no broad rewrite. | Decomposition boundaries documented; code refactor deferred until parity baselines. |
+| SEARCH-03 | Preserve cross-strategy parity, especially authoritative outflow execution and liquidity reservations. | Added a four-strategy strict/deferred outflow settlement fixture. It covers the shared obligation ledger without eligible FD bookings; broader booking, maturity and reserved-liquidity parity fixtures remain. |
+| QA-01 / QA-REP-01 | Add browser-driven tests to CI for pushes and PRs to `dev` and `main`; cover app, simulation, report, mobile and accessibility. | QA-01 is implemented. Report QA now checks independent opening, semantic column headers, long-label wrapping at 320px and collapsed-table print layout. Screen-reader, contrast, 200–400% zoom and full manual print checks remain. |
+| Legal/privacy | General non-sensitive support may use public issues; personal/privacy/security matters use `a.n.r.fredrick@gmail.com`. Use Sri Lanka as proposed governing law, subject to mandatory laws elsewhere. | Contact text and terms updated on this branch; legal status research recorded. Lawyer review still recommended before commercial operation. |
+
+### Current source and scope notes
+
+- The bank-to-dataset index is `data/fd_options/fd_options.csv`; its existing `dataset_reviewed_at` column is currently empty for all 29 indexed banks. Do not backfill it with Git merge timestamps.
+- The current root `robots.txt` permits crawlers to fetch pages so they can read the dev preview's `noindex,nofollow` metadata. Preview URLs remain excluded from the production sitemap. Do not add a robots disallow for the preview subtree while relying on crawlers to observe noindex.
+- The AIT 10% rate is supported by IRD Circular SEC/2025/E/02 (effective 1 April 2025) and later IRD guidance; it is a calculator assumption, not a universal tax determination for every depositor.
 
 ## 3. Detailed workstreams
 
@@ -146,85 +173,79 @@ Do not redefine `final_value` in place. It is used outside the display layer, in
 
 **Acceptance:** users can distinguish what the plan generated before withdrawals from what remains at the end; the strategy engine's outflow behaviour and objective are unchanged unless separately approved.
 
-### Phase 3 — ENG-01 and ENG-02: clarify financial timing conventions
+### Phase 3 — ENG-01 and ENG-02: financial timing conventions
 
-**Status:** **Partial** Event-order regression coverage and the start-year denominator explanation are present; installment contract validation and bank-term verification remain. No financial formula or payout date was changed.  
+**Status:** **Implemented on follow-up branch; Node, build and browser CI passed.** The owner's simulation-window rule is implemented, and the retained interest denominator is documented in the UI and report.  
 **Priority:** P2  
 **Primary boundary:** FD product terms → cash-flow model → date/interest calculation.
 
-#### ENG-01 — payout dates and event ordering
+#### ENG-01 — installment payout event window
 
-Owner-confirmed event ordering is:
+The product generates its contractual installment sequence independently of the selected simulation period. The authoritative runtime now filters the generated net payout events to the selected simulation start/end dates before scheduling them. It does not extend the simulation, move a late installment to maturity, or alter the product's generated schedule.
 
-1. Credit all same-date inflows, FD cash flows, and maturities.
-2. Add and settle all due outflows according to their payment policies.
-3. Present the post-settlement balances and obligations to the strategy.
+Product maturity remains a separate eligibility constraint and must fit within the simulation period. Full contractual flows remain attached to the booking for contract-level disclosure; the runtime event ledger contains only in-window events. Regression tests cover a five-month tenor / two-month payout interval with five- and six-month simulation windows, including the month-six event being excluded from a five-month run.
+
+Preserve the existing same-date event ordering:
+1. Credit same-date inflows, FD cash flows and maturities.
+2. Add and settle due outflows according to their payment policies.
+3. Present post-settlement balances and obligations to the strategy.
 4. Execute the strategy decision for that date.
 
-This is already the order in the authoritative runtime. Preserve it and add an explicit regression test; do not move outflow handling into strategies.
-
-This ordering does **not**, by itself, settle the separate product-term question in the audit: an `INSTALLMENT` product with a five-month tenor and two-month payout interval currently generates dates at months 2, 4, and 6. Do not blindly clamp the last payment to month 5. First establish what the catalogue's tenor and payout interval mean for the actual bank product:
-- If the contractual final installment is due at maturity, the generated final cash flow should be aligned to maturity.
-- If the contract genuinely pays the final installment after the stated tenor, model the final settlement date explicitly and ensure eligibility/horizon checks use the last contractual cash-flow date rather than assuming maturity and final receipt are identical.
-
-Audit representative source terms and catalogue rows before choosing either model. Add 5m/2m, 5m/6m, exact-divisor, and payout-after-horizon fixtures. Assert that all cash-flow dates are within the contractually modelled availability horizon. Do not change cumulative or periodic-interest schedules as part of this fix.
+Do not move authoritative outflow handling into strategy planners.
 
 #### ENG-02 — elapsed-day interest basis
 
-The current implementation calculates interest using the actual elapsed day count, divided by a 365/366 base selected from the accrual start date's calendar year when the leap-year option is enabled. It does not split a multi-year interval into separate calendar-year segments.
+The current implementation calculates actual elapsed days divided by a 365/366 base selected from the accrual start date's calendar year when leap-year handling is enabled. That one denominator applies to the full interval; multi-year intervals are not split into calendar-year segments. The owner confirmed this is intentional. The formula remains unchanged.
 
-Owner feedback indicates that the intended approach is a relative elapsed-day delta, consistent with the convention the project intends to model. Keep the formula unchanged during this plan. Document it precisely in the UI/report and verify it against representative published bank product terms. Do not silently switch to calendar-segment Actual/Actual or another basis. If source evidence later requires a different convention, treat that as a separately reviewed financial-model change with before/after expected-value fixtures.
+The UI and standalone report now disclose the start-year denominator and cross-year treatment. Reviewed Sri Lankan bank product pages and key-facts documents publish rates, tenors and payout choices but do not establish a universal day-count basis. FD Cal must describe this as its own calculation convention, not as a universal bank convention. See [Interest day-count convention](../finance/INTEREST-DAY-COUNT.md).
 
 ### Phase 4 — SEARCH-01: bounded browser search with explicit unlimited mode
 
-**Status:** **Implemented** Browser defaults, cooperative stopping, watchdog, cancellation and regression tests are merged to `dev` in PR #75. Benchmark calibration remains a follow-up gate.  
+**Status:** **Implemented and calibrated on this follow-up branch.** The 10,000 expanded-state / 30-second browser defaults, explicit unlimited controls, cooperative time stopping, worker watchdog, cancellation and diagnostics are already implemented. The controlled matrix is complete; see [Search budget calibration](SEARCH-BUDGET-CALIBRATION.md).  
 **Priority:** P2  
 **Primary boundary:** configuration → search loop → worker lifecycle → UI diagnostics.
 
-#### Current state
+#### Current behaviour and calibration result
 
-Absolute R+ currently defaults `max_decisions` to `null`; the browser leaves the decision-cap input blank. The worker runner has a 10-second start-handshake timeout, but clears it after the worker acknowledges `started`. There is no post-start deadline. The runner already has a `cancel()` method, but the UI does not expose a cancellation control.
+- Browser default: 10,000 expanded states and 30 seconds.
+- Explicit unlimited state cap remains available; time limit 0 remains the unlimited-time representation.
+- Budget-limited results return the best feasible incumbent and must not be labelled as proven optimal.
+- The 24-month control and harder 60-month inflow/outflow scenario returned identical financial outputs across all 12 cap/time combinations. The 5,000-state cap did not bind; 15/30/60-second limits increased explored states but did not improve the candidate.
+- No run proved optimality. Identical results are evidence only for the tested scenarios, not a global optimality guarantee.
 
-#### Proposed behaviour
+#### Owner-approved recommendation
 
-- Add a finite default expanded-state budget and a finite default elapsed-time budget for browser Absolute R+ runs.
-- Initial candidate defaults for benchmarking: **10,000 expanded states** and **30 seconds**. These are starting values, not final constants; calibrate them against representative small, typical, and worst-case scenarios before locking them.
-- Let users choose an explicit unlimited decision budget. Preserve `null` as the configuration representation for unlimited expanded states.
-- Let users set the time limit to **0 for unlimited**. A missing time-limit field in an older configuration should receive the safe default; explicit zero should remain unlimited.
-- Make the distinction visible in the UI. Label the count accurately as expanded states/decisions, not a generic number of alternatives.
-- When the decision or cooperative time budget is reached, return the best feasible incumbent available, mark `optimality_proven: false`, and report the exact stopping reason, configured budget, expanded-state count, and elapsed time.
-- Add a hard worker watchdog as a last-resort safety net, slightly beyond the cooperative search deadline. It should terminate a worker that becomes unresponsive, not be the normal way the search budget is enforced.
-- Expose the existing cancellation capability while a run is active. Cancellation, timeout, and budget-completed-with-incumbent must have distinct status/error handling.
-- If both the decision budget is unlimited and timeout is zero, allow the user to request an unbounded run explicitly. The UI should make the resource implication clear.
+Keep 10,000 / 30 seconds as the default. Keep longer/unlimited controls for users who deliberately want extended searches. Do not lower the state cap or raise the default timeout based on the current limited scenario set. If quality improvements are pursued, benchmark beam width and local branch limits separately because pruning dominates expanded-state counts in the measured runs.
 
-#### Architecture and performance safeguards
+#### Regression and architecture safeguards
 
-1. Extend the validated strategy-settings contract deliberately; reject negative, fractional, NaN, and unsupported values.
-2. Keep the search deadline in the search loop, checking at bounded checkpoints and around expensive expansions. Use a monotonic clock and an injectable clock in tests.
-3. Reuse the existing budget-stop/optimality diagnostics where possible; add a reason field rather than creating a parallel result contract.
-4. Keep worker termination and timer cleanup in `SimulationWorkerRunner`; do not put browser timer APIs into core financial logic.
-5. Ensure a timed-out or cancelled worker cannot publish a stale result, and that the next submission works normally.
-6. Benchmark 5k/10k/20k/uncapped expansion limits and 15s/30s/60s time budgets on the same runner. Compare actual financial outputs and feasibility, not only elapsed time. Record whether the incumbent matches the uncapped result on scenarios that can complete uncapped in a reasonable time.
-7. Retain cache limits, beam width, pruning rules, and current strategy parity tests unless measurements justify a separate change.
+1. Keep validated strategy settings; reject negative, fractional, NaN and unsupported values.
+2. Keep search deadlines in the search loop, checked at bounded checkpoints using a monotonic clock.
+3. Keep worker termination/timer cleanup in the worker runner, outside core financial logic.
+4. Ensure a timed-out or cancelled worker cannot publish a stale result and the next submission remains usable.
+5. Preserve cache limits, pruning rules and cross-strategy parity tests unless separate measurements justify changes.
 
-**Acceptance:** ordinary browser runs terminate within a predictable budget; budget-limited results are never presented as proven optimal; users can explicitly opt into unlimited execution; cancellation and subsequent reuse remain reliable.
+**Acceptance:** ordinary browser runs terminate within a predictable budget; budget-limited results are never presented as proven optimal; users can explicitly opt into longer/unlimited execution; cancellation and subsequent reuse remain reliable.
 
 ### Phase 5 — DATA-01: catalogue freshness and source disclosure
 
-**Status:** **Implemented on this branch; CI passed.** Bank-level review dates/status remain visible; product URL, effective date, source type and notes are propagated through web and CLI loaders, worker booking snapshots, and both report formats. Pending shipment to `dev`.  
+**Status:** **Freshness policy implemented on follow-up branch; CI passed.** The existing `dataset_reviewed_at` field is used for bank-level freshness. Warnings appear after 180 days and become strong stale warnings at 365 days. All 29 indexed bank rows currently have no review date recorded, so they remain explicitly unverified until sources are actually rechecked.  
 **Priority:** P2  
 **Primary boundary:** bank/product index → bank selector → result/report disclosure.
 
 #### Data contract
 
-Add a per-bank ISO date field to the bank/product index, for example `dataset_updated_at`. It must represent the last date that bank's dataset was reviewed or materially updated in this repository. Maintain it per bank; do not derive it from the latest repository-wide commit, which may have changed an unrelated bank.
+Use three independent per-bank fields in `data/fd_options/fd_options.csv`, defined in the [bank dataset metadata contract](../data/BANK-DATA-METADATA.md):
 
-Keep this separate from product-level `source_effective_date`:
-- **Dataset last reviewed:** when FD Cal last checked/updated the bank's catalogue data.
-- **Source effective date:** when the bank says the rate schedule itself takes effect.
-- **Source type/status:** official/direct, secondary, or no sufficiently verified public rate data.
+- **`dataset_reviewed_at`:** when FD Cal last rechecked the bank's source material. This is the freshness-policy input.
+- **`dataset_updated_at`:** when the bank's economic product data last materially changed (rate, tenor, minimum, payout terms, eligibility or another simulation input).
+- **`dataset_schema_version`:** the version of the CSV row schema. Increment this for structural migrations such as adding or renaming columns.
 
-Do not invent dates for old rows. Backfill only when Git history or research notes establish a defensible date; otherwise show “Review date not recorded” until the bank is rechecked.
+A schema-only migration must preserve both dates exactly. Do not treat a schema migration, Git commit, file modification, release or deployment as evidence that the economic data changed or the source was reviewed. A source recheck with no catalogue change advances only `dataset_reviewed_at`; a confirmed economic-data change advances `dataset_updated_at`. Keep both blank when the date is unknown.
+
+Keep product-level `source_effective_date` separate: it is the effective date stated by the bank for an individual rate/product row, not the repository update date. Keep source type/status distinct as well.
+
+The current 29 index rows have blank review and economic-update dates; show “Review date not recorded / freshness unverified” until a source is actually rechecked. Apply a review-due warning at 180 days and a stronger stale warning at 365 days.
 
 #### UI/report plan
 
@@ -311,7 +332,23 @@ The audit notes that the research register includes product maximum amounts and 
 
 #### QA-01 — browser automation
 
-The audit did not find Playwright, Cypress, or WebDriver-based browser E2E coverage. Existing Node tests exercise engine, worker contracts, report output, and workflow contracts, but they do not launch a real browser to test the rendered application. This is a test-infrastructure decision, not evidence that existing unit tests are inadequate. Ask the owner whether to add a small Playwright smoke suite or continue with manual browser verification for now.
+A Playwright Chromium smoke suite is now implemented in `tests/browser/` and runs in the Node CI workflow for pushes to `dev`, `main` and audit branches, and pull requests targeting `dev` or `main`. It covers production startup/privacy preferences, legal navigation, dev-preview path/noindex, mobile overflow, keyboard focus/reduced motion, and a default simulation with an independently opened HTML report. Expand the suite incrementally; do not introduce broad screenshot snapshots before the smoke tests are stable.
+
+## 3A. Current branch re-audit — 9 November 2026
+
+The implementation status below was checked against the working branch, not inferred from the plan. The branch remains based on `dev` at PR #81's squash merge. Earlier runs exposed three report defects in sequence: print table width (433px against 321px), missing `scope=col` on event-ledger headers, and mobile navigation extending the document width. The fixes are in the report CSS, commit `6a15b8b` and commit `7675492`. Full workflow [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592) passed Node tests, syntax checks, production/dev builds, all six Chromium browser tests, documentation-preservation build and workflow YAML parsing.
+
+### Remaining work, in priority order
+
+1. **Complete extended report QA:** smoke assertions are green; verify offline network behaviour, chart initialization, realistic large ledgers and actual print/PDF pagination, then complete manual accessibility checks.
+2. **Complete SEARCH-03 parity:** add deterministic cross-strategy scenarios with eligible bookings, maturity and installment payouts, transfer fees, and future-outflow reserved liquidity. Compare authoritative ledger, paid/outstanding obligations, ending balances and validity across Greedy, GSS, Absolute R and Absolute R+.
+3. **Complete report/browser QA:** test realistic large ledgers and long labels, offline operation and chart initialization; perform manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom checks.
+4. **Complete catalogue source review:** recheck each of the 29 bank entries against official source material where available; record defensible `dataset_reviewed_at` and only record `dataset_updated_at` when economic terms materially changed. Leave unverified dates blank.
+5. **Verify deployment security posture:** inspect actual production and dev response headers and document GitHub Pages limitations. No proxy/CDN or hosting migration is approved.
+6. **Keep SEARCH-02 deferred:** retain the staged decomposition plan; do not refactor strategy modules until parity baselines are complete.
+7. **Keep explicitly deferred scope deferred:** special-product constraint modelling (DATA-03), richer transfer-channel fee modelling (DATA-05), main-branch dev-preview assembler port, and external legal counsel review are not blockers for this dev-targeted branch.
+
+No PR, merge or deployment is part of this work. The automated CI workflow is green; remaining acceptance work is extended report and manual accessibility QA.
 
 ## 4. Visual and interaction guardrails
 
@@ -332,16 +369,17 @@ Relevant guidance: [Visual Design and Restraint](https://github.com/aaron-fredri
 
 The earlier audit implementation was delivered on this same branch and merged to `dev` through PR #75; the dev preview workflow changes were then merged through PR #80. The owner has directed that follow-up work remain on this working branch until it is ready to ship to `dev`. Keep changes focused, preserve the current `dev` baseline and its tests, and defer `main` integration until explicitly in scope.
 
-Recommended implementation sequence:
+Recommended implementation sequence, reflecting current branch status:
 
-1. **DATA-01 / FIN-03** — implemented on this branch; pending dev shipment.
-3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
-4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
-5. **UI-01 / UI-02 / UI-03** — implemented on this branch with regression coverage; pending dev shipment and browser/assistive-technology verification.
-6. **WEB-SEC-02** — verify actual HTTP response headers on production and dev; choose a CDN/proxy or hosting migration only if required policy cannot be met on GitHub Pages.
-7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
-8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
-9. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
+1. **QA-REP-01 / QA-01:** clear the standalone report print-width regression and obtain a green full workflow. Keep the long-label 320px browser assertion meaningful.
+2. **SEARCH-03:** add cross-strategy fixtures for eligible bookings, maturity and installment payouts, transfer fees, and liquidity reserved for future obligations. Keep shared runtime settlement authoritative.
+3. **QA-REP-01 / accessibility:** verify offline report operation and chart initialization; complete realistic large-ledger, print/PDF, keyboard, screen-reader, contrast and 200–400% zoom checks.
+4. **DATA-06:** recheck bank source material and populate review/economic-update dates only when evidence supports them. Do not infer dates from commits or schema changes.
+5. **WEB-SEC-02:** inspect actual production/dev response headers and document the GitHub Pages policy boundary. Do not migrate hosting without a separate owner decision.
+6. **SEARCH-02:** keep the staged module decomposition as documentation until parity baselines are complete; then extract one seam at a time.
+7. **Deferred scope:** keep DATA-03 special-product activation, richer DATA-05 transfer-channel modelling, main-branch preview assembler integration and external legal counsel review outside this dev-targeted pass.
+
+
 
 Implement each remediation as a focused, independently testable change on this working branch. Do not merge or deploy until the owner requests it. Keep `main` integration out of scope for this pass.
 
@@ -374,3 +412,55 @@ Before any implementation PR is considered complete:
 - [W3C — Understanding Animation from Interactions](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions)
 - [MDN — `prefers-reduced-motion`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion)
 - [MDN — `Element.scrollIntoView()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView)
+
+
+---
+
+## 3B. Status reconciliation — 9 November 2026
+
+This section supersedes stale status labels and sequencing notes elsewhere in this plan where they conflict with the current branch evidence.
+
+- **Current baseline:** `dev` at `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a` (PR #81 squash merge).
+- **Current working branch:** `audit/owner-feedback-followups`. It is ahead of `dev` with no behind commits. The branch comparison reports 40 changed paths. No open PR currently targets this branch.
+- **QA-01 / QA-REP-01:** workflow [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592) completed successfully. The Node.js job passed all steps, including unit tests, syntax checks, production/dev builds, six Chromium browser tests, documentation-preservation build and workflow YAML parsing. The earlier print-width failure in [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220) is superseded. Do not describe the current automated print-width assertion as failing or make clearing that old regression the next task.
+- **DATA-04 and UI-01/02/03:** these are already merged to `dev` through PR #81. Older phase labels saying “pending shipment to dev” are historical and must not be interpreted as current status.
+- **DEPLOY-01:** completed on `dev` through PR #80. Main-branch preview integration remains out of scope as directed.
+- **DATA-06:** the metadata contract is implemented. All 29 bank rows still have blank `dataset_reviewed_at` and `dataset_updated_at` values pending genuine bank-by-bank review. Do not fill them from commit, file, migration or deployment timestamps.
+- **SEARCH-03:** four-strategy settlement and booking/maturity/installment/fee parity fixtures are present. Greedy's future strict-outflow reservation gap is fixed strategy-side: it reserves all strict obligations due before each candidate's maturity, checks ranked candidates in order, and falls through when a candidate cannot preserve liquidity. The shared runtime remains the authoritative settlement layer. Broader cross-strategy planner parity and edge-case review remain open.
+- **QA-REP-01:** automated smoke checks are green, but offline behaviour, chart initialization, realistic large-ledger behaviour and manual print/PDF/accessibility checks remain outstanding.
+- **WEB-SEC-02:** deployed production and `/dev/` response headers have not been verified in this audit; GitHub Pages remains the approved host.
+
+### Corrected next-work sequence
+
+1. Extend SEARCH-03 planner parity across more multi-account, transfer, inflow and multi-obligation cases; keep authoritative settlement in the shared runtime.
+2. Complete extended report checks (offline, chart initialization, realistic large ledgers) and manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom review.
+3. Perform genuine source reviews for all 29 banks; record review dates and economic update dates independently and only when evidence supports them.
+4. Verify deployed production and dev response headers and record GitHub Pages limitations.
+5. Keep SEARCH-02 decomposition, DATA-03 special products, richer DATA-05 fee-channel modelling, main-branch preview integration and external legal review deferred.
+
+No merge, PR creation or deployment is authorised by this plan update.
+
+### SEARCH-03 checkpoint — 9 November 2026
+
+Greedy now evaluates the ranked, simulation-period-eligible FD candidates against upcoming strict outflows before booking:
+
+- It reserves the total strict-outflow amount due in the account before a candidate's maturity, not just the first bill. This prevents a longer-tenor FD from consuming cash needed for a second bill due before maturity.
+- If the remaining cash meets the FD minimum, it books only the amount above the reserve.
+- If that residual cannot meet the minimum, it skips the candidate unless the FD matures on or before the relevant due date.
+- It tests candidates from highest to lowest rank and selects the first candidate that preserves the required liquidity. Consolidation plans are checked after transfer fees and account-level balance movements.
+- The shared runtime still owns actual outflow settlement and validity; no simulation-wide reservation boundary was added.
+
+Regression coverage in `tests/js/cross-strategy-outflow-parity.test.js` proves (1) partial investment while retaining the next strict obligation, (2) skipping a higher-ranked unsafe tenor in favour of one maturing on the due date, and (3) reserving cumulative obligations due before maturity. The legacy Greedy migration-parity fixture now uses a deferred outflow for this distinct scenario; its purpose remains checking unchanged legacy behaviour outside the newly defined strict-reservation rule.
+
+Workflow [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354) passed all 268 Node tests, syntax checks, production/dev builds, six Chromium browser tests, documentation-preservation build and workflow YAML parsing.
+
+**SEARCH-03 is improved, not fully closed.** The identified Greedy strict-outflow reservation defect is addressed. Broader cross-strategy planner parity for more multi-account, transfer, inflow and obligation combinations remains. The existing shared-runtime settlement contract is unchanged.
+
+Do not treat this checkpoint as final release sign-off. Extended report/accessibility QA, bank-source review and deployed-header verification remain open.
+
+
+## 9 November 2026 — bounded ship-gate decision
+
+The current branch head `aa8684e0999a9554af3f6c0185a4eeb0d9e5a233` passes the complete CI workflow [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354). The Greedy strict-outflow liquidity-reservation gap is fixed and regression-tested. The fix remains inside Greedy's candidate-selection rules; the shared simulation runtime continues to settle outflows authoritatively.
+
+**Decision: keep PR #82 in draft.** This bounded SEARCH-03 blocker is addressed, but broader cross-strategy planner parity and the separate report QA, bank-source review and deployed-header verification gates remain. Do not start those later phases as part of this change.

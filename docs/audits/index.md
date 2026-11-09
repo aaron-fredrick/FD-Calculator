@@ -1,16 +1,22 @@
 # FD Cal — engineering audit
 
-**Audit date:** 8 November 2026  
-**Audited source:** `dev` at `a455462a959f37db757970d0a3078a4d9a3ef028`  
-**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS)  
-**Status:** Static engineering review with owner feedback incorporated. The implementation plan is documentation only; no application changes have been applied.
+**Re-audit date:** 9 November 2026  
+**Base audited:** `dev` at PR #81 squash merge `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a`  
+**Active follow-up branch:** `audit/owner-feedback-followups`  
+**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS)
+
+This index tracks the audit, owner decisions and follow-up implementation separately. The [owner-feedback research register](OWNER-FEEDBACK-RESEARCH.md) contains external research; the [implementation plan](IMPLEMENTATION-PLAN.md) contains implementation evidence, acceptance criteria and remaining work.
 
 ## Reports
 
 | Report | Coverage |
 |---|---|
-| [Executive summary](EXECUTIVE-SUMMARY.md) | Priority-ranked findings, owner dispositions and remediation order |
-| [Implementation plan](IMPLEMENTATION-PLAN.md) | Detailed analysis, implementation phases, acceptance criteria and non-regression guardrails |
+| [Executive summary](EXECUTIVE-SUMMARY.md) | Current finding dispositions, verification status and release readiness |
+| [Implementation plan](IMPLEMENTATION-PLAN.md) | Owner decisions, implementation evidence, acceptance criteria and remaining tasks |
+| [Owner-feedback research](OWNER-FEEDBACK-RESEARCH.md) | Bank product, AIT, transfer-fee, data freshness, search architecture, QA and legal research |
+| [Search budget calibration](SEARCH-BUDGET-CALIBRATION.md) | Controlled 5k/10k/20k/unlimited × 15/30/60s comparison |
+| [Interest day-count note](../finance/INTEREST-DAY-COUNT.md) | Retained start-year 365/366 elapsed-day convention |
+| [Bank dataset metadata](../data/BANK-DATA-METADATA.md) | Independent review, economic-update and schema-version dates |
 | [Engine and financial core](ENGINE-CORE.md) | Dates, interest, FD cash flows, simulation lifecycle, balances and results |
 | [Strategies and search](STRATEGIES-AND-SEARCH.md) | Greedy, GSS, Absolute R, Absolute R+, search budgets, parity and architecture |
 | [Web UI, UX and accessibility](WEB-UI-UX-ACCESSIBILITY.md) | Form flows, responsive layout, motion, keyboard and screen-reader semantics |
@@ -19,30 +25,36 @@
 | [Security and privacy](SECURITY-PRIVACY.md) | Untrusted configuration, DOM rendering, local storage and client-side exposure |
 | [Build, deployment and quality](BUILD-DEPLOYMENT-AND-QUALITY.md) | GitHub Actions, Pages composition, dev preview, tests and operational gaps |
 
-## Method
+## Current disposition
 
-The review applies the principles in the RULESETS repository, principally:
+- **Completed on dev:** SEC-01, FIN-01/02, ENG-05, DEPLOY-01, UI-01/02/03, DATA-01/04, FIN-03 and PRIV-01/02.
+- **Implemented on follow-up branch:** ENG-01/02/03/04, SEARCH-01 calibration and QA-01 Playwright suite.
+- **Partially complete:** SEARCH-03 now includes four-strategy settlement and booking/maturity/installment/fee fixtures. Greedy's strict-outflow liquidity-reservation defect is fixed and regression-tested; broader multi-account planner parity remains. QA-REP-01 automated report assertions pass; offline/chart checks and manual print/accessibility review remain.
+- **Metadata contract complete; source review pending:** DATA-06 separates source review, material economic updates and schema version. All 29 indexed bank rows still have blank review/update dates pending genuine source checks.
+- **Open verification:** WEB-SEC-02 production and dev Pages response headers.
+- **Deferred:** SEARCH-02 broad decomposition, DATA-03 special-product modelling, richer DATA-05 transfer-channel fees, main-branch preview assembler port and external legal counsel review.
+- **Scope closed:** DATA-02 age-segment controls are filters, not depositor identity or eligibility checks.
 
-- [Coding practices](https://github.com/aaron-fredrick/RULESETS/tree/main/Coding): maintainability, modularity, API contracts, error handling, security boundaries, documentation and meaningful tests.
-- [UI guidelines](https://github.com/aaron-fredrick/RULESETS/tree/main/UI): product-aware design, hierarchy, restraint, interaction, motion, responsive behaviour and rendered-state QA.
-- [Web engineering practices](https://github.com/aaron-fredrick/RULESETS/tree/main/Web): production standards, privacy, analytics, SEO, accessibility, performance and release readiness.
+## Verification
 
-This is a risk-based, subsystem-level source audit of the active JavaScript engine, strategy/search paths, browser UI, reporting, catalogue/configuration paths, CLI, build scripts, workflows and test inventory; it is not a line-by-line proof of every statement. It is not a formal verification, financial-product certification, penetration test, legal opinion, or complete external revalidation of every bank rate and fee. Browser screenshots, assistive-technology checks and live production/dev visual inspection remain separate verification tasks.
+The latest verified full workflow for the current SEARCH-03 fix is [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354): all 268 Node tests passed, along with syntax checks, production/dev browser builds, all six Chromium browser tests, documentation-preservation build and workflow YAML parsing. This supersedes the earlier SEARCH-03 regression attempts.
 
-## Severity
+Automated report checks now cover semantic event-ledger headers, 320px document overflow and print table width. Static inspection and automated smoke tests do not establish screen-reader output, full WCAG conformance, real-device behaviour, actual printed/PDF pagination, live bank rates or deployed HTTP response headers.
 
-- **P1 — High:** credible security exposure or materially misleading financial output. Address before broad use.
-- **P2 — Medium:** correctness, runtime, data-trust or deployment risk with meaningful user impact.
-- **P3 — Low:** accessibility, maintainability, observability or test-quality improvement; schedule after higher-risk work.
+This is a risk-based source audit and targeted implementation verification. It is not a line-by-line proof, financial-product certification, penetration test, legal opinion, full WCAG assessment or external revalidation of every bank rate and fee.
 
-Each finding includes evidence, impact, and a concrete recommendation. A finding marked *assumption to confirm* should be resolved against bank/product terms before changing the model.
+## Crawler and release-path policy
 
-## Verification boundary
+The `/dev/` subtree is a public preview, not an indexable production destination. Root `robots.txt` permits crawlers to fetch preview pages so they can observe `noindex,nofollow`; every generated dev HTML entry point must carry that directive; and the production sitemap must contain only canonical production URLs, never preview URLs. `robots.txt` is crawler guidance, not access control. Production docs output merges canonical root and `/web/` URLs into the sitemap. Preview builds omit sitemap output and mark dev HTML noindex. This is a verified positive control, not an open finding.
 
-The Node.js test workflow passed on the audited dev revision `a455462a959f37db757970d0a3078a4d9a3ef028` (run [42509949387](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42509949387)). The audit did not include a manual browser or screen-reader session. Deployment status is tracked separately from source-level findings.
 
-## Planning status
+## Latest verification checkpoint
 
-Owner feedback has been recorded in the [implementation plan](IMPLEMENTATION-PLAN.md). SEC-01 and FIN-01 are accepted P1 work; SEARCH-01, DATA-01 and DEPLOY-01 are accepted workstreams. ENG-01 requires product-term clarification before changing payout dates; ENG-02 retains the current elapsed-day convention pending source verification. DATA-02 is an intentional scope boundary. DATA-03 and QA-01 are deferred for owner decisions.
+Greedy now reserves cumulative strict outflows due before candidate maturity, invests only residual cash when it meets the FD minimum, and skips unsafe ranked candidates unless their maturity is on or before the due date. Three regression cases cover partial cash reservation, shorter-tenor fallback and cumulative obligations. The shared runtime remains authoritative for settlement. Workflow [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354) passed all 268 tests and the complete automated pipeline. SEARCH-03 remains partial because broader multi-account and cross-strategy planner parity remains.
 
-The audit branch remains report/plan-only. Implementation should proceed in focused branches from `dev`, with the plan's regression and non-regression gates.
+
+## 9 November 2026 — ship-gate recheck
+
+Current verified implementation head `aa8684e0999a9554af3f6c0185a4eeb0d9e5a233` passes [workflow 42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354). Greedy's strict-outflow liquidity-reservation gap is fixed inside its ranked candidate-selection rules; no shared-runtime settlement behaviour was changed.
+
+The existing [PR #82](https://github.com/aaron-fredrick/FD-Calculator/pull/82) remains a draft. SEARCH-03 is improved but not fully closed: broader cross-strategy planner parity remains, as do extended report/accessibility QA, bank-source review and deployed response-header verification. Those later phases remain queued.

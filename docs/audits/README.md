@@ -1,16 +1,21 @@
 # FD Cal — engineering audit
 
 **Re-audit date:** 9 November 2026  
-**Audited source:** `dev` at `caccaf26b4415ae783959e888ff45e33becdadf6` (tree `8044397ede661a22c0014bb646b09df0abcc2e77`)  
-**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`  
-**Status:** Static RULESETS re-audit of the active `dev` codebase after PRs [#75](https://github.com/aaron-fredrick/FD-Calculator/pull/75) and [#80](https://github.com/aaron-fredrick/FD-Calculator/pull/80). The deployment scope for this pass is `dev`; `main` integration is explicitly deferred. Findings and remaining work are tracked below.
+**Base:** `dev` at PR #81 squash merge `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a`  
+**Active follow-up branch:** `audit/owner-feedback-followups`  
+**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS)
+
+This audit index has been reconciled against the working branch. Owner decisions and source research are in the [owner-feedback research register](OWNER-FEEDBACK-RESEARCH.md); implementation evidence and remaining acceptance work are in the [implementation plan](IMPLEMENTATION-PLAN.md).
 
 ## Reports
 
 | Report | Coverage |
 |---|---|
-| [Executive summary](EXECUTIVE-SUMMARY.md) | Priority-ranked findings, owner dispositions and remediation order |
-| [Implementation plan](IMPLEMENTATION-PLAN.md) | Detailed analysis, implementation phases, acceptance criteria and non-regression guardrails |
+| [Executive summary](EXECUTIVE-SUMMARY.md) | Current finding dispositions, blockers and release readiness |
+| [Implementation plan](IMPLEMENTATION-PLAN.md) | Owner decisions, implementation evidence, acceptance criteria and remaining tasks |
+| [Owner-feedback research](OWNER-FEEDBACK-RESEARCH.md) | Bank product, AIT, transfer-fee, data freshness, search architecture, QA and legal research |
+| [Search budget calibration](SEARCH-BUDGET-CALIBRATION.md) | Controlled 5k/10k/20k/unlimited × 15/30/60s comparison |
+| [Interest day-count note](../finance/INTEREST-DAY-COUNT.md) | Retained start-year 365/366 elapsed-day convention |
 | [Engine and financial core](ENGINE-CORE.md) | Dates, interest, FD cash flows, simulation lifecycle, balances and results |
 | [Strategies and search](STRATEGIES-AND-SEARCH.md) | Greedy, GSS, Absolute R, Absolute R+, search budgets, parity and architecture |
 | [Web UI, UX and accessibility](WEB-UI-UX-ACCESSIBILITY.md) | Form flows, responsive layout, motion, keyboard and screen-reader semantics |
@@ -19,47 +24,38 @@
 | [Security and privacy](SECURITY-PRIVACY.md) | Untrusted configuration, DOM rendering, local storage and client-side exposure |
 | [Build, deployment and quality](BUILD-DEPLOYMENT-AND-QUALITY.md) | GitHub Actions, Pages composition, dev preview, tests and operational gaps |
 
-## Method
-
-The review applies the principles in the RULESETS repository, principally:
-
-- [Coding practices](https://github.com/aaron-fredrick/RULESETS/tree/main/Coding): maintainability, modularity, API contracts, error handling, security boundaries, documentation and meaningful tests.
-- [UI guidelines](https://github.com/aaron-fredrick/RULESETS/tree/main/UI): product-aware design, hierarchy, restraint, interaction, motion, responsive behaviour and rendered-state QA.
-- [Web engineering practices](https://github.com/aaron-fredrick/RULESETS/tree/main/Web): production standards, privacy, analytics, SEO, accessibility, performance and release readiness.
-
-This is a risk-based source audit against all applicable Coding, UI and Web ruleset documents, covering the active JavaScript engine, strategy/search paths, browser UI, reporting, catalogue/configuration paths, CLI, build scripts, Pages workflows, crawler metadata and test inventory. It is not a line-by-line proof of every statement. It is not a formal verification, financial-product certification, penetration test, legal opinion, or complete external revalidation of every bank rate and fee. Browser screenshots, assistive-technology checks and live production/dev visual inspection remain separate verification tasks.
-
 ## Current finding status
 
-| Status | Findings | Meaning |
+| Status | Findings | Disposition |
 |---|---|---|
-| **Completed** | SEC-01, FIN-01, FIN-02, ENG-05, DEPLOY-01 | Implemented on `dev`; applicable regression/contract coverage is present. |
-| **Implemented on this branch** | UI-01, UI-02, UI-03, DATA-01, DATA-04, FIN-03, PRIV-01 | Accessible interaction fixes, strict CSV parsing, product-level provenance and local draft deletion are implemented with regression coverage; pending shipment to `dev`. |
-| **Implemented; follow-up gate** | SEARCH-01 | Core behaviour and tests are in place; benchmark calibration remains. |
-| **Partial** | ENG-01, ENG-02, DATA-06 | Part of the requirement is delivered; a specific contract or source gap remains. |
-| **Open** | ENG-03/04, DATA-05, SEARCH-02/03, WEB-SEC-02, QA-REP-01 | Not yet resolved. |
-| **Scope closed** | DATA-02 | Owner-confirmed product scope; no eligibility-verification feature planned. |
-| **Deferred** | DATA-03, QA-01 | Requires a separate owner decision. |
+| **Completed on dev** | SEC-01, FIN-01/02, ENG-05, DEPLOY-01, UI-01/02/03, DATA-01/04, FIN-03, PRIV-01/02 | Merged through PRs #75, #80 and #81. Rendered accessibility QA remains separate. |
+| **Implemented on follow-up branch** | ENG-01/02/03/04, SEARCH-01 calibration, QA-01 browser suite | Full workflow [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592) passed: Node tests, syntax checks, production/dev builds, all six Chromium browser tests, documentation-preservation build and workflow YAML parsing. |
+| **Partial / ongoing control** | SEARCH-03, QA-REP-01 | Strict/deferred outflow parity exists across four strategies, but booking/maturity/payout/fee/reserved-liquidity parity remains. Automated report semantic, mobile and print smoke assertions pass; offline/chart checks and manual accessibility/print QA remain. |
+| **Metadata contract implemented; data review pending** | DATA-06 | Source review, economic update and schema version are separate. All 29 bank review/update dates remain blank pending real source checks. |
+| **Research / documented limitation** | DATA-03, DATA-05 | Special-product constraints remain inactive; transfer fees remain deliberately simplified. |
+| **Open hosting verification** | WEB-SEC-02 | GitHub Pages retained by owner decision; actual production/dev response headers remain to be checked. |
+| **Deferred architecture** | SEARCH-02 | Staged decomposition plan only; no broad refactor before parity baselines. |
+| **Scope closed** | DATA-02 | Age-segment controls are candidate filters, not eligibility verification. |
 
-## Severity
+## Method and verification boundary
 
-- **P1 — High:** credible security exposure or materially misleading financial output. Address before broad use.
-- **P2 — Medium:** correctness, runtime, data-trust or deployment risk with meaningful user impact.
-- **P3 — Low:** accessibility, maintainability, observability or test-quality improvement; schedule after higher-risk work.
+The review applies the [Coding](https://github.com/aaron-fredrick/RULESETS/tree/main/Coding), [UI](https://github.com/aaron-fredrick/RULESETS/tree/main/UI) and [Web](https://github.com/aaron-fredrick/RULESETS/tree/main/Web) rulesets. It is a risk-based source audit of the active engine, strategy/search paths, browser UI, reporting, catalogue/configuration paths, CLI, build scripts, Pages workflows and tests. It is not a line-by-line proof, formal verification, financial-product certification, penetration test, legal opinion or complete external revalidation of every bank rate and fee.
 
-Each finding includes evidence, impact, and a concrete recommendation. A finding marked *assumption to confirm* should be resolved against bank/product terms before changing the model.
+The latest completed workflow is [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592), which passed Node tests, syntax checks, production/dev builds, all six Chromium browser tests, the documentation-preservation build and workflow YAML parsing. The report checks now pass for semantic column headers, 320px document overflow and print table width. Earlier failures exposed missing ledger header scopes and mobile navigation overflow; fixes are included in the current branch. Earlier passing workflows predate these report assertions and do not establish current green status.
 
-## Verification boundary
+Static inspection and automated smoke tests do not establish screen-reader output, full WCAG conformance, real-device behaviour, actual printed/PDF pagination, live bank rates or deployed HTTP response headers.
 
-The source reviewed is `dev` commit `caccaf26b4415ae783959e888ff45e33becdadf6`. On the exact reviewed `dev` commit, the Node.js test/syntax workflow passed ([42553842534](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842534)) and the independent dev web build/publish passed ([42553842533](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842533)). The dev documentation/benchmark publishing workflow was still in progress when checked ([42553842591](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842591)). No browser automation was executed as part of this static re-audit. Static inspection does not verify screen-reader output, real-device layout, bank-product terms, or HTTP response behaviour.
+## Remaining work
 
-## Planning status
+1. Extend report QA beyond the passing smoke suite: verify offline behaviour, chart initialization, large ledgers, print/PDF pagination and manual accessibility.
+2. Expand cross-strategy parity to eligible bookings, maturity/installment payouts, fees and reserved liquidity.
+3. Complete offline/chart report checks and manual print, keyboard, screen-reader, contrast and 200–400% zoom review.
+4. Recheck bank sources and populate only defensible review/update dates.
+5. Verify actual production and dev response headers.
+6. Keep SEARCH-02 refactoring, special-product activation, transfer-channel modelling and main-branch preview integration deferred.
 
-See the [implementation plan](IMPLEMENTATION-PLAN.md) for phase-level status. **Completed on `dev`:** SEC-01, FIN-01, FIN-02, ENG-05 and DEPLOY-01. **Implemented with follow-up gate:** SEARCH-01. **Partial:** ENG-01, ENG-02 and DATA-06. **Open:** DATA-05, WEB-SEC-02 and the remaining subsystem findings. **Implemented on this branch, pending dev shipment:** UI-01, UI-02, UI-03, DATA-01, DATA-04, FIN-03 and PRIV-01. **Closed as scope decision:** DATA-02. **Deferred:** DATA-03, QA-01 and any `main`-branch deployment integration.
-
-PR #75 delivered the core security, result-semantics, bounded-search and catalogue-disclosure work. PR #80 split dev web/docs publishing and added dev-side assembly. The remaining code work should proceed in focused branches from the current `dev` baseline; this branch is being retained for the audit and plan.
-
+See the [implementation plan](IMPLEMENTATION-PLAN.md) for detailed acceptance gates.
 
 ## Crawler and release-path policy
 
-The `/dev/` subtree is a public preview for review, not an indexable production destination. The production root `robots.txt` must disallow `/FD-Calculator/dev/`; every generated dev HTML entry point must carry `noindex,nofollow`; and the production sitemap must contain only canonical production URLs, never preview URLs. `robots.txt` is crawler guidance, not access control. The production docs build merges the canonical site root and `/web/` application URL into the documentation sitemap and publishes the assembled sitemap at the site root. Preview builds omit sitemap output, while dev HTML is marked `noindex,nofollow`; this is a verified positive control, not an open finding.
+The `/dev/` subtree is a public preview, not an indexable production destination. The root `robots.txt` permits crawlers to fetch preview pages so they can observe `noindex,nofollow`; every generated dev HTML entry point must carry that directive; and the production sitemap must contain only canonical production URLs, never preview URLs. `robots.txt` is crawler guidance, not access control. Production docs output merges canonical root and `/web/` URLs into the sitemap. Preview builds omit sitemap output and mark dev HTML noindex. This is a verified positive control, not an open finding.

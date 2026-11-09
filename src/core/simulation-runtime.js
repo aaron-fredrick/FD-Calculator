@@ -1,5 +1,5 @@
 import { Event, EventType } from "./events.js";
-import { Account } from "./models.js";
+import { Account, AIT_RATE } from "./models.js";
 import { Booking, SimResult } from "./results.js";
 import { formatISODate, parseISODate, daysBetween } from "./dates.js";
 import { SimulationState, validateStrategySignal, StrategySignalType, StrategyDecisionType } from "./strategy-contracts.js";
@@ -21,7 +21,7 @@ const keyDate = key => String(key).replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3"
 export class SimulationRuntime {
   constructor(context, {
     strategy_name = "Strategy", compound = false, actual_leap_year = true,
-    ait_enabled = false, ait_rate = 0.10, outflow_account_tiebreak = false,
+    ait_enabled = false, ait_rate = AIT_RATE, outflow_account_tiebreak = false,
     outflow_due_date_sort = "iso", round_balances = false, opening_trigger_always = false
   } = {}) {
     if (!context?.accounts?.length || !context?.options?.length) {
@@ -390,9 +390,15 @@ export class SimulationRuntime {
         balance_after: balances.get(target.id), total_balance_after: this.#totalBalance(balances),
         decision_context: decisionContextOverride ?? item.decision_context ?? { action: actionName.toLowerCase(), balances_before: balancesBeforeBooking }
       }));
-      netFlows.forEach((flow, index) => {
+      // Contractual payout generation and the simulation event window are
+      // separate concerns. Keep the complete contractual flows on the booking
+      // for financial disclosure, but never schedule an event outside this run.
+      const inWindowFlows = netFlows.filter(flow =>
+        flow.date >= this.context.start && flow.date <= this.context.end
+      );
+      inWindowFlows.forEach((flow, index) => {
         const maturity = flow.date.getTime() === booking.end.getTime() &&
-          (option.payout_type === "cumulative" || index === netFlows.length - 1);
+          (option.payout_type === "cumulative" || index === inWindowFlows.length - 1);
         this.schedule(new Event({
           event_type: maturity ? EventType.MATURITY : EventType.CASH_FLOW,
           on_date: flow.date, amount: flow.amount,

@@ -29,7 +29,7 @@ function scenario() {
     outflow_schedule: {
       "2026-01-20": [{ account_id: "main", amount: 1000, name: "Deferred bill", payment_policy: "defer" }],
       "2026-02-10": [{ account_id: "reserve", amount: 500, name: "Partial bill", payment_policy: "best_effort" }],
-      "2026-03-05": [{ account_id: "main", amount: 15000, name: "Strict bill", payment_policy: "strict" }]
+      "2026-03-05": [{ account_id: "main", amount: 15000, name: "Deferred bill", payment_policy: "defer" }]
     },
     fee_config: new TransferFeeConfig({ default_inter_bank_fee: 30, same_bank_fee: 0 }),
     ait_enabled: true
