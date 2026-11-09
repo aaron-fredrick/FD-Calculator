@@ -123,6 +123,7 @@ function saveDraft(){try{const draft=raw();localStorage.setItem(STORAGE_KEY,JSON
 function restoreDraft(){try{const saved=localStorage.getItem(STORAGE_KEY);if(!saved)return false;applyConfig(JSON.parse(saved));return true}catch(e){console.warn("FD Cal saved draft could not be restored:",e);try{localStorage.removeItem(STORAGE_KEY)}catch{}return false}}
 function clearSavedDraft(event){
  event.stopPropagation();
+ if(!window.confirm("Clear the saved FD Cal draft from this browser? Current inputs will remain in this tab."))return;
  try{
   localStorage.removeItem(STORAGE_KEY);
   S.raw=null;
