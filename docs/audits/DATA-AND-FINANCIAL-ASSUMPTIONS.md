@@ -1,21 +1,18 @@
 # Data catalogue and financial assumptions audit
 
-## DATA-01 — Product-source provenance is not visible in the user-facing workflow
+## DATA-01 — Product-source provenance in the user-facing workflow
 
-**Current status: PARTIAL in PR #75.** Per-bank `dataset_reviewed_at` and `research_status` are shown beside the bank selector and in the report. Product-level `source_url`, `source_effective_date`, source notes and caveats are not yet propagated to each selected product/report row; this finding remains open for that missing provenance.
+**Current status: IMPLEMENTED on this branch; CI passed.** Bank-level `research_status` and `dataset_reviewed_at` remain visible beside the bank selector and in the generated report. Product-level `source_url`, `source_effective_date`, `source_type` and source notes now flow from CSV rows through both web and CLI loaders, the `FDOption` metadata fields, worker booking snapshots and report generation. Source metadata is non-economic: it does not enter the financial economic-terms key or strategy decision logic.
 
-**Severity: P2**
+**Report behaviour:**
+- HTML booking instructions show source type, effective date and an HTTPS-only source link.
+- Product caveats/notes are available in a collapsible source-notes section and are HTML-escaped.
+- CLI booking ledger prints source type, effective date, HTTPS-only source URL and notes.
+- Missing effective dates or invalid/non-HTTPS source URLs are labelled not recorded rather than treated as verified.
 
-**Evidence:**
-- [fd_options.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/data/fd_options/fd_options.csv) contains `research_status` and `research_notes`.
-- Per-bank product CSVs contain `source_url`, `source_effective_date`, `source_type` and notes.
-- [app.js L57-L61](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L57-L61) uses the index status to disable only banks with `no_public_rate_verified`; it does not display the remaining source status or notes.
-- [app.js L78](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L78) constructs FDOption objects from the product terms but does not retain source URL, effective date or research metadata.
-- [data-loader.js L11](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/io/data-loader.js#L11) likewise maps the simulation terms into FDOption without source provenance.
+**Implementation:** [FDOption metadata](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/core/models.js), [web loader](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js), [CLI loader](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/io/data-loader.js), [worker metadata restoration](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/simulation-task.js), [HTML report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/html.js), [console report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/console.js).
 
-**Impact:** products backed by a direct official schedule, a secondary compilation, or a source with no effective date can appear as equivalent options. The catalogue's internal research notes already distinguish these cases, but users cannot assess the evidence quality at the point of comparison.
-
-**Recommendation:** add a separate immutable provenance object to each product, not financial calculation fields. Show source type, source link, effective date (or “not published”), last-reviewed date and research caveat in the product details and standalone report. Visibly distinguish direct official data from secondary/unverified inputs. Preserve provenance through worker serialization and report generation.
+**Verification:** worker round-trip tests assert product metadata survives; report tests assert source details, escaped notes and rejection of unsafe URL schemes; CLI loader tests verify the catalogue provenance fields. CI passed on the current implementation commit. Pending shipment to `dev`.
 
 ## DATA-02 — Senior/minor selection is not an actual depositor eligibility check
 
