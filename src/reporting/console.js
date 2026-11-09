@@ -57,9 +57,9 @@ function bookingText(result){
   const sourceTypes={direct:"direct bank source",secondary:"secondary source",fallback:"fallback / assumption"};
   const sourceType=sourceTypes[b.option.source_type]||b.option.source_type||"not recorded";
   const rawSourceUrl=String(b.option.source_url||"").trim();
-  const sourceUrl=/^https:\/\/[^\\s"'<>]+$/i.test(rawSourceUrl)?rawSourceUrl:"not recorded";
+  const sourceUrl=/^https:\/\/[^\s"'<>]+$/i.test(rawSourceUrl)?rawSourceUrl:"not recorded";
   out.push("    Source: "+sourceType+" · effective date: "+(b.option.source_effective_date||"not recorded")+" · "+sourceUrl);
-  const notes=String(b.option.source_notes||"").replace(/\\s+/g," ").trim();
+  const notes=String(b.option.source_notes||"").replace(/\s+/g," ").trim();
   if(notes)out.push("    Source notes: "+notes);
  });out.push(line("-"));return out.join("\n");
 }
