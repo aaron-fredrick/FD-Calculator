@@ -89,6 +89,7 @@ test("component build scripts consume generated data without fingerprint publica
 test("dev preview publishes web and docs independently and remains path-isolated", () => {
   const pages = read(".github/workflows/pages.yml");
   const web = read(".github/workflows/dev-web-pages.yml");
+  const webBuild = read("scripts/build-web-site.sh");
   const docs = read(".github/workflows/dev-docs-pages.yml");
 
   assert.match(pages, /dev_pages-preview-artifact/);
@@ -104,8 +105,8 @@ test("dev preview publishes web and docs independently and remains path-isolated
   assert.match(web, /name: dev_web-site/);
   assert.match(web, /dev_pages-web-artifact/);
   assert.match(web, /noindex,nofollow/);
-  assert.match(web, /web\/privacy\.html/);
-  assert.match(web, /web\/terms\.html/);
+  assert.match(webBuild, /web\/privacy\.html/);
+  assert.match(webBuild, /web\/terms\.html/);
   assert.doesNotMatch(web, /strategy-sensitivity\.js|gaml-sensitivity\.js|docs\/strategies\/benchmarks/);
 
   assert.match(docs, /branches: \[dev\]/);
