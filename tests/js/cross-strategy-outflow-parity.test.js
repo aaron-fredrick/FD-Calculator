@@ -128,3 +128,56 @@ test("all strategies reconcile FD booking, installment cash flows, maturity, and
       name + " must match the shared financial outcome for booking, payout, fees and obligations.");
   }
 });
+
+
+test("Greedy reserves cash for the next strict outflow when the remaining balance meets the FD minimum", () => {
+  const input = {
+    options: [
+      new FDOption({ label: "Higher-rate 90d", period_str: "90d", annual_rate: 12,
+        min_amount: 25000, bank_id: "BANK_A", bank_key: "a" }),
+      new FDOption({ label: "Lower-rate 30d", period_str: "30d", annual_rate: 10,
+        min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    start: "2026-01-01",
+    end: "2026-06-01",
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    inflow_account_id: "main",
+    consolidation_account_id: "main",
+    outflow_schedule: {
+      "2026-01-31": [{ account_id: "main", amount: 60000, name: "Strict bill", payment_policy: "strict" }]
+    }
+  };
+  const result = new SimulationEngine().run(new GreedyStrategy(), input);
+  const bookings = Object.values(result.timeline).flat()
+    .filter(event => event.event_type === "booking");
+  assert.equal(result.valid, true);
+  assert.equal(result.total_outflows_paid, 60000);
+  assert.equal(bookings[0]?.amount, 40000,
+    "Greedy should invest only the amount remaining after reserving the 60,000 obligation");
+});
+
+test("Greedy skips a higher-ranked unsafe tenor and selects a tenor maturing on the strict due date", () => {
+  const input = {
+    options: [
+      new FDOption({ label: "Higher-rate 90d", period_str: "90d", annual_rate: 12,
+        min_amount: 25000, bank_id: "BANK_A", bank_key: "a" }),
+      new FDOption({ label: "Lower-rate 30d", period_str: "30d", annual_rate: 10,
+        min_amount: 25000, bank_id: "BANK_A", bank_key: "a" })
+    ],
+    start: "2026-01-01",
+    end: "2026-06-01",
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 70000 })],
+    inflow_account_id: "main",
+    consolidation_account_id: "main",
+    outflow_schedule: {
+      "2026-01-31": [{ account_id: "main", amount: 60000, name: "Strict bill", payment_policy: "strict" }]
+    }
+  };
+  const result = new SimulationEngine().run(new GreedyStrategy(), input);
+  const bookings = Object.values(result.timeline).flat()
+    .filter(event => event.event_type === "booking");
+  assert.equal(result.valid, true);
+  assert.equal(result.total_outflows_paid, 60000);
+  assert.equal(bookings[0]?.option_label, "Lower-rate 30d",
+    "Greedy should reject the higher-ranked 90-day option and use the 30-day option");
+});
