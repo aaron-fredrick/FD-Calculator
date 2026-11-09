@@ -10,7 +10,7 @@ FD Cal has a solid foundation: the browser and CLI share the JavaScript engine; 
 
 The remediation pass has closed the two highest-risk defects: imported account IDs are now encoded at the DOM boundary, and result output distinguishes pre-withdrawal value from closing assets/liabilities/net worth. Absolute R+ now has finite browser defaults, cooperative time limits, cancellation and a worker watchdog. Bank source status/review dates are visible. The dev web/docs publishers are now independent.
 
-The remaining material gaps are installment-product contract semantics, product-level source metadata, strict CSV validation, accessible help/error descriptions, privacy controls, and browser-level QA. Crawler controls are in place: the production sitemap includes the canonical root and `/web/` URLs, while preview output is excluded and marked noindex. The `dev` deployment pipeline now composes the preview under `/dev/`; porting that preservation behaviour to `main` is deliberately outside this pass and will be revisited when work moves to `main`. The project is still not financially certified or fully accessibility-verified.
+The remaining material gaps are installment-product contract semantics, product-level source metadata, accessible help/error descriptions, privacy controls, and browser-level QA. Crawler controls are in place: the production sitemap includes the canonical root and `/web/` URLs, while preview output is excluded and marked noindex. The `dev` deployment pipeline now composes the preview under `/dev/`; porting that preservation behaviour to `main` is deliberately outside this pass and will be revisited when work moves to `main`. The project is still not financially certified or fully accessibility-verified.
 
 ## Priority findings
 
@@ -31,7 +31,7 @@ The remaining material gaps are installment-product contract semantics, product-
 | DATA-01 | **P2** | Source status and review-date disclosure is incomplete at product level | **Partial** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
 | DATA-02 | **Scope boundary** | Senior/minor toggles do not verify depositor eligibility | **Closed as owner-confirmed scope** | [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/configuration.js) |
 | DATA-03 | **Deferred** | Active FD model does not represent all special-product constraints | **Deferred** | [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js) |
-| DATA-04 | **P3** | CSV parser does not enforce exact row field counts | **Open** | [csv.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/io/csv.js) |
+| DATA-04 | **P3** | CSV parser did not enforce exact row field counts or strict quote placement | **Implemented on this branch; CI passed, pending dev shipment** | [csv.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/io/csv.js) |
 | DATA-05 | **P2/P3** | Transfer fees are not a full transfer-channel model | **Open / documented limitation** | [banks.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/data/banks/banks.csv) |
 | DATA-06 | **P2** | Rate freshness and secondary-source warning policy is incomplete | **Partial** | [fd_options.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/data/fd_options/fd_options.csv) |
 | DEPLOY-01 | **P2** | Dev Pages assembly must retain the `/dev/` preview subtree | **Completed on `dev`** — independent dev publishers and assembler are present; `main` port deferred | [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/.github/workflows/pages.yml) |
@@ -58,7 +58,7 @@ The remaining material gaps are installment-product contract semantics, product-
 | **DATA-03** | Scope not yet clear | Defer until the owner specifies which special-product constraints should be modelled. Keep products with unenforced critical terms out of the active catalogue. |
 | **DEPLOY-01** | Dev preview is intentionally public for users and contributors | **Completed for the current `dev` delivery path in PR #80.** Separate dev web/docs artifacts are assembled under `/dev/`; preview HTML is noindex and the root crawler policy disallows the subtree. Porting the assembler to `main` is deferred until main-branch work begins. |
 
-| **DATA-04** | Needs investigation and a safe implementation plan | Inventory all CSV files first, then enforce exact row widths and valid quoting with actionable errors. |
+| **DATA-04** | Implemented on this branch | Inventoried all 33 catalogue CSVs, repaired 93 rows with unquoted comma-containing metadata across three files, and added strict row-width/quote validation with source and line diagnostics. CI verifies the full inventory. |
 | **UI-01** | Implemented on this branch | A shared scroll helper checks `prefers-reduced-motion` at each request; reduced-motion users receive `behavior: auto`, while normal users retain smooth scrolling. Unit coverage verifies both branches. |
 | **QA-01** | Needs owner decision | Finding means no automated real-browser E2E suite was found. Defer the choice between Playwright smoke coverage and manual browser verification. |
 
