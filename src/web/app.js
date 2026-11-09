@@ -208,7 +208,8 @@ function results(r,c,html){
 }
 const PRIVACY_STORAGE_KEY="fd-cal:privacy-preferences:v1";
 const GTM_CONTAINER_ID="GTM-TNC567R4";
-let analyticsEnabled=false,googleTagManagerLoaded=false,googleTagQueueInitialised=false;
+const CLARITY_PROJECT_ID="zb1y50hjaw";
+let analyticsEnabled=false,googleTagManagerLoaded=false,clarityLoaded=false,googleTagQueueInitialised=false;
 function readPrivacyPreferences(){
  try{const value=JSON.parse(localStorage.getItem(PRIVACY_STORAGE_KEY)||"null");if(value&&value.version===1)return{necessary:true,analytics:value.analytics===true};}catch(error){console.warn("FD Cal privacy preferences could not be read:",error)}
  return null;
@@ -229,9 +230,13 @@ function initialiseGoogleTagQueue(){
 function applyAnalyticsConsent(allowAnalytics){
  initialiseGoogleTagQueue();
  const wasEnabled=analyticsEnabled;
- window.gtag("consent","update",{analytics_storage:allowAnalytics?"granted":"denied",ad_storage:"denied",ad_user_data:"denied",ad_personalization:"denied"});
- analyticsEnabled=allowAnalytics===true;
- if(!analyticsEnabled)return;
+ const consent=allowAnalytics===true;
+ window.gtag("consent","update",{analytics_storage:consent?"granted":"denied",ad_storage:"denied",ad_user_data:"denied",ad_personalization:"denied"});
+ analyticsEnabled=consent;
+ if(!consent){
+  if(typeof window.clarity==="function")window.clarity("consentv2",{analytics_Storage:"denied",ad_Storage:"denied"});
+  return;
+ }
  if(!googleTagManagerLoaded){
   const script=document.createElement("script");
   script.async=true;
@@ -239,6 +244,16 @@ function applyAnalyticsConsent(allowAnalytics){
   script.dataset.fdCalAnalytics="true";
   document.head.append(script);
   googleTagManagerLoaded=true;
+ }
+ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};
+ window.clarity("consentv2",{analytics_Storage:"granted",ad_Storage:"denied"});
+ if(!clarityLoaded){
+  const script=document.createElement("script");
+  script.async=true;
+  script.src="https://www.clarity.ms/tag/"+CLARITY_PROJECT_ID;
+  script.dataset.fdCalAnalytics="true";
+  document.head.append(script);
+  clarityLoaded=true;
  }
  if(!wasEnabled)window.gtag("event","page_view",{page_title:document.title,page_path:window.location.pathname});
 }
