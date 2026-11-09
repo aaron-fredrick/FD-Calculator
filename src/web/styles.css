@@ -306,3 +306,11 @@ body{background:var(--bg)}
 }
 
 @media(max-width:850px){.layout{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Let account and schedule cards shrink to the available mobile content width. */
+.stack,.account,.schedule,.item-head{min-width:0}
+@media(max-width:620px){
+ .item-head{flex-wrap:wrap}
+ .primary-radio{min-width:0;flex-wrap:wrap}
+}
