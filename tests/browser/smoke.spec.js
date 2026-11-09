@@ -167,7 +167,7 @@ test("a default scenario runs and produces an independently openable HTML report
 
   await reportPage.emulateMedia({ media: "print" });
   expect(await reportPage.evaluate(() => window.matchMedia("print").matches)).toBe(true);
-  const printTableLayout = await reportPage.evaluate(() => {
+  const printTableLayout = await reportPage.evaluate((downloadedHtml) => {
     const details = document.querySelector("details.print-stress-case");
     const tableWrap = details?.querySelector(".table-wrap");
     const table = tableWrap?.querySelector("table");
@@ -212,9 +212,9 @@ test("a default scenario runs and produces an independently openable HTML report
         try { return [...sheet.cssRules].filter(rule => rule.cssText.includes("table-layout") || rule.cssText.includes("word-break")); }
         catch { return []; }
       }).map(rule => rule.cssText),
-      downloadedHtmlHead: reportHtml.slice(0, 2200)
+      downloadedHtmlHead: downloadedHtml.slice(0, 2200)
     };
-  });
+  }, reportHtml);
   expect(printTableLayout.tableWrapDisplay).toBe("block");
   expect(printTableLayout.tableMinWidth).toBe("0px");
   expect(printTableLayout.tableWidth, JSON.stringify(printTableLayout)).toBeLessThanOrEqual(printTableLayout.viewportWidth + 1);
