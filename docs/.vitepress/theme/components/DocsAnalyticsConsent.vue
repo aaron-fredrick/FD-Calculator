@@ -152,8 +152,17 @@ watch(() => route.path, () => trackPageView())
 
     <section v-if="visible" class="docs-privacy-panel" aria-labelledby="docs-privacy-title">
       <div class="docs-privacy-copy">
-        <strong id="docs-privacy-title">Optional analytics</strong>
-        <p>FD Cal uses Google Analytics and Microsoft Clarity only if you allow analytics. Necessary browser storage remains enabled. Advertising storage stays denied.</p>
+        <strong id="docs-privacy-title">A little insight. Your choice.</strong>
+        <p>Optional visitor stats help us improve FD Cal. Analytics stays off until you allow it.</p>
+        <details class="docs-privacy-details">
+          <summary>What we collect</summary>
+          <ul>
+            <li>Page views and basic feature-usage events.</li>
+            <li>General browser, device and page information.</li>
+            <li>Interaction signals used by Microsoft Clarity to understand usability.</li>
+          </ul>
+          <p>We do not send account labels, balances, deposits, cash flows or calculation results as analytics event data. <a href="/FD-Calculator/web/privacy.html">Privacy details</a>.</p>
+        </details>
         <p class="docs-privacy-status">{{ choiceLabel }}</p>
         <p v-if="error" class="docs-privacy-error" role="alert">{{ error }}</p>
       </div>
@@ -162,8 +171,8 @@ watch(() => route.path, () => trackPageView())
         Allow optional analytics
       </label>
       <div class="docs-privacy-actions">
-        <button type="button" @click="save(false)">Reject</button>
-        <button type="button" @click="save(analytics)">Save choice</button>
+        <button type="button" @click="save(false)">No Thanks</button>
+        <button type="button" @click="save(true)">Allow analytics</button>
       </div>
     </section>
   </div>
@@ -171,15 +180,20 @@ watch(() => route.path, () => trackPageView())
 
 <style scoped>
 .docs-privacy-controls { position: fixed; z-index: 40; right: 18px; bottom: 16px; font-size: 13px; color: var(--vp-c-text-1); }
-.docs-privacy-settings, .docs-privacy-actions button { min-height: 38px; padding: 8px 13px; border: 1px solid var(--vp-c-divider); border-radius: 6px; background: var(--vp-c-bg); color: inherit; font: inherit; cursor: pointer; }
+.docs-privacy-settings, .docs-privacy-actions button { min-height: 38px; padding: 8px 13px; border: 0; border-bottom: 1px solid var(--vp-c-divider); border-radius: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .docs-privacy-settings { box-shadow: 0 2px 12px #0002; }
-.docs-privacy-panel { display: grid; gap: 12px; width: min(440px, calc(100vw - 28px)); margin-bottom: 9px; padding: 16px 0; border-top: 1px solid var(--vp-c-divider); background: var(--vp-c-bg); box-shadow: 0 4px 22px #0002; }
+.docs-privacy-panel { display: grid; gap: 12px; width: min(440px, calc(100vw - 28px)); margin-bottom: 9px; padding: 16px; border: 0; border-top: 1px solid var(--vp-c-divider); border-radius: 0; background: var(--vp-c-bg); box-shadow: 0 8px 28px #0002; }
 .docs-privacy-copy { padding: 0 16px; }
 .docs-privacy-copy p { margin: 6px 0 0; color: var(--vp-c-text-2); line-height: 1.5; }
 .docs-privacy-copy .docs-privacy-status { font-size: 11px; }
+.docs-privacy-details { margin-top: 9px; color: var(--vp-c-text-2); }
+.docs-privacy-details summary { width: max-content; cursor: pointer; color: var(--vp-c-text-1); }
+.docs-privacy-details ul { margin: 7px 0; padding-left: 19px; }
+.docs-privacy-details p { font-size: 12px; }
+.docs-privacy-details a { color: var(--vp-c-brand-1); }
 .docs-privacy-error { color: var(--vp-c-danger-1) !important; }
 .docs-privacy-toggle { display: flex; align-items: center; gap: 9px; padding: 0 16px; }
 .docs-privacy-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 0 16px; }
-.docs-privacy-actions button:last-child { border-color: var(--vp-c-brand-1); background: var(--vp-c-brand-1); color: white; }
+.docs-privacy-actions button:last-child { border-bottom-color: var(--vp-c-brand-1); background: var(--vp-c-brand-1); color: white; }
 @media (max-width: 640px) { .docs-privacy-controls { right: 10px; bottom: 10px; } .docs-privacy-panel { width: calc(100vw - 20px); } }
 </style>
