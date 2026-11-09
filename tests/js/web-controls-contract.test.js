@@ -92,3 +92,23 @@ test("users can delete the browser-local draft without the form click handler re
   assert.match(app, /localStorage\.removeItem\(STORAGE_KEY\)/);
   assert.match(app, /addEventListener\("click",clearSavedDraft\)/);
 });
+
+
+test("privacy preferences are persistent, editable, and analytics remains inert until implemented", () => {
+  assert.match(page, /id="privacy-banner"/);
+  assert.match(page, /id="open-privacy-preferences"/);
+  assert.match(page, /id="privacy-analytics"/);
+  assert.match(page, /id="privacy-analytics"[^>]*>/);
+  assert.match(page, /Strictly necessary storage/);
+  assert.match(page, /disabled aria-label="Strictly necessary storage always enabled"/);
+  assert.match(page, /does not currently set its own cookies/);
+  assert.match(app, /fd-cal:privacy-preferences:v1/);
+  assert.match(app, /function readPrivacyPreferences\(\)/);
+  assert.match(app, /function savePrivacyPreferences\(analytics\)/);
+  assert.match(app, /function setupPrivacyControls\(\)/);
+  assert.match(app, /if\(!readPrivacyPreferences\(\)\)banner\.hidden=false/);
+  assert.match(app, /privacy-reject/);
+  assert.match(app, /privacy-save/);
+  assert.match(app, /setupPrivacyControls\(\);\s*init\(\)/);
+  assert.doesNotMatch(app, /gtag\(|google-analytics|googletagmanager|sendBeacon\(/i);
+});
