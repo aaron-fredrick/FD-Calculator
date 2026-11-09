@@ -28,7 +28,7 @@ const scheduleText = item => item.type === "recurring"
   ? "Every "+(item.interval || "—")+" · "+iso(item.start_date)+" to "+iso(item.end_date)
   : (item.dates || []).map(iso).join(", ");
 const table = (title, columns, rows) => {
-  const head = columns.map(([,label])=>"<th>"+esc(label)+"</th>").join("");
+  const head = columns.map(([,label])=>'<th scope="col">'+esc(label)+"</th>").join("");
   const body = rows.length ? rows.map(row=>"<tr>"+columns.map(([key])=>"<td>"+esc(row[key] ?? "—")+"</td>").join("")+"</tr>").join("")
     : '<tr><td colspan="'+columns.length+'" class="empty">None configured</td></tr>';
   return '<details class="collapsible-table"><summary>'+esc(title)+' <span>'+rows.length+' rows · click to expand</span></summary><div class="table-wrap"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div></details>';
@@ -290,7 +290,7 @@ export function generateHtmlReport(result,config) {
   const overview='<div class="overview-grid">'+
     '<article class="panel"><small>Simulation window</small><strong>'+start+' → '+end+'</strong><p>'+days+' calendar days</p></article>'+
     '<article class="panel"><small>Strategy</small><strong>'+esc(result.strategy_name)+'</strong><p>Selected simulation path</p></article>'+
-    '<article class="panel"><small>Interest calculation</small><strong>'+(config.compound?"Compound":"Simple")+'</strong><p>'+(config.actual_leap_year?"Actual elapsed days ÷ start-year 365/366 denominator":"Actual elapsed days ÷ 365 denominator")+'</p></article>'+
+    '<article class="panel"><small>Interest calculation</small><strong>'+(config.compound?"Compound":"Simple")+'</strong><p>'+(config.actual_leap_year?"Actual elapsed days ÷ start-year 365/366 denominator; the same denominator applies to the full accrual interval, including cross-year terms.":"Actual elapsed days ÷ 365 denominator.")+'</p></article>'+
     '<article class="panel"><small>Tax treatment</small><strong>'+(result.ait_enabled?"AIT · "+(result.ait_rate*100).toFixed(1)+"%":"AIT disabled")+'</strong><p>Applied to interest payouts</p></article>'+
     '<article class="panel"><small>Consolidation account</small><strong>'+esc(accountDisplay[config.consolidation_account_id]||config.consolidation_account_id||"—")+'</strong><p>Terminal cash destination</p></article>'+
     '<article class="panel"><small>Default transfer fees</small><strong>'+money(fee.default_inter_bank_fee||0)+'</strong><p>Inter-bank · Same-bank '+money(fee.same_bank_fee||0)+'</p></article></div>';
@@ -381,7 +381,7 @@ export function generateHtmlReport(result,config) {
   })));
   const returnChartTable=table("Return composition chart data",[["name","Component"],["value","Amount (LKR)"]],chartData.returns.map(item=>({name:item.name,value:amount(item.value)})));
   const chartJson=JSON.stringify(chartData).replace(/<\//g,"<\\/");
-  const ledger='<details class="collapsible-table"><summary>Ledger entries <span>'+ledgerRows.length+' rows · expand</span></summary><div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Event</th><th class="num">Amount (LKR)</th><th>Description</th><th class="num">Balance after (LKR)</th></tr></thead><tbody>'+(ledgerRows.join("")||'<tr><td colspan="6" class="empty">No events</td></tr>')+'</tbody></table></div></details>';
+  const ledger='<details class="collapsible-table"><summary>Ledger entries <span>'+ledgerRows.length+' rows · expand</span></summary><div class="table-wrap"><table><thead><tr><th scope="col">Date</th><th scope="col">Account</th><th scope="col">Event</th><th scope="col" class="num">Amount (LKR)</th><th scope="col">Description</th><th scope="col" class="num">Balance after (LKR)</th></tr></thead><tbody>'+(ledgerRows.join("")||'<tr><td colspan="6" class="empty">No events</td></tr>')+'</tbody></table></div></details>';
   const replacements={
     "{{REPORT_TITLE}}":"FD Cal · Simulation Report",
     "{{REPORT_PERIOD}}":start+" — "+end+" · "+days+" calendar days · "+result.strategy_name+" strategy",

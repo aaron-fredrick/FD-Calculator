@@ -295,3 +295,33 @@ body{background:var(--bg)}
 .legal-page{max-width:900px;margin:auto;padding:42px 24px 70px}.legal-page .legal-back{color:var(--fd-color-accent);text-decoration:none;font-size:12px}.legal-page h1{margin:18px 0 5px;font-size:clamp(30px,5vw,42px);line-height:1.15}.legal-page .legal-updated{color:var(--fd-color-text-muted);font-size:12px}.legal-page article{margin-top:28px;padding:26px;background:var(--fd-color-panel);border:1px solid var(--fd-color-border);border-radius:14px}.legal-page h2{margin:25px 0 8px;font-size:18px}.legal-page h2:first-child{margin-top:0}.legal-page p,.legal-page li{color:var(--fd-color-text-soft);font-size:13px}.legal-page ul{padding-left:22px}.legal-page a{color:var(--fd-color-accent)}.legal-page .legal-callout{padding:13px 15px;background:var(--fd-color-accent-surface);border:1px solid var(--fd-color-border);border-radius:9px}
 @media(max-width:700px){.privacy-banner{inset:auto 10px 10px;align-items:stretch;flex-direction:column;gap:12px;padding:15px}.privacy-banner-actions{display:grid;grid-template-columns:1fr 1fr}.privacy-banner-actions #privacy-accept{grid-column:1/-1}.privacy-dialog{padding:18px}.privacy-choice{align-items:flex-start}.site-footer{align-items:flex-start;flex-direction:column}.site-footer nav{gap:12px}.legal-page{padding:28px 13px 50px}.legal-page article{padding:18px}}
 @media(prefers-reduced-motion:reduce){.privacy-dialog-backdrop,.privacy-banner{scroll-behavior:auto}}
+
+
+/* Keep the compact header and grid content inside narrow viewports. */
+@media(max-width:620px){
+ .topbar{flex-wrap:wrap}
+ .top-actions{min-width:0;max-width:calc(100vw - 140px);flex:0 1 calc(100vw - 140px)}
+ .top-actions>*{min-width:0;max-width:100%}
+ .layout,.content,#scenario-form{min-width:0}
+}
+
+@media(max-width:850px){.layout{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Let account and schedule cards shrink to the available mobile content width. */
+.stack,.account,.schedule,.item-head{min-width:0}
+@media(max-width:620px){
+ .item-head{flex-wrap:wrap}
+ .primary-radio{min-width:0;flex-wrap:wrap}
+}
+
+
+/* Keep help disclosures within the viewport on narrow screens. */
+@media(max-width:620px){
+ .help-tip::after{
+  left:auto;
+  right:0;
+  width:min(260px,calc(100vw - 40px));
+  transform:translateY(4px);
+ }
+}
