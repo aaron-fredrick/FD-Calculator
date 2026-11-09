@@ -240,6 +240,6 @@ test("standalone report includes selected-bank source status and honest review-d
     bank_dataset_registry: { BANK_A: { research_status: "populated_secondary", dataset_reviewed_at: "" } }
   });
   assert.match(html, /Selected-bank source status/);
-  assert.match(html, /populated_secondary/);
+  assert.match(html, /Secondary source/);
   assert.match(html, /Review date not recorded/);
 });
