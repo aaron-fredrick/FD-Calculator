@@ -94,7 +94,7 @@ function bankDisclosure(bankId){
 }
 function bankOptions(selected){return Object.entries(S.banks).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([k,b])=>{let ok=S.index[k]?.research_status!=="no_public_rate_verified";return '<option value="'+esc(k)+'" '+(k===selected?"selected":"")+' '+(!ok?"disabled":"")+'>'+esc(b.name)+(ok?"":" — no rate data")+'</option>'}).join("")}
 function accountOptions(selected){return S.accounts.map(a=>'<option value="'+esc(a.id)+'" '+(a.id===selected?"selected":"")+'>'+esc(a.label||a.id)+'</option>').join("")}
-function renderAccounts(){const existingIds=new Set([...$("accounts-list").querySelectorAll(".account")].map(card=>card.dataset.id)); $("accounts-list").innerHTML=S.accounts.map((a,i)=>'<article class="account '+(a.primary?"is-consolidation":"")+'" data-id="'+esc(a.id)+'"><div class="item-head"><b>Account '+(i+1)+'</b><label class="primary-radio"><input type="radio" name="primary" value="'+esc(a.id)+'" '+(a.primary?"checked":"")+'> Consolidation account</label><button class="remove-icon" data-remove-account="'+esc(a.id)+'" type="button" aria-label="Remove account" title="Remove account"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="account-fields"><label>Bank<select data-bank>'+bankOptions(a.bank_id)+'</select><small class="bank-source-disclosure" data-bank-source>'+bankDisclosure(a.bank_id)+'</small></label><label>Account label<input data-label value="'+esc(a.label)+'" placeholder="Main savings"></label><label>Starting balance (LKR)<input data-balance type="number" min="0" step=".01" value="'+a.balance+'"></label><label class="efd"><input data-efd type="checkbox" '+(a.efd?"checked":"")+'> eFD eligible</label></div></article>').join("");animateNewRows($("accounts-list"),".account",existingIds);}
+function renderAccounts(){const existingIds=new Set([...$("accounts-list").querySelectorAll(".account")].map(card=>card.dataset.id)); $("accounts-list").innerHTML=S.accounts.map((a,i)=>'<article class="account '+(a.primary?"is-consolidation":"")+'" data-id="'+esc(a.id)+'"><div class="item-head"><b>Account '+(i+1)+'</b><label class="primary-radio"><input type="radio" name="primary" value="'+esc(a.id)+'" '+(a.primary?"checked":"")+'> Consolidation account</label><button class="remove-icon" data-remove-account="'+esc(a.id)+'" type="button" aria-label="Remove account" title="Remove account"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="account-fields"><label>Bank<select data-bank>'+bankOptions(a.bank_id)+'</select></label><label>Account label<input data-label value="'+esc(a.label)+'" placeholder="Main savings"></label><label>Starting balance (LKR)<input data-balance type="number" min="0" step=".01" value="'+a.balance+'"></label><label class="efd"><input data-efd type="checkbox" '+(a.efd?"checked":"")+'> eFD eligible</label></div><small class="bank-source-disclosure" data-bank-source>'+bankDisclosure(a.bank_id)+'</small></article>').join("");animateNewRows($("accounts-list"),".account",existingIds);}
 function syncAccounts(){document.querySelectorAll(".account").forEach(c=>{let a=S.accounts.find(x=>x.id===c.dataset.id);if(a){a.bank_id=c.querySelector("[data-bank]").value;a.label=c.querySelector("[data-label]").value.trim();a.balance=c.querySelector("[data-balance]").value;a.efd=c.querySelector("[data-efd]").checked}})}
 function addAccount(bank=Object.keys(S.banks).find(k=>S.index[k]?.research_status!=="no_public_rate_verified")){if(!bank)return;S.accounts.push({id:"account_"+id(),bank_id:bank,label:S.banks[bank].name+" account",balance:0,efd:false,primary:!S.accounts.length});renderAccounts();renderSchedules()}
 function scheduleDates(value){return (Array.isArray(value)?value:String(value??"").split(",")).map(v=>String(v).trim()).filter(Boolean)}
@@ -207,6 +207,9 @@ function results(r,c,html){
  scrollElementIntoView($("results"));
 }
 const PRIVACY_STORAGE_KEY="fd-cal:privacy-preferences:v1";
+const GTM_CONTAINER_ID="GTM-TNC567R4";
+const CLARITY_PROJECT_ID="zb1y50hjaw";
+let analyticsEnabled=false,googleTagManagerLoaded=false,clarityLoaded=false,googleTagQueueInitialised=false;
 function readPrivacyPreferences(){
  try{const value=JSON.parse(localStorage.getItem(PRIVACY_STORAGE_KEY)||"null");if(value&&value.version===1)return{necessary:true,analytics:value.analytics===true};}catch(error){console.warn("FD Cal privacy preferences could not be read:",error)}
  return null;
@@ -216,15 +219,61 @@ function savePrivacyPreferences(analytics){
  try{localStorage.setItem(PRIVACY_STORAGE_KEY,JSON.stringify(value));return true}
  catch(error){console.warn("FD Cal privacy preferences could not be saved:",error);return false}
 }
+function initialiseGoogleTagQueue(){
+ window.dataLayer=window.dataLayer||[];
+ window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};
+ if(googleTagQueueInitialised)return;
+ window.gtag("js",new Date());
+ window.gtag("consent","default",{analytics_storage:"denied",ad_storage:"denied",ad_user_data:"denied",ad_personalization:"denied"});
+ googleTagQueueInitialised=true;
+}
+function applyAnalyticsConsent(allowAnalytics){
+ initialiseGoogleTagQueue();
+ const wasEnabled=analyticsEnabled;
+ const consent=allowAnalytics===true;
+ window.gtag("consent","update",{analytics_storage:consent?"granted":"denied",ad_storage:"denied",ad_user_data:"denied",ad_personalization:"denied"});
+ analyticsEnabled=consent;
+ if(!consent){
+  if(typeof window.clarity==="function")window.clarity("consentv2",{analytics_Storage:"denied",ad_Storage:"denied"});
+  return;
+ }
+ if(!googleTagManagerLoaded){
+  const script=document.createElement("script");
+  script.async=true;
+  script.src="https://www.googletagmanager.com/gtm.js?id="+encodeURIComponent(GTM_CONTAINER_ID);
+  script.dataset.fdCalAnalytics="true";
+  document.head.append(script);
+  googleTagManagerLoaded=true;
+ }
+ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};
+ window.clarity("consentv2",{analytics_Storage:"granted",ad_Storage:"denied"});
+ if(!clarityLoaded){
+  const script=document.createElement("script");
+  script.async=true;
+  script.src="https://www.clarity.ms/tag/"+CLARITY_PROJECT_ID;
+  script.dataset.fdCalAnalytics="true";
+  document.head.append(script);
+  clarityLoaded=true;
+ }
+ if(!wasEnabled)window.gtag("event","page_view",{page_title:document.title,page_path:window.location.pathname});
+}
+function trackAnalyticsEvent(eventName){
+ if(!analyticsEnabled||typeof window.gtag!=="function")return;
+ window.gtag("event",eventName);
+}
 function setupPrivacyControls(){
  const banner=$("privacy-banner"),dialog=$("privacy-preferences-dialog"),analytics=$("privacy-analytics");
+ const saved=readPrivacyPreferences();
+ initialiseGoogleTagQueue();
  const closeDialog=()=>{dialog.hidden=true;$("open-privacy-preferences").focus()};
- const openDialog=()=>{const saved=readPrivacyPreferences();analytics.checked=saved?.analytics===true;dialog.hidden=false;analytics.focus()};
+ const openDialog=()=>{const current=readPrivacyPreferences();analytics.checked=current?.analytics===true;dialog.hidden=false;analytics.focus()};
  const commit=allowAnalytics=>{
   if(!savePrivacyPreferences(allowAnalytics)){alert("Your preference could not be saved in this browser. Check site-storage permissions and try again.");return}
+  applyAnalyticsConsent(allowAnalytics);
   banner.hidden=true;dialog.hidden=true;
  };
- if(!readPrivacyPreferences())banner.hidden=false;
+ if(!saved)banner.hidden=false;
+ else if(saved.analytics)applyAnalyticsConsent(true);
  $("privacy-reject").addEventListener("click",()=>commit(false));
  $("privacy-accept").addEventListener("click",()=>commit(true));
  $("privacy-customise").addEventListener("click",openDialog);
@@ -281,6 +330,7 @@ $("strategy-choice").addEventListener("change",()=>syncStrategySettings());$("si
     const c=validateConfiguration(x,{bankRegistry:S.banks,bankKeyById:S.keys,options,today:today()});
     c.bank_registry=S.banks;c.bank_dataset_registry=S.index;c.options_path="data/fd_options/fd_options.csv";
     const fingerprint=simulationFingerprint(c);
+    trackAnalyticsEvent("simulation_start");
     requestId=++S.activeRunId;
     S.formEditedWhileRunning=false;$("simulation-edit-note").hidden=true;
     console.info("[FD Cal][main] Dispatching validated scenario to worker", {requestId,strategy:c.strategy,mode:c.simulation?.mode,accountCount:c.accounts?.length,optionCount:c.options?.length,fingerprintLength:fingerprint.length});
@@ -314,6 +364,7 @@ $("strategy-choice").addEventListener("change",()=>syncStrategySettings());$("si
     status.textContent=run.reused
       ?"Completed result reused; no new computation was required."
       :"Simulation complete in "+elapsedLabel(elapsedMs)+".";
+    trackAnalyticsEvent("simulation_complete");
     status.classList.add("is-complete","is-success");
     $("simulation-edit-note").hidden=!S.formEditedWhileRunning;
   }catch(ex){
