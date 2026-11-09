@@ -1,6 +1,7 @@
 import {parseCSV} from "../io/csv.js";
 import {escapeHtml as esc} from "./escape-html.js";
 import {FDOption} from "../core/models.js";
+import {getDatasetFreshness} from "../core/catalogue-freshness.js";
 import {addPeriod,formatISODate} from "../core/dates.js";
 import {validateConfiguration,resolveDate} from "../core/configuration.js?v=age-eligibility-1";
 import {validateConfigurationShape} from "../core/config-schema.js?v=age-eligibility-1";
@@ -89,7 +90,7 @@ function bankDisclosure(bankId){
  const entry=S.index[bankId]||{};
  const labels={populated_direct:"Direct bank source",populated_secondary:"Secondary source",no_public_rate_verified:"No public rate verified"};
  const status=labels[entry.research_status]||entry.research_status||"Source status not recorded";
- return esc(status)+" · "+esc(entry.dataset_reviewed_at||"Review date not recorded");
+ return esc(status)+" · "+esc(getDatasetFreshness(entry.dataset_reviewed_at).label);
 }
 function bankOptions(selected){return Object.entries(S.banks).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([k,b])=>{let ok=S.index[k]?.research_status!=="no_public_rate_verified";return '<option value="'+esc(k)+'" '+(k===selected?"selected":"")+' '+(!ok?"disabled":"")+'>'+esc(b.name)+(ok?"":" — no rate data")+'</option>'}).join("")}
 function accountOptions(selected){return S.accounts.map(a=>'<option value="'+esc(a.id)+'" '+(a.id===selected?"selected":"")+'>'+esc(a.label||a.id)+'</option>').join("")}
