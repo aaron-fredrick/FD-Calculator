@@ -5,7 +5,7 @@ import {addPeriod,formatISODate} from "../core/dates.js";
 import {validateConfiguration,resolveDate} from "../core/configuration.js?v=age-eligibility-1";
 import {validateConfigurationShape} from "../core/config-schema.js?v=age-eligibility-1";
 import {SimulationWorkerRunner,simulationFingerprint,catalogueFingerprint,createWorkerPayload,rehydrateSimulationResult} from "./simulation-runner.js";
-import {animateRemoval,animateNewRows,animateEntrance,transitionStrategySettings} from "./motion.js";
+import {animateRemoval,animateNewRows,animateEntrance,transitionStrategySettings,scrollElementIntoView} from "./motion.js";
 import {generateHtmlReport} from "../reporting/html.js";
 const DATA_ROOT=new URL(import.meta.url).pathname.includes("/src/web/")?"../../data/":"../data/";
 const $=id=>document.getElementById(id),STORAGE_KEY="fd-cal:draft:v1",S={banks:{},index:{},keys:{},cache:new Map(),lastSimulationKey:null,accounts:[],inflows:[],outflows:[],url:null,raw:null,workerRunner:new SimulationWorkerRunner(),activeRunId:0,submissionSequence:0,isPreparing:false,formEditedWhileRunning:false,computeStartedAt:null,computeTimer:null};
@@ -32,7 +32,7 @@ const id=()=>Math.random().toString(36).slice(2,9),err=m=>{$("error").textConten
 function setCatalogStatus(message,state){for(const status of [$("catalog-status"),$("catalog-status-mobile")]){status.textContent=message;status.classList.remove("is-loading","is-ready","is-error");if(state)status.classList.add("is-"+state)}}
 function setCatalogueReady(ready){const form=$("scenario-form");form.setAttribute("aria-busy",String(!ready));form.querySelectorAll("input,select,button").forEach(control=>{control.disabled=!ready});$("import-config").disabled=!ready;$("export-config").disabled=!ready}
 function clearFieldErrors(){document.querySelectorAll(".field-error").forEach(n=>n.remove());document.querySelectorAll(".invalid-field").forEach(n=>n.classList.remove("invalid-field"));document.querySelectorAll('[aria-invalid="true"]').forEach(n=>n.removeAttribute("aria-invalid"))}
-function markField(el,message){if(!el)return;const label=el.closest("label")||el.parentElement;if(!label)return;label.classList.add("invalid-field");el.setAttribute("aria-invalid","true");const note=document.createElement("small");note.className="field-error";note.textContent=message;label.append(note);el.focus({preventScroll:true});el.scrollIntoView({behavior:"smooth",block:"center"})}
+function markField(el,message){if(!el)return;const label=el.closest("label")||el.parentElement;if(!label)return;label.classList.add("invalid-field");el.setAttribute("aria-invalid","true");const note=document.createElement("small");note.className="field-error";note.textContent=message;label.append(note);el.focus({preventScroll:true});scrollElementIntoView(el,{block:"center"})}
 function safeSimulationError(error){
  const message=String(error?.message||error||"");
  if(/^(Complete the dates|Add at least one account|No investable capital|Every account needs|The strategy could not satisfy|Invalid |Unknown |Outflow |Inflow |Account |Investment |No compatible FD products|No FD option|No FD product rows|Unable to load)/i.test(message))return message;
@@ -48,7 +48,7 @@ function showError(message,displayMessage=message){clearFieldErrors();err(displa
  if(!target){for(const kind of ["inflow","outflow"]){const item=S[kind+"s"].find(x=>detail.startsWith(kind+" "+x.name+" "));if(item){const row=document.querySelector('.schedule[data-id="'+item.id+'"]');target=row?.querySelector(detail.includes("amount")?"[data-amount]":detail.includes("account")?"[data-account]":detail.includes("interval")?"[data-interval]":detail.includes("payment_policy")?"[data-policy]":item.type==="scheduled"?"[data-date-entry]":"[data-end]");break}}}
  if(!target&&/unknown bank_id|no compatible FD products|no FD option index|no FD product rows/i.test(detail)){const idMatch=detail.match(/Account ([^ ]+)/i);const row=idMatch&&[...document.querySelectorAll(".account")].find(n=>n.dataset.id===idMatch[1]);target=row?.querySelector("[data-bank]")}
  if(!target&&/investment|date/i.test(detail))target=$("end-date");
- if(target)markField(target,detail);else $("error").scrollIntoView({behavior:"smooth",block:"center"})
+ if(target)markField(target,detail);else scrollElementIntoView($("error"),{block:"center"})
 }
 async function csv(path){let r=await fetch(path);if(!r.ok)throw Error("Unable to load "+path+" ("+r.status+")");return parseCSV(await r.text())}
 async function init(){setCatalogueReady(false);setCatalogStatus("Loading bank catalogue…","loading");try{
@@ -127,7 +127,7 @@ function results(r,c,html){
  $("open-report").onclick=()=>window.open(S.url,"_blank","noopener");
  $("download-result-config").onclick=exportRaw;
  $("results").hidden=false;animateEntrance($("results"));
- $("results").scrollIntoView({behavior:"smooth"});
+ scrollElementIntoView($("results"));
 }
 function wire(){
  $("scenario-form").addEventListener("input",()=>{clearFieldErrors();err("");if(["start-date","simulation-mode"].includes(document.activeElement?.id))renderSimulationMode();updateDateEntryBounds();markFormEdited();saveDraft()});$("scenario-form").addEventListener("change",()=>{clearFieldErrors();err("");renderSimulationMode();updateDateEntryBounds();markFormEdited();saveDraft()});$("scenario-form").addEventListener("click",saveDraft);
