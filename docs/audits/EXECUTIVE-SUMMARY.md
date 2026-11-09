@@ -70,3 +70,10 @@ Keep SEARCH-02 refactoring, DATA-03 activation, richer DATA-05 channel modelling
 Workflow success is evidence for the automated checks in that run only. It does not establish screen-reader output, full WCAG conformance, real-device behaviour, actual printed/PDF pagination, live bank rates, legal compliance or deployed HTTP response headers.
 
 The audit is a risk-based source review, not formal verification, financial-product certification, penetration testing, a legal opinion or a full WCAG audit. External bank rates, product eligibility, tax relief, fee schedules and contractual payout terms still require direct verification with the relevant institution or qualified professional.
+
+
+## Latest follow-up checkpoint — 9 November 2026
+
+Cross-strategy test coverage was extended to exercise FD booking, installment cash flows, terminal maturity and transfer-fee accounting across all four strategies. Workflow [42585867964](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42585867964) passed all automated steps.
+
+SEARCH-03 remains **partial**: scheduled future-outflow liquidity reservation is not closed. An exploratory strict-outflow scenario exposed a Greedy planning gap; no strategy code change for that gap is retained. The next implementation gate is an agreed, tested reservation contract across Greedy, GSS, Absolute R and Absolute R+, preserving existing strategy migration tests. This checkpoint is therefore not a full financial-parity sign-off.
