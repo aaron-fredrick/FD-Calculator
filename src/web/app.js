@@ -109,7 +109,44 @@ function raw(){syncAccounts();syncSchedules();let accounts={};S.accounts.forEach
  let schedule=(arr,kind)=>arr.map(x=>({name:x.name,amount:Number(x.amount),account_id:x.account_id,type:x.type,...(x.type==="recurring"?{interval:x.interval,start_date:x.start_date||start,...(x.end_date||end?{end_date:x.end_date||end}:{})}:{dates:String(x.dates).split(",").map(s=>s.trim()).filter(Boolean)}),...(kind==="outflow"?{payment_policy:x.policy}:{})}));
  return {fd_eligibility:{include_senior:$("include-senior-fds").checked,include_minor:$("include-minor-fds").checked},strategy:$("strategy-choice").value,simulation,investment,accounts,consolidation_account_id:(S.accounts.find(a=>a.primary)||S.accounts[0])?.id,inflows:schedule(S.inflows,"inflow"),outflows:schedule(S.outflows,"outflow"),transfer_fees:{default_inter_bank_fee:$("inter-fee").value.trim()===""?null:Number($("inter-fee").value),same_bank_fee:$("same-fee").value.trim()===""?null:Number($("same-fee").value),custom_fees:[]},compound:$("compound").checked,ait_enabled:$("ait").checked,actual_leap_year:$("leap-year").checked,gaml_settings:{beam_width:Number($("beam-width").value),max_local_branches:$("local-branches").value===""?null:Number($("local-branches").value),max_decisions:$("unlimited-decision-cap").checked?null:Number($("decision-cap").value),time_limit_ms:Number($("time-limit-seconds").value)*1000},greedy_settings:{tenor_tiebreaker:$("tenor-tiebreaker").value,plan_tenor_tiebreaker:$("plan-tenor-tiebreaker").value},gss_settings:{small_period_days:Number($("small-period-days").value||30)}}
 }
-async function getOptions(ids){let out=[];for(let bank of [...new Set(ids)]){if(!S.cache.has(bank)){let row=S.index[bank];if(!row)throw Error("No FD option index entry for "+bank);let rows=await csv(DATA_ROOT+"fd_options/"+row.options_file),key=String(row.bank_key).toLowerCase(),fallback=({commercial:25000,dfcc:10000})[key]??25000;let opts=rows.map(r=>new FDOption({label:r.name,period_str:r.period,annual_rate:Number(r.annual_rate),min_amount:r.min_amount?Number(r.min_amount):fallback,payout_type:r.payout_type||"cumulative",payout_period_str:r.payout_period||"",bank_key:key,bank_id:bank,is_efd:String(r.eFD).toLowerCase()==="true",customer_segment:r.customer_segment||"general",min_age:r.min_age===""?null:r.min_age,max_age:r.max_age===""?null:r.max_age,min_age_inclusive:r.min_age_inclusive===""||r.min_age_inclusive==null?true:String(r.min_age_inclusive).toLowerCase()==="true",max_age_inclusive:r.max_age_inclusive===""||r.max_age_inclusive==null?true:String(r.max_age_inclusive).toLowerCase()==="true",guardian_required:r.guardian_required===""||r.guardian_required==null?null:String(r.guardian_required).toLowerCase()==="true",source_url:r.source_url||"",source_effective_date:r.source_effective_date||"",source_type:r.source_type||"",source_notes:r.notes||""}));S.cache.set(bank,opts)}let opts=S.cache.get(bank);if(!opts.length)throw Error((S.banks[bank]?.name||bank)+" has no FD product rows in the current dataset. Choose a bank with configured rates.");out.push(...opts)}return out}
+async function getOptions(ids) {
+ const out=[];
+ for (const bank of [...new Set(ids)]) {
+  if (!S.cache.has(bank)) {
+   const row=S.index[bank];
+   if (!row) throw Error("No FD option index entry for "+bank);
+   const rows=await csv(DATA_ROOT+"fd_options/"+row.options_file);
+   const key=String(row.bank_key).toLowerCase();
+   const fallback=({commercial:25000,dfcc:10000})[key]??25000;
+   const opts=[],rejected=[];
+   for(let i=0;i<rows.length;i++) {
+    const r=rows[i],label=String(r.name??"").trim();
+    try {
+     opts.push(new FDOption({
+      label,period_str:r.period,annual_rate:Number(r.annual_rate),
+      min_amount:r.min_amount?Number(r.min_amount):fallback,
+      payout_type:r.payout_type||"cumulative",payout_period_str:r.payout_period||"",
+      bank_key:key,bank_id:bank,is_efd:String(r.eFD).toLowerCase()==="true",
+      customer_segment:r.customer_segment||"general",
+      min_age:r.min_age===""?null:r.min_age,max_age:r.max_age===""?null:r.max_age,
+      min_age_inclusive:r.min_age_inclusive===""||r.min_age_inclusive==null?true:String(r.min_age_inclusive).toLowerCase()==="true",
+      max_age_inclusive:r.max_age_inclusive===""||r.max_age_inclusive==null?true:String(r.max_age_inclusive).toLowerCase()==="true",
+      guardian_required:r.guardian_required===""||r.guardian_required==null?null:String(r.guardian_required).toLowerCase()==="true",
+      source_url:r.source_url||"",source_effective_date:r.source_effective_date||"",
+      source_type:r.source_type||"",source_notes:r.notes||""
+     }));
+    } catch(error) {
+     rejected.push("row "+(i+2)+" ("+(label||"unnamed")+"): "+error.message);
+    }
+   }
+   if(rejected.length)console.warn("[FD Cal] Rejected invalid FD catalogue rows for "+bank+":\n"+rejected.join("\n"));
+   if(!opts.length)throw Error((S.banks[bank]?.name||bank)+" has no valid FD products in the current dataset. "+rejected.join("; "));
+   S.cache.set(bank,opts);
+  }
+  out.push(...S.cache.get(bank));
+ }
+ return out;
+}
 function applyConfig(x){if(!x||typeof x!=="object"||!x.investment||!x.accounts)throw Error("Invalid scenario configuration.");x.gaml_settings=x.gaml_settings??x.gaml??x.strategy_settings?.gaml??{};x.greedy_settings=x.greedy_settings??x.greedy??x.strategy_settings?.greedy??{};x.gss_settings=x.gss_settings??x.gss??x.strategy_settings?.gss??{};
  if(x.simulation?.mode==="goal")throw Error("Goal-based mode is under development and is not available in the browser yet. Use a scoped date range.");
  const startDate=x.investment.start_date==="today"?today():x.investment.start_date,legacyTimeBased=x.simulation?.mode==="time_based",mode="scoped",endDate=legacyTimeBased?formatISODate(addPeriod(startDate,x.simulation.duration)):x.investment.end_date;
