@@ -53,8 +53,8 @@ Before implementation, capture deterministic baseline outputs for representative
 | **UI-02 / UI-03** | **Completed — PR #81 squash-merged to dev** | Native help disclosure buttons and field-associated validation errors are in dev; rendered assistive-technology QA remains. |
 | **PRIV-01** | **Completed — PR #81 squash-merged to dev** | Browser-local retention and confirmation-protected saved-draft deletion are in dev. |
 | **WEB-SEC-02** | **Open — GitHub Pages retained by owner decision** | Keep Pages; verify actual production/dev headers and document the response-header limitations. No proxy/CDN migration planned. |
-| **QA-01** | **Implemented on follow-up branch — CI passed** | Playwright Chromium smoke suite runs for pushes and PRs targeting dev/main. |
-| **QA-REP-01** | **Partial — report table and print safeguards added** | Report tables now expose scoped column headers; print CSS expands collapsed tables, removes screen minimum widths and wraps long labels. Playwright stresses long labels at 320px and checks print layout. Full manual print, keyboard and assistive-technology review remain. |
+| **QA-01** | **Implemented; latest CI regression open** | Playwright runs on pushes to `dev`, `main` and audit branches and PRs targeting `dev`/`main`. Latest run 42571366220 has 5/6 browser tests passing; the standalone-report print-width assertion failed. A print CSS correction is committed and must be reverified. |
+| **QA-REP-01** | **Partial — print regression being corrected** | Scoped column headers and long-label browser stress coverage are present. Latest CI measured the stressed print table at 433px for a 321px viewport. A print CSS fix is committed; rerun the report test before calling automated print QA green. Manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom review remain. |
 | **DATA-05 / DATA-06** | **Research complete; metadata contract implemented; source review pending** | Transfer-fee model remains intentionally simplified. The bank options index now separates economic-data update date, source-review date and CSV schema version; all dates remain blank until verified bank-by-bank. Schema-only migrations must not advance data dates. |
 
 ## 2A. Owner feedback received on 9 November 2026
@@ -333,6 +333,22 @@ The audit notes that the research register includes product maximum amounts and 
 #### QA-01 — browser automation
 
 A Playwright Chromium smoke suite is now implemented in `tests/browser/` and runs in the Node CI workflow for pushes to `dev`, `main` and audit branches, and pull requests targeting `dev` or `main`. It covers production startup/privacy preferences, legal navigation, dev-preview path/noindex, mobile overflow, keyboard focus/reduced motion, and a default simulation with an independently opened HTML report. Expand the suite incrementally; do not introduce broad screenshot snapshots before the smoke tests are stable.
+
+## 3A. Current branch re-audit — 9 November 2026
+
+The implementation status below was checked against the working branch, not inferred from the plan. The branch remains based on `dev` at PR #81's squash merge. The latest CI run before the current print-CSS correction is [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220): Node tests, syntax checks and production/dev builds passed; five of six Playwright tests passed; the standalone report print-width assertion failed (433px table width against a 321px emulated viewport). The correction is committed, but a green rerun is still required.
+
+### Remaining work, in priority order
+
+1. **Close the report print regression:** rerun CI after the print CSS change; if it still fails, inspect the actual report DOM/print computed widths and correct the implementation rather than weakening the assertion.
+2. **Complete SEARCH-03 parity:** add deterministic cross-strategy scenarios with eligible bookings, maturity and installment payouts, transfer fees, and future-outflow reserved liquidity. Compare authoritative ledger, paid/outstanding obligations, ending balances and validity across Greedy, GSS, Absolute R and Absolute R+.
+3. **Complete report/browser QA:** test realistic large ledgers and long labels, offline operation and chart initialization; perform manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom checks.
+4. **Complete catalogue source review:** recheck each of the 29 bank entries against official source material where available; record defensible `dataset_reviewed_at` and only record `dataset_updated_at` when economic terms materially changed. Leave unverified dates blank.
+5. **Verify deployment security posture:** inspect actual production and dev response headers and document GitHub Pages limitations. No proxy/CDN or hosting migration is approved.
+6. **Keep SEARCH-02 deferred:** retain the staged decomposition plan; do not refactor strategy modules until parity baselines are complete.
+7. **Keep explicitly deferred scope deferred:** special-product constraint modelling (DATA-03), richer transfer-channel fee modelling (DATA-05), main-branch dev-preview assembler port, and external legal counsel review are not blockers for this dev-targeted branch.
+
+No PR, merge or deployment is part of this work. The branch is not ready to be called fully green until the browser regression is cleared.
 
 ## 4. Visual and interaction guardrails
 
