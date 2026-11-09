@@ -52,6 +52,14 @@ function investmentMaturesBy(option, today, dueDate) {
   return formatISODate(addPeriod(today, option.period_str)) <= dueDate;
 }
 
+function investmentPrincipalForOutflow(balance, option, obligation, today) {
+  if (!obligation) return balance;
+  const reservedPrincipal = balance - obligation.amount;
+  if (reservedPrincipal + EPS >= option.min_amount) return reservedPrincipal;
+  if (investmentMaturesBy(option, today, obligation.date)) return balance;
+  return null;
+}
+
 function planPreservesUpcomingStrictOutflows(plan, accounts, obligations, today) {
   const projected = new Map(Object.values(accounts).map(account => [account.id, account.balance]));
   for (const transfer of plan.transfers || []) {
@@ -123,16 +131,30 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
       continue;
     }
     const eligible = optionManager.getEligibleOptions({ account, amount: account.balance, investmentDate: today, simulationEndDate: end });
-    const safeEligible = rankOptions(eligible, tenorTieBreaker).filter(option => {
-      const obligation = upcomingStrictOutflows.get(account.id);
-      return !obligation || EPS >= obligation.amount || investmentMaturesBy(option, today, obligation.date);
-    });
-    const option = goalMode
-      ? selectFastestGoalOption(safeEligible, account.balance, today, aitRate, compound, actualLeapYear)
-      : safeEligible[0] ?? null;
-    if (!option) { splitCarries.push(account); continue; }
-    const interest = option.totalInterestOn(account.balance, today, compound, actualLeapYear);
-    splitBookings.push({ account, option, principal: account.balance, interest, rate: option.annual_rate, days: option.days });
+    const safeEligible = rankOptions(eligible, tenorTieBreaker).map(option => ({
+      option,
+      principal: investmentPrincipalForOutflow(
+        account.balance, option, upcomingStrictOutflows.get(account.id), today
+      )
+    })).filter(item => item.principal !== null && item.principal > EPS);
+    let selected = safeEligible[0] ?? null;
+    if (goalMode && safeEligible.length) {
+      selected = safeEligible.map(item => ({
+        ...item,
+        credit: firstCreditedInterest(
+          item.option, item.principal, today, aitRate, compound, actualLeapYear
+        )
+      })).filter(item => item.credit).sort((a, b) =>
+        a.credit.date - b.credit.date ||
+        b.credit.interest - a.credit.interest ||
+        b.option.annual_rate - a.option.annual_rate ||
+        a.option.days - b.option.days
+      )[0] ?? null;
+    }
+    if (!selected) { splitCarries.push(account); continue; }
+    const { option, principal } = selected;
+    const interest = option.totalInterestOn(principal, today, compound, actualLeapYear);
+    splitBookings.push({ account, option, principal, interest, rate: option.annual_rate, days: option.days });
     splitGross += interest;
   }
   let split = null;
@@ -164,12 +186,16 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
     if (!transfers.length) continue;
     const eligible = optionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: end });
     for (const option of rankOptions(eligible, tenorTieBreaker)) {
-      const gross = option.totalInterestOn(deployable, today, compound, actualLeapYear);
+      const principal = investmentPrincipalForOutflow(
+        deployable, option, upcomingStrictOutflows.get(target.id), today
+      );
+      if (principal === null || principal <= EPS) continue;
+      const gross = option.totalInterestOn(principal, today, compound, actualLeapYear);
       const net = gross * (1 - aitRate) - feesEval;
       if (net <= 0) continue;
       consolidationPlans.push({
         type: "CONSOLIDATE", target_account: target, option, transfers,
-        booking: { account: target, option, principal: deployable }, carries,
+        booking: { account: target, option, principal }, carries,
         rate: option.annual_rate, days: option.days, fees_today: feesToday,
         fees_eval: feesEval, gross_interest: gross, net_interest: net
       });
