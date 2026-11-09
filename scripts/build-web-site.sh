@@ -62,6 +62,8 @@ const origin = "https://aaron-fredrick.github.io/FD-Calculator";
 for (const [path, canonical] of [
   [join(root, "index.html"), origin + "/dev/"],
   [join(root, "web/index.html"), origin + "/dev/web/"],
+  [join(root, "web/privacy.html"), origin + "/web/privacy.html"],
+  [join(root, "web/terms.html"), origin + "/web/terms.html"],
 ]) {
   let html = readFileSync(path, "utf8");
   html = html.replace(/<meta name="robots" content="[^"]*">/i, '<meta name="robots" content="noindex,nofollow">');
