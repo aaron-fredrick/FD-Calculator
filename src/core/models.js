@@ -4,7 +4,15 @@ import { calcInterest } from "./interest.js";
 export const CUMULATIVE = "cumulative";
 export const PERIODIC_INTEREST = "periodic_interest";
 export const INSTALLMENT = "installment";
-export const AIT_RATE = 0.10;
+export const AIT_ASSUMPTION = Object.freeze({
+  id: "LK-AIT-INTEREST-2025-04-01",
+  rate: 0.10,
+  effective_from: "2025-04-01",
+  verified_at: "2026-11-09",
+  reference: "IRD Circular SEC/2025/E/02",
+  source_url: "https://www.ird.gov.lk/en/publications/Circulars_Circulars/SEC_2025_E_02_E.pdf"
+});
+export const AIT_RATE = AIT_ASSUMPTION.rate;
 
 export class Account {
   constructor({ id, bank_id = "", bank_key = "", label = "", balance = 0, supports_efd = true }) {
