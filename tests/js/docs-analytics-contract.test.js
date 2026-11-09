@@ -29,3 +29,5 @@ test("small web notices and metric blocks do not render as nested cards", () => 
   assert.match(css, /\.hint,[\s\S]*?\.catalog-status-mobile\s*\{\s*border: 0/);
   assert.match(css, /\.legal-page \.legal-callout/);
 });
+
+// Regression coverage is kept in this focused contract test.
