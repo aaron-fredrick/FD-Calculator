@@ -330,7 +330,7 @@ Relevant guidance: [Visual Design and Restraint](https://github.com/aaron-fredri
 
 ## 5. Delivery order and branch strategy
 
-The earlier audit implementation was delivered on this same branch and merged to `dev` through PR #75; the dev preview workflow changes were then merged through PR #80. This branch is now being used to maintain the audit record. Keep subsequent application fixes in focused branches from `dev`; update this branch with audit evidence/status only.
+The earlier audit implementation was delivered on this same branch and merged to `dev` through PR #75; the dev preview workflow changes were then merged through PR #80. The owner has directed that follow-up work remain on this working branch until it is ready to ship to `dev`. Keep changes focused, preserve the current `dev` baseline and its tests, and defer `main` integration until explicitly in scope.
 
 Recommended implementation sequence:
 
@@ -343,7 +343,7 @@ Recommended implementation sequence:
 8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
 9. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
 
-Each new implementation should be a focused branch from the current `dev` baseline, with its own tests and review. Merge only after its acceptance criteria pass. Rebase/update from `dev` as needed; do not merge this audit branch wholesale into `main` merely to publish the plan.
+Implement each remediation as a focused, independently testable change on this working branch. Do not merge or deploy until the owner requests it. Keep `main` integration out of scope for this pass.
 
 ## 6. Cross-phase acceptance gates
 
@@ -359,7 +359,7 @@ Before any implementation PR is considered complete:
 - [ ] Keyboard focus, error announcements, and reduced-motion behaviour are verified for affected flows.
 - [ ] Standalone HTML reports are opened and checked independently of the app.
 - [ ] The active `dev` Pages tree is verified under `/dev/`; keep `main` integration as a later, separately verified task.
-- [ ] The production sitemap includes canonical app/docs URLs and excludes every `/dev/` URL; preview HTML carries `noindex,nofollow`.
+- [ ] The production docs build merges canonical root and `/web/` URLs into the docs sitemap; preview builds omit sitemap output and all dev HTML carries `noindex,nofollow`.
 - [ ] Any unverified browser, screen-reader, financial-source, or bank-contract assumption is explicitly recorded.
 
 ## 7. References
