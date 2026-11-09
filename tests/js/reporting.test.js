@@ -148,7 +148,6 @@ test("report layout, decision accents, maturity colors and chart hover controls 
     account_id: "main", bank_id: "BANK_A", principal: 500, total_interest: 50,
     start: "2026-11-04", end: "2027-11-04", payout_type: "cumulative",
     cash_flows: [{ date: "2027-11-04", amount: 550 }],
-    payout_type: "cumulative", total_interest: 50,
     option: {
       label: "Bank A FD", bank_identity: "BANK_A", annual_rate: 10,
       period_str: "1 year", is_efd: false,
