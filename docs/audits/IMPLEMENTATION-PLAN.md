@@ -369,16 +369,17 @@ Relevant guidance: [Visual Design and Restraint](https://github.com/aaron-fredri
 
 The earlier audit implementation was delivered on this same branch and merged to `dev` through PR #75; the dev preview workflow changes were then merged through PR #80. The owner has directed that follow-up work remain on this working branch until it is ready to ship to `dev`. Keep changes focused, preserve the current `dev` baseline and its tests, and defer `main` integration until explicitly in scope.
 
-Recommended implementation sequence:
+Recommended implementation sequence, reflecting current branch status:
 
-1. **DATA-01 / FIN-03** — implemented on this branch; pending dev shipment.
-3. **ENG-01 / ENG-02** — implemented on this branch with event-window and cross-year day-count regression coverage.
-4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
-5. **UI-01 / UI-02 / UI-03** — implemented on this branch with regression coverage; pending dev shipment and browser/assistive-technology verification.
-6. **WEB-SEC-02** — verify actual HTTP response headers on production and dev; choose a CDN/proxy or hosting migration only if required policy cannot be met on GitHub Pages.
-7. **QA-01 / QA-REP-01** — automated report table/print stress checks are added; complete screen-reader, contrast, 200–400% zoom and full manual print verification.
-8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
-9. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
+1. **QA-REP-01 / QA-01:** clear the standalone report print-width regression and obtain a green full workflow. Keep the long-label 320px browser assertion meaningful.
+2. **SEARCH-03:** add cross-strategy fixtures for eligible bookings, maturity and installment payouts, transfer fees, and liquidity reserved for future obligations. Keep shared runtime settlement authoritative.
+3. **QA-REP-01 / accessibility:** verify offline report operation and chart initialization; complete realistic large-ledger, print/PDF, keyboard, screen-reader, contrast and 200–400% zoom checks.
+4. **DATA-06:** recheck bank source material and populate review/economic-update dates only when evidence supports them. Do not infer dates from commits or schema changes.
+5. **WEB-SEC-02:** inspect actual production/dev response headers and document the GitHub Pages policy boundary. Do not migrate hosting without a separate owner decision.
+6. **SEARCH-02:** keep the staged module decomposition as documentation until parity baselines are complete; then extract one seam at a time.
+7. **Deferred scope:** keep DATA-03 special-product activation, richer DATA-05 transfer-channel modelling, main-branch preview assembler integration and external legal counsel review outside this dev-targeted pass.
+
+
 
 Implement each remediation as a focused, independently testable change on this working branch. Do not merge or deploy until the owner requests it. Keep `main` integration out of scope for this pass.
 
