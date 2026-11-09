@@ -60,3 +60,55 @@ test("unlimited expanded states uses a compact checkbox control", () => {
   assert.match(styles, /#strategy label\.toggle input\[type="checkbox"\]\s*\{[^}]*width:16px/s);
   assert.match(styles, /#strategy label\.toggle input\[type="checkbox"\]\s*\{[^}]*min-height:0/s);
 });
+
+
+test("inline validation errors are programmatically associated and cleaned up safely", () => {
+  assert.match(app, /note\.id="field-error-"\+\(\+\+fieldErrorSequence\)/);
+  assert.match(app, /el\.setAttribute\("aria-describedby",describedBy\.join\(" "\)\)/);
+  assert.match(app, /const noteIds=new Set\(notes\.map\(note=>note\.id\)\.filter\(Boolean\)\)/);
+  assert.match(app, /filter\(id=>id&&!noteIds\.has\(id\)\)/);
+  assert.match(app, /el\.removeAttribute\("aria-describedby"\)/);
+});
+
+
+test("help tips expose accessible names and support pointer, keyboard and touch disclosure", () => {
+  assert.match(page, /<button class="help-tip" type="button" aria-label="Help:/);
+  assert.match(app, /<button class="help-tip" type="button" aria-label="Help:/);
+  assert.doesNotMatch(page, /class="help-tip"[^>]*role="img"/);
+  assert.match(app, /document\.addEventListener\("click",event=>/);
+  assert.match(app, /aria-expanded/);
+  assert.match(app, /event\.key!=="Escape"/);
+  assert.match(styles, /\.help-tip\[aria-expanded="true"\]::after/);
+});
+
+
+test("users can delete the browser-local draft without the form click handler recreating it", () => {
+  assert.match(page, /id="clear-draft"/);
+  assert.match(page, /id="draft-storage-status"/);
+  assert.match(page, /until you clear it/);
+  assert.match(app, /function clearSavedDraft\(event\)/);
+  assert.match(app, /event\.stopPropagation\(\)/);
+  assert.match(app, /window\.confirm\(/);
+  assert.match(app, /localStorage\.removeItem\(STORAGE_KEY\)/);
+  assert.match(app, /addEventListener\("click",clearSavedDraft\)/);
+});
+
+
+test("privacy preferences are persistent, editable, and analytics remains inert until implemented", () => {
+  assert.match(page, /id="privacy-banner"/);
+  assert.match(page, /id="open-privacy-preferences"/);
+  assert.match(page, /id="privacy-analytics"/);
+  assert.match(page, /id="privacy-analytics"[^>]*>/);
+  assert.match(page, /Strictly necessary storage/);
+  assert.match(page, /disabled aria-label="Strictly necessary storage always enabled"/);
+  assert.match(page, /does not currently set its own cookies/);
+  assert.match(app, /fd-cal:privacy-preferences:v1/);
+  assert.match(app, /function readPrivacyPreferences\(\)/);
+  assert.match(app, /function savePrivacyPreferences\(analytics\)/);
+  assert.match(app, /function setupPrivacyControls\(\)/);
+  assert.match(app, /if\(!readPrivacyPreferences\(\)\)banner\.hidden=false/);
+  assert.match(app, /privacy-reject/);
+  assert.match(app, /privacy-save/);
+  assert.match(app, /setupPrivacyControls\(\);\s*init\(\)/);
+  assert.doesNotMatch(app, /gtag\(|google-analytics|googletagmanager|sendBeacon\(/i);
+});

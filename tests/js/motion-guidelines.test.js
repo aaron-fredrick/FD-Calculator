@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { MOTION_TIMING } from "../../src/web/motion.js";
+import { MOTION_TIMING, scrollElementIntoView } from "../../src/web/motion.js";
 
 const [styles, app, html, tokens, packageJson, motionModule] = await Promise.all([
   readFile(new URL("../../src/web/styles.css", import.meta.url), "utf8"),
@@ -56,4 +56,21 @@ test("motion changes preserve brand tokens and add no runtime dependency", () =>
   const pkg = JSON.parse(packageJson);
   assert.equal(pkg.dependencies?.["framer-motion"], undefined);
   assert.equal(pkg.dependencies?.["motion"], undefined);
+});
+
+
+test("programmatic scrolling respects the current reduced-motion preference", () => {
+  const calls = [];
+  const element = { scrollIntoView: options => calls.push(options) };
+
+  scrollElementIntoView(element, { block: "center", getReducedMotion: () => true });
+  scrollElementIntoView(element, { block: "start", getReducedMotion: () => false });
+
+  assert.deepEqual(calls, [
+    { behavior: "auto", block: "center" },
+    { behavior: "smooth", block: "start" }
+  ]);
+  assert.doesNotMatch(app, /\.scrollIntoView\(\{behavior:"smooth"/);
+  assert.match(app, /scrollElementIntoView\(el,\{block:"center"\}\)/);
+  assert.match(app, /scrollElementIntoView\(\$\("results"\)\)/);
 });

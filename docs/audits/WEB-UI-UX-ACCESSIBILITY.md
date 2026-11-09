@@ -6,35 +6,27 @@ Reviewed the browser form structure, account and cash-flow editors, strategy con
 
 ## Findings
 
-### UI-01 — Programmatic smooth scrolling does not respect reduced-motion preference
+### UI-01 — Programmatic scrolling and reduced-motion preference
 
-**Severity: P3**
+**Current status: IMPLEMENTED on this branch; CI passed.** Validation errors, general error feedback and result navigation use the shared `scrollElementIntoView()` helper in `src/web/motion.js`. It checks `prefers-reduced-motion` at the time of each request, selects `behavior: "auto"` for reduced-motion users, and preserves smooth scrolling for other users. The existing reduced-motion CSS rule forces computed `scroll-behavior: auto`.
 
-**Evidence:** [app.js L35](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L35), [app.js L51](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L51), [app.js L124](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L124).
+**Regression coverage:** `tests/js/motion-guidelines.test.js` verifies both preference branches and confirms the app no longer calls smooth `scrollIntoView()` directly.
 
-Validation errors and the result section call `scrollIntoView({ behavior: "smooth" })` directly. The CSS and motion helpers support reduced motion, but these JavaScript calls do not check `prefers-reduced-motion`.
+### UI-02 — Help tooltip content and touch operation
 
-**Impact:** users who request reduced motion can still receive smooth programmatic scrolling during validation or result display.
+**Current status: IMPLEMENTED on this branch; CI passed.** Static and dynamically rendered help markers are native `button type="button"` controls. Their accessible names contain the full help explanation, and `aria-expanded` exposes the disclosure state. Pointer hover and keyboard focus retain the visual tooltip; clicking/tapping toggles it, clicking elsewhere closes it, and Escape dismisses the open tooltip. The focus-visible indicator is retained.
 
-**Recommendation:** centralize scrolling in a helper that uses `matchMedia("(prefers-reduced-motion: reduce)")` and chooses `behavior: "auto"` when reduced motion is enabled. Add a test for both branches.
+**Regression coverage:** `tests/js/web-controls-contract.test.js` checks native button semantics, accessible naming, expanded-state handling, Escape dismissal and the CSS disclosure state.
 
-### UI-02 — Help tooltip content is not exposed as a reliable accessible description
+**Verification boundary:** the Node contract suite does not replace manual keyboard, touch-device or screen-reader verification. Those remain part of browser QA.
 
-**Severity: P3**
+### UI-03 — Inline validation messages and field association
 
-**Evidence:** [app.js L67](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L67) renders the outflow help marker as a focusable `span` with `role="img"`, an aria-label of “Outflow payment policy help”, and tooltip text in a CSS `data-tooltip` pseudo-element.
+**Current status: IMPLEMENTED on this branch; CI passed.** `markField()` now assigns each generated error message a unique ID and adds that ID to the invalid control's `aria-describedby`. `clearFieldErrors()` removes only generated error IDs from existing description lists, preserving unrelated descriptions, then removes the visual error and `aria-invalid` state.
 
-**Impact:** the actual Strict/Defer/Best effort explanation is not programmatically associated with the payment-policy control. A screen reader may announce only a generic “help” image, not the tooltip content.
+**Regression coverage:** `tests/js/web-controls-contract.test.js` verifies generated IDs, field association and safe cleanup.
 
-**Recommendation:** use a real button or a labelled help control with an adjacent element carrying an ID and `role="tooltip"`; connect it with `aria-describedby`. Ensure the explanation can be opened and dismissed with keyboard and touch, not hover alone.
-
-### UI-03 — Inline validation messages are not explicitly associated with their fields
-
-**Evidence:** [app.js L34-L35](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L34-L35) adds `aria-invalid` and appends a visual `small.field-error`, but does not assign the message an ID or add that ID to the field's `aria-describedby`.
-
-**Impact:** focus moves to the invalid field, but assistive technology is not guaranteed to announce the corresponding error message.
-
-**Recommendation:** generate a stable error ID, set `aria-describedby` while the error is present, and restore the prior description when clearing errors. Keep the visible error and `aria-invalid` state.
+**Verification boundary:** real screen-reader announcement and focus order still require browser/assistive-technology verification.
 
 ## Visual and interaction assessment
 
@@ -53,7 +45,7 @@ Validation errors and the result section call `scrollIntoView({ behavior: "smoot
 - No browser screenshot comparison or automated visual-regression suite was found in the repository tests.
 - Contrast has not been measured against WCAG 2.2 AA thresholds; token usage alone does not prove contrast.
 - Screen-reader announcement order, keyboard-only operation, browser zoom at 200–400%, and small viewport overflow were not manually verified.
-- The help tooltip and validation associations above need correction before calling accessibility QA complete.
+- UI-01/02/03 implementation fixes are present on the working branch; full accessibility QA still requires real-browser, keyboard, touch and screen-reader verification.
 - Desktop/mobile layout and all meaningful states should be checked in the new dev preview once deployment succeeds.
 
 ## Required manual state matrix

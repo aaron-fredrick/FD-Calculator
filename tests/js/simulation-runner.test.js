@@ -305,7 +305,9 @@ test("worker task carries catalogue eligibility into report bookings without cha
       label: "Senior 30d", period_str: "30d", annual_rate: 8,
       min_amount: 25000, bank_id: "BANK_A", bank_key: "a",
       customer_segment: "senior", min_age: 60, max_age: 100,
-      min_age_inclusive: false, max_age_inclusive: true, guardian_required: true
+      min_age_inclusive: false, max_age_inclusive: true, guardian_required: true,
+      source_url: "https://bank.example/rates", source_effective_date: "2026-10-01",
+      source_type: "direct", source_notes: "Official published rate table; verify before booking."
     })]
   });
   const result = rehydrateSimulationResult(structuredClone(runSimulationTask(createWorkerPayload(source))), FDOption);
@@ -314,5 +316,9 @@ test("worker task carries catalogue eligibility into report bookings without cha
   assert.equal(result.bookings[0].option.min_age, 60);
   assert.equal(result.bookings[0].option.min_age_inclusive, false);
   assert.equal(result.bookings[0].option.guardian_required, true);
+  assert.equal(result.bookings[0].option.source_url, "https://bank.example/rates");
+  assert.equal(result.bookings[0].option.source_effective_date, "2026-10-01");
+  assert.equal(result.bookings[0].option.source_type, "direct");
+  assert.match(result.bookings[0].option.source_notes, /verify before booking/);
   assert.equal(result.bookings[0].total_interest, result.bookings[0].cash_flows.reduce((sum, flow) => sum + flow.amount, 0) - result.bookings[0].principal);
 });

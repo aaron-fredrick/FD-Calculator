@@ -8,6 +8,8 @@ Reviewed the configuration boundary, account/FD models, interest calculation, ca
 
 ### ENG-01 — Installment cash flows can occur after contractual maturity
 
+**Current status: PARTIAL.** The event-order contract (same-date inflows/FD cash flows, then outflows, then strategy decision) now has a runtime regression test. The installment schedule generator itself remains unchanged; 5m/2m and similar product terms still require bank-contract verification before selecting a date model.
+
 **Severity: P2**
 
 **Evidence:** [src/core/models.js L101-L109](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js#L101-L109).
@@ -19,6 +21,8 @@ The installment branch appends each date generated from the payout interval and 
 **Recommendation:** clamp the final installment date to maturity, or reject unsupported payout/tenor combinations at catalogue load time. Add regression cases for 5m/2m, 5m/6m and exact-divisor schedules. Verify that all generated cash flows satisfy `date <= maturityDate(start)`.
 
 ### ENG-02 — Leap-year calculation is a start-year denominator, not a clearly specified day-count convention
+
+**Current status: PARTIAL.** The audit/plan now documents the exact start-year 365/366 denominator. The financial formula remains unchanged, and representative bank-term verification plus user-facing explanatory copy are still outstanding.
 
 **Severity: P2**
 
@@ -32,6 +36,8 @@ When `actual_leap_year` is enabled, `getYearBaseDays` selects 365 or 366 from th
 
 ### ENG-03 — Financial invariants are mostly distributed across constructors and runtime code
 
+**Current status: OPEN.** No central product-term validation pass has been delivered.
+
 **Evidence:** [config-schema.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/config-schema.js), [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/configuration.js), [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js), [simulation-runtime.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/simulation-runtime.js).
 
 The boundary validation is reasonably strict, but some model invariants still rely on catalogue quality or calling conventions. Examples include positive FD tenor/rate assumptions, the exact meaning of an installment payout schedule, and the selected leap-year/day-count basis. The CSV loader accepts a zero minimum amount and finite but negative rates; the FD model's period parser accepts zero-length periods.
@@ -42,6 +48,8 @@ The boundary validation is reasonably strict, but some model invariants still re
 
 ### ENG-04 — AIT is supplied as a fixed 10% engine assumption
 
+**Current status: OPEN.** AIT remains a fixed engine assumption; versioned tax inputs and product exemptions are not implemented.
+
 **Evidence:** [src/core/configuration.js L207-L213](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/configuration.js#L207-L213).
 
 The validated configuration returns `ait_rate: 0.10`; the input schema exposes only an enable/disable switch, not a rate or effective date.
@@ -51,6 +59,8 @@ The validated configuration returns `ait_rate: 0.10`; the input schema exposes o
 **Recommendation:** make tax assumptions explicit and versioned: rate, effective date, source/reference, applicability and product-level exemptions if supported. At minimum, print the applied AIT rate and an “assumption—verify current tax treatment” note in the report. Do not add tax-exempt catalogue products until the model can enforce their treatment.
 
 ### ENG-05 — The end-value contract is not explicit about outflows
+
+**Current status: COMPLETED in PR #75.** `SimResult` now exposes explicit pre-withdrawal and closing-position getters; see [results.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/results.js) and the reconciliation tests in `tests/js/results.test.js`.
 
 See [Reporting and outputs](REPORTING-OUTPUTS.md#fin-01--final-value-is-not-the-closing-portfolio-value).
 

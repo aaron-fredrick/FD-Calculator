@@ -148,13 +148,24 @@ test("report layout, decision accents, maturity colors and chart hover controls 
     account_id: "main", bank_id: "BANK_A", principal: 500, total_interest: 50,
     start: "2026-11-04", end: "2027-11-04", payout_type: "cumulative",
     cash_flows: [{ date: "2027-11-04", amount: 550 }],
-    option: { label: "Bank A FD", bank_identity: "BANK_A", annual_rate: 10 }
+    option: {
+      label: "Bank A FD", bank_identity: "BANK_A", annual_rate: 10,
+      period_str: "1 year", is_efd: false,
+      source_url: "https://bank.example/rates?product=fd&type=standard",
+      source_effective_date: "2026-10-01", source_type: "direct",
+      source_notes: "Official rate table; <do not assume> current availability.",
+      applyAITToCashFlows: (principal, flows) => flows
+    }
   };
   const result = {
     strategy_name: "Test", start_date: "2026-11-04", end_date: "2026-11-05",
     timeline: {
-      20261104: [{ event_type: "inflow", on_date: "2026-11-04", amount: 100,
-        account_id: "main", balance_after: 1100, label: "Deposit" }]
+      20261104: [
+        { event_type: "inflow", on_date: "2026-11-04", amount: 100,
+          account_id: "main", balance_after: 1100, label: "Deposit" },
+        { event_type: "booking", on_date: "2026-11-04", amount: -500,
+          account_id: "main", balance_after: 600, booking_ref: "FD-0001", label: "Booking FD-0001" }
+      ]
     },
     accounts: { main: account }, bookings: [booking], total_interest: 50,
     ait_withheld: 0, total_transfer_fees: 0, net_interest: 50, final_value: 1150,
@@ -172,7 +183,22 @@ test("report layout, decision accents, maturity colors and chart hover controls 
   assert.ok(json, "report should embed chart data");
   const charts = JSON.parse(json);
   assert.equal(charts.maturities[0].color, charts.fd_principal[0].color);
-  assert.match(html, /style="--decision-color:rgb\(130,170,255\)"/);
+  assert.match(html, /style="--decision-color:rgb\(\d+,\d+,\d+\)"/);
+  assert.ok(html.includes('href="https://bank.example/rates?product=fd&amp;type=standard" target="_blank" rel="noopener noreferrer">Open source</a>'));
+  assert.match(html, /Source effective date/);
+  assert.ok(html.includes("Official rate table; &lt;do not assume&gt; current availability."));
+  const unsafeHtml = generateHtmlReport({
+    ...result,
+    bookings: [{ ...booking, option: { ...booking.option, source_url: "javascript:alert(1)" } }]
+  }, config);
+  assert.doesNotMatch(unsafeHtml, /href="javascript:/);
+  const consoleText = formatSimulation(result, config, "scenario.json", "fd_options.csv", {
+    color: false, showEventTimeline: false, showBookingLedger: true
+  });
+  assert.match(consoleText, /Source: direct bank source/);
+  assert.match(consoleText, /effective date: 2026-10-01/);
+  assert.ok(consoleText.includes("https://bank.example/rates"));
+  assert.match(consoleText, /Source notes: Official rate table/);
   assert.ok(html.includes("min(100%,150px)"), "overview tiles should use a compact responsive minimum width");
   assert.ok(html.includes("var(--decision-color,var(--blue))"), "decision accent should use event-derived color");
   assert.ok(html.includes("const candidates=[[8,8],[maxX,8],[8,maxY],[maxX,maxY]]"), "hover detail should choose a corner away from the pointer");

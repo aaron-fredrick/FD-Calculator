@@ -2,6 +2,8 @@
 
 ## SEC-01 — Imported account IDs are interpolated into HTML without escaping
 
+**Current status: COMPLETED in PR #75.** The account-card `data-id`, radio `value` and remove-button attribute now pass IDs through the shared HTML encoder. The ID itself is not restricted, preserving import compatibility. See `src/web/escape-html.js`, `src/web/app.js` and the adversarial security regression tests.
+
 **Severity: P1**
 
 **Evidence:**
@@ -28,17 +30,37 @@
 - The browser app uses a local static catalogue and does not require a backend account/session service.
 - No third-party analytics, advertising pixels or session-replay scripts were identified in the reviewed web template.
 
-## PRIV-01 — Local scenario drafts persist without an in-app clear/retention control
+## PRIV-01 — Local scenario draft deletion and retention
 
-**Evidence:** [app.js L10](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L10) defines a localStorage draft key; [app.js L89-L90](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L89-L90) saves and restores the scenario.
+**Current status: IMPLEMENTED on this branch; CI passed.** The UI states that draft data is stored only in the current browser until the user clears it. A visible `Clear saved draft` button requests confirmation and removes the `fd-cal:draft:v1` localStorage entry. The current form remains in the active tab; the status message explains that editing it will create a new saved draft. The click handler stops propagation so the surrounding form click-to-save handler cannot immediately recreate the deleted entry.
 
-**Impact:** account labels, balances, inflow/outflow schedules and other personal planning data remain in browser storage until overwritten or manually cleared through browser controls. The app accurately says the draft stays in the browser, but users are not given a clear in-app deletion path or retention explanation.
+**Evidence:** [draft save/restore/clear logic](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js), [retention notice and control](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/index.html), [privacy regression contract](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/tests/js/web-controls-contract.test.js).
 
-**Recommendation:** add a visible “Clear saved draft” action with confirmation; explain that drafts remain in this browser profile until cleared. Keep export/import local and avoid transmitting scenario data. Do not add analytics or replay tools without a separate privacy review.
+**Boundary:** this control deletes FD Cal's saved draft key only. It does not clear browser history, downloads, exported JSON files, other sites' storage, or the currently displayed in-memory form. No scenario data transmission or analytics was added.
 
-## WEB-SEC-02 — Static hosting still needs an explicit security-header strategy
+**Acceptance:** met on this branch. Retention is explained; deletion is user-initiated and confirmed; the deleted draft is not re-saved by the same click. CI passed; pending shipment to `dev`.
 
-GitHub Pages does not provide arbitrary per-route response headers through a repository file in the same way as a configurable origin server. The reviewed app should therefore document which controls are available at the hosting layer and avoid claiming that a `robots.txt` file is a security boundary. If a stronger Content-Security-Policy, Referrer-Policy or Permissions-Policy is required, use a hosting layer that can emit those headers or an accurately tested meta-policy where suitable. A CSP meta element is not equivalent to a full response header and has limitations.
+
+## WEB-SEC-02 — Static hosting needs an explicit security-header strategy
+
+**Current status: OPEN / hosting constraint documented.** FD Cal is published on GitHub.com Pages. The repository's static build and Pages artifact do not provide a configurable origin-server response-header policy. No verified response-header set for the production or dev origin has been established in this audit.
+
+**Verified platform boundary:**
+- GitHub describes Pages as a static hosting service that publishes HTML, CSS and JavaScript from a repository: [GitHub Pages overview](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages).
+- GitHub's Pages documentation states that custom MIME types cannot be configured per file or repository: [Creating a GitHub Pages site](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site).
+- GitHub Enterprise Server has a separate administrator-level response-header configuration in its Management Console; that is not a setting available to this GitHub.com Pages repository: [GitHub Enterprise Server response headers](https://docs.github.com/en/enterprise-server@latest/admin/configuring-settings/configuring-user-applications-for-your-enterprise/configuring-github-pages-for-your-enterprise).
+
+Do not treat a `_headers` file or workflow-generated artifact as proof that GitHub.com Pages emits custom response headers. Verify actual origin responses before recording any header as deployed.
+
+**Controls and decision:**
+1. Keep all application assets same-origin and avoid adding third-party scripts, analytics or session replay without a separate review.
+2. Keep the existing escaping, safe-link handling, noindex and crawler controls. They address different risks and are not substitutes for response headers.
+3. If policy requires enforceable `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options` / `frame-ancestors`, or `Permissions-Policy`, put a CDN/reverse proxy or a host with response-header configuration in front of Pages, or migrate hosting.
+4. Meta policies may provide limited defence-in-depth for supported directives, but they cannot fully replace response headers (for example, a CSP meta policy cannot enforce `frame-ancestors`).
+5. Before closing this finding, capture `curl -I` evidence for production and dev origins and compare the returned headers against an approved policy. Do not claim a header is present based on repository configuration alone.
+
+**Acceptance:** a hosting-layer decision is recorded, required headers are verified from actual HTTP responses, and the policy is tested on both production and `/dev/` paths. No hosting migration or security-header deployment is included in this branch.
+
 
 ## Privacy assessment
 
@@ -47,3 +69,18 @@ GitHub Pages does not provide arbitrary per-route response headers through a rep
 - The standalone report is generated client-side and can be saved as a local HTML file.
 - No remote analytics or session replay was found in the reviewed source.
 - A concise privacy notice should explain local storage, file import/export, local report generation, network requests for static catalogue assets, and how to clear saved data. Avoid generic legal boilerplate that does not match the actual product.
+
+
+## PRIV-02 — Public privacy notice, terms and preference management
+
+**Current status: IMPLEMENTED on this branch; CI validation pending.**
+
+- Added public Privacy Policy and Terms & Conditions pages under the web application.
+- Added a first-visit privacy banner. A saved preference suppresses the banner on subsequent visits.
+- Added a footer control so users can reopen and change their preferences.
+- Necessary browser storage is displayed as always enabled. FD Cal currently uses local storage rather than setting its own cookies; the UI and policy distinguish these accurately.
+- Optional analytics preference is stored locally but is not connected to any analytics provider or tracking code. Selecting it does not enable collection. Any future analytics integration must identify its provider and data practices and honour the saved preference before sending optional analytics requests.
+- The legal pages explain local scenario processing, the local draft's indefinite retention until user deletion/browser clearing, in-memory worker execution, client-generated reports and exports, static asset requests, hosting-layer request logs, and the absence of a current FD Cal analytics integration.
+- The production sitemap includes both legal pages; the web build copies them with the application assets.
+
+**Verification boundary:** this is a product-accurate informational notice based on the current repository implementation, not a legal opinion. Operator identity/contact details and applicable jurisdictional language should be reviewed before production publication. Browser-level visual and keyboard testing remains required.

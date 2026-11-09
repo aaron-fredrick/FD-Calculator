@@ -89,6 +89,7 @@ test("component build scripts consume generated data without fingerprint publica
 test("dev preview publishes web and docs independently and remains path-isolated", () => {
   const pages = read(".github/workflows/pages.yml");
   const web = read(".github/workflows/dev-web-pages.yml");
+  const webBuild = read("scripts/build-web-site.sh");
   const docs = read(".github/workflows/dev-docs-pages.yml");
 
   assert.match(pages, /dev_pages-preview-artifact/);
@@ -104,6 +105,8 @@ test("dev preview publishes web and docs independently and remains path-isolated
   assert.match(web, /name: dev_web-site/);
   assert.match(web, /dev_pages-web-artifact/);
   assert.match(web, /noindex,nofollow/);
+  assert.match(webBuild, /web\/privacy\.html/);
+  assert.match(webBuild, /web\/terms\.html/);
   assert.doesNotMatch(web, /strategy-sensitivity\.js|gaml-sensitivity\.js|docs\/strategies\/benchmarks/);
 
   assert.match(docs, /branches: \[dev\]/);
@@ -120,4 +123,21 @@ test("dev preview publishes web and docs independently and remains path-isolated
   assert.match(docs, /Refresh the combined dev preview compatibility artifact/);
   assert.doesNotMatch(web, /needs\.publish\.outputs\.published/);
   assert.doesNotMatch(docs, /needs\.publish\.outputs\.published/);
+});
+
+
+test("production sitemap includes canonical app routes and excludes preview output", () => {
+  const docs = read("scripts/build-docs-site.sh");
+  const robots = read("robots.txt");
+
+  assert.match(docs, /FD_CAL_PREVIEW:-false.*!=.*true/);
+  assert.match(docs, /https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\//);
+  assert.match(docs, /https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\/web\//);
+  assert.match(docs, /https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\/web\/privacy\.html/);
+  assert.match(docs, /https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\/web\/terms\.html/);
+  assert.match(docs, /cp site\/sitemap\.xml/);
+  assert.match(docs, /rm -f "\$output_dir\/docs\/sitemap\.xml"/);
+  assert.match(robots, /^Allow: \/$/m);
+  assert.doesNotMatch(robots, /^Disallow: \/FD-Calculator\/dev\/$/m);
+  assert.match(robots, /^Sitemap: https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\/sitemap\.xml$/m);
 });

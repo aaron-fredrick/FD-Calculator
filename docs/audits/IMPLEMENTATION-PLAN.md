@@ -1,10 +1,10 @@
 # FD Cal — implementation plan from the engineering audit
 
 **Plan date:** 9 November 2026  
-**Audited source:** `dev` at `a455462a959f37db757970d0a3078a4d9a3ef028`  
+**Re-audited source:** `dev` at `caccaf26b4415ae783959e888ff45e33becdadf6`  
 **Working branch:** `audit/rulesets-codebase-review`  
-**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS)  
-**Status:** Owner feedback incorporated; planning only. No application code or financial behaviour has been changed.
+**Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`  
+**Status:** Re-audited after PRs #75 and #80. Core remediations are already merged to `dev`; this plan now distinguishes completed implementation, partial work, open findings and deferred owner decisions. The audit record is updated alongside focused implementation fixes on this working branch.
 
 ## 1. Purpose and constraints
 
@@ -31,27 +31,36 @@ No phase may:
 
 Before implementation, capture deterministic baseline outputs for representative scenarios and record the audited source SHA. For engine/search changes, compare booking decisions, cash-flow dates and amounts, ending account balances, paid and outstanding outflows, fees, AIT, result metrics, validity, and optimality diagnostics. Run repeated same-runner timing measurements as well as output comparisons.
 
-## 2. Owner feedback and finding disposition
+## 2. Owner feedback and current finding disposition
 
-| Finding | Disposition | Plan |
+| Finding | Current status | Evidence / remaining work |
 |---|---|---|
-| **SEC-01** | Accepted — P1 | Fix unsafe account-ID rendering and audit adjacent selector/attribute use. Preserve valid imported IDs. |
-| **FIN-01** | Accepted — P1 | Correct result semantics and UI/report labels. Outflows already participate in runtime and search; do not reimplement them inside individual strategies. |
-| **ENG-01** | Clarify before changing — P2 | Preserve the date-boundary ordering: cash inflows and FD cash flows first, due outflows second, strategy decision third. Do not blindly clamp installment dates; confirm product payout semantics separately. |
-| **ENG-02** | Accepted as an explicit convention to document — P2 | Keep the current elapsed-day calculation and start-date year-base behaviour for now. Verify against representative bank terms before changing the formula. |
-| **SEARCH-01** | Accepted — P2 | Add finite browser defaults for expanded-state and elapsed-time budgets, with explicit unlimited controls. Preserve partial-result/optimality diagnostics. |
-| **DATA-01** | Accepted — P2 | Add per-bank dataset review/update dates, expose selected-bank status/date, and show a clear catalogue disclaimer. Keep source effective date distinct. |
-| **DATA-02** | Closed as intended scope | Senior/minor controls remain candidate-product inclusion filters, not depositor eligibility verification. Keep the existing disclosure; do not add age/guardian onboarding as part of this work. |
-| **DATA-03** | Deferred — owner decision required | No model extension or product activation until the owner clarifies which special-product constraints should be supported. |
-| **DEPLOY-01** | Accepted — P2 | Make the production Pages assembler preserve the public `/dev/` subtree on every normal deployment. |
-| **DATA-04** | Accepted — P3 | Harden CSV structural validation after inventorying all current catalogue files and preserving valid CSV behaviour. |
-| **UI-01** | Accepted — P3 | Route programmatic scrolling through a reduced-motion-aware helper. Preserve normal-motion behaviour and existing transitions. |
-| **QA-01** | Deferred — owner decision required | The finding means there is no automated real-browser end-to-end suite. Decide later whether to introduce Playwright or keep browser checks manual/smoke-only. |
+| **SEC-01** | **Completed — PR #75** | Imported account IDs are encoded at all three account-card attribute sinks; adversarial regression coverage is present. |
+| **FIN-01** | **Completed — PR #75** | Explicit pre-withdrawal and closing-position metrics are exposed in the result model, UI and report; paid/deferred outflow reconciliation is tested. |
+| **FIN-02** | **Completed — PR #75** | The metric is labelled “Capital contributed”, not “Capital invested”. |
+| **FIN-03 / DATA-01** | **Implemented on this branch; CI passed** | Product source URL, effective date, source type and notes are loaded by web/CLI paths, restored after worker execution, and displayed in HTML and console reports. Missing dates are labelled not recorded. Pending dev shipment. |
+| **ENG-01** | **Partial** | Runtime event ordering is regression-tested. Installment payment dates can still extend beyond nominal maturity; verify contractual terms before changing the schedule model. |
+| **ENG-02** | **Partial** | The start-year 365/366 denominator is documented here. Formula remains unchanged; representative bank-term verification and user-facing explanation remain. |
+| **ENG-03 / ENG-04** | **Open** | Central product-term invariants and versioned AIT assumptions are not implemented. |
+| **SEARCH-01** | **Implemented — PR #75** | Browser defaults are 10,000 expanded states / 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, watchdog, cancellation and diagnostics. Benchmark calibration remains. |
+| **SEARCH-02 / SEARCH-03** | **Open / ongoing control** | Large modules remain; existing parity/replay tests are positive controls, but new financial rules need cross-strategy parity fixtures. |
+| **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
+| **DATA-03** | **Deferred** | Keep special products with unenforced caps/tax/eligibility constraints out of the active catalogue until the owner defines the supported scope. |
+| **DEPLOY-01** | **Completed on `dev` — PR #80** | Independent dev web/docs publishers and dev-side assembly publish a working preview under `/dev/`. Porting the assembler to `main` is deferred until main-branch work begins. |
+| **DATA-04** | **Implemented on this branch; CI passed** | All 33 catalogue CSVs are inventoried; 93 rows with unquoted comma-containing metadata were repaired across three files; parser enforces strict quotes and exact row width with source/line diagnostics. Pending dev shipment. |
+| **UI-01** | **Implemented on this branch; pending dev shipment** | A shared scroll helper checks the current reduced-motion preference and selects non-animated or smooth scrolling accordingly; unit tests cover both branches. |
+| **UI-02 / UI-03** | **Implemented on this branch; CI passed** | Help controls are native disclosure buttons with accessible names and touch/keyboard operation; generated field errors are associated through `aria-describedby` and cleaned up without removing unrelated descriptions. Pending dev shipment. |
+| **PRIV-01** | **Implemented on this branch; CI passed** | Browser-local retention is disclosed; a confirmation-protected action removes the saved draft without re-saving it from the form click handler. Pending dev shipment. |
+| **WEB-SEC-02** | **Open — hosting decision required** | GitHub.com Pages does not provide a repository-controlled response-header policy. The boundary and options are documented; verify actual production/dev response headers and decide whether a CDN/proxy or hosting migration is justified. |
+| **QA-01** | **Deferred — owner decision required** | Decide whether to introduce Playwright smoke coverage or retain manual browser verification. |
+| **QA-REP-01** | **Open** | The downloaded standalone report has not been independently verified in a real browser. |
+| **DATA-05 / DATA-06** | **Open / partial** | Transfer-channel modelling remains out of scope; freshness/source warnings are only partially surfaced. |
 
 ## 3. Detailed workstreams
 
 ### Phase 1 — SEC-01: imported account-ID rendering
 
+**Status:** **Completed** Implemented and merged to `dev` in PR #75; adversarial regression coverage is included.  
 **Priority:** P1  
 **Primary boundary:** JSON import → configuration validation → account model → DOM rendering.
 
@@ -84,6 +93,7 @@ There are also adjacent uses where IDs are inserted into CSS selector strings du
 
 ### Phase 2 — FIN-01: separate portfolio value from closing position
 
+**Status:** **Completed** Explicit result semantics, UI/report labels and reconciliation tests are merged to `dev` in PR #75.  
 **Priority:** P1  
 **Primary boundary:** result model → strategy objective contract → UI/report presentation.
 
@@ -138,6 +148,7 @@ Do not redefine `final_value` in place. It is used outside the display layer, in
 
 ### Phase 3 — ENG-01 and ENG-02: clarify financial timing conventions
 
+**Status:** **Partial** Event-order regression coverage and the start-year denominator explanation are present; installment contract validation and bank-term verification remain. No financial formula or payout date was changed.  
 **Priority:** P2  
 **Primary boundary:** FD product terms → cash-flow model → date/interest calculation.
 
@@ -166,6 +177,7 @@ Owner feedback indicates that the intended approach is a relative elapsed-day de
 
 ### Phase 4 — SEARCH-01: bounded browser search with explicit unlimited mode
 
+**Status:** **Implemented** Browser defaults, cooperative stopping, watchdog, cancellation and regression tests are merged to `dev` in PR #75. Benchmark calibration remains a follow-up gate.  
 **Priority:** P2  
 **Primary boundary:** configuration → search loop → worker lifecycle → UI diagnostics.
 
@@ -199,6 +211,7 @@ Absolute R+ currently defaults `max_decisions` to `null`; the browser leaves the
 
 ### Phase 5 — DATA-01: catalogue freshness and source disclosure
 
+**Status:** **Implemented on this branch; CI passed.** Bank-level review dates/status remain visible; product URL, effective date, source type and notes are propagated through web and CLI loaders, worker booking snapshots, and both report formats. Pending shipment to `dev`.  
 **Priority:** P2  
 **Primary boundary:** bank/product index → bank selector → result/report disclosure.
 
@@ -230,63 +243,63 @@ Do not invent dates for old rows. Backfill only when Git history or research not
 - Confirm the report contains the same source status/date as the catalogue snapshot used by the simulation.
 - Ensure catalogue metadata changes do not alter booking decisions, interest, fees, or strategy fingerprints unless the calculation-relevant product terms changed.
 
-### Phase 6 — DEPLOY-01: preserve the public dev preview on production deployments
+### Phase 6 — DEPLOY-01: publish and preserve the dev preview on the active dev delivery path
 
+**Status:** **Completed on `dev` in PR #80.** Separate dev web and documentation publishers produce `dev_pages-web-artifact` and `dev_pages-docs-artifact`; the dev Pages assembler composes them beneath `site/dev/` and validates the expected preview entry points. The user has confirmed that the merged dev preview works.  
 **Priority:** P2  
-**Primary boundary:** artifact branches → Pages assembly → public site.
+**Primary boundary:** dev component artifacts → Pages assembly → `/FD-Calculator/dev/`.
 
-The dev preview is intended to be publicly accessible so users and contributors can verify work. It is not a temporary developer-only path. Every normal production deployment must preserve the current preview at `/dev/`.
+The current delivery target is `dev`. Do not block this work on changes to `main`. The dev branch's assembler includes the preview components and shares the Pages deployment concurrency group. Persistent preview artifact/state branches use the `dev_` prefix. The root `robots.txt` allows crawlers to fetch preview pages so search engines can observe the generated `noindex,nofollow` directives; preview URLs are excluded from sitemap output.
 
-#### Implementation plan
+**Completed acceptance evidence:**
+1. Dev web and docs publishing are independent, so a web-only change does not wait for benchmark/documentation generation.
+2. The dev assembler extracts the independently published dev components into `site/dev/` and checks for `index.html`, `web/index.html` and `docs/index.html`.
+3. Dev output is built with `FD_CAL_PREVIEW=true`, path-prefixed URLs and a visible preview banner.
+4. Dev HTML receives `noindex,nofollow`; the root `robots.txt` does not block crawling, allowing search engines to process the noindex directive. Preview URLs are omitted from sitemap output.
+5. The user confirmed the merged dev preview is functioning.
 
-1. Port the preview-aware Pages assembler to `main`; do not rely on the dev branch's workflow alone.
-2. Keep the production web/docs artifact refs and dev preview artifact ref independent. Preserve the established `dev_` prefix on persistent dev branches/artifact-state refs.
-3. During assembly, extract production web and docs artifacts first, then extract the dev artifact into `site/dev/` last so root artifacts cannot overwrite the preview subtree.
-4. Keep the shared Pages deployment concurrency group. Production and dev publishes must remain serialized because they deploy one assembled Pages tree.
-5. If the current dev artifact is temporarily unavailable, preserve the last successfully published dev subtree from a known-good baseline rather than silently deleting `/dev/`. Removal should require an explicit, reviewed action.
-6. Keep noindex/canonical metadata and dev-preview banner confined to the dev build. Production root output must remain unchanged by the dev build.
-7. Add deployment contract checks that assert the production root files are unchanged, `/dev/`, `/dev/web/`, and `/dev/docs/` exist, and the preview assets/data/worker URLs resolve under the dev prefix.
-8. Test both directions: a dev publish must preserve production; a main publish must preserve the latest dev preview.
+**Deferred, not a current blocker:** when work moves to `main`, port the preview-aware assembler and verify that a normal production deployment preserves the latest dev subtree. Do not make or audit that main-branch change in this phase.
 
-**Acceptance:** routine main and dev deployments both publish the same composed site without deleting or overwriting either component.
+**Acceptance for current scope:** the active `dev` pipeline can independently publish web/docs components and compose a working preview under `/dev/` without modifying production component artifacts.
 
 ### Phase 7 — DATA-04: strict CSV structural validation
 
+**Status:** **Implemented on this branch; CI passed.** Pending shipment to `dev`.  
 **Priority:** P3  
 **Primary boundary:** CSV text → parsed row objects → catalogue loaders.
 
-The current parser rejects unterminated quoted fields and duplicate/empty headers, but maps each data row to the header list using `values[i] ?? ""`. That silently fills missing columns with empty strings and ignores surplus columns. It also needs explicit tests for invalid quote placement and characters after a closing quote.
+The previous parser silently filled missing columns and ignored surplus fields. The strict parser now uses explicit field/quoted/after-quote states, rejects malformed quote placement and mismatched row widths, and reports the source and physical line number. The inventory identified 93 rows with unquoted comma-containing metadata in three files; those values were repaired and correctly quoted before strict validation was enabled.
 
 #### Implementation plan
 
-1. Inventory every current CSV in `data/` and record its header count, row count, empty-line patterns, and any intentional empty trailing fields before enforcing strict row width.
-2. Confirm the parser's supported dialect from the repository data: UTF-8 BOM, CRLF/LF, quoted commas, escaped quotes, multiline quoted values, and trailing empty columns.
-3. Implement a small explicit parser state machine with clear states for unquoted, quoted, and after-closing-quote input. Reject malformed quote placement and unexpected characters after a closing quote.
-4. Require each non-blank data row to have exactly the header field count. Preserve legitimate empty cells; do not silently discard surplus values.
-5. Include source filename and physical/logical row context in errors. Keep the generic parser reusable by both browser and CLI loaders; pass source context from the loader rather than hard-coding file paths into the parser.
-6. Decide and test how fully blank lines are treated; do not accidentally treat a row containing the required number of empty fields as a blank line.
-7. Add fixtures for short rows, long rows, embedded commas, escaped quotes, multiline notes, CRLF, BOM, empty final fields, malformed quotes, and blank lines.
-8. Run the full catalogue inventory and all Node tests before accepting the stricter parser.
+1. Inventory all 33 checked-in CSV files, including headers, row counts, empty files and row-width anomalies.
+2. Repair the 93 affected rows in `banks.csv`, Commercial Bank's product file and DFCC's product file by quoting comma-containing metadata without changing its meaning.
+3. Implement strict field/quoted/after-quote parser states; reject malformed quote placement, unterminated fields, unexpected post-quote characters and row-width mismatches.
+4. Preserve UTF-8 BOM, LF/CRLF, quoted commas, escaped quotes, multiline fields, trailing empty cells and the existing blank-line policy.
+5. Pass source path from the web catalogue loader so errors identify the file and physical line.
+6. Add parser fixtures and an inventory regression test that parses every CSV under `data/`, plus assertions that fee-source URLs and product notes remain in their intended fields.
+7. Run the complete Node suite, syntax checks, web build and documentation-preservation build.
 
-**Acceptance:** malformed rows fail loudly with actionable file/row errors; every current production CSV parses without data loss or accidental rejection.
+**Acceptance:** met on this branch. Malformed rows fail with actionable source/line errors; all 33 current production CSVs parse under the strict grammar without field shifts or data loss. CI passed; pending dev shipment.
 
 ### Phase 8 — UI-01: reduced-motion-aware programmatic scrolling
 
+**Status:** **Implemented on this branch; CI passed.** Pending shipment to `dev`.  
 **Priority:** P3  
 **Primary boundary:** validation/result feedback → browser scrolling behaviour.
 
-The web app has direct smooth-scroll calls when focusing validation errors and when navigating to result/error areas. These bypass the reduced-motion handling already used by the CSS/motion helpers.
+Validation errors, general error feedback and result navigation now use `scrollElementIntoView()` from `src/web/motion.js`. The helper evaluates `prefers-reduced-motion` when each scroll is requested, rather than caching the preference at page load.
 
-W3C documents a JavaScript technique for evaluating `prefers-reduced-motion` (SCR40), and MDN documents the media feature and `scrollIntoView()` behaviour. In particular, `behavior: "auto"` follows computed CSS `scroll-behavior`; if global CSS still says smooth, merely switching JavaScript to `auto` may not remove the animation. Use a central helper and make the reduced-motion path explicitly non-animated, with a CSS fallback for the document scroll container. [W3C SCR40](https://www.w3.org/WAI/WCAG22/Techniques/client-side-script/SCR40) · [MDN prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion) · [MDN scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView).
+W3C documents a JavaScript technique for evaluating `prefers-reduced-motion` (SCR40), and MDN documents the media feature and `scrollIntoView()` behaviour. The helper selects `behavior: "auto"` for reduced-motion users; the existing global reduced-motion CSS rule also forces computed `scroll-behavior: auto`, preventing CSS from reintroducing smooth animation. Normal-motion users retain the original smooth scrolling. [W3C SCR40](https://www.w3.org/WAI/WCAG22/Techniques/client-side-script/SCR40) · [MDN prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion) · [MDN scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView).
 
 #### Implementation plan
 
-1. Add one small helper for programmatic scroll requests; replace the direct smooth-scroll calls in validation and result/error navigation.
-2. Read `matchMedia("(prefers-reduced-motion: reduce)")` at the time of the request so a preference change during the session is respected.
-3. In normal mode, preserve the current smooth scroll and alignment.
-4. In reduced mode, use an explicitly non-animated scroll path and ensure CSS `scroll-behavior` cannot reintroduce smooth scrolling.
-5. Keep focus behaviour and error association independent from the scroll animation. Reduced motion must not suppress focus or hide the error.
-6. Test both preference branches, including a runtime preference change if practical. Verify keyboard focus, validation announcement, and result navigation remain unchanged.
+1. Added `scrollElementIntoView()` as the shared programmatic scroll helper.
+2. The helper evaluates `matchMedia("(prefers-reduced-motion: reduce)")` at request time so preference changes during the session are respected.
+3. Normal mode preserves smooth scrolling and the original alignment (`center` for errors, `start` for results).
+4. Reduced mode selects `behavior: "auto"`; the existing reduced-motion CSS rule forces the document scroll behaviour to be non-animated.
+5. Existing focus behaviour remains independent: invalid controls still receive focus with `preventScroll` before the explicit scroll.
+6. Unit tests verify both preference branches and assert that the app no longer calls smooth `scrollIntoView` directly.
 
 This is a targeted accessibility correction, not a motion redesign. Keep existing entrance/exit transitions and motion timing rules intact; only remove the non-essential scroll animation when requested.
 
@@ -317,20 +330,20 @@ Relevant guidance: [Visual Design and Restraint](https://github.com/aaron-fredri
 
 ## 5. Delivery order and branch strategy
 
-The audit branch remains documentation-only. Do not implement application changes directly on `audit/rulesets-codebase-review`.
+The earlier audit implementation was delivered on this same branch and merged to `dev` through PR #75; the dev preview workflow changes were then merged through PR #80. The owner has directed that follow-up work remain on this working branch until it is ready to ship to `dev`. Keep changes focused, preserve the current `dev` baseline and its tests, and defer `main` integration until explicitly in scope.
 
 Recommended implementation sequence:
 
-1. **SEC-01** — isolated security fix and adversarial import tests.
-2. **FIN-01** — result contract and presentation correction, with strategy scoring frozen and reconciled.
-3. **ENG-01/ENG-02** — only after payout-term and day-count assumptions are documented; keep this separate from FIN-01.
-4. **SEARCH-01** — configuration, search deadline, worker watchdog, cancellation, diagnostics, and benchmark matrix.
-5. **DATA-01** — catalogue metadata, selected-bank disclosure, and report disclaimer.
-6. **DEPLOY-01** — production Pages assembler preservation, tested against both production and dev artifacts.
-7. **DATA-04** — strict CSV parser after current-data inventory.
-8. **UI-01** — targeted reduced-motion scroll helper.
+1. **DATA-01 / FIN-03** — implemented on this branch; pending dev shipment.
+3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
+4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
+5. **UI-01 / UI-02 / UI-03** — implemented on this branch with regression coverage; pending dev shipment and browser/assistive-technology verification.
+6. **WEB-SEC-02** — verify actual HTTP response headers on production and dev; choose a CDN/proxy or hosting migration only if required policy cannot be met on GitHub Pages.
+7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
+8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
+9. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
 
-Each implementation should be a focused branch from the current `dev` baseline, with its own tests and review. Merge only after its acceptance criteria pass. Rebase/update from `dev` as needed; do not merge this audit branch wholesale into `main` merely to publish the plan.
+Implement each remediation as a focused, independently testable change on this working branch. Do not merge or deploy until the owner requests it. Keep `main` integration out of scope for this pass.
 
 ## 6. Cross-phase acceptance gates
 
@@ -345,7 +358,8 @@ Before any implementation PR is considered complete:
 - [ ] UI is inspected at narrow mobile, tablet, and desktop viewports.
 - [ ] Keyboard focus, error announcements, and reduced-motion behaviour are verified for affected flows.
 - [ ] Standalone HTML reports are opened and checked independently of the app.
-- [ ] Production and dev Pages trees are both verified after deployment-related changes.
+- [ ] The active `dev` Pages tree is verified under `/dev/`; keep `main` integration as a later, separately verified task.
+- [ ] The production docs build merges canonical root and `/web/` URLs into the docs sitemap; preview builds omit sitemap output and all dev HTML carries `noindex,nofollow`.
 - [ ] Any unverified browser, screen-reader, financial-source, or bank-contract assumption is explicitly recorded.
 
 ## 7. References

@@ -1,21 +1,22 @@
 # Data catalogue and financial assumptions audit
 
-## DATA-01 — Product-source provenance is not visible in the user-facing workflow
+## DATA-01 — Product-source provenance in the user-facing workflow
 
-**Severity: P2**
+**Current status: IMPLEMENTED on this branch; CI passed.** Bank-level `research_status` and `dataset_reviewed_at` remain visible beside the bank selector and in the generated report. Product-level `source_url`, `source_effective_date`, `source_type` and source notes now flow from CSV rows through both web and CLI loaders, the `FDOption` metadata fields, worker booking snapshots and report generation. Source metadata is non-economic: it does not enter the financial economic-terms key or strategy decision logic.
 
-**Evidence:**
-- [fd_options.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/data/fd_options/fd_options.csv) contains `research_status` and `research_notes`.
-- Per-bank product CSVs contain `source_url`, `source_effective_date`, `source_type` and notes.
-- [app.js L57-L61](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L57-L61) uses the index status to disable only banks with `no_public_rate_verified`; it does not display the remaining source status or notes.
-- [app.js L78](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L78) constructs FDOption objects from the product terms but does not retain source URL, effective date or research metadata.
-- [data-loader.js L11](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/io/data-loader.js#L11) likewise maps the simulation terms into FDOption without source provenance.
+**Report behaviour:**
+- HTML booking instructions show source type, effective date and an HTTPS-only source link.
+- Product caveats/notes are available in a collapsible source-notes section and are HTML-escaped.
+- CLI booking ledger prints source type, effective date, HTTPS-only source URL and notes.
+- Missing effective dates or invalid/non-HTTPS source URLs are labelled not recorded rather than treated as verified.
 
-**Impact:** products backed by a direct official schedule, a secondary compilation, or a source with no effective date can appear as equivalent options. The catalogue's internal research notes already distinguish these cases, but users cannot assess the evidence quality at the point of comparison.
+**Implementation:** [FDOption metadata](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/core/models.js), [web loader](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js), [CLI loader](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/io/data-loader.js), [worker metadata restoration](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/simulation-task.js), [HTML report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/html.js), [console report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/console.js).
 
-**Recommendation:** add a separate immutable provenance object to each product, not financial calculation fields. Show source type, source link, effective date (or “not published”), last-reviewed date and research caveat in the product details and standalone report. Visibly distinguish direct official data from secondary/unverified inputs. Preserve provenance through worker serialization and report generation.
+**Verification:** worker round-trip tests assert product metadata survives; report tests assert source details, escaped notes and rejection of unsafe URL schemes; CLI loader tests verify the catalogue provenance fields. CI passed on the current implementation commit. Pending shipment to `dev`.
 
 ## DATA-02 — Senior/minor selection is not an actual depositor eligibility check
+
+**Current status: CLOSED AS AN OWNER-CONFIRMED SCOPE DECISION.** The toggles intentionally filter candidate products; FD Cal does not verify depositor age, guardian status or bank onboarding eligibility. Retain the disclosure and do not represent the toggles as verification.
 
 **Severity: P2**
 
@@ -31,23 +32,32 @@ Do not imply that a category toggle is proof of eligibility.
 
 ## DATA-03 — The active FD model cannot yet represent all special-product constraints
 
+**Current status: DEFERRED.** No owner-approved scope for modelling the special-product constraints has been supplied. Keep products with unenforced simulation-critical constraints outside the active catalogue.
+
 **Evidence:** the research register [age_eligibility.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/data/fd_options/age_eligibility.csv) contains fields such as `product_max_amount` and `tax_exempt`. The active [FDOption model](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js) and data loaders currently model minimum amount and age/segment fields, but not product maximum amount or tax-exempt treatment.
 
 **Impact:** products with scheme-wide caps, product caps or special tax treatment must remain excluded from simulation until those rules can be enforced. Reusing general FD rates or minimums for a special product can create an invalid plan.
 
 **Recommendation:** extend the domain model only when a real product requires it: maximum amount, per-customer/scheme-wide cap, tax treatment, required documentation/guardian and any renewal/eligibility conditions. Add validation and tests before moving a research-register row into the active product catalogue.
 
-## DATA-04 — CSV rows are not checked for exact field count
+## DATA-04 — CSV rows require strict structural validation
 
-**Severity: P3**
+**Current status: IMPLEMENTED on this branch; CI passed.** The parser now rejects malformed quote placement, unterminated quoted fields, characters after a closing quote, and rows whose field count differs from the header. Errors include the source path and physical line number. The parser retains support for UTF-8 BOM, LF/CRLF, quoted commas, escaped quotes, multiline fields, and legitimate trailing empty cells.
 
-**Evidence:** [src/io/csv.js L6](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/io/csv.js#L6) maps headers to values with `values[i] ?? ""`. Surplus values are silently ignored; missing values become empty strings.
+**Inventory and data corrections:** all 33 checked-in catalogue CSV files were inventoried and are covered by a regression test. The inventory found 93 malformed rows across three files:
+- `data/banks/banks.csv`: 26 rows had unquoted commas in `fee_basis`, which shifted/truncated `fee_source_url`.
+- `data/fd_options/banks/LK_COMMERCIAL_BANK_OF_CEYLON.csv`: 43 rows had unquoted commas in the final `notes` field.
+- `data/fd_options/banks/LK_DFCC_BANK.csv`: 24 rows had unquoted commas in the final `notes` field.
 
-**Impact:** a malformed or incorrectly quoted bank row may be partially accepted, with trailing data discarded or missing fields represented as blank. Downstream validation catches some missing financial fields but does not guarantee the row was structurally valid.
+Those fields are now correctly quoted. The bank fee source URL and product provenance notes remain in their intended columns.
 
-**Recommendation:** after parsing each row, require `values.length === headers.length`; reject malformed quote placement and include filename/row number in the error. Add fixtures for short rows, long rows, embedded commas, escaped quotes, multiline notes and unterminated quotes.
+**Implementation:** [strict parser](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/io/csv.js), [CSV regression tests](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/tests/js/csv.test.js), [bank metadata](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/data/banks/banks.csv).
+
+**Acceptance:** exact row width and valid CSV quoting are enforced; all 33 current catalogue files parse; malformed input fails with actionable source/line context. Pending shipment from this working branch to `dev`.
 
 ## DATA-05 — Transfer-fee assumptions are not a full transfer-channel model
+
+**Current status: OPEN / documented limitation.** No channel/tier/privilege model has been added; keep fees explicitly described as estimates.
 
 **Evidence:** [data/banks/banks.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/data/banks/banks.csv) records bank fee values and notes that distinguish online/mobile CEFT, OTC, SLIPS, fallback CBSL maxima and assumptions. The active fee model chooses same-bank or domestic inter-bank fees per source bank; it does not model all channels, transaction tiers, customer privileges or limits.
 
@@ -56,6 +66,8 @@ Do not imply that a category toggle is proof of eligibility.
 **Recommendation:** keep the current model labelled “estimated transfer fee”. If channel selection materially changes outcomes, add a transfer method dimension (digital CEFT, OTC CEFT, SLIPS, internal transfer), transaction tier and effective date. Do not resolve contradictory sources by silently selecting one.
 
 ## DATA-06 — Bank-rate freshness and secondary sources need a visible warning policy
+
+**Current status: PARTIAL.** Bank source status and review dates are now visible, but no freshness threshold, stale-data policy or product-level confidence/effective-date disclosure has been completed.
 
 The index distinguishes `populated_direct`, `populated_secondary`, `no_public_rate_verified` and other research statuses. The web UI disables only the last category. A populated secondary compilation is usable by the engine but should not look identical to a current official schedule.
 
