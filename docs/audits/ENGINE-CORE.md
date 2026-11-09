@@ -34,11 +34,11 @@ When `actual_leap_year` is enabled, `getYearBaseDays` selects 365 or 366 from th
 
 ### ENG-03 — Financial invariants are mostly distributed across constructors and runtime code
 
-**Current status: OWNER SCOPE APPROVED — implementation pending.** Add central validation for tenor, payout interval/type, rate/minimum amount and segment metadata. Product maturity must fit the active simulation period; special product caps/tax exemptions remain outside the generic layer until separately modelled.
+**Current status: IMPLEMENTED ON FOLLOW-UP BRANCH — CI PASSED.** FDOption now centrally validates a non-empty label, positive tenor, supported payout type, positive payout interval for non-cumulative products, finite non-negative annual rate and finite non-negative minimum principal. Browser and CLI catalogue loaders isolate invalid rows and log bank file/row diagnostics. Runtime booking continues to enforce maturity within the selected simulation period. Special product caps/tax exemptions remain outside the generic layer until separately modelled.
 
 **Evidence:** [config-schema.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/config-schema.js), [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/configuration.js), [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js), [simulation-runtime.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/simulation-runtime.js).
 
-The boundary validation is reasonably strict, but some model invariants still rely on catalogue quality or calling conventions. Examples include positive FD tenor/rate assumptions, the exact meaning of an installment payout schedule, and the selected leap-year/day-count basis. The CSV loader accepts a zero minimum amount and finite but negative rates; the FD model's period parser accepts zero-length periods.
+The central model boundary now rejects zero-length tenors, invalid payout intervals, negative/non-finite rates and negative/non-finite minimums. A zero minimum remains representable where the source explicitly specifies no minimum. Catalogue loaders reject invalid rows individually with row-level diagnostics, and fail a bank load only when no valid products remain. Age metadata remains validated by the FDOption constructor; special scheme caps and exemptions are deliberately not generic invariants.
 
 **Impact:** a malformed or future catalogue row can reach the calculation model with a structurally valid but financially implausible term.
 
