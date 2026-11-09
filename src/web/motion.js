@@ -112,3 +112,9 @@ export function transitionStrategySettings(activeId) {
   );
   entering.onfinish = () => entering.cancel();
 }
+
+
+export function scrollElementIntoView(element, { block = "start", getReducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false } = {}) {
+  const behavior = getReducedMotion() ? "auto" : "smooth";
+  element.scrollIntoView({ behavior, block });
+}
