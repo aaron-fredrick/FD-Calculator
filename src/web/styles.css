@@ -304,3 +304,5 @@ body{background:var(--bg)}
  .top-actions>*{min-width:0;max-width:100%}
  .layout,.content,#scenario-form{min-width:0}
 }
+
+@media(max-width:850px){.layout{grid-template-columns:minmax(0,1fr)}}
