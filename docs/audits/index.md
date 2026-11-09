@@ -46,3 +46,8 @@ This is a risk-based source audit and targeted implementation verification. It i
 ## Crawler and release-path policy
 
 The `/dev/` subtree is a public preview, not an indexable production destination. Root `robots.txt` permits crawlers to fetch preview pages so they can observe `noindex,nofollow`; every generated dev HTML entry point must carry that directive; and the production sitemap must contain only canonical production URLs, never preview URLs. `robots.txt` is crawler guidance, not access control. Production docs output merges canonical root and `/web/` URLs into the sitemap. Preview builds omit sitemap output and mark dev HTML noindex. This is a verified positive control, not an open finding.
+
+
+## Latest verification checkpoint
+
+Workflow [42585867964](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42585867964) passed the expanded cross-strategy booking/installment/maturity/fee fixture and the complete automated pipeline. Future strict/deferred obligation liquidity reservation remains an open SEARCH-03 item; this checkpoint does not close financial parity.
