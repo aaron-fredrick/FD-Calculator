@@ -150,16 +150,19 @@ The current `data/banks/banks.csv` captures some of these differences in source 
 
 Keep the simplified model. Preserve explicit “estimated transfer fee” wording and source notes. Do not silently substitute the regulatory maximum for a bank's actual tariff, infer privilege eligibility, or treat every transfer as CEFTS. A future channel model should be a separate product/UX change with explicit digital CEFT, OTC CEFT, SLIPS, internal transfer and international transfer choices, effective dates, account tiers and transaction limits.
 
-## 7. DATA-06 — dataset review and staleness
+## 7. DATA-06 — dataset review, economic updates and schema migrations
 
-### Existing mechanism
+### Metadata contract implemented on this branch
 
-The existing bank-to-dataset index, `data/fd_options/fd_options.csv`, already contains a `dataset_reviewed_at` column. The field is currently blank across the 29 indexed bank rows. The application displays “Review date not recorded” when it is empty. This means the repository has a place to store review dates, but the present data does not yet support a reliable age calculation.
+The bank-to-dataset index, `data/fd_options/fd_options.csv`, now carries three independent fields:
 
-Do not populate the field with the merge date or file modification time: those dates describe repository edits, not when a bank source was checked. Preserve separate concepts:
-- **Source effective date:** when the bank's rate/terms take effect, stored at product level where published.
-- **Dataset reviewed date:** when the maintainer actually rechecked the bank's source and mapped terms.
-- **Dataset updated date:** when the repository's bank dataset file was last changed. This can be derived from Git history or maintained separately, but must not be presented as a source-review date.
+- **`dataset_reviewed_at`:** date FD Cal last rechecked the bank's source material and mapped terms. This alone drives freshness warnings.
+- **`dataset_updated_at`:** date the economic bank/product data last materially changed (rate, tenor, minimum, payout terms, eligibility or another simulation input).
+- **`dataset_schema_version`:** version of the index/dataset row structure. Increment it for structural migrations such as adding, removing or renaming columns.
+
+A schema-only migration must preserve both dates exactly. A source recheck with no economic data change advances only the review date. A confirmed economic-data change advances the economic update date; if the source was reviewed as part of that change, update the review date as well. A migration, Git commit, file modification, release or deployment is not evidence that bank data changed or that a source was reviewed.
+
+Product-level `source_effective_date` remains separate: it is the effective date stated by the bank for an individual product/rate row.
 
 ### Owner-approved thresholds
 
@@ -167,14 +170,15 @@ Do not populate the field with the merge date or file modification time: those d
 - 180–364 days: show “Review due / may be stale”.
 - 365 days or more: show a stronger “Stale — verify directly with bank” warning.
 - Missing review date: show “Review date not recorded — freshness unverified”, not a fresh/green state.
+- Future or malformed review dates: show an invalid-metadata warning; do not silently treat them as current.
 
-These are catalogue-maintenance warnings, not claims that the bank's published rate has expired. A bank can change a rate the day after review; the source effective date remains a separate signal.
+These are catalogue-maintenance warnings, not claims that a bank's published rate has expired. A bank can change a rate the day after review; the source effective date remains a separate signal.
 
-### Implementation status and plan
+### Implementation and remaining work
 
-A pure freshness classifier and bank-selector disclosure have been added on this branch. It uses the existing `dataset_reviewed_at` field, displays an explicit unverified state when blank, warns at 180 days, and shows a stronger stale warning at 365 days. The existing index still has no recorded review dates, so the UI will correctly show freshness as unverified for those banks until sources are actually rechecked.
+The metadata normalizer/merge helper, loader exposure, freshness classifier and bank-selector warnings are implemented. Contract tests verify that schema-version-only migrations preserve both dates and that unknown dates remain blank. All 29 bank index rows currently have blank review and economic-update dates; this is intentional until a maintainer actually rechecks each source. The remaining data task is a bank-by-bank source review, with defensible dates and evidence, not automatic date population.
 
-Do not populate review dates with merge timestamps. Add a separate `dataset_updated_at` field only if the repository needs an explicit dataset-edit timestamp in the UI or reports. Keep contract tests for missing/invalid dates and the 180/365-day boundaries.
+See the [bank dataset metadata contract](../data/BANK-DATA-METADATA.md) and [implementation plan](IMPLEMENTATION-PLAN.md).
 
 ## 8. WEB-SEC-02 — retain GitHub Pages
 
