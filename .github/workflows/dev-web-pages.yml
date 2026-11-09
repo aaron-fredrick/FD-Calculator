@@ -121,21 +121,17 @@ jobs:
 
           web_ref="dev_pages-web-artifact"
           docs_ref="dev_pages-docs-artifact"
-          web_exists=false
-          docs_exists=false
           if git ls-remote --exit-code origin "refs/heads/$web_ref" >/dev/null 2>&1; then
             git fetch --no-tags origin "refs/heads/$web_ref:refs/remotes/origin/$web_ref"
             git archive "origin/$web_ref" | tar -x -C "$combined"
-            web_exists=true
           fi
           if git ls-remote --exit-code origin "refs/heads/$docs_ref" >/dev/null 2>&1; then
             git fetch --no-tags origin "refs/heads/$docs_ref:refs/remotes/origin/$docs_ref"
             git archive "origin/$docs_ref" | tar -x -C "$combined"
-            docs_exists=true
           fi
 
-          if [ "$web_exists" != "true" ] || [ "$docs_exists" != "true" ]; then
-            echo "::notice::Both independent components are not published yet; leaving the previous combined preview unchanged."
+          if [ ! -s "$combined/index.html" ] || [ ! -s "$combined/web/index.html" ] || [ ! -s "$combined/docs/index.html" ]; then
+            echo "::notice::A complete dev preview baseline is not available yet; leaving the previous combined preview unchanged."
             exit 0
           fi
           test -s "$combined/index.html"
