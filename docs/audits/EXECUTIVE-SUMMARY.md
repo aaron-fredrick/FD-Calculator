@@ -9,7 +9,7 @@
 
 The previously identified high-risk security and result-semantics defects have been remediated and merged to `dev`. The current follow-up branch implements the owner-approved financial timing rules, central product validation, lightweight AIT metadata, freshness classification, search-budget calibration and an initial Playwright smoke suite.
 
-**The branch is not currently CI-green.** In workflow [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220), Node tests, syntax checks and production/dev builds passed. Five of six Playwright tests passed. The standalone report test failed because a long-label stress table measured 433px in print emulation against a 321px viewport. A print CSS correction has been committed after that run; a rerun is required before calling the report QA gate green.
+**The branch is not currently CI-green.** Node tests, syntax checks and production/dev builds have passed in recent runs, but the standalone-report browser test is exposing sequential issues. Run [42573696604](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573696604) found missing `scope=col` attributes on the event-ledger headers; fixed in `6a15b8b`. Run [42573879316](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573879316) then passed that semantic check but found 344px document width at a 321px mobile viewport. The test is instrumented to identify the overflowing element in the next run. A previous run also exposed a 433px print table; the print CSS constraint is present but still needs a successful assertion.
 
 The remaining material work is cross-strategy parity for booking/maturity/payout/reserved-liquidity scenarios, full report/accessibility verification, genuine bank-source reviews, and deployed response-header verification. The project is not financially certified, legally reviewed or fully accessibility-verified.
 
@@ -20,7 +20,7 @@ The remaining material work is cross-strategy parity for booking/maturity/payout
 | SEC-01 | Imported account IDs require HTML attribute encoding | **Completed — PR #75** |
 | FIN-01 / ENG-05 | Pre-withdrawal value must be distinct from closing assets/liabilities | **Completed — PR #75** |
 | FIN-02 | Capital contributed must not be labelled capital invested | **Completed — PR #75** |
-| FIN-03 / DATA-01 | Product-level source provenance in UI, CLI and reports | **Implemented on follow-up branch; browser/manual review remains** |
+| FIN-03 / DATA-01 | Product-level source provenance in UI, CLI and reports | **Completed — PR #81; browser/manual review remains** |
 | ENG-01 | Installment payout events bounded by simulation window | **Implemented on follow-up branch; regression tests added** |
 | ENG-02 | Retain and disclose start-year 365/366 denominator convention | **Implemented on follow-up branch; formula unchanged** |
 | ENG-03 | Central FD term validation and maturity horizon | **Implemented on follow-up branch; row-level diagnostics added** |
@@ -34,11 +34,11 @@ The remaining material work is cross-strategy parity for booking/maturity/payout
 | DATA-05 | Simplified transfer-fee model is not a full channel model | **Documented limitation; owner approved retaining it** |
 | DATA-06 | Bank dataset freshness and metadata | **Metadata contract implemented; bank-by-bank source review pending** |
 | DEPLOY-01 | Dev preview assembly under `/dev/` | **Completed on dev — PR #80** |
-| UI-01/02/03 | Reduced-motion scrolling, operable help disclosures, field-associated errors | **Implemented on follow-up branch; manual assistive-tech QA remains** |
+| UI-01/02/03 | Reduced-motion scrolling, operable help disclosures, field-associated errors | **Completed — PR #81; manual assistive-tech QA remains** |
 | PRIV-01/02 | Draft retention controls and public privacy/legal disclosures | **Completed on dev — PR #81** |
 | WEB-SEC-02 | Static hosting response-header strategy | **Open verification; GitHub Pages retained by owner decision** |
-| QA-01 | Playwright browser smoke coverage in CI | **Implemented; latest run has one browser failure** |
-| QA-REP-01 | Independent standalone report, mobile and print QA | **Partial; print-width regression correction awaits CI rerun** |
+| QA-01 | Playwright browser smoke coverage in CI | **Implemented; standalone-report mobile-overflow assertion remains failing** |
+| QA-REP-01 | Independent standalone report, mobile and print QA | **Partial; semantic headers fixed, mobile overflow and print-width assertions remain to verify** |
 
 ## Owner-approved constraints
 
@@ -57,7 +57,7 @@ Full evidence and source links are in [Owner-feedback research](OWNER-FEEDBACK-R
 
 ## Immediate remaining work
 
-1. Rerun CI after the standalone report print CSS correction. Fix the actual layout if the assertion still fails; do not weaken the check.
+1. Fix the standalone report's 344px document overflow at a 321px viewport, then confirm both mobile and print-width assertions pass. Keep the checks meaningful; do not weaken them.
 2. Expand SEARCH-03 parity to eligible FD bookings, maturity/installment payouts, transfer fees and future-outflow reserved liquidity. Compare ledger, obligations, balances and validity across Greedy, GSS, Absolute R and Absolute R+.
 3. Complete report QA: offline network behaviour, chart initialization, realistic large ledgers, print/PDF, keyboard, screen-reader, contrast and 200–400% zoom.
 4. Recheck all 29 bank entries against official source material where possible. Populate review/update dates only when evidence supports them; otherwise leave blank.
