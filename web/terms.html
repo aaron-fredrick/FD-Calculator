@@ -38,4 +38,21 @@
 <p>These terms may be revised as the application changes. The “Last updated” date indicates the latest published revision. Continued use after an updated version is published constitutes acceptance only to the extent permitted by applicable law.</p>
 <h2>16. Contact</h2>
 <p>For general, non-sensitive questions, use the <a href="https://github.com/aaron-fredrick/FD-Calculator/issues">FD Calculator GitHub issues</a>. For confidential legal, privacy, personal-data, or security matters, contact <a href="mailto:a.n.r.fredrick@gmail.com">a.n.r.fredrick@gmail.com</a>. Do not include confidential financial or personal information in public issues.</p>
-</article><footer class="site-footer"><span>FD Cal · Terms &amp; Conditions</span><nav><a href="./privacy.html">Privacy policy</a><a href="./">Back to calculator</a></nav></footer></main></body></html>
+</article><footer class="site-footer"><span>FD Cal · Terms &amp; Conditions</span><nav><a href="./privacy.html">Privacy policy</a><a href="./">Back to calculator</a></nav></footer></main><script>
+(function(){
+  var key="fd-cal:privacy-preferences:v1";
+  window.dataLayer=window.dataLayer||[];
+  window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};
+  window.gtag("js",new Date());
+  window.gtag("consent","default",{analytics_storage:"denied",ad_storage:"denied",ad_user_data:"denied",ad_personalization:"denied"});
+  window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};
+  var allowed=false;
+  try{var p=JSON.parse(localStorage.getItem(key)||"null");allowed=!!(p&&p.version===1&&p.analytics===true)}catch(e){}
+  if(!allowed)return;
+  window.gtag("consent","update",{analytics_storage:"granted",ad_storage:"denied",ad_user_data:"denied",ad_personalization:"denied"});
+  window.clarity("consentv2",{analytics_Storage:"granted",ad_Storage:"denied"});
+  var g=document.createElement("script");g.async=true;g.src="https://www.googletagmanager.com/gtm.js?id=GTM-TNC567R4";g.dataset.fdCalAnalytics="true";document.head.appendChild(g);
+  var c=document.createElement("script");c.async=true;c.src="https://www.clarity.ms/tag/zb1y50hjaw";c.dataset.fdCalAnalytics="true";document.head.appendChild(c);
+  window.gtag("event","page_view",{page_title:document.title,page_path:window.location.pathname});
+})();
+</script></body></html>
