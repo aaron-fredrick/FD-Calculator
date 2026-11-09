@@ -22,7 +22,7 @@ The installment branch appends each date generated from the payout interval and 
 
 ### ENG-02 — Leap-year calculation is a start-year denominator, not a clearly specified day-count convention
 
-**Current status: PARTIAL.** The audit/plan now documents the exact start-year 365/366 denominator. The financial formula remains unchanged, and representative bank-term verification plus user-facing explanatory copy are still outstanding.
+**Current status: FORMULA RETAINED BY OWNER DECISION.** The start-year 365/366 denominator remains unchanged. A concise convention note is available at [Interest day-count convention](../finance/INTEREST-DAY-COUNT.md). Reviewed bank product pages publish rates/tenors/payouts but do not establish a universal day-count basis; UI/report disclosure and regression verification remain.
 
 **Severity: P2**
 
@@ -36,7 +36,7 @@ When `actual_leap_year` is enabled, `getYearBaseDays` selects 365 or 366 from th
 
 ### ENG-03 — Financial invariants are mostly distributed across constructors and runtime code
 
-**Current status: OPEN.** No central product-term validation pass has been delivered.
+**Current status: OWNER SCOPE APPROVED — implementation pending.** Add central validation for tenor, payout interval/type, rate/minimum amount and segment metadata. Product maturity must fit the active simulation period; special product caps/tax exemptions remain outside the generic layer until separately modelled.
 
 **Evidence:** [config-schema.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/config-schema.js), [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/configuration.js), [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/models.js), [simulation-runtime.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/simulation-runtime.js).
 
@@ -48,7 +48,7 @@ The boundary validation is reasonably strict, but some model invariants still re
 
 ### ENG-04 — AIT is supplied as a fixed 10% engine assumption
 
-**Current status: OPEN.** AIT remains a fixed engine assumption; versioned tax inputs and product exemptions are not implemented.
+**Current status: LIGHTWEIGHT ASSUMPTION VERSION ADDED ON FOLLOW-UP BRANCH.** The 10% rate is retained with an assumption ID, effective date and IRD source metadata. UI source disclosure is added. This is not a complete tax-regime model; individual exemptions/relief and non-resident treatment remain outside the calculator's current input model.
 
 **Evidence:** [src/core/configuration.js L207-L213](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/core/configuration.js#L207-L213).
 
