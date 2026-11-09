@@ -40,7 +40,7 @@ The remaining material gaps are installment-product contract semantics, static-h
 | UI-02 | **P3** | Help tooltip needs programmatic content and touch operation | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
 | UI-03 | **P3** | Inline validation errors need programmatic field association | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
 | PRIV-01 | **P2/P3** | Local drafts need a user-facing deletion/retention control | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
-| WEB-SEC-02 | **P2/P3** | Static hosting has no verified response-header strategy | **Open / hosting constraint** | [SECURITY.md](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/SECURITY.md) |
+| WEB-SEC-02 | **P2/P3** | Static hosting has no verified response-header strategy | **Open / hosting constraint** | [SECURITY-PRIVACY.md](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/docs/audits/SECURITY-PRIVACY.md) |
 | QA-01 | **Deferred** | No automated real-browser end-to-end suite | **Deferred** | [tests/](https://github.com/aaron-fredrick/FD-Calculator/tree/dev/tests) |
 | QA-REP-01 | **P3** | Downloaded standalone HTML has not been independently browser-tested | **Open** | [html.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/reporting/html.js) |
 
@@ -78,10 +78,10 @@ The remaining material gaps are installment-product contract semantics, static-h
 
 1. **DATA-01 / FIN-03:** implemented on this branch with worker, HTML report and CLI report coverage; pending dev shipment.
 2. **ENG-01/ENG-02:** validate installment and elapsed-day conventions against representative bank terms before changing financial calculations.
-3. **DATA-04:** inventory current CSVs, then enforce exact row widths and strict quote handling.
+3. **DATA-04:** implemented on this branch; all 33 catalogue CSVs pass strict row-width and quote validation, pending dev shipment.
 4. Preserve crawler controls: keep `/dev/` excluded by the root robots policy, keep preview HTML noindex, and ensure the production sitemap contains canonical production routes only.
 5. **UI-01/02/03:** implemented on the working branch with contract/unit coverage; pending dev shipment and browser/assistive-technology verification.
-6. **WEB-SEC-02:** document the static-hosting security-header boundary and any required hosting change. PRIV-01 is implemented on this branch.
+6. **WEB-SEC-02:** verify actual production/dev response headers and decide whether a CDN/proxy or hosting migration is needed. The GitHub Pages boundary is documented; PRIV-01 is implemented on this branch.
 7. **QA-01 / QA-REP-01:** decide on browser automation and verify the app/report in a real browser.
 8. **Main integration (later):** when work moves to `main`, port and verify the preview-aware assembler there; this is not a current `dev` blocker.
 
