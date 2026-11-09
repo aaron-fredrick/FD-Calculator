@@ -62,7 +62,7 @@ The following decisions supersede earlier open/deferred owner-decision language 
 
 | Workstream | Owner decision | Implementation status after this update |
 |---|---|---|
-| ENG-01 | Keep the product payout sequence; filter generated payout events to the simulation window. Never extend the simulation end date or clamp a late installment to maturity. Product maturity must still fit within the simulation window. | Approved; runtime/report regression implementation remains. |
+| ENG-01 | Keep the product payout sequence; filter generated payout events to the simulation window. Never extend the simulation end date or clamp a late installment to maturity. Product maturity must still fit within the simulation window. | Implemented on this branch: runtime schedules only in-window payout events; regression tests cover 5m/2m products with 5m and 6m windows. Full contractual booking flows remain available for disclosure. |
 | ENG-02 | Keep the start-year 365/366 elapsed-day denominator. Explain it briefly and retain cross-year/leap-year tests. | Formula unchanged; [short convention note](../finance/INTEREST-DAY-COUNT.md) added. UI/report explanation remains to be wired. |
 | ENG-03 | Add central product-term validation; maturity must fit within the simulation period. Keep special product constraints separate until model workflow is designed. | Scope approved; implementation remains. |
 | ENG-04 | Keep the current 10% Sri Lankan interest AIT assumption, with a lightweight version identifier, effective date and official source disclosure. Do not build a broad tax-regime engine now. | Version metadata and UI source disclosure added on this branch; tests/CI pending. |
