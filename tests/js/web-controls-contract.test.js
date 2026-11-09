@@ -80,3 +80,13 @@ test("help tips expose accessible names and support pointer, keyboard and touch 
   assert.match(app, /event\.key!=="Escape"/);
   assert.match(styles, /\.help-tip\[aria-expanded="true"\]::after/);
 });
+
+
+test("users can delete the browser-local draft without the form click handler recreating it", () => {
+  assert.match(page, /id="clear-draft"/);
+  assert.match(page, /id="draft-storage-status"/);
+  assert.match(app, /function clearSavedDraft\(event\)/);
+  assert.match(app, /event\.stopPropagation\(\)/);
+  assert.match(app, /localStorage\.removeItem\(STORAGE_KEY\)/);
+  assert.match(app, /addEventListener\("click",clearSavedDraft\)/);
+});
