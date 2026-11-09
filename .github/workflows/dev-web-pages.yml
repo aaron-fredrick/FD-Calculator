@@ -19,23 +19,6 @@ on:
       - "scripts/build-web-site.sh"
       - ".github/workflows/dev-web-pages.yml"
       - ".github/workflows/pages.yml"
-    paths:
-      - "src/web/**"
-      - "src/brand/**"
-      - "src/core/**"
-      - "src/fd-options/**"
-      - "src/strategies/**"
-      - "src/io/csv.js"
-      - "src/reporting/**"
-      - "schema/**"
-      - "data/**"
-      - "README.md"
-      - "CONTRIBUTING.md"
-      - "robots.txt"
-      - "scripts/build-web-site.sh"
-      - ".github/workflows/web-pages.yml"
-      - ".github/workflows/pages.yml"
-      - "scripts/build-docs-preservation.sh"
   workflow_dispatch:
 
 permissions:
@@ -58,7 +41,7 @@ jobs:
         id: source
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Build the web component only
-        run: bash scripts/build-web-site.sh /tmp/web-site
+        run: bash scripts/build-web-site.sh /tmp/dev-web-site
       - uses: actions/upload-artifact@v7
         with:
           name: dev_web-site
@@ -73,7 +56,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: pages-artifact-web
+      group: dev-pages-artifact-web
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
