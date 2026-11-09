@@ -100,7 +100,7 @@ test("Google analytics is loaded only after explicit consent and sends no scenar
   assert.match(page, /id="privacy-analytics"/);
   assert.match(page, /Strictly necessary storage/);
   assert.match(page, /Analytics \(Google\)/);
-  assert.match(page, /does not intentionally set its own cookies/);
+  assert.match(page, /does not currently set its own cookies/);
   assert.match(app, /fd-cal:privacy-preferences:v1/);
   assert.match(app, /GTM_CONTAINER_ID="GTM-TNC567R4"/);
   assert.match(app, /analytics_storage:"denied"/);
