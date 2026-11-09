@@ -29,7 +29,7 @@ This index tracks the audit, owner decisions and follow-up implementation separa
 
 - **Completed on dev:** SEC-01, FIN-01/02, ENG-05, DEPLOY-01, UI-01/02/03, DATA-01/04, FIN-03 and PRIV-01/02.
 - **Implemented on follow-up branch:** ENG-01/02/03/04, SEARCH-01 calibration and QA-01 Playwright suite.
-- **Partially complete:** SEARCH-03 has strict/deferred outflow parity across Greedy, GSS, Absolute R and Absolute R+, but booking/maturity/payout/fee/reserved-liquidity parity remains. QA-REP-01 automated report assertions pass; offline/chart checks and manual print/accessibility review remain.
+- **Partially complete:** SEARCH-03 now includes four-strategy settlement and booking/maturity/installment/fee fixtures. Greedy's strict-outflow liquidity-reservation defect is fixed and regression-tested; broader multi-account planner parity remains. QA-REP-01 automated report assertions pass; offline/chart checks and manual print/accessibility review remain.
 - **Metadata contract complete; source review pending:** DATA-06 separates source review, material economic updates and schema version. All 29 indexed bank rows still have blank review/update dates pending genuine source checks.
 - **Open verification:** WEB-SEC-02 production and dev Pages response headers.
 - **Deferred:** SEARCH-02 broad decomposition, DATA-03 special-product modelling, richer DATA-05 transfer-channel fees, main-branch preview assembler port and external legal counsel review.
@@ -37,7 +37,7 @@ This index tracks the audit, owner decisions and follow-up implementation separa
 
 ## Verification
 
-The latest verified workflow is [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592). Its Node.js test job completed successfully, including Node tests, syntax checks, production/dev browser builds, all six Chromium browser tests, documentation-preservation build and workflow YAML parsing. This run supersedes the earlier failed print-width run [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220).
+The latest verified full workflow for the current SEARCH-03 fix is [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354): all 268 Node tests passed, along with syntax checks, production/dev browser builds, all six Chromium browser tests, documentation-preservation build and workflow YAML parsing. This supersedes the earlier SEARCH-03 regression attempts.
 
 Automated report checks now cover semantic event-ledger headers, 320px document overflow and print table width. Static inspection and automated smoke tests do not establish screen-reader output, full WCAG conformance, real-device behaviour, actual printed/PDF pagination, live bank rates or deployed HTTP response headers.
 
@@ -50,11 +50,11 @@ The `/dev/` subtree is a public preview, not an indexable production destination
 
 ## Latest verification checkpoint
 
-Workflow [42585867964](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42585867964) passed the expanded cross-strategy booking/installment/maturity/fee fixture and the complete automated pipeline. Future strict/deferred obligation liquidity reservation remains an open SEARCH-03 item; this checkpoint does not close financial parity.
+Greedy now reserves cumulative strict outflows due before candidate maturity, invests only residual cash when it meets the FD minimum, and skips unsafe ranked candidates unless their maturity is on or before the due date. Three regression cases cover partial cash reservation, shorter-tenor fallback and cumulative obligations. The shared runtime remains authoritative for settlement. Workflow [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354) passed all 268 tests and the complete automated pipeline. SEARCH-03 remains partial because broader multi-account and cross-strategy planner parity remains.
 
 
 ## 9 November 2026 — ship-gate recheck
 
-Current branch head `22a191948611451b7853cf5bdf06142eee3e96e8` passes [workflow 42586136672](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42586136672). The added tests exercise booking, installment cash flows, maturity and transfer fees, alongside existing strict/deferred settlement parity.
+Current verified implementation head `aa8684e0999a9554af3f6c0185a4eeb0d9e5a233` passes [workflow 42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354). Greedy's strict-outflow liquidity-reservation gap is fixed inside its ranked candidate-selection rules; no shared-runtime settlement behaviour was changed.
 
-The branch is **not merge-ready**: SEARCH-03 still exposes a Greedy future-strict-outflow reservation gap. An attempted strategy-side adjustment broke the established migration parity baseline and was not retained. The existing draft [PR #82](https://github.com/aaron-fredrick/FD-Calculator/pull/82) remains a draft and accurately records this blocker. The next phase is limited to defining/testing reservation semantics at the shared planning/runtime boundary and proving the regression fix; other audit work remains queued.
+The existing [PR #82](https://github.com/aaron-fredrick/FD-Calculator/pull/82) remains a draft. SEARCH-03 is improved but not fully closed: broader cross-strategy planner parity remains, as do extended report/accessibility QA, bank-source review and deployed response-header verification. Those later phases remain queued.
