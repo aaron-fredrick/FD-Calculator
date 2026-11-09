@@ -148,7 +148,7 @@ test("a default scenario runs and produces an independently openable HTML report
     cells[1].textContent = "https://example.invalid/rate-source/".repeat(10);
     cells[2].textContent = "Eligibility and minimum-deposit conditions ".repeat(16);
     cells[3].textContent = "Monthly interest payout at each scheduled interval ".repeat(14);
-    document.querySelector("main").append(details);
+    document.body.append(details);
   });
   const tableSemantics = await reportPage.evaluate(() => ({
     tablesWithoutColumnHeaders: [...document.querySelectorAll("table")]
