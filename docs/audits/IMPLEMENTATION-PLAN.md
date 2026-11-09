@@ -1,10 +1,10 @@
 # FD Cal — implementation plan from the engineering audit
 
 **Plan date:** 9 November 2026  
-**Re-audited source:** `dev` at `caccaf26b4415ae783959e888ff45e33becdadf6`  
-**Working branch:** `audit/rulesets-codebase-review`  
+**Re-audited source:** `dev` at squash merge `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a`  
+**Working branch:** `audit/owner-feedback-followups`  
 **Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`  
-**Status:** Re-audited after PRs #75 and #80. Core remediations are already merged to `dev`; this plan now distinguishes completed implementation, partial work, open findings and deferred owner decisions. The audit record is updated alongside focused implementation fixes on this working branch.
+**Status:** PR #81 was squash-merged to `dev` on 9 November 2026. This follow-up branch records the owner's latest decisions, verified external research, and the remaining implementation/QA work. The owner-feedback research register supersedes older open/deferred labels where it records a later decision.
 
 ## 1. Purpose and constraints
 
@@ -38,7 +38,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **SEC-01** | **Completed — PR #75** | Imported account IDs are encoded at all three account-card attribute sinks; adversarial regression coverage is present. |
 | **FIN-01** | **Completed — PR #75** | Explicit pre-withdrawal and closing-position metrics are exposed in the result model, UI and report; paid/deferred outflow reconciliation is tested. |
 | **FIN-02** | **Completed — PR #75** | The metric is labelled “Capital contributed”, not “Capital invested”. |
-| **FIN-03 / DATA-01** | **Implemented on this branch; CI passed** | Product source URL, effective date, source type and notes are loaded by web/CLI paths, restored after worker execution, and displayed in HTML and console reports. Missing dates are labelled not recorded. Pending dev shipment. |
+| **FIN-03 / DATA-01** | **Completed — PR #81 squash-merged to dev** | Product source URL, effective date, source type and notes flow through web/CLI, worker and reports. |
 | **ENG-01** | **Partial** | Runtime event ordering is regression-tested. Installment payment dates can still extend beyond nominal maturity; verify contractual terms before changing the schedule model. |
 | **ENG-02** | **Partial** | The start-year 365/366 denominator is documented here. Formula remains unchanged; representative bank-term verification and user-facing explanation remain. |
 | **ENG-03 / ENG-04** | **Open** | Central product-term invariants and versioned AIT assumptions are not implemented. |
@@ -47,14 +47,40 @@ Before implementation, capture deterministic baseline outputs for representative
 | **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
 | **DATA-03** | **Deferred** | Keep special products with unenforced caps/tax/eligibility constraints out of the active catalogue until the owner defines the supported scope. |
 | **DEPLOY-01** | **Completed on `dev` — PR #80** | Independent dev web/docs publishers and dev-side assembly publish a working preview under `/dev/`. Porting the assembler to `main` is deferred until main-branch work begins. |
-| **DATA-04** | **Implemented on this branch; CI passed** | All 33 catalogue CSVs are inventoried; 93 rows with unquoted comma-containing metadata were repaired across three files; parser enforces strict quotes and exact row width with source/line diagnostics. Pending dev shipment. |
-| **UI-01** | **Implemented on this branch; pending dev shipment** | A shared scroll helper checks the current reduced-motion preference and selects non-animated or smooth scrolling accordingly; unit tests cover both branches. |
-| **UI-02 / UI-03** | **Implemented on this branch; CI passed** | Help controls are native disclosure buttons with accessible names and touch/keyboard operation; generated field errors are associated through `aria-describedby` and cleaned up without removing unrelated descriptions. Pending dev shipment. |
-| **PRIV-01** | **Implemented on this branch; CI passed** | Browser-local retention is disclosed; a confirmation-protected action removes the saved draft without re-saving it from the form click handler. Pending dev shipment. |
-| **WEB-SEC-02** | **Open — hosting decision required** | GitHub.com Pages does not provide a repository-controlled response-header policy. The boundary and options are documented; verify actual production/dev response headers and decide whether a CDN/proxy or hosting migration is justified. |
-| **QA-01** | **Deferred — owner decision required** | Decide whether to introduce Playwright smoke coverage or retain manual browser verification. |
+| **DATA-04** | **Completed — PR #81 squash-merged to dev** | All 33 catalogue CSVs are inventoried; 93 malformed rows were repaired across three files; strict parser and source/line diagnostics are in dev. |
+| **UI-01** | **Completed — PR #81 squash-merged to dev** | Shared scroll helper respects the current reduced-motion preference; unit tests cover both branches. |
+| **UI-02 / UI-03** | **Completed — PR #81 squash-merged to dev** | Native help disclosure buttons and field-associated validation errors are in dev; rendered assistive-technology QA remains. |
+| **PRIV-01** | **Completed — PR #81 squash-merged to dev** | Browser-local retention and confirmation-protected saved-draft deletion are in dev. |
+| **WEB-SEC-02** | **Open — GitHub Pages retained by owner decision** | Keep Pages; verify actual production/dev headers and document the response-header limitations. No proxy/CDN migration planned. |
+| **QA-01** | **Approved — implementation pending** | Add Playwright browser tests to CI for pushes and PRs targeting dev/main. |
 | **QA-REP-01** | **Open** | The downloaded standalone report has not been independently verified in a real browser. |
-| **DATA-05 / DATA-06** | **Open / partial** | Transfer-channel modelling remains out of scope; freshness/source warnings are only partially surfaced. |
+| **DATA-05 / DATA-06** | **Research/implementation follow-up** | Keep simplified transfer fees; implement 180/365-day freshness warnings using actual source-review dates. Existing review-date fields are blank. |
+
+## 2A. Owner feedback received on 9 November 2026
+
+The following decisions supersede earlier open/deferred owner-decision language in this plan. Full evidence and source links are in [Owner feedback research](OWNER-FEEDBACK-RESEARCH.md).
+
+| Workstream | Owner decision | Implementation status after this update |
+|---|---|---|
+| ENG-01 | Keep the product payout sequence; filter generated payout events to the simulation window. Never extend the simulation end date or clamp a late installment to maturity. Product maturity must still fit within the simulation window. | Approved; runtime/report regression implementation remains. |
+| ENG-02 | Keep the start-year 365/366 elapsed-day denominator. Explain it briefly and retain cross-year/leap-year tests. | Formula unchanged; [short convention note](../finance/INTEREST-DAY-COUNT.md) added. UI/report explanation remains to be wired. |
+| ENG-03 | Add central product-term validation; maturity must fit within the simulation period. Keep special product constraints separate until model workflow is designed. | Scope approved; implementation remains. |
+| ENG-04 | Keep the current 10% Sri Lankan interest AIT assumption, with a lightweight version identifier, effective date and official source disclosure. Do not build a broad tax-regime engine now. | Version metadata and UI source disclosure added on this branch; tests/CI pending. |
+| DATA-03 | Research special FDs, but do not activate or implement them yet. | Research register added; implementation explicitly deferred. |
+| DATA-05 | Keep simplified transfer-fee modelling; research and document limitations only. | Research register added; model unchanged. |
+| DATA-06 | Use actual source-review date; warn at 180 days and strongly at 365 days. Missing dates remain explicitly unverified. Keep source-effective, source-review and repository-update dates distinct. | Existing `dataset_reviewed_at` field is present but blank in all 29 bank index rows. Freshness UI/data population remains. |
+| WEB-SEC-02 | Retain GitHub Pages. | No hosting migration planned; verify deployed headers and document residual limits. |
+| SEARCH-01 | Keep 10,000 expanded states / 30 seconds as baseline; compare 5k/10k/20k/uncapped with longer time budgets and measure quality, not runtime alone. | Benchmark matrix documented; controlled execution remains. |
+| SEARCH-02 | Prepare a staged module decomposition plan; no broad rewrite. | Decomposition boundaries documented; code refactor deferred until parity baselines. |
+| SEARCH-03 | Preserve cross-strategy parity, especially authoritative outflow execution and liquidity reservations. | Ongoing regression requirement; add fixtures with each relevant financial-rule change. |
+| QA-01 / QA-REP-01 | Add browser-driven tests to CI for pushes and PRs to `dev` and `main`; cover app, simulation, report, mobile and accessibility. | Approved; Playwright suite/workflow implementation remains. |
+| Legal/privacy | General non-sensitive support may use public issues; personal/privacy/security matters use `a.n.r.fredrick@gmail.com`. Use Sri Lanka as proposed governing law, subject to mandatory laws elsewhere. | Contact text and terms updated on this branch; legal status research recorded. Lawyer review still recommended before commercial operation. |
+
+### Current source and scope notes
+
+- The bank-to-dataset index is `data/fd_options/fd_options.csv`; its existing `dataset_reviewed_at` column is currently empty for all 29 indexed banks. Do not backfill it with Git merge timestamps.
+- The current root `robots.txt` permits crawlers to fetch pages so they can read the dev preview's `noindex,nofollow` metadata. Preview URLs remain excluded from the production sitemap. Do not add a robots disallow for the preview subtree while relying on crawlers to observe noindex.
+- The AIT 10% rate is supported by IRD Circular SEC/2025/E/02 (effective 1 April 2025) and later IRD guidance; it is a calculator assumption, not a universal tax determination for every depositor.
 
 ## 3. Detailed workstreams
 
