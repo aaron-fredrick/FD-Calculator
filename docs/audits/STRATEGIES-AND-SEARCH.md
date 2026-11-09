@@ -30,7 +30,7 @@ Reviewed Greedy, GSS, Absolute R, Absolute R+, shared search primitives, search 
 
 ### SEARCH-03 — GSS and search paths contain independent future-planning logic that needs continued parity protection
 
-**Current status: OPEN / ongoing control.** Existing parity and runtime-replay tests are positive controls, but the independent planning logic remains and new event/fee/product rules still require cross-strategy parity fixtures.
+**Current status: PARTIAL / ongoing control.** A new `tests/js/cross-strategy-outflow-parity.test.js` runs Greedy, GSS, Absolute R and Absolute R+ against the same strict/deferred outflow scenario and compares validity, paid obligations, outstanding liabilities and ending cash. This fixture has no eligible FD booking, so it does not yet prove parity for booking selection, maturity/installment payouts, transfer fees or liquidity reserved for future obligations. Add those cases before treating the parity workstream as closed. The shared `SimulationRuntime` remains authoritative for actual settlement and replay.
 
 **Evidence:** [gss.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/gss.js) contains its own future liquidity reservation, plan generation and recursive wait/reforecast paths; [search-strategy-base.js](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/strategies/search-strategy-base.js) also constructs hypothetical future states before replaying a selected path through `SimulationEngine`.
 
