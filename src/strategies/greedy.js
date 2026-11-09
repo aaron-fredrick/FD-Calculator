@@ -241,7 +241,7 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
     compareGreedyPlans(a, b, planTenorTieBreaker) ||
     equivalentEfdCount(b) - equivalentEfdCount(a));
   return candidates.find(plan =>
-    planPreservesUpcomingStrictOutflows(plan, accounts, upcomingStrictOutflows, today)
+    planPreservesUpcomingStrictOutflows(plan, accounts, upcomingOutflows, today)
   ) ?? { type: "CARRY", carries: active };
 }
 
