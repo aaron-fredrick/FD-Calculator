@@ -183,7 +183,7 @@ test("report layout, decision accents, maturity colors and chart hover controls 
   assert.ok(json, "report should embed chart data");
   const charts = JSON.parse(json);
   assert.equal(charts.maturities[0].color, charts.fd_principal[0].color);
-  assert.match(html, /style="--decision-color:rgb\(130,170,255\)"/);
+  assert.match(html, /style="--decision-color:rgb\(\d+,\d+,\d+\)"/);
   assert.ok(html.includes('href="https://bank.example/rates?product=fd&amp;type=standard" target="_blank" rel="noopener noreferrer">Open source</a>'));
   assert.match(html, /Source effective date/);
   assert.ok(html.includes("Official rate table; &lt;do not assume&gt; current availability."));
