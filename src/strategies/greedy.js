@@ -49,10 +49,6 @@ function upcomingStrictOutflows(outflows, today) {
   return due;
 }
 
-function investmentMaturesBy(option, today, dueDate) {
-  return formatISODate(addPeriod(today, option.period_str)) <= dueDate;
-}
-
 function investmentPrincipalForOutflow(balance, option, obligations, today) {
   if (!obligations?.length) return balance;
   const maturityDate = formatISODate(addPeriod(today, option.period_str));
@@ -112,18 +108,6 @@ function compareGoalPlans(a, b) {
   return Number(b.credit.interest) - Number(a.credit.interest) ||
     Number(a.fees_today) - Number(b.fees_today) ||
     Number(b.net_interest) - Number(a.net_interest);
-}
-
-function selectFastestGoalOption(candidates, principal, date, aitRate, compound, actualLeapYear) {
-  return [...candidates].map(option => ({
-    option,
-    credit: firstCreditedInterest(option, principal, date, aitRate, compound, actualLeapYear)
-  })).filter(item => item.credit).sort((a, b) =>
-    a.credit.date - b.credit.date ||
-    b.credit.interest - a.credit.interest ||
-    b.option.annual_rate - a.option.annual_rate ||
-    a.option.days - b.option.days
-  )[0]?.option ?? null;
 }
 
 export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker, goalMode = false, outflows = {}) {
