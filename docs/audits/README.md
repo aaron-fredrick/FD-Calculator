@@ -34,10 +34,10 @@ This is a risk-based source audit against all applicable Coding, UI and Web rule
 | Status | Findings | Meaning |
 |---|---|---|
 | **Completed** | SEC-01, FIN-01, FIN-02, ENG-05, DEPLOY-01 | Implemented on `dev`; applicable regression/contract coverage is present. |
-| **Implemented on this branch** | UI-01, DATA-04 | Reduced-motion-aware scrolling and strict CSV parsing are implemented with regression coverage; pending shipment to `dev`. |
+| **Implemented on this branch** | UI-01, UI-02, UI-03, DATA-04 | Reduced-motion scrolling, operable accessible help controls, field-error associations and strict CSV parsing are implemented with regression coverage; pending shipment to `dev`. |
 | **Implemented; follow-up gate** | SEARCH-01 | Core behaviour and tests are in place; benchmark calibration remains. |
 | **Partial** | ENG-01, ENG-02, DATA-01, DATA-06 | Part of the requirement is delivered; a specific contract or source gap remains. |
-| **Open** | ENG-03/04, DATA-05, FIN-03, SEARCH-02/03, UI-02/03, PRIV-01, WEB-SEC-02, QA-REP-01 | Not yet resolved. |
+| **Open** | ENG-03/04, DATA-05, FIN-03, SEARCH-02/03, PRIV-01, WEB-SEC-02, QA-REP-01 | Not yet resolved. |
 | **Scope closed** | DATA-02 | Owner-confirmed product scope; no eligibility-verification feature planned. |
 | **Deferred** | DATA-03, QA-01 | Requires a separate owner decision. |
 
@@ -55,7 +55,7 @@ The source reviewed is `dev` commit `caccaf26b4415ae783959e888ff45e33becdadf6`. 
 
 ## Planning status
 
-See the [implementation plan](IMPLEMENTATION-PLAN.md) for phase-level status. **Completed on `dev`:** SEC-01, FIN-01, FIN-02, ENG-05 and DEPLOY-01. **Implemented with follow-up gate:** SEARCH-01. **Partial:** ENG-01, ENG-02, DATA-01 and DATA-06. **Open:** DATA-05, FIN-03, UI-02/03 and the remaining subsystem findings. **Implemented on this branch, pending dev shipment:** UI-01 and DATA-04. **Closed as scope decision:** DATA-02. **Deferred:** DATA-03, QA-01 and any `main`-branch deployment integration.
+See the [implementation plan](IMPLEMENTATION-PLAN.md) for phase-level status. **Completed on `dev`:** SEC-01, FIN-01, FIN-02, ENG-05 and DEPLOY-01. **Implemented with follow-up gate:** SEARCH-01. **Partial:** ENG-01, ENG-02, DATA-01 and DATA-06. **Open:** DATA-05, FIN-03 and the remaining subsystem findings. **Implemented on this branch, pending dev shipment:** UI-01, UI-02, UI-03 and DATA-04. **Closed as scope decision:** DATA-02. **Deferred:** DATA-03, QA-01 and any `main`-branch deployment integration.
 
 PR #75 delivered the core security, result-semantics, bounded-search and catalogue-disclosure work. PR #80 split dev web/docs publishing and added dev-side assembly. The remaining code work should proceed in focused branches from the current `dev` baseline; this branch is being retained for the audit and plan.
 
