@@ -4,7 +4,7 @@
 **Re-audited source:** `dev` at `caccaf26b4415ae783959e888ff45e33becdadf6`  
 **Working branch:** `audit/rulesets-codebase-review`  
 **Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`  
-**Status:** Re-audited after PRs #75 and #80. Core remediations are already merged to `dev`; this plan now distinguishes completed implementation, partial work, open findings and deferred owner decisions. This update is documentation-only.
+**Status:** Re-audited after PRs #75 and #80. Core remediations are already merged to `dev`; this plan now distinguishes completed implementation, partial work, open findings and deferred owner decisions. The audit record is updated alongside focused implementation fixes on this working branch.
 
 ## 1. Purpose and constraints
 
@@ -48,7 +48,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **DATA-03** | **Deferred** | Keep special products with unenforced caps/tax/eligibility constraints out of the active catalogue until the owner defines the supported scope. |
 | **DEPLOY-01** | **Completed on `dev` — PR #80** | Independent dev web/docs publishers and dev-side assembly publish a working preview under `/dev/`. Porting the assembler to `main` is deferred until main-branch work begins. |
 | **DATA-04** | **Open** | CSV parsing still accepts short/long rows by filling or ignoring fields; inventory and strict parsing remain. |
-| **UI-01** | **Open** | Direct smooth scrollIntoView calls remain in validation/result navigation. |
+| **UI-01** | **Implemented on this branch; pending dev shipment** | A shared scroll helper checks the current reduced-motion preference and selects non-animated or smooth scrolling accordingly; unit tests cover both branches. |
 | **UI-02 / UI-03** | **Open** | Tooltip help lacks a programmatic description/keyboard-touch interaction; field errors lack aria-describedby association. |
 | **PRIV-01 / WEB-SEC-02** | **Open** | Add local-draft clear/retention UX; document the static-hosting security-header boundary and any required hosting change. |
 | **QA-01** | **Deferred — owner decision required** | Decide whether to introduce Playwright smoke coverage or retain manual browser verification. |
@@ -284,22 +284,22 @@ The current parser rejects unterminated quoted fields and duplicate/empty header
 
 ### Phase 8 — UI-01: reduced-motion-aware programmatic scrolling
 
-**Status:** **Open** The app still calls smooth `scrollIntoView` directly in validation and result navigation.  
+**Status:** **Implemented on this branch; CI passed.** Pending shipment to `dev`.  
 **Priority:** P3  
 **Primary boundary:** validation/result feedback → browser scrolling behaviour.
 
-The web app has direct smooth-scroll calls when focusing validation errors and when navigating to result/error areas. These bypass the reduced-motion handling already used by the CSS/motion helpers.
+Validation errors, general error feedback and result navigation now use `scrollElementIntoView()` from `src/web/motion.js`. The helper evaluates `prefers-reduced-motion` when each scroll is requested, rather than caching the preference at page load.
 
 W3C documents a JavaScript technique for evaluating `prefers-reduced-motion` (SCR40), and MDN documents the media feature and `scrollIntoView()` behaviour. In particular, `behavior: "auto"` follows computed CSS `scroll-behavior`; if global CSS still says smooth, merely switching JavaScript to `auto` may not remove the animation. Use a central helper and make the reduced-motion path explicitly non-animated, with a CSS fallback for the document scroll container. [W3C SCR40](https://www.w3.org/WAI/WCAG22/Techniques/client-side-script/SCR40) · [MDN prefers-reduced-motion](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/%40media/prefers-reduced-motion) · [MDN scrollIntoView](https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoView).
 
 #### Implementation plan
 
-1. Add one small helper for programmatic scroll requests; replace the direct smooth-scroll calls in validation and result/error navigation.
-2. Read `matchMedia("(prefers-reduced-motion: reduce)")` at the time of the request so a preference change during the session is respected.
-3. In normal mode, preserve the current smooth scroll and alignment.
-4. In reduced mode, use an explicitly non-animated scroll path and ensure CSS `scroll-behavior` cannot reintroduce smooth scrolling.
-5. Keep focus behaviour and error association independent from the scroll animation. Reduced motion must not suppress focus or hide the error.
-6. Test both preference branches, including a runtime preference change if practical. Verify keyboard focus, validation announcement, and result navigation remain unchanged.
+1. Added `scrollElementIntoView()` as the shared programmatic scroll helper.
+2. The helper evaluates `matchMedia("(prefers-reduced-motion: reduce)")` at request time so preference changes during the session are respected.
+3. Normal mode preserves smooth scrolling and the original alignment (`center` for errors, `start` for results).
+4. Reduced mode selects `behavior: "auto"`; the existing reduced-motion CSS rule forces the document scroll behaviour to be non-animated.
+5. Existing focus behaviour remains independent: invalid controls still receive focus with `preventScroll` before the explicit scroll.
+6. Unit tests verify both preference branches and assert that the app no longer calls smooth `scrollIntoView` directly.
 
 This is a targeted accessibility correction, not a motion redesign. Keep existing entrance/exit transitions and motion timing rules intact; only remove the non-essential scroll animation when requested.
 
@@ -337,7 +337,7 @@ Recommended implementation sequence:
 1. **DATA-01 / FIN-03** — complete product-level source URL/effective-date propagation into the UI and standalone report.
 3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
 4. **DATA-04** — inventory current CSVs, then enforce strict row width/quoting with actionable errors.
-5. **UI-01 / UI-02 / UI-03** — reduced-motion scrolling, accessible tooltip semantics and field-error associations.
+5. **UI-02 / UI-03** — accessible tooltip semantics and field-error associations. UI-01 is implemented on this branch.
 6. **PRIV-01 / WEB-SEC-02** — local draft deletion/retention control and static-hosting security-header strategy.
 7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
 8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
