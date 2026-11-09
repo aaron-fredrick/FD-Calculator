@@ -132,6 +132,7 @@ test("production sitemap includes canonical app routes and excludes preview outp
   assert.match(docs, /https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\/web\//);
   assert.match(docs, /cp site\/sitemap\.xml/);
   assert.match(docs, /rm -f "\$output_dir\/docs\/sitemap\.xml"/);
-  assert.match(robots, /^Disallow: \/FD-Calculator\/dev\/$/m);
+  assert.match(robots, /^Allow: \/$/m);
+  assert.doesNotMatch(robots, /^Disallow: \/FD-Calculator\/dev\/$/m);
   assert.match(robots, /^Sitemap: https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\/sitemap\.xml$/m);
 });
