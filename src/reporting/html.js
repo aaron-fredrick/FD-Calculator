@@ -290,7 +290,7 @@ export function generateHtmlReport(result,config) {
   const overview='<div class="overview-grid">'+
     '<article class="panel"><small>Simulation window</small><strong>'+start+' → '+end+'</strong><p>'+days+' calendar days</p></article>'+
     '<article class="panel"><small>Strategy</small><strong>'+esc(result.strategy_name)+'</strong><p>Selected simulation path</p></article>'+
-    '<article class="panel"><small>Interest calculation</small><strong>'+(config.compound?"Compound":"Simple")+'</strong><p>'+(config.actual_leap_year?"Actual elapsed days ÷ start-year 365/366 denominator":"Actual elapsed days ÷ 365 denominator")+'</p></article>'+
+    '<article class="panel"><small>Interest calculation</small><strong>'+(config.compound?"Compound":"Simple")+'</strong><p>'+(config.actual_leap_year?"Actual elapsed days ÷ start-year 365/366 denominator; the same denominator applies to the full accrual interval, including cross-year terms.":"Actual elapsed days ÷ 365 denominator.")+'</p></article>'+
     '<article class="panel"><small>Tax treatment</small><strong>'+(result.ait_enabled?"AIT · "+(result.ait_rate*100).toFixed(1)+"%":"AIT disabled")+'</strong><p>Applied to interest payouts</p></article>'+
     '<article class="panel"><small>Consolidation account</small><strong>'+esc(accountDisplay[config.consolidation_account_id]||config.consolidation_account_id||"—")+'</strong><p>Terminal cash destination</p></article>'+
     '<article class="panel"><small>Default transfer fees</small><strong>'+money(fee.default_inter_bank_fee||0)+'</strong><p>Inter-bank · Same-bank '+money(fee.same_bank_fee||0)+'</p></article></div>';
