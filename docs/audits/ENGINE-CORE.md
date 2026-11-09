@@ -20,7 +20,7 @@ The complete contractual cash-flow schedule remains on the booking for expected-
 
 ### ENG-02 — Leap-year calculation is a start-year denominator, not a clearly specified day-count convention
 
-**Current status: FORMULA RETAINED BY OWNER DECISION.** The start-year 365/366 denominator remains unchanged. A concise convention note is available at [Interest day-count convention](../finance/INTEREST-DAY-COUNT.md). Reviewed bank product pages publish rates/tenors/payouts but do not establish a universal day-count basis; UI/report disclosure and regression verification remain.
+**Current status: FORMULA RETAINED BY OWNER DECISION.** The start-year 365/366 denominator remains unchanged. A concise convention note is available at [Interest day-count convention](../finance/INTEREST-DAY-COUNT.md). The UI and standalone report now explain that the 365/366 denominator is selected from the accrual start year and applied to the full interval. Reviewed bank product pages publish rates/tenors/payouts but do not establish a universal day-count basis.
 
 **Severity: P2**
 
