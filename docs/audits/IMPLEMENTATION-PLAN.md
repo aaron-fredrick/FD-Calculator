@@ -46,7 +46,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **SEARCH-02 / SEARCH-03** | **Open / ongoing control** | Large modules remain; existing parity/replay tests are positive controls, but new financial rules need cross-strategy parity fixtures. |
 | **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
 | **DATA-03** | **Deferred** | Keep special products with unenforced caps/tax/eligibility constraints out of the active catalogue until the owner defines the supported scope. |
-| **DEPLOY-01** | **Partial — PR #80** | Dev web/docs publishers and dev-side assembly are split. The current main Pages assembler still omits /dev/; port and verify preview-aware assembly on main. |
+| **DEPLOY-01** | **Completed on `dev` — PR #80** | Independent dev web/docs publishers and dev-side assembly publish a working preview under `/dev/`. Porting the assembler to `main` is deferred until main-branch work begins. |
 | **DATA-04** | **Open** | CSV parsing still accepts short/long rows by filling or ignoring fields; inventory and strict parsing remain. |
 | **UI-01** | **Open** | Direct smooth scrollIntoView calls remain in validation/result navigation. |
 | **UI-02 / UI-03** | **Open** | Tooltip help lacks a programmatic description/keyboard-touch interaction; field errors lack aria-describedby association. |
