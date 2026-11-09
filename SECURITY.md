@@ -19,7 +19,7 @@ Include as much of the following information as you can:
 
 You may submit a report without all of these details. Do not include real bank account details, passwords, access tokens, private financial records, or other personal data in a report. Use synthetic or redacted examples.
 
-If private vulnerability reporting is unavailable, do not publish exploit details. Contact the repository owner through the contact options on the [GitHub profile](https://github.com/aaron-fredrick) and ask for a private security-reporting channel.
+If GitHub private vulnerability reporting is unavailable, send a confidential report to [a.n.r.fredrick@gmail.com](mailto:a.n.r.fredrick@gmail.com). Do not publish exploit details or include real bank account details, passwords, access tokens, private financial records, or other people's personal data. Use synthetic or redacted examples.
 
 ## Scope
 
