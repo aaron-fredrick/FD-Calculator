@@ -71,7 +71,16 @@ test("mobile viewport renders without document-level horizontal overflow", async
       };
     }).filter(item => item.right > viewport + 1 && !["auto", "scroll", "hidden", "clip"].includes(item.overflowX))
       .sort((a, b) => b.right - a.right).slice(0, 12);
-    return { viewport, content: document.documentElement.scrollWidth, offenders };
+    const rect = selector => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const box = element.getBoundingClientRect();
+      return { left: Math.round(box.left), right: Math.round(box.right), width: Math.round(box.width) };
+    };
+    return {
+      viewport, content: document.documentElement.scrollWidth, offenders,
+      containers: Object.fromEntries(["html", "body", "main", ".layout", ".rail", ".content", "#scenario-form", "#accounts"].map(selector => [selector, rect(selector)]))
+    };
   });
   expect(dimensions.content, JSON.stringify(dimensions.offenders)).toBeLessThanOrEqual(dimensions.viewport + 1);
 });
