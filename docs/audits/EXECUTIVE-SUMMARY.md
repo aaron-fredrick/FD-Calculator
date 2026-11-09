@@ -1,97 +1,71 @@
 # Executive summary
 
-**Re-audited source:** `dev` at `caccaf26b4415ae783959e888ff45e33becdadf6`  
-**Ruleset:** [RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`  
-**Review type:** Static engineering re-audit after PRs [#75](https://github.com/aaron-fredrick/FD-Calculator/pull/75) and [#80](https://github.com/aaron-fredrick/FD-Calculator/pull/80). Status and remaining work are recorded in the [implementation plan](IMPLEMENTATION-PLAN.md).
+**Re-audit date:** 9 November 2026  
+**Base:** `dev` at PR #81 squash merge `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a`  
+**Working branch:** `audit/owner-feedback-followups`  
+**Ruleset:** [RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`
 
 ## Overall assessment
 
-FD Cal has a solid foundation: the browser and CLI share the JavaScript engine; the browser calculation runs in a dedicated worker; the configuration shape is explicitly validated; reporting escapes most dynamic text; the standalone report is self-contained; search diagnostics expose pruning and optimality status; and the test suite includes financial, strategy-parity, worker-contract, reporting and workflow-contract coverage.
+The previously identified high-risk security and result-semantics defects have been remediated and merged to `dev`. The current follow-up branch implements the owner-approved financial timing rules, central product validation, lightweight AIT metadata, freshness classification, search-budget calibration and an initial Playwright smoke suite.
 
-The remediation pass has closed the two highest-risk defects: imported account IDs are now encoded at the DOM boundary, and result output distinguishes pre-withdrawal value from closing assets/liabilities/net worth. Absolute R+ now has finite browser defaults, cooperative time limits, cancellation and a worker watchdog. Bank source status/review dates are visible. The dev web/docs publishers are now independent.
+**The branch is not currently CI-green.** In workflow [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220), Node tests, syntax checks and production/dev builds passed. Five of six Playwright tests passed. The standalone report test failed because a long-label stress table measured 433px in print emulation against a 321px viewport. A print CSS correction has been committed after that run; a rerun is required before calling the report QA gate green.
 
-The remaining material gaps are installment-product contract semantics, static-hosting security-header policy, and browser-level QA. Crawler controls are in place: the production sitemap includes the canonical root and `/web/` URLs, while preview output is excluded and marked noindex. The `dev` deployment pipeline now composes the preview under `/dev/`; porting that preservation behaviour to `main` is deliberately outside this pass and will be revisited when work moves to `main`. The project is still not financially certified or fully accessibility-verified.
+The remaining material work is cross-strategy parity for booking/maturity/payout/reserved-liquidity scenarios, full report/accessibility verification, genuine bank-source reviews, and deployed response-header verification. The project is not financially certified, legally reviewed or fully accessibility-verified.
 
-## Priority findings
+## Finding disposition
 
-| ID | Severity | Finding | Current status | Main location |
-|---|---|---|---|---|
-| SEC-01 | **P1** | Imported account IDs reached HTML attributes without encoding | **Completed** — PR #75 | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
-| FIN-01 | **P1** | Pre-withdrawal value was presented as closing portfolio value | **Completed** — PR #75 | [results.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/results.js) |
-| FIN-02 | **P2** | Capital contributed was described as capital invested | **Completed** — PR #75 | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
-| FIN-03 | **P2** | Product-level source provenance in reports | **Implemented on this branch; CI passed, pending dev shipment** | [html.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/html.js) |
-| ENG-01 | **P2** | Installment payments may extend beyond nominal maturity | **Partial** — event order tested; product contract open | [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js) |
-| ENG-02 | **P2** | Elapsed-day interest uses the start-year 365/366 denominator | **Partial** — convention documented; source verification open | [interest.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/interest.js) |
-| ENG-03 | **P2** | Financial product invariants are distributed across model/load boundaries | **Open** | [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js) |
-| ENG-04 | **P2** | AIT is a fixed 10% engine assumption | **Open** | [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/configuration.js) |
-| ENG-05 | **P1/P2** | Result value semantics were ambiguous around outflows | **Completed** — covered by FIN-01 | [results.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/results.js) |
-| SEARCH-01 | **P2** | Browser Absolute R+ lacked finite default budgets and a post-start timeout | **Implemented** — benchmark calibration pending | [search-strategy-base.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/strategies/search-strategy-base.js) |
-| SEARCH-02 | **P3** | Large strategy modules concentrate independent responsibilities | **Open** | [search-strategy-base.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/strategies/search-strategy-base.js) |
-| SEARCH-03 | **P2/P3** | Independent planner logic needs continued runtime/parity protection | **Open / ongoing control** | [gss.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/strategies/gss.js) |
-| DATA-01 | **P2** | Product-level source URL, effective date and caveat disclosure | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
-| DATA-02 | **Scope boundary** | Senior/minor toggles do not verify depositor eligibility | **Closed as owner-confirmed scope** | [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/configuration.js) |
-| DATA-03 | **Deferred** | Active FD model does not represent all special-product constraints | **Deferred** | [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js) |
-| DATA-04 | **P3** | CSV parser did not enforce exact row field counts or strict quote placement | **Implemented on this branch; CI passed, pending dev shipment** | [csv.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/io/csv.js) |
-| DATA-05 | **P2/P3** | Transfer fees are not a full transfer-channel model | **Open / documented limitation** | [banks.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/data/banks/banks.csv) |
-| DATA-06 | **P2** | Rate freshness and secondary-source warning policy is incomplete | **Partial** | [fd_options.csv](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/data/fd_options/fd_options.csv) |
-| DEPLOY-01 | **P2** | Dev Pages assembly must retain the `/dev/` preview subtree | **Completed on `dev`** — independent dev publishers and assembler are present; `main` port deferred | [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/.github/workflows/pages.yml) |
-
-| UI-01 | **P3** | Programmatic scrolling must respect reduced-motion preference | **Implemented on this branch; CI passed, pending dev shipment** | [motion.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/motion.js) |
-| UI-02 | **P3** | Help tooltip needs programmatic content and touch operation | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
-| UI-03 | **P3** | Inline validation errors need programmatic field association | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
-| PRIV-01 | **P2/P3** | Local drafts need a user-facing deletion/retention control | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
-| WEB-SEC-02 | **P2/P3** | Static hosting has no verified response-header strategy | **Open / hosting constraint** | [SECURITY-PRIVACY.md](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/docs/audits/SECURITY-PRIVACY.md) |
-| QA-01 | **Deferred** | No automated real-browser end-to-end suite | **Deferred** | [tests/](https://github.com/aaron-fredrick/FD-Calculator/tree/dev/tests) |
-| QA-REP-01 | **P3** | Downloaded standalone HTML has not been independently browser-tested | **Open** | [html.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/reporting/html.js) |
-
-## Owner feedback and decisions
-
-| Finding | Decision / interpretation | Planned treatment |
+| ID | Finding | Current status |
 |---|---|---|
-| **SEC-01** | Confirmed valid finding | **Completed in PR #75.** IDs are HTML-attribute encoded without restricting their accepted identity; adversarial regression coverage added. |
-| **FIN-01** | Confirmed overlooked result-presentation issue | **Completed in PR #75.** Explicit pre-withdrawal, closing-assets, outstanding-liability and closing-net-worth metrics are exposed; runtime settlement and strategy objective remain unchanged. |
-| **ENG-01** | Event order is intentional: cash inflows/FD cash flows first, outflows second, decision third | Preserve and test this order. It does not alone determine whether a final installment after nominal maturity matches a bank contract. Do not clamp dates until representative product terms establish the correct model. |
-| **ENG-02** | Project intends an actual elapsed-day/relative-delta basis | Keep the current formula for now; document the exact start-year 365/366 denominator and verify against representative bank terms before changing financial calculations. |
-| **SEARCH-01** | Finite defaults are required, but users may opt into unlimited work | **Implemented in PR #75.** Browser defaults are 10,000 expanded states and 30 seconds; explicit unlimited controls, cooperative stopping, cancellation, watchdog and diagnostics are present. Benchmark calibration remains. |
-| **DATA-01** | Implemented on this branch | Bank-level review/status disclosure remains; product source URL, effective date, source type and caveat now flow through web/CLI loaders and worker results into HTML and console reports. Missing effective dates are explicitly shown as not recorded. |
-| **DATA-02** | Eligibility verification is the user's responsibility; FD Cal is not a bank onboarding/security gate | Treat senior/minor toggles as inclusion filters. Retain a clear disclaimer; do not add age/guardian verification as part of this work. |
-| **DATA-03** | Scope not yet clear | Defer until the owner specifies which special-product constraints should be modelled. Keep products with unenforced critical terms out of the active catalogue. |
-| **DEPLOY-01** | Dev preview is intentionally public for users and contributors | **Completed for the current `dev` delivery path in PR #80.** Separate dev web/docs artifacts are assembled under `/dev/`; preview HTML is noindex and the root crawler policy disallows the subtree. Porting the assembler to `main` is deferred until main-branch work begins. |
+| SEC-01 | Imported account IDs require HTML attribute encoding | **Completed — PR #75** |
+| FIN-01 / ENG-05 | Pre-withdrawal value must be distinct from closing assets/liabilities | **Completed — PR #75** |
+| FIN-02 | Capital contributed must not be labelled capital invested | **Completed — PR #75** |
+| FIN-03 / DATA-01 | Product-level source provenance in UI, CLI and reports | **Implemented on follow-up branch; browser/manual review remains** |
+| ENG-01 | Installment payout events bounded by simulation window | **Implemented on follow-up branch; regression tests added** |
+| ENG-02 | Retain and disclose start-year 365/366 denominator convention | **Implemented on follow-up branch; formula unchanged** |
+| ENG-03 | Central FD term validation and maturity horizon | **Implemented on follow-up branch; row-level diagnostics added** |
+| ENG-04 | Lightweight versioned 10% AIT baseline and IRD source disclosure | **Implemented on follow-up branch; no tax-regime engine** |
+| SEARCH-01 | Bounded browser search and explicit unlimited mode | **Implemented and calibrated; no optimality proof** |
+| SEARCH-02 | Strategy modules concentrate multiple responsibilities | **Deferred; staged decomposition plan only** |
+| SEARCH-03 | Independent planners require authoritative runtime/parity protection | **Partial; strict/deferred outflow parity across four strategies; broader cases remain** |
+| DATA-02 | Senior/minor selection is not eligibility verification | **Closed as owner-confirmed scope boundary** |
+| DATA-03 | Special-product caps/eligibility/tax constraints | **Deferred; special products remain research-only** |
+| DATA-04 | Strict CSV structural validation | **Completed — PR #81 merged to dev** |
+| DATA-05 | Simplified transfer-fee model is not a full channel model | **Documented limitation; owner approved retaining it** |
+| DATA-06 | Bank dataset freshness and metadata | **Metadata contract implemented; bank-by-bank source review pending** |
+| DEPLOY-01 | Dev preview assembly under `/dev/` | **Completed on dev — PR #80** |
+| UI-01/02/03 | Reduced-motion scrolling, operable help disclosures, field-associated errors | **Implemented on follow-up branch; manual assistive-tech QA remains** |
+| PRIV-01/02 | Draft retention controls and public privacy/legal disclosures | **Completed on dev — PR #81** |
+| WEB-SEC-02 | Static hosting response-header strategy | **Open verification; GitHub Pages retained by owner decision** |
+| QA-01 | Playwright browser smoke coverage in CI | **Implemented; latest run has one browser failure** |
+| QA-REP-01 | Independent standalone report, mobile and print QA | **Partial; print-width regression correction awaits CI rerun** |
 
-| **DATA-04** | Implemented on this branch | Inventoried all 33 catalogue CSVs, repaired 93 rows with unquoted comma-containing metadata across three files, and added strict row-width/quote validation with source and line diagnostics. CI verifies the full inventory. |
-| **UI-01** | Implemented on this branch | A shared scroll helper checks `prefers-reduced-motion` at each request; reduced-motion users receive `behavior: auto`, while normal users retain smooth scrolling. Unit coverage verifies both branches. |
-| **QA-01** | Needs owner decision | Finding means no automated real-browser E2E suite was found. Defer the choice between Playwright smoke coverage and manual browser verification. |
+## Owner-approved constraints
 
-## Positive controls worth preserving
+- **ENG-01:** preserve the contractual payout sequence; schedule only generated events within the selected simulation window. Do not extend the run or clamp a late installment to maturity. Product maturity must fit within the simulation horizon.
+- **ENG-02:** retain the existing start-year 365/366 elapsed-day denominator across the full interval. Do not silently switch to calendar-segmented Actual/Actual.
+- **ENG-03:** validate product-term invariants centrally; keep special-product constraints out of the generic model until separately designed.
+- **ENG-04:** retain a lightweight 10% Sri Lankan interest AIT baseline with effective date and official source disclosure. Do not build a broad tax-regime engine.
+- **DATA-03:** special-product modelling remains deferred.
+- **DATA-05:** retain the simplified same-bank/inter-bank fee approximation and label it as an estimate.
+- **DATA-06:** track source review, actual economic-data changes and schema migrations independently. Schema-only migrations must preserve review/update dates.
+- **SEARCH-01:** retain 10,000 expanded states / 30 seconds as browser baseline; users can deliberately request longer/unlimited searches.
+- **SEARCH-02:** no broad strategy refactor before parity baselines.
+- **WEB-SEC-02:** keep GitHub Pages; no proxy/CDN or hosting migration in this phase.
 
-- **Shared engine:** the browser worker and CLI call the same core strategy/simulation implementation.
-- **Runtime boundary:** `SimulationRuntime` is the authoritative event processor and executor; strategies consume planning views and submit decisions.
-- **Outflow sequencing:** same-date inflows, FD cash flows, and maturities are credited before outflows are settled; strategy decisions follow settlement.
-- **Input validation:** configuration keys, data types, ranges and schedule relationships are checked before simulation.
-- **Worker protocol:** the implementation correctly avoids using `event.origin` as authentication for a dedicated Worker and validates the message contract.
-- **Report output:** dynamic report text is generally escaped; embedded JSON protects closing-script sequences; the report is self-contained.
-- **Strategy transparency:** Absolute R+ exposes expanded states, beam pruning, budgets and optimality status.
-- **Regression base:** tests include engine, cash-flow, configuration, provenance, strategy parity, worker, report and Pages workflow contracts.
-- **Privacy posture:** no third-party analytics or session-replay instrumentation was identified in the reviewed application code; the UI says drafts remain in the browser.
+Full evidence and source links are in [Owner-feedback research](OWNER-FEEDBACK-RESEARCH.md).
 
-## Recommended implementation order
+## Immediate remaining work
 
-1. **DATA-01 / FIN-03:** implemented on this branch with worker, HTML report and CLI report coverage; pending dev shipment.
-2. **ENG-01/ENG-02:** validate installment and elapsed-day conventions against representative bank terms before changing financial calculations.
-3. **DATA-04:** implemented on this branch; all 33 catalogue CSVs pass strict row-width and quote validation, pending dev shipment.
-4. Preserve crawler controls: keep `/dev/` excluded by the root robots policy, keep preview HTML noindex, and ensure the production sitemap contains canonical production routes only.
-5. **UI-01/02/03:** implemented on the working branch with contract/unit coverage; pending dev shipment and browser/assistive-technology verification.
-6. **WEB-SEC-02:** verify actual production/dev response headers and decide whether a CDN/proxy or hosting migration is needed. The GitHub Pages boundary is documented; PRIV-01 is implemented on this branch.
-7. **QA-01 / QA-REP-01:** decide on browser automation and verify the app/report in a real browser.
-8. **Main integration (later):** when work moves to `main`, port and verify the preview-aware assembler there; this is not a current `dev` blocker.
-
-DATA-02 is an accepted product-scope boundary. DATA-03 and QA-01 remain deferred for owner decisions. Detailed phases, regression cases, and non-regression gates are in [IMPLEMENTATION-PLAN.md](IMPLEMENTATION-PLAN.md).
+1. Rerun CI after the standalone report print CSS correction. Fix the actual layout if the assertion still fails; do not weaken the check.
+2. Expand SEARCH-03 parity to eligible FD bookings, maturity/installment payouts, transfer fees and future-outflow reserved liquidity. Compare ledger, obligations, balances and validity across Greedy, GSS, Absolute R and Absolute R+.
+3. Complete report QA: offline network behaviour, chart initialization, realistic large ledgers, print/PDF, keyboard, screen-reader, contrast and 200–400% zoom.
+4. Recheck all 29 bank entries against official source material where possible. Populate review/update dates only when evidence supports them; otherwise leave blank.
+5. Verify actual production and dev response headers and document the Pages limitations.
+6. Keep SEARCH-02 refactoring, DATA-03 activation, richer DATA-05 modelling, main-branch preview integration and external legal counsel review deferred.
 
 ## Release and verification caveats
 
-- The source audit is not formal financial verification, a penetration test, or bank-product certification.
-- The Node.js test/syntax workflow and independent dev web build passed on the exact audited `dev` commit; the dev docs/benchmark workflow was still running when checked. These checks do not prove rendered browser behaviour, screen-reader output, or financial-product correctness.
-- No manual browser, screen-reader, or full WCAG assessment was completed as part of the static audit.
-- The dev preview is a subtree of the same GitHub Pages site. Production and dev deployments must be serialized and both must preserve the other's published files.
-- PR #75 contains the security, result, search-budget and catalogue-disclosure implementation now merged to `dev`; PR #80 contains the dev publishing split now merged to `dev`.
-- This re-audit commit updates documentation only. No new application behaviour is changed here.
+The latest workflow result is not green. The branch should not be merged to `dev` until the browser regression is cleared and the agreed acceptance gates are reviewed. No PR, merge or deployment is part of the current follow-up work.
+
+The audit is a risk-based source review, not formal verification, financial-product certification, penetration testing, a legal opinion or a full WCAG audit. External bank rates, product eligibility, tax relief, fee schedules and contractual payout terms still require direct verification with the relevant institution or qualified professional.
