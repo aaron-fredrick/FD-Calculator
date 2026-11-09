@@ -52,7 +52,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 
 ## QA-01 — The automated suite is strong on Node contracts but lacks browser-level coverage
 
-**Current status: IMPLEMENTED ON FOLLOW-UP BRANCH — CI PASSED.** A small Playwright Chromium smoke suite runs in the shared test workflow for pushes to `dev`/`main` and PRs targeting those branches. It covers app startup, privacy preferences, legal navigation, dev-preview noindex/path prefix, mobile content overflow, a real simulation and independently opened HTML report. Broader keyboard, screen-reader, contrast and zoom QA remains.
+**Current status: IMPLEMENTED ON FOLLOW-UP BRANCH; LATEST CI NOT GREEN.** A Playwright Chromium smoke suite runs in the shared test workflow for pushes to `dev`/`main` and PRs targeting those branches. Five of six browser tests pass: app startup/privacy preferences, legal navigation, dev-preview noindex/path prefix, mobile content overflow, and keyboard focus/reduced-motion. The standalone-report test currently fails its print-width assertion: the long-label stress table measured 433px against a 321px emulated viewport. A print CSS correction is committed and awaits rerun. Broader screen-reader, contrast and 200–400% zoom QA remains.
 
 **Evidence:** the repository contains tests for configuration, dates/foundations, cash-flow components, account provenance, runtime/ledger, strategy parity, search, worker contracts, report output, motion guidelines and Pages workflow contracts. The workflow runs `npm test`, syntax checks and static build checks.
 
@@ -70,7 +70,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 ## CI and release quality
 
 - The Node.js test/syntax workflow passed on audited `dev` commit `caccaf26b4415ae783959e888ff45e33becdadf6` ([run 42553842534](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842534)); the independent dev web build/publish also passed ([run 42553842533](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842533)). The docs/benchmark publishing workflow was in progress when checked ([run 42553842591](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842591)).
-- No manual browser QA, Lighthouse run, WCAG audit, CSP/header scan or external dependency/security scan was completed during this source review.
+- No manual screen-reader/WCAG review, Lighthouse run, deployed CSP/header scan or external dependency/security scan was completed during this source review. The latest CI failure is tracked in the implementation plan.
 - `npm ci` reports no installed dependencies beyond the project itself; VitePress is installed separately by the documentation build script without updating the lockfile. This is reproducible only to the extent that the VitePress version is pinned by the script.
 - Action references use version tags rather than immutable commit SHAs. Consider SHA pinning for higher supply-chain assurance, with automated update tooling.
 - Benchmark validation checks expected observation counts and parameter sweeps; it does not independently validate every bank-rate source or the financial correctness of each observation.
