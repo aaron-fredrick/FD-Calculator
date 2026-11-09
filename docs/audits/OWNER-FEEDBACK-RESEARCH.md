@@ -92,7 +92,7 @@ The IRD's [Circular SEC/2026/E/04](https://www.ird.gov.lk/en/publications/Circul
 
 Keep the model simple: a single current Sri Lankan interest AIT rate with a stable assumption identifier, effective date, verification date and official source reference. Show a concise source disclosure beside the UI toggle. Do not introduce a user-configurable tax regime, historical tax engine or product-level exemption system in this pass. Keep the current rate at 10% until an authoritative update is verified.
 
-Current metadata identifier: `LK-AIT-INTEREST-2025-04-01`.
+Current metadata identifier: `LK-AIT-INTEREST-2025-04-01`. The rate metadata and UI source link have been added on this branch; contract tests and CI verification remain.
 
 ## 5. DATA-03 — special FD products: research only, no implementation
 
@@ -170,9 +170,11 @@ Do not populate the field with the merge date or file modification time: those d
 
 These are catalogue-maintenance warnings, not claims that the bank's published rate has expired. A bank can change a rate the day after review; the source effective date remains a separate signal.
 
-### Implementation plan
+### Implementation status and plan
 
-Use the existing `dataset_reviewed_at` field as the authoritative freshness input and add a separate `dataset_updated_at` field only if the repository needs an explicit dataset-edit timestamp in the UI or reports. Populate review dates only when a source has actually been rechecked. Keep a small metadata contract test and a stale-date boundary test at 180 and 365 days.
+A pure freshness classifier and bank-selector disclosure have been added on this branch. It uses the existing `dataset_reviewed_at` field, displays an explicit unverified state when blank, warns at 180 days, and shows a stronger stale warning at 365 days. The existing index still has no recorded review dates, so the UI will correctly show freshness as unverified for those banks until sources are actually rechecked.
+
+Do not populate review dates with merge timestamps. Add a separate `dataset_updated_at` field only if the repository needs an explicit dataset-edit timestamp in the UI or reports. Keep contract tests for missing/invalid dates and the 180/365-day boundaries.
 
 ## 8. WEB-SEC-02 — retain GitHub Pages
 
