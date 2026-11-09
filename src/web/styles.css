@@ -21,6 +21,7 @@
 .help-tip{position:relative;display:inline-flex;flex:0 0 15px;width:15px;height:15px;align-items:center;justify-content:center;border:1px solid #65758a;border-radius:50%;color:#b9c7d7;font-size:10px;font-weight:800;line-height:1;cursor:pointer;background:transparent;padding:0;font-family:inherit;outline:none}
 .help-tip::after{content:attr(data-tooltip);position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);width:min(260px,70vw);padding:8px 10px;border:1px solid #40536a;border-radius:8px;background:#080d14;color:#e4ebf4;font-size:10px;font-weight:400;line-height:1.45;white-space:normal;text-align:left;box-shadow:0 8px 24px #0008;opacity:0;visibility:hidden;pointer-events:none;z-index:20}
 .help-tip:hover::after,.help-tip:focus-visible::after,.help-tip[aria-expanded="true"]::after{opacity:1;visibility:visible}
+.help-tip:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 @media(max-width:850px){.strategy-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.strategy-row{grid-template-columns:1fr}}
 
@@ -160,7 +161,7 @@ button:active:not(:disabled){transform:scale(.97)}
  filter:blur(2px);
  transition:opacity 160ms ease-in,transform 160ms ease-in,filter 160ms ease-in,visibility 0s linear 160ms;
 }
-.help-tip:hover::after,.help-tip:focus-visible::after{
+.help-tip:hover::after,.help-tip:focus-visible::after,.help-tip[aria-expanded="true"]::after{
  transform:translateX(-50%) translateY(0) scale(1);
  filter:blur(0);
  transition:opacity 200ms ease-out,transform 200ms ease-out,filter 200ms ease-out,visibility 0s;
