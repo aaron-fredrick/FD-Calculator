@@ -242,26 +242,24 @@ Do not invent dates for old rows. Backfill only when Git history or research not
 - Confirm the report contains the same source status/date as the catalogue snapshot used by the simulation.
 - Ensure catalogue metadata changes do not alter booking decisions, interest, fees, or strategy fingerprints unless the calculation-relevant product terms changed.
 
-### Phase 6 — DEPLOY-01: preserve the public dev preview on production deployments
+### Phase 6 — DEPLOY-01: publish and preserve the dev preview on the active dev delivery path
 
-**Status:** **Partial** PR #80 splits dev web/docs publishing and adds dev-side assembly. `main` still uses an assembler without `/dev/` extraction, so the production-preservation acceptance criterion is not met yet.  
+**Status:** **Completed on `dev` in PR #80.** Separate dev web and documentation publishers produce `dev_pages-web-artifact` and `dev_pages-docs-artifact`; the dev Pages assembler composes them beneath `site/dev/` and validates the expected preview entry points. The user has confirmed that the merged dev preview works.  
 **Priority:** P2  
-**Primary boundary:** artifact branches → Pages assembly → public site.
+**Primary boundary:** dev component artifacts → Pages assembly → `/FD-Calculator/dev/`.
 
-The dev preview is intended to be publicly accessible so users and contributors can verify work. It is not a temporary developer-only path. Every normal production deployment must preserve the current preview at `/dev/`.
+The current delivery target is `dev`. Do not block this work on changes to `main`. The dev branch's assembler includes the preview components and shares the Pages deployment concurrency group. Persistent preview artifact/state branches use the `dev_` prefix. The root production `robots.txt` disallows the preview subtree, and the dev web/docs HTML builds emit noindex metadata.
 
-#### Implementation plan
+**Completed acceptance evidence:**
+1. Dev web and docs publishing are independent, so a web-only change does not wait for benchmark/documentation generation.
+2. The dev assembler extracts the independently published dev components into `site/dev/` and checks for `index.html`, `web/index.html` and `docs/index.html`.
+3. Dev output is built with `FD_CAL_PREVIEW=true`, path-prefixed URLs and a visible preview banner.
+4. Dev HTML receives `noindex,nofollow`; the root crawler policy disallows `/FD-Calculator/dev/`.
+5. The user confirmed the merged dev preview is functioning.
 
-1. Port the preview-aware Pages assembler to `main`; do not rely on the dev branch's workflow alone.
-2. Keep the production web/docs artifact refs and dev preview artifact ref independent. Preserve the established `dev_` prefix on persistent dev branches/artifact-state refs.
-3. During assembly, extract production web and docs artifacts first, then extract the dev artifact into `site/dev/` last so root artifacts cannot overwrite the preview subtree.
-4. Keep the shared Pages deployment concurrency group. Production and dev publishes must remain serialized because they deploy one assembled Pages tree.
-5. If the current dev artifact is temporarily unavailable, preserve the last successfully published dev subtree from a known-good baseline rather than silently deleting `/dev/`. Removal should require an explicit, reviewed action.
-6. Keep noindex/canonical metadata and dev-preview banner confined to the dev build. Production root output must remain unchanged by the dev build.
-7. Add deployment contract checks that assert the production root files are unchanged, `/dev/`, `/dev/web/`, and `/dev/docs/` exist, and the preview assets/data/worker URLs resolve under the dev prefix.
-8. Test both directions: a dev publish must preserve production; a main publish must preserve the latest dev preview.
+**Deferred, not a current blocker:** when work moves to `main`, port the preview-aware assembler and verify that a normal production deployment preserves the latest dev subtree. Do not make or audit that main-branch change in this phase.
 
-**Acceptance:** routine main and dev deployments both publish the same composed site without deleting or overwriting either component.
+**Acceptance for current scope:** the active `dev` pipeline can independently publish web/docs components and compose a working preview under `/dev/` without modifying production component artifacts.
 
 ### Phase 7 — DATA-04: strict CSV structural validation
 
@@ -336,14 +334,14 @@ The earlier audit implementation was delivered on this same branch and merged to
 
 Recommended implementation sequence:
 
-1. **DEPLOY-01** — port the preview-aware assembler to `main`; test both production and dev publishes preserve the other subtree.
-2. **DATA-01 / FIN-03** — complete product-level source URL/effective-date propagation into the UI and standalone report.
+1. **DATA-01 / FIN-03** — complete product-level source URL/effective-date propagation into the UI and standalone report.
 3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
 4. **DATA-04** — inventory current CSVs, then enforce strict row width/quoting with actionable errors.
 5. **UI-01 / UI-02 / UI-03** — reduced-motion scrolling, accessible tooltip semantics and field-error associations.
 6. **PRIV-01 / WEB-SEC-02** — local draft deletion/retention control and static-hosting security-header strategy.
 7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
-8. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
+8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
+9. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
 
 Each new implementation should be a focused branch from the current `dev` baseline, with its own tests and review. Merge only after its acceptance criteria pass. Rebase/update from `dev` as needed; do not merge this audit branch wholesale into `main` merely to publish the plan.
 
@@ -360,7 +358,8 @@ Before any implementation PR is considered complete:
 - [ ] UI is inspected at narrow mobile, tablet, and desktop viewports.
 - [ ] Keyboard focus, error announcements, and reduced-motion behaviour are verified for affected flows.
 - [ ] Standalone HTML reports are opened and checked independently of the app.
-- [ ] Production and dev Pages trees are both verified after deployment-related changes.
+- [ ] The active `dev` Pages tree is verified under `/dev/`; keep `main` integration as a later, separately verified task.
+- [ ] The production sitemap includes canonical app/docs URLs and excludes every `/dev/` URL; preview HTML carries `noindex,nofollow`.
 - [ ] Any unverified browser, screen-reader, financial-source, or bank-contract assumption is explicitly recorded.
 
 ## 7. References
