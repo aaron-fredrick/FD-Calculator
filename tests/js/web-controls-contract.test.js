@@ -69,3 +69,14 @@ test("inline validation errors are programmatically associated and cleaned up sa
   assert.match(app, /filter\(id=>id&&!noteIds\.has\(id\)\)/);
   assert.match(app, /el\.removeAttribute\("aria-describedby"\)/);
 });
+
+
+test("help tips expose accessible names and support pointer, keyboard and touch disclosure", () => {
+  assert.match(page, /<button class="help-tip" type="button" aria-label="Help:/);
+  assert.match(app, /<button class="help-tip" type="button" aria-label="Help:/);
+  assert.doesNotMatch(page, /class="help-tip"[^>]*role="img"/);
+  assert.match(app, /document\.addEventListener\("click",event=>/);
+  assert.match(app, /aria-expanded/);
+  assert.match(app, /event\.key!=="Escape"/);
+  assert.match(styles, /\.help-tip\[aria-expanded="true"\]::after/);
+});
