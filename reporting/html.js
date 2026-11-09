@@ -213,10 +213,21 @@ function buildExecution(result,accountDisplay) {
       if(!b)return;
       const account=result.accounts[b.account_id],accountName=account?.label||b.account_id;
       const start=iso(b.start),maturity=iso(b.end),product=b.option.label,fdType=b.option.is_efd?"eFD":"Standard FD";
+      const sourceTypes={direct:"Direct bank source",secondary:"Secondary source",fallback:"Fallback / assumption"};
+      const sourceType=sourceTypes[b.option.source_type]||b.option.source_type||"Source type not recorded";
+      const sourceEffectiveDate=b.option.source_effective_date||"Not recorded";
+      const sourceUrl=String(b.option.source_url||"").trim();
+      const sourceUrlHtml=/^https:\/\/[^\s"'<>]+$/i.test(sourceUrl)
+        ? '<a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer">Open source</a>'
+        : "Not recorded";
+      const sourceNotes=String(b.option.source_notes||"").trim();
+      const sourceNotesHtml=sourceNotes
+        ? '<details class="source-notes"><summary>Product source notes</summary><p>'+esc(sourceNotes)+'</p></details>'
+        : "";
       const gross=b.total_interest,netFlows=b.option.applyAITToCashFlows(b.principal,b.cash_flows,result.ait_enabled?result.ait_rate:0);
       const netInterest=netFlows.reduce((s,f)=>s+f.amount,0)-b.principal,ait=gross-netInterest;
       const step=unique.length+i+1;
-      actionParts.push('<div class="instruction booking-instruction"><div class="instruction-title"><span>STEP '+step+'</span> Open the fixed deposit</div><div class="detail-grid"><div><small>Account</small><b>'+esc(accountName)+'</b></div><div><small>Product</small><b>'+esc(product)+' · '+fdType+'</b></div><div><small>Investment amount</small><b>'+money(b.principal)+'</b></div><div><small>Rate / term</small><b>'+Number(b.option.annual_rate).toFixed(3)+'% p.a. · '+esc(b.option.period_str)+'</b></div><div><small>Booking → maturity</small><b>'+start+' → '+maturity+'</b></div><div><small>Payout</small><b>'+esc(payoutName(b.payout_type))+'</b></div><div><small>Catalogue eligibility</small><b>'+esc(formatProductEligibility(b.option))+'</b></div></div><p class="muted">Catalogue age and guardian conditions are informational; FD Cal does not verify a depositor’s eligibility. Confirm the current terms with the bank.</p></div>');
+      actionParts.push('<div class="instruction booking-instruction"><div class="instruction-title"><span>STEP '+step+'</span> Open the fixed deposit</div><div class="detail-grid"><div><small>Account</small><b>'+esc(accountName)+'</b></div><div><small>Product</small><b>'+esc(product)+' · '+fdType+'</b></div><div><small>Investment amount</small><b>'+money(b.principal)+'</b></div><div><small>Rate / term</small><b>'+Number(b.option.annual_rate).toFixed(3)+'% p.a. · '+esc(b.option.period_str)+'</b></div><div><small>Booking → maturity</small><b>'+start+' → '+maturity+'</b></div><div><small>Payout</small><b>'+esc(payoutName(b.payout_type))+'</b></div><div><small>Catalogue eligibility</small><b>'+esc(formatProductEligibility(b.option))+'</b></div><div><small>Product source</small><b>'+esc(sourceType)+'</b></div><div><small>Source effective date</small><b>'+esc(sourceEffectiveDate)+'</b></div><div><small>Source reference</small><b>'+sourceUrlHtml+'</b></div></div><p class="muted">Catalogue age and guardian conditions are informational; FD Cal does not verify a depositor’s eligibility. Confirm the current terms with the bank.</p>'+sourceNotesHtml+'</div>');
       investmentRows.push({account:accountName,product:product+" · "+fdType,principal:amount(b.principal),rate:Number(b.option.annual_rate).toFixed(3)+"%",term:b.option.period_str,booking:start,maturity,gross:amount(gross),ait:amount(ait),net:amount(netInterest)});
       const context=bookingEvents.find(x=>x.booking_ref===ref)?.decision_context||{};
     });

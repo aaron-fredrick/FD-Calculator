@@ -54,6 +54,13 @@ function bookingText(result){
  result.bookings.forEach((b,i)=>{const ref="FD-"+String(i+1).padStart(4,"0"),bank=b.bank_id||b.bank_key||"-",type=b.option.is_efd?"eFD":"Standard",p=abbr[b.payout_type]||b.payout_type;
   if(b.payout_type==="cumulative")out.push("  "+pad(ref,9)+" "+pad(bank,12)+" "+pad(type,9)+" "+pad(b.option.label,23)+" "+pad(p,18)+" "+pad(date(b.start),11)+" "+pad(date(b.end),11)+" "+money(b.principal).padStart(12)+" "+money(b.total_interest).padStart(10)+" "+money(b.total_received).padStart(12));
   else{out.push("  "+pad(ref,9)+" "+pad(bank,12)+" "+pad(type,9)+" "+pad(b.option.label,23)+" "+pad(p,18)+" "+pad(date(b.start),11)+" "+pad(date(b.end),11)+" "+money(b.principal).padStart(12)+" "+" ".repeat(10)+" "+" ".repeat(12));(b.cash_flows||[]).forEach((f,j)=>{const last=j===b.cash_flows.length-1,lbl=last&&b.payout_type==="periodic_interest"?"capital+interest":last?"last instalment":"payment "+(j+1);out.push("  "+" ".repeat(9)+"   * "+pad(lbl,22)+" ".repeat(18)+" ".repeat(11)+" "+pad(date(f.date),11)+" ".repeat(12)+" ".repeat(10)+" "+money(f.amount).padStart(12));});}
+  const sourceTypes={direct:"direct bank source",secondary:"secondary source",fallback:"fallback / assumption"};
+  const sourceType=sourceTypes[b.option.source_type]||b.option.source_type||"not recorded";
+  const rawSourceUrl=String(b.option.source_url||"").trim();
+  const sourceUrl=/^https:\/\/[^\s"'<>]+$/i.test(rawSourceUrl)?rawSourceUrl:"not recorded";
+  out.push("    Source: "+sourceType+" · effective date: "+(b.option.source_effective_date||"not recorded")+" · "+sourceUrl);
+  const notes=String(b.option.source_notes||"").replace(/\s+/g," ").trim();
+  if(notes)out.push("    Source notes: "+notes);
  });out.push(line("-"));return out.join("\n");
 }
 export function formatSimulation(result,config,configPath,optionsPath,{color:useColor=Boolean(process.stdout?.isTTY&&!process.env.NO_COLOR),showEventTimeline=true,showBookingLedger=true}={}){

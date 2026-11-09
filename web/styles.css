@@ -18,9 +18,10 @@
 
 
 .field-label{display:flex;align-items:center;gap:7px;min-height:17px}
-.help-tip{position:relative;display:inline-flex;flex:0 0 15px;width:15px;height:15px;align-items:center;justify-content:center;border:1px solid #65758a;border-radius:50%;color:#b9c7d7;font-size:10px;font-weight:800;line-height:1;cursor:help;outline:none}
+.help-tip{position:relative;display:inline-flex;flex:0 0 15px;width:15px;height:15px;align-items:center;justify-content:center;border:1px solid #65758a;border-radius:50%;color:#b9c7d7;font-size:10px;font-weight:800;line-height:1;cursor:pointer;background:transparent;padding:0;font-family:inherit;outline:none}
 .help-tip::after{content:attr(data-tooltip);position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);width:min(260px,70vw);padding:8px 10px;border:1px solid #40536a;border-radius:8px;background:#080d14;color:#e4ebf4;font-size:10px;font-weight:400;line-height:1.45;white-space:normal;text-align:left;box-shadow:0 8px 24px #0008;opacity:0;visibility:hidden;pointer-events:none;z-index:20}
-.help-tip:hover::after,.help-tip:focus-visible::after{opacity:1;visibility:visible}
+.help-tip:hover::after,.help-tip:focus-visible::after,.help-tip[aria-expanded="true"]::after{opacity:1;visibility:visible}
+.help-tip:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 @media(max-width:850px){.strategy-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.strategy-row{grid-template-columns:1fr}}
 
@@ -160,7 +161,7 @@ button:active:not(:disabled){transform:scale(.97)}
  filter:blur(2px);
  transition:opacity 160ms ease-in,transform 160ms ease-in,filter 160ms ease-in,visibility 0s linear 160ms;
 }
-.help-tip:hover::after,.help-tip:focus-visible::after{
+.help-tip:hover::after,.help-tip:focus-visible::after,.help-tip[aria-expanded="true"]::after{
  transform:translateX(-50%) translateY(0) scale(1);
  filter:blur(0);
  transition:opacity 200ms ease-out,transform 200ms ease-out,filter 200ms ease-out,visibility 0s;
@@ -267,3 +268,30 @@ body{background:var(--bg)}
   accent-color:var(--purple);
 }
 #strategy label.toggle span{min-width:0}
+
+.draft-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}.draft-controls small{color:var(--muted);max-width:72ch}
+
+/* Legal navigation and privacy preference controls */
+.site-footer{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.site-footer nav{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.site-footer a,.footer-link{color:var(--fd-color-accent);font:inherit;font-size:12px;text-decoration:none}
+.site-footer a:hover,.footer-link:hover{text-decoration:underline}
+.footer-link{padding:0;border:0;background:none;cursor:pointer}
+.privacy-banner{position:fixed;z-index:30;inset:auto 18px 18px;display:flex;align-items:center;justify-content:space-between;gap:22px;max-width:960px;margin-inline:auto;padding:18px 20px;background:var(--fd-color-panel);border:1px solid var(--fd-color-border-strong);border-radius:14px;box-shadow:0 18px 55px #0009}
+.privacy-banner[hidden],.privacy-dialog-backdrop[hidden]{display:none}
+.privacy-banner-copy{min-width:0}.privacy-banner-copy strong{font-size:14px}.privacy-banner-copy p{margin:4px 0 0;color:var(--fd-color-text-muted);font-size:12px}.privacy-banner-copy a{color:var(--fd-color-accent)}
+.privacy-banner-actions,.privacy-dialog-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.privacy-banner-actions button,.privacy-dialog-actions button{min-height:40px}
+.privacy-dialog-backdrop{position:fixed;z-index:40;inset:0;display:grid;place-items:center;padding:18px;background:#05080dcc}
+.privacy-dialog{width:min(100%,590px);max-height:min(90vh,760px);overflow:auto;padding:24px;background:var(--fd-color-panel);border:1px solid var(--fd-color-border-strong);border-radius:16px;box-shadow:0 24px 70px #000b}
+.privacy-dialog-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}.privacy-dialog h2{margin:5px 0;font-size:21px}.privacy-close{font-size:22px;line-height:1}
+.privacy-dialog>p{color:var(--fd-color-text-muted);font-size:12px}
+.privacy-choice{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:16px 0;border-top:1px solid var(--fd-color-border)}
+.privacy-choice strong{display:block;font-size:13px}.privacy-choice small{display:block;max-width:410px;margin-top:4px;color:var(--fd-color-text-muted);font-size:11px}
+.privacy-switch{display:flex;align-items:center;gap:8px;white-space:nowrap;color:var(--fd-color-text-soft);font-size:11px}
+.privacy-switch input{width:17px;height:17px;accent-color:var(--fd-color-accent)}.privacy-switch input:disabled{opacity:.8}
+.privacy-dialog-note{padding:11px 13px;background:var(--fd-color-accent-surface);border:1px solid var(--fd-color-border);border-radius:8px}
+.privacy-dialog-actions{justify-content:flex-end;margin-top:18px}
+.legal-page{max-width:900px;margin:auto;padding:42px 24px 70px}.legal-page .legal-back{color:var(--fd-color-accent);text-decoration:none;font-size:12px}.legal-page h1{margin:18px 0 5px;font-size:clamp(30px,5vw,42px);line-height:1.15}.legal-page .legal-updated{color:var(--fd-color-text-muted);font-size:12px}.legal-page article{margin-top:28px;padding:26px;background:var(--fd-color-panel);border:1px solid var(--fd-color-border);border-radius:14px}.legal-page h2{margin:25px 0 8px;font-size:18px}.legal-page h2:first-child{margin-top:0}.legal-page p,.legal-page li{color:var(--fd-color-text-soft);font-size:13px}.legal-page ul{padding-left:22px}.legal-page a{color:var(--fd-color-accent)}.legal-page .legal-callout{padding:13px 15px;background:var(--fd-color-accent-surface);border:1px solid var(--fd-color-border);border-radius:9px}
+@media(max-width:700px){.privacy-banner{inset:auto 10px 10px;align-items:stretch;flex-direction:column;gap:12px;padding:15px}.privacy-banner-actions{display:grid;grid-template-columns:1fr 1fr}.privacy-banner-actions #privacy-accept{grid-column:1/-1}.privacy-dialog{padding:18px}.privacy-choice{align-items:flex-start}.site-footer{align-items:flex-start;flex-direction:column}.site-footer nav{gap:12px}.legal-page{padding:28px 13px 50px}.legal-page article{padding:18px}}
+@media(prefers-reduced-motion:reduce){.privacy-dialog-backdrop,.privacy-banner{scroll-behavior:auto}}
