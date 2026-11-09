@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { FDOption } from "../core/models.js";
 import { parseCSV } from "./csv.js";
 import { validateConfigurationShape } from "../core/config-schema.js";
+import { normalizeBankDatasetMetadata } from "./dataset-metadata.js";
 const ROOT=resolve(dirname(fileURLToPath(import.meta.url)),"../..");
 const read=path=>readFile(path,"utf8");
 const parseBool=(v,field)=>{const s=String(v??"").trim().toLowerCase();if(s==="true")return true;if(s==="false")return false;throw new TypeError(field+" must be true or false.");};
@@ -62,4 +63,4 @@ export async function loadFDOptions(indexPath, bankIds) {
   }
   return out;
 }
-export async function loadConfigurationFromFile(configPath,{today}={}){const resolvedConfig=resolve(configPath),raw=validateConfigurationShape(JSON.parse(await read(resolvedConfig))),banks=await loadBankCatalogue(),setting=raw.options_file||"data/fd_options/fd_options.csv";let indexPath=isAbsolute(setting)?setting:resolve(dirname(resolvedConfig),setting);try{await read(indexPath);}catch{indexPath=resolve(ROOT,setting);}const indexRows=parseCSV(await read(indexPath)),bankKeyById=Object.fromEntries(indexRows.map(r=>[r.bank_id,String(r.bank_key).trim().toLowerCase()])),bankIds=[...new Set(Object.values(raw.accounts||{}).map(a=>String(a.bank_id??"").trim()))],options=await loadFDOptions(indexPath,bankIds);return {raw,resolvedConfig,optionsPath:indexPath,bankRegistry:banks,bankKeyById,bankDatasetRegistry:Object.fromEntries(indexRows.map(row=>[row.bank_id,row])),options};}
+export async function loadConfigurationFromFile(configPath,{today}={}){const resolvedConfig=resolve(configPath),raw=validateConfigurationShape(JSON.parse(await read(resolvedConfig))),banks=await loadBankCatalogue(),setting=raw.options_file||"data/fd_options/fd_options.csv";let indexPath=isAbsolute(setting)?setting:resolve(dirname(resolvedConfig),setting);try{await read(indexPath);}catch{indexPath=resolve(ROOT,setting);}const indexRows=parseCSV(await read(indexPath)),bankKeyById=Object.fromEntries(indexRows.map(r=>[r.bank_id,String(r.bank_key).trim().toLowerCase()])),bankIds=[...new Set(Object.values(raw.accounts||{}).map(a=>String(a.bank_id??"").trim()))],options=await loadFDOptions(indexPath,bankIds);const bankDatasetRegistry = Object.fromEntries(indexRows.map(row => [row.bank_id, { ...row, ...normalizeBankDatasetMetadata(row) }]));return {raw,resolvedConfig,optionsPath:indexPath,bankRegistry:banks,bankKeyById,bankDatasetRegistry,options};}

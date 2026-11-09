@@ -1,9 +1,0 @@
-[project]
-name = "fd-calculator"
-version = "0.1.0"
-description = "Multi-bank fixed-deposit investment simulator"
-readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "matplotlib>=3.11.2",
-]

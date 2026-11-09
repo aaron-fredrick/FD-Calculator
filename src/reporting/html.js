@@ -28,7 +28,7 @@ const scheduleText = item => item.type === "recurring"
   ? "Every "+(item.interval || "—")+" · "+iso(item.start_date)+" to "+iso(item.end_date)
   : (item.dates || []).map(iso).join(", ");
 const table = (title, columns, rows) => {
-  const head = columns.map(([,label])=>"<th>"+esc(label)+"</th>").join("");
+  const head = columns.map(([,label])=>'<th scope="col">'+esc(label)+"</th>").join("");
   const body = rows.length ? rows.map(row=>"<tr>"+columns.map(([key])=>"<td>"+esc(row[key] ?? "—")+"</td>").join("")+"</tr>").join("")
     : '<tr><td colspan="'+columns.length+'" class="empty">None configured</td></tr>';
   return '<details class="collapsible-table"><summary>'+esc(title)+' <span>'+rows.length+' rows · click to expand</span></summary><div class="table-wrap"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div></details>';

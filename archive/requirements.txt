@@ -1,2 +1,0 @@
-# Runtime dependency for optional dark-theme strategy charts
-matplotlib>=3.8

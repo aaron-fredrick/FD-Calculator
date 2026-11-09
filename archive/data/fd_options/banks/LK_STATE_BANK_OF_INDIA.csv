@@ -1,7 +1,0 @@
-name,type,period,annual_rate,min_amount,payout_type,payout_period,eFD,currency,source_url,source_effective_date,source_type,notes
-3m,fixed_deposit,3m,6.25,,cumulative,,,LKR,https://sl.statebank/interest-rates,2026-06-17,direct,Official LKR term deposit schedule effective 17 June 2026.
-6m,fixed_deposit,6m,6.5,,cumulative,,,LKR,https://sl.statebank/interest-rates,2026-06-17,direct,Official LKR term deposit schedule effective 17 June 2026.
-12m,fixed_deposit,12m,7.25,,cumulative,,,LKR,https://sl.statebank/interest-rates,2026-06-17,direct,Official LKR term deposit schedule effective 17 June 2026.
-24m,fixed_deposit,24m,7.25,,cumulative,,,LKR,https://sl.statebank/interest-rates,2026-06-17,direct,Official LKR term deposit schedule effective 17 June 2026.
-12m monthly,fixed_deposit,12m,6.5,,periodic_interest,1m,,LKR,https://sl.statebank/interest-rates,2026-06-17,direct,Official LKR term deposit schedule effective 17 June 2026.
-24m monthly,fixed_deposit,24m,7,,periodic_interest,1m,,LKR,https://sl.statebank/interest-rates,2026-06-17,direct,Official LKR term deposit schedule effective 17 June 2026.

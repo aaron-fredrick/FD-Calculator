@@ -1,7 +1,0 @@
-User-agent: *
-Allow: /
-
-# Preview pages emit noindex,nofollow. Keep them crawlable so search engines
-# can read that directive; preview URLs must never be added to the sitemap.
-
-Sitemap: https://aaron-fredrick.github.io/FD-Calculator/sitemap.xml

@@ -139,8 +139,37 @@ test("a default scenario runs and produces an independently openable HTML report
   const reportPage = await context.newPage();
   await reportPage.goto("file://" + reportPath);
   await expect(reportPage.locator("body")).toContainText("Simulation Report");
+  const tableCount = await reportPage.locator("table").count();
+  expect(tableCount).toBeGreaterThan(0);
+  const tableSemantics = await reportPage.evaluate(() => ({
+    tablesWithoutColumnHeaders: [...document.querySelectorAll("table")]
+      .filter(table => !table.querySelector("thead th[scope=col]")).length
+  }));
+  expect(tableSemantics.tablesWithoutColumnHeaders).toBe(0);
+
+  await reportPage.setViewportSize({ width: 320, height: 800 });
+  const screenOverflow = await reportPage.evaluate(() => ({
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth
+  }));
+  expect(screenOverflow.documentWidth).toBeLessThanOrEqual(screenOverflow.viewportWidth + 1);
+
   await reportPage.emulateMedia({ media: "print" });
   expect(await reportPage.evaluate(() => window.matchMedia("print").matches)).toBe(true);
+  const printTableLayout = await reportPage.evaluate(() => {
+    const details = document.querySelector("details.collapsible-table");
+    const tableWrap = details?.querySelector(".table-wrap");
+    const table = tableWrap?.querySelector("table");
+    return {
+      tableWrapDisplay: tableWrap ? getComputedStyle(tableWrap).display : "missing",
+      tableMinWidth: table ? getComputedStyle(table).minWidth : "missing",
+      tableWidth: table ? table.getBoundingClientRect().width : 0,
+      viewportWidth: document.documentElement.clientWidth
+    };
+  });
+  expect(printTableLayout.tableWrapDisplay).toBe("block");
+  expect(printTableLayout.tableMinWidth).toBe("0px");
+  expect(printTableLayout.tableWidth).toBeLessThanOrEqual(printTableLayout.viewportWidth + 1);
   await expect(reportPage.locator("body")).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
