@@ -202,7 +202,12 @@ test("a default scenario runs and produces an independently openable HTML report
         wordBreak: getComputedStyle(cell).wordBreak
       })) : [],
       reportTableWidths: [...document.querySelectorAll("main .collapsible-table .table-wrap table")]
-        .map(item => item.getBoundingClientRect().width)
+        .map(item => item.getBoundingClientRect().width),
+      styleTail: document.querySelector("style")?.textContent.slice(-1200) ?? "no style",
+      printRules: [...document.styleSheets].flatMap(sheet => {
+        try { return [...sheet.cssRules].filter(rule => rule.cssText.includes("table-layout") || rule.cssText.includes("word-break")); }
+        catch { return []; }
+      }).map(rule => rule.cssText)
     };
   });
   expect(printTableLayout.tableWrapDisplay).toBe("block");
