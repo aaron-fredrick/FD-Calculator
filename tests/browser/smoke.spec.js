@@ -61,3 +61,26 @@ test("mobile viewport renders without document-level horizontal overflow", async
   }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
 });
+
+test("a default scenario runs and produces an independently openable HTML report", async ({ page, context }) => {
+  const pageErrors = [];
+  page.on("pageerror", error => pageErrors.push(error.message));
+
+  await page.goto("/web/");
+  await expect(page.locator("#run")).toBeVisible();
+  await page.locator("#run").click();
+  await expect(page.locator("#results")).toBeVisible({ timeout: 25_000 });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.locator("#download-report").click(),
+  ]);
+  const reportPath = await download.path();
+  expect(reportPath).toBeTruthy();
+
+  const reportPage = await context.newPage();
+  await reportPage.goto("file://" + reportPath);
+  await expect(reportPage).toHaveTitle(/Simulation Report/);
+  await expect(reportPage.locator("body")).toContainText("Simulation Report");
+  expect(pageErrors).toEqual([]);
+});
