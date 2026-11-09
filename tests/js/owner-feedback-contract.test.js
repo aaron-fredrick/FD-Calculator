@@ -47,5 +47,5 @@ test("owner-approved interest and research decisions are documented", async () =
   assert.match(research, /only payout events whose dates fall inside the active simulation period/);
   assert.match(research, /180 days/);
   assert.match(research, /365 days/);
-  assert.match(research, /RESEARCH ONLY — owner explicitly deferred implementation/i);
+  assert.match(research, /owner explicitly deferred workflow\/model changes/i);
 });
