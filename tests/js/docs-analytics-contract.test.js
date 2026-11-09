@@ -25,6 +25,7 @@ test("documentation analytics is consent-gated and shared across every VitePress
 
 test("small web notices and metric blocks do not render as nested cards", () => {
   const css = read("src/web/styles.css");
-  assert.match(css, /Inline notices and KPI values are flat content/);
+  assert.match(css, /\\.hint,[\\s\\S]*?\\.catalog-status-mobile\\s*\\{\\s*border: 0/);
+  assert.match(css, /\\.legal-page \\.legal-callout/);
   assert.match(css, /\.hint,[\s\S]*?\.metric\s*\{\s*border: 0/);
 });

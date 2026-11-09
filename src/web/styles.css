@@ -350,6 +350,7 @@ body{background:var(--bg)}
 .bank-source-disclosure,
 .privacy-dialog-note,
 .legal-callout,
+.legal-page .legal-callout,
 .catalog-status-mobile {
   border: 0;
   border-radius: 0;
