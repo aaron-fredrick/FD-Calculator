@@ -447,3 +447,10 @@ A deterministic cross-strategy fixture now exercises eligible FD bookings, insta
 **This is a partial SEARCH-03 checkpoint, not full parity closure.** Future strict/deferred obligation liquidity reservation is still unverified. A deliberately combined future-strict-outflow scenario exposed that Greedy can invest cash needed for a later strict payment; the initial fixture also exposed that the Absolute search strategy requires every configured account to have a compatible product. The temporary Greedy change was reverted because it broke the established Greedy migration parity contract. Do not treat that exploratory failure as a shipped fix. The next SEARCH-03 task is to define and implement an owner-consistent reservation contract across all four strategies, then add fixtures that prove scheduled future obligations remain funded without weakening the existing strategy migration baseline.
 
 Do not merge this checkpoint as final SEARCH-03 sign-off. The remaining QA, bank-source review and deployed-header verification gates also remain open.
+
+
+## 9 November 2026 — bounded ship-gate decision
+
+The current branch head `22a191948611451b7853cf5bdf06142eee3e96e8` passes full CI in [workflow 42586136672](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42586136672). Do not confuse green CI with closure of SEARCH-03: a combined future-strict-outflow case shows Greedy can invest funds required by a later obligation. The exploratory Greedy-side change was not retained because it broke the established migration parity baseline.
+
+**Decision: hold this phase in draft; do not merge to dev yet.** The next completion point is narrowly scoped: define the shared future-obligation reservation contract, implement it at the correct planning/runtime boundary, and prove it with a regression test while retaining current strategy parity. Do not begin the remaining report QA, 29-bank source review, response-header verification or deferred architecture work as part of this phase. Those remain subsequent phases.
