@@ -41,7 +41,14 @@ jobs:
         id: source
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - name: Build the web component only
-        run: bash scripts/build-web-site.sh /tmp/dev-web-site
+        env:
+          FD_CAL_PREVIEW: "true"
+        run: |
+          bash scripts/build-web-site.sh /tmp/dev-web-site
+          test -s /tmp/dev-web-site/index.html
+          test -s /tmp/dev-web-site/web/index.html
+          grep -q 'DEV PREVIEW' /tmp/dev-web-site/web/index.html
+          grep -q 'noindex,nofollow' /tmp/dev-web-site/web/index.html
       - uses: actions/upload-artifact@v7
         with:
           name: dev_web-site
@@ -56,7 +63,7 @@ jobs:
     permissions:
       contents: write
     concurrency:
-      group: dev-pages-artifact-web
+      group: dev-preview-artifact-publish
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
@@ -98,6 +105,61 @@ jobs:
           else
             git commit -m "pages: publish web component from ${GITHUB_SHA}"
             git push origin "HEAD:refs/heads/$branch"
+          fi
+      - name: Refresh the combined dev preview compatibility artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy="dev_pages-preview-artifact"
+          combined="$RUNNER_TEMP/dev-preview-combined"
+          mkdir -p "$combined"
+
+          if git ls-remote --exit-code origin "refs/heads/$legacy" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$legacy:refs/remotes/origin/$legacy"
+            git archive "origin/$legacy" | tar -x -C "$combined"
+          fi
+
+          web_ref="dev_pages-web-artifact"
+          docs_ref="dev_pages-docs-artifact"
+          web_exists=false
+          docs_exists=false
+          if git ls-remote --exit-code origin "refs/heads/$web_ref" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$web_ref:refs/remotes/origin/$web_ref"
+            git archive "origin/$web_ref" | tar -x -C "$combined"
+            web_exists=true
+          fi
+          if git ls-remote --exit-code origin "refs/heads/$docs_ref" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$docs_ref:refs/remotes/origin/$docs_ref"
+            git archive "origin/$docs_ref" | tar -x -C "$combined"
+            docs_exists=true
+          fi
+
+          if [ "$web_exists" != "true" ] || [ "$docs_exists" != "true" ]; then
+            echo "::notice::Both independent components are not published yet; leaving the previous combined preview unchanged."
+            exit 0
+          fi
+          test -s "$combined/index.html"
+          test -s "$combined/web/index.html"
+          test -s "$combined/docs/index.html"
+
+          if git ls-remote --exit-code origin "refs/heads/$legacy" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$legacy:refs/remotes/origin/$legacy"
+            git checkout -B "$legacy" "refs/remotes/origin/$legacy"
+            git rm -rf . >/dev/null 2>&1 || true
+          else
+            git switch --orphan "$legacy"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          git clean -fdx
+          cp -R "$combined/." .
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The combined dev preview compatibility artifact is already current."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "pages: refresh combined dev preview compatibility artifact"
+            git push origin "HEAD:refs/heads/$legacy"
           fi
 
   deploy:
