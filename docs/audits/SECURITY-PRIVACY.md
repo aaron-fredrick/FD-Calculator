@@ -41,11 +41,26 @@
 **Acceptance:** met on this branch. Retention is explained; deletion is user-initiated and confirmed; the deleted draft is not re-saved by the same click. CI passed; pending shipment to `dev`.
 
 
-## WEB-SEC-02 — Static hosting still needs an explicit security-header strategy
+## WEB-SEC-02 — Static hosting needs an explicit security-header strategy
 
-**Current status: OPEN / hosting constraint.** The app remains on GitHub Pages and no verifiable response-header policy was established by the reviewed repository files. Document the limits accurately; move hosting only if the required header controls justify it.
+**Current status: OPEN / hosting constraint documented.** FD Cal is published on GitHub.com Pages. The repository's static build and Pages artifact do not provide a configurable origin-server response-header policy. No verified response-header set for the production or dev origin has been established in this audit.
 
-GitHub Pages does not provide arbitrary per-route response headers through a repository file in the same way as a configurable origin server. The reviewed app should therefore document which controls are available at the hosting layer and avoid claiming that a `robots.txt` file is a security boundary. If a stronger Content-Security-Policy, Referrer-Policy or Permissions-Policy is required, use a hosting layer that can emit those headers or an accurately tested meta-policy where suitable. A CSP meta element is not equivalent to a full response header and has limitations.
+**Verified platform boundary:**
+- GitHub describes Pages as a static hosting service that publishes HTML, CSS and JavaScript from a repository: [GitHub Pages overview](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages).
+- GitHub's Pages documentation states that custom MIME types cannot be configured per file or repository: [Creating a GitHub Pages site](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site).
+- GitHub Enterprise Server has a separate administrator-level response-header configuration in its Management Console; that is not a setting available to this GitHub.com Pages repository: [GitHub Enterprise Server response headers](https://docs.github.com/en/enterprise-server@latest/admin/configuring-settings/configuring-user-applications-for-your-enterprise/configuring-github-pages-for-your-enterprise).
+
+Do not treat a `_headers` file or workflow-generated artifact as proof that GitHub.com Pages emits custom response headers. Verify actual origin responses before recording any header as deployed.
+
+**Controls and decision:**
+1. Keep all application assets same-origin and avoid adding third-party scripts, analytics or session replay without a separate review.
+2. Keep the existing escaping, safe-link handling, noindex and crawler controls. They address different risks and are not substitutes for response headers.
+3. If policy requires enforceable `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options` / `frame-ancestors`, or `Permissions-Policy`, put a CDN/reverse proxy or a host with response-header configuration in front of Pages, or migrate hosting.
+4. Meta policies may provide limited defence-in-depth for supported directives, but they cannot fully replace response headers (for example, a CSP meta policy cannot enforce `frame-ancestors`).
+5. Before closing this finding, capture `curl -I` evidence for production and dev origins and compare the returned headers against an approved policy. Do not claim a header is present based on repository configuration alone.
+
+**Acceptance:** a hosting-layer decision is recorded, required headers are verified from actual HTTP responses, and the policy is tested on both production and `/dev/` paths. No hosting migration or security-header deployment is included in this branch.
+
 
 ## Privacy assessment
 
