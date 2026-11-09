@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Account, FDOption } from "../../src/core/models.js";
+import { Account, FDOption, TransferFeeConfig } from "../../src/core/models.js";
 import { SimulationEngine } from "../../src/core/simulation.js";
 import { GreedyStrategy } from "../../src/strategies/greedy.js";
 import { GSSStrategy } from "../../src/strategies/gss.js";
