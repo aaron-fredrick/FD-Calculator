@@ -346,7 +346,11 @@ body{background:var(--bg)}
 .rail-note,
 .error,
 .simulation-status,
-.metric {
+.metric,
+.bank-source-disclosure,
+.privacy-dialog-note,
+.legal-callout,
+.catalog-status-mobile {
   border: 0;
   border-radius: 0;
   box-shadow: none;
