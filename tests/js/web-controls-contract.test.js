@@ -49,6 +49,9 @@ test("selected bank cards disclose catalogue source status and review date", () 
   assert.match(app, /function bankDisclosure\(bankId\)/);
   assert.match(app, /getDatasetFreshness\(entry\.dataset_reviewed_at\)\.label/);
   assert.match(app, /data-bank-source/);
+  assert.match(app, /class="bank-source-disclosure" data-bank-source/);
+  assert.match(styles, /\.account-fields\{[^}]*align-items:stretch/);
+  assert.match(styles, /\.bank-source-disclosure\{grid-column:1\/-1/);
   assert.match(app, /c\.bank_dataset_registry=S\.index/);
   assert.match(page, /Secondary sources and missing review dates may be stale/);
 });
@@ -85,7 +88,7 @@ test("help tips expose accessible names and support pointer, keyboard and touch 
 test("users can delete the browser-local draft without the form click handler recreating it", () => {
   assert.match(page, /id="clear-draft"/);
   assert.match(page, /id="draft-storage-status"/);
-  assert.match(page, /until you clear it/);
+  assert.match(page, /Draft saved locally in this browser/);
   assert.match(app, /function clearSavedDraft\(event\)/);
   assert.match(app, /event\.stopPropagation\(\)/);
   assert.match(app, /window\.confirm\(/);
@@ -94,21 +97,38 @@ test("users can delete the browser-local draft without the form click handler re
 });
 
 
-test("privacy preferences are persistent, editable, and analytics remains inert until implemented", () => {
+test("Google analytics is loaded only after explicit consent and sends no scenario data", () => {
   assert.match(page, /id="privacy-banner"/);
   assert.match(page, /id="open-privacy-preferences"/);
   assert.match(page, /id="privacy-analytics"/);
-  assert.match(page, /id="privacy-analytics"[^>]*>/);
   assert.match(page, /Strictly necessary storage/);
-  assert.match(page, /disabled aria-label="Strictly necessary storage always enabled"/);
+  assert.match(page, /Analytics \(Google\)/);
   assert.match(page, /does not currently set its own cookies/);
   assert.match(app, /fd-cal:privacy-preferences:v1/);
-  assert.match(app, /function readPrivacyPreferences\(\)/);
-  assert.match(app, /function savePrivacyPreferences\(analytics\)/);
-  assert.match(app, /function setupPrivacyControls\(\)/);
-  assert.match(app, /if\(!readPrivacyPreferences\(\)\)banner\.hidden=false/);
-  assert.match(app, /privacy-reject/);
-  assert.match(app, /privacy-save/);
+  assert.match(app, /GTM_CONTAINER_ID="GTM-TNC567R4"/);
+  assert.match(app, /analytics_storage:"denied"/);
+  assert.match(app, /analytics_storage:consent\?"granted":"denied"/);
+  assert.match(app, /if\(!analyticsEnabled\|\|typeof window\.gtag!=="function"\)return/);
+  assert.match(app, /script\.src="https:\/\/www\.googletagmanager\.com\/gtm\.js\?id="/);
+  assert.match(app, /window\.gtag\("event","page_view"/);
+  assert.match(app, /trackAnalyticsEvent\("simulation_start"\)/);
+  assert.match(app, /trackAnalyticsEvent\("simulation_complete"\)/);
   assert.match(app, /setupPrivacyControls\(\);\s*init\(\)/);
-  assert.doesNotMatch(app, /gtag\(|google-analytics|googletagmanager|sendBeacon\(/i);
+  assert.doesNotMatch(page, /googletagmanager\.com\/gtm\.js/);
+  assert.doesNotMatch(app, /gtag\("event",[^)]*(?:raw\(|balance|cashflow|account)/i);
+  assert.match(app, /CLARITY_PROJECT_ID="zb1y50hjaw"/);
+  assert.match(app, /analytics_Storage:"granted",ad_Storage:"denied"/);
+  assert.match(app, /analytics_Storage:"denied",ad_Storage:"denied"/);
+  assert.match(app, /script\.src="https:\/\/www\.clarity\.ms\/tag\/"\+CLARITY_PROJECT_ID/);
+  assert.match(page, /Microsoft Clarity load only if you allow analytics/);
+  assert.match(page, /Microsoft Clarity/);
+  for (const legalPage of ["privacy.html", "terms.html"]) {
+    const html = readFileSync(new URL("../../src/web/" + legalPage, import.meta.url), "utf8");
+    assert.match(html, /fd-cal:privacy-preferences:v1/);
+    assert.match(html, /GTM-TNC567R4/);
+    assert.match(html, /zb1y50hjaw/);
+    assert.match(html, /analytics_Storage:"granted",ad_Storage:"denied"/);
+    assert.match(html, /analytics_storage:"denied"/);
+  }
+
 });
