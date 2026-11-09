@@ -185,6 +185,14 @@ test("report layout, decision accents, maturity colors and chart hover controls 
   const charts = JSON.parse(json);
   assert.equal(charts.maturities[0].color, charts.fd_principal[0].color);
   assert.match(html, /style="--decision-color:rgb\(130,170,255\)"/);
+  assert.ok(html.includes('href="https://bank.example/rates?product=fd&amp;type=standard" target="_blank" rel="noopener noreferrer">Open source</a>'));
+  assert.match(html, /Source effective date/);
+  assert.ok(html.includes("Official rate table; &lt;do not assume&gt; current availability."));
+  const unsafeHtml = generateHtmlReport({
+    ...result,
+    bookings: [{ ...booking, option: { ...booking.option, source_url: "javascript:alert(1)" } }]
+  }, config);
+  assert.doesNotMatch(unsafeHtml, /href="javascript:/);
   assert.ok(html.includes("min(100%,150px)"), "overview tiles should use a compact responsive minimum width");
   assert.ok(html.includes("var(--decision-color,var(--blue))"), "decision accent should use event-derived color");
   assert.ok(html.includes("const candidates=[[8,8],[maxX,8],[8,maxY],[maxX,maxY]]"), "hover detail should choose a corner away from the pointer");
