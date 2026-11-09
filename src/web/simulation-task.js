@@ -47,14 +47,20 @@ export function runSimulationTask(payload) {
   const optionKey = option => JSON.stringify([
     option.bank_id || option.bank_key, option.label, option.period_str,
     option.annual_rate, option.min_amount, option.payout_type,
-    option.payout_period_str, Boolean(option.is_efd)
+    option.payout_period_str, Boolean(option.is_efd), option.customer_segment,
+    option.min_age, option.max_age, option.min_age_inclusive,
+    option.max_age_inclusive, option.guardian_required
   ]);
   const catalogueMetadata = new Map(config.options.map(option => [optionKey(option), {
     customer_segment: option.customer_segment,
     min_age: option.min_age, max_age: option.max_age,
     min_age_inclusive: option.min_age_inclusive,
     max_age_inclusive: option.max_age_inclusive,
-    guardian_required: option.guardian_required
+    guardian_required: option.guardian_required,
+    source_url: option.source_url,
+    source_effective_date: option.source_effective_date,
+    source_type: option.source_type,
+    source_notes: option.source_notes
   }]));
   result.bookings = (result.bookings ?? []).map(booking => new Booking({
     option: new FDOption({
