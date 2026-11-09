@@ -55,6 +55,7 @@ test("mobile viewport renders without document-level horizontal overflow", async
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/web/");
   await expect(page.locator("#run")).toBeVisible();
+  await expect(page.locator("#accounts-list .account")).not.toHaveClass(/is-entering/);
   const dimensions = await page.evaluate(() => {
     const viewport = document.documentElement.clientWidth;
     const offenders = [...document.querySelectorAll("body *")].map(element => {
