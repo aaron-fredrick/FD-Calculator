@@ -169,11 +169,23 @@ test("a default scenario runs and produces an independently openable HTML report
     const details = document.querySelector("details.collapsible-table");
     const tableWrap = details?.querySelector(".table-wrap");
     const table = tableWrap?.querySelector("table");
+    const rect = element => element ? {
+      width: element.getBoundingClientRect().width,
+      scrollWidth: element.scrollWidth,
+      minWidth: getComputedStyle(element).minWidth,
+      boxSizing: getComputedStyle(element).boxSizing
+    } : null;
     return {
       tableWrapDisplay: tableWrap ? getComputedStyle(tableWrap).display : "missing",
       tableMinWidth: table ? getComputedStyle(table).minWidth : "missing",
       tableWidth: table ? table.getBoundingClientRect().width : 0,
-      viewportWidth: document.documentElement.clientWidth
+      viewportWidth: document.documentElement.clientWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      body: rect(document.body),
+      appShell: rect(document.querySelector(".app-shell")),
+      main: rect(document.querySelector("main")),
+      details: rect(details),
+      tableWrap: rect(tableWrap)
     };
   });
   expect(printTableLayout.tableWrapDisplay).toBe("block");
