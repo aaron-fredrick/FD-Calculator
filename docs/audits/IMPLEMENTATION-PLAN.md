@@ -41,7 +41,8 @@ Before implementation, capture deterministic baseline outputs for representative
 | **FIN-03 / DATA-01** | **Completed — PR #81 squash-merged to dev** | Product source URL, effective date, source type and notes flow through web/CLI, worker and reports. |
 | **ENG-01** | **Partial** | Runtime event ordering is regression-tested. Installment payment dates can still extend beyond nominal maturity; verify contractual terms before changing the schedule model. |
 | **ENG-02** | **Partial** | The start-year 365/366 denominator is documented here. Formula remains unchanged; representative bank-term verification and user-facing explanation remain. |
-| **ENG-03 / ENG-04** | **Open** | Central product-term invariants and versioned AIT assumptions are not implemented. |
+| **ENG-03** | **Implemented on follow-up branch** | FDOption constructor enforces core term invariants; browser/CLI loaders isolate invalid rows with diagnostics; maturity horizon remains enforced. |
+| **ENG-04** | **Implemented on follow-up branch** | Lightweight AIT assumption ID/effective date/source metadata and UI reference added; no broad tax-regime engine. |
 | **SEARCH-01** | **Implemented — PR #75** | Browser defaults are 10,000 expanded states / 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, watchdog, cancellation and diagnostics. Benchmark calibration remains. |
 | **SEARCH-02 / SEARCH-03** | **Open / ongoing control** | Large modules remain; existing parity/replay tests are positive controls, but new financial rules need cross-strategy parity fixtures. |
 | **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
@@ -64,7 +65,7 @@ The following decisions supersede earlier open/deferred owner-decision language 
 |---|---|---|
 | ENG-01 | Keep the product payout sequence; filter generated payout events to the simulation window. Never extend the simulation end date or clamp a late installment to maturity. Product maturity must still fit within the simulation window. | Implemented on this branch: runtime schedules only in-window payout events; regression tests cover 5m/2m products with 5m and 6m windows. Full contractual booking flows remain available for disclosure. |
 | ENG-02 | Keep the start-year 365/366 elapsed-day denominator. Explain it briefly and retain cross-year/leap-year tests. | Formula unchanged; [short convention note](../finance/INTEREST-DAY-COUNT.md) added. UI/report explanation remains to be wired. |
-| ENG-03 | Add central product-term validation; maturity must fit within the simulation period. Keep special product constraints separate until model workflow is designed. | Scope approved; implementation remains. |
+| ENG-03 | Add central product-term validation; maturity must fit within the simulation period. Keep special product constraints separate until model workflow is designed. | Implemented on this branch: constructor validation, row-level loader isolation and runtime maturity check; CI unit tests pass. |
 | ENG-04 | Keep the current 10% Sri Lankan interest AIT assumption, with a lightweight version identifier, effective date and official source disclosure. Do not build a broad tax-regime engine now. | Version metadata and UI source disclosure added on this branch; tests/CI pending. |
 | DATA-03 | Research special FDs, but do not activate or implement them yet. | Research register added; implementation explicitly deferred. |
 | DATA-05 | Keep simplified transfer-fee modelling; research and document limitations only. | Research register added; model unchanged. |
