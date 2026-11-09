@@ -29,8 +29,8 @@ This audit index has been reconciled against the working branch. Owner decisions
 | Status | Findings | Disposition |
 |---|---|---|
 | **Completed on dev** | SEC-01, FIN-01/02, ENG-05, DEPLOY-01, UI-01/02/03, DATA-01/04, FIN-03, PRIV-01/02 | Merged through PRs #75, #80 and #81. Rendered accessibility QA remains separate. |
-| **Implemented on follow-up branch** | ENG-01/02/03/04, SEARCH-01 calibration, initial QA-01 suite | Code and tests are present. Latest CI has passing Node/build checks but one failing report print-width browser assertion; branch is not green yet. |
-| **Partial / ongoing control** | SEARCH-03, QA-REP-01 | Strict/deferred outflow parity exists across four strategies, but booking/maturity/payout/fee/reserved-liquidity parity remains. Report browser coverage exists; print regression and manual QA remain. |
+| **Implemented on follow-up branch** | ENG-01/02/03/04, SEARCH-01 calibration, QA-01 browser suite | Code and tests are present. Latest verification is [run 42573879316](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573879316), which checks a fix for missing semantic column-header scopes in the generated event ledger. |
+| **Partial / ongoing control** | SEARCH-03, QA-REP-01 | Strict/deferred outflow parity exists across four strategies, but booking/maturity/payout/fee/reserved-liquidity parity remains. Report semantic-header and print-width browser assertions are being verified; offline/chart checks and manual accessibility/print QA remain. |
 | **Metadata contract implemented; data review pending** | DATA-06 | Source review, economic update and schema version are separate. All 29 bank review/update dates remain blank pending real source checks. |
 | **Research / documented limitation** | DATA-03, DATA-05 | Special-product constraints remain inactive; transfer fees remain deliberately simplified. |
 | **Open hosting verification** | WEB-SEC-02 | GitHub Pages retained by owner decision; actual production/dev response headers remain to be checked. |
@@ -41,13 +41,13 @@ This audit index has been reconciled against the working branch. Owner decisions
 
 The review applies the [Coding](https://github.com/aaron-fredrick/RULESETS/tree/main/Coding), [UI](https://github.com/aaron-fredrick/RULESETS/tree/main/UI) and [Web](https://github.com/aaron-fredrick/RULESETS/tree/main/Web) rulesets. It is a risk-based source audit of the active engine, strategy/search paths, browser UI, reporting, catalogue/configuration paths, CLI, build scripts, Pages workflows and tests. It is not a line-by-line proof, formal verification, financial-product certification, penetration test, legal opinion or complete external revalidation of every bank rate and fee.
 
-Latest checked workflow before the print CSS correction: [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220). Node tests, syntax checks and production/dev builds passed; five of six Playwright tests passed. The standalone report test failed because the stressed print table measured 433px against a 321px viewport. A print CSS correction is committed and awaits a green rerun. Earlier passing workflows predate the current report assertions and do not establish current green status.
+The latest completed workflow before the current verification is [42573696604](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573696604). It passed the first five browser tests but failed the standalone-report semantic-header assertion because the event-ledger table headers lacked `scope=col`; that markup is fixed in commit `6a15b8b`. An earlier run, [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220), exposed a 433px print table against a 321px viewport; a print CSS constraint is present, but its assertion still needs to pass after the semantic-header fix. Current verification: [42573879316](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573879316) (in progress at the time of this update). Earlier passing workflows predate these report assertions and do not establish current green status.
 
 Static inspection and automated smoke tests do not establish screen-reader output, full WCAG conformance, real-device behaviour, actual printed/PDF pagination, live bank rates or deployed HTTP response headers.
 
 ## Remaining work
 
-1. Clear the standalone report print-width failure and obtain a green CI run.
+1. Complete the current report-browser run: semantic column headers, 320px overflow and print-width assertions must all pass.
 2. Expand cross-strategy parity to eligible bookings, maturity/installment payouts, fees and reserved liquidity.
 3. Complete offline/chart report checks and manual print, keyboard, screen-reader, contrast and 200–400% zoom review.
 4. Recheck bank sources and populate only defensible review/update dates.
