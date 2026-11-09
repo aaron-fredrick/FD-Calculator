@@ -85,7 +85,7 @@ test("help tips expose accessible names and support pointer, keyboard and touch 
 test("users can delete the browser-local draft without the form click handler recreating it", () => {
   assert.match(page, /id="clear-draft"/);
   assert.match(page, /id="draft-storage-status"/);
-  assert.match(page, /until you clear it/);
+  assert.match(page, /Draft saved locally in this browser/);
   assert.match(app, /function clearSavedDraft\(event\)/);
   assert.match(app, /event\.stopPropagation\(\)/);
   assert.match(app, /window\.confirm\(/);
@@ -105,7 +105,7 @@ test("Google analytics is loaded only after explicit consent and sends no scenar
   assert.match(app, /GTM_CONTAINER_ID="GTM-TNC567R4"/);
   assert.match(app, /analytics_storage:"denied"/);
   assert.match(app, /analytics_storage:consent\?"granted":"denied"/);
-  assert.match(app, /if\(!analyticsEnabled\)return/);
+  assert.match(app, /if\(!analyticsEnabled\|\|typeof window\.gtag!=="function"\)return/);
   assert.match(app, /script\.src="https:\/\/www\.googletagmanager\.com\/gtm\.js\?id="/);
   assert.match(app, /window\.gtag\("event","page_view"/);
   assert.match(app, /trackAnalyticsEvent\("simulation_start"\)/);
