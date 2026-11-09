@@ -18,17 +18,15 @@
 
 **Deferred follow-up:** when work moves to `main`, port and verify the preview-aware assembler there so a main deployment also retains the latest dev subtree. Do not change or block the current dev pipeline for that future task.
 
-## SEO-01 — Sitemap omits the public web application route
+## Crawler and sitemap controls — verified positive control
 
-**Current status: OPEN.** The root `robots.txt` allows general crawling, disallows `/FD-Calculator/dev/`, and declares `https://aaron-fredrick.github.io/FD-Calculator/sitemap.xml`. The production VitePress configuration generates a sitemap for the documentation base; the separate public app page at `/FD-Calculator/web/` has canonical/index metadata but is not represented in the generated docs sitemap.
+**Current status: IMPLEMENTED on `dev`; no open SEO-01 finding.** The production docs build starts with the VitePress documentation sitemap, merges the canonical site root and `/web/` application URL into it, and publishes the assembled file at the site root. The preview build skips sitemap assembly and removes any docs sitemap from its output. The root `robots.txt` disallows `/FD-Calculator/dev/` and declares the production sitemap. The dev web build rewrites canonical URLs and sets `noindex,nofollow`; VitePress preview metadata also sets noindex.
 
-**Severity:** P2/P3.
+**Evidence:** [docs build script](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/scripts/build-docs-site.sh), [VitePress config](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/docs/.vitepress/config.mts), [robots.txt](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/robots.txt), [dev web build](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/scripts/build-web-site.sh).
 
-**Evidence:** [robots.txt](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/robots.txt), [VitePress config](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/docs/.vitepress/config.mts), [web page metadata](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/index.html), [web build script](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/scripts/build-web-site.sh).
+**Regression protection:** the Pages pipeline contract test now asserts that production sitemap assembly includes the canonical root and `/web/` URLs, that preview output removes its docs sitemap, and that the root robots policy excludes the dev subtree.
 
-**Positive controls:** the web build copies root `robots.txt`; the dev web build rewrites app/root canonicals to the dev path and applies `noindex,nofollow`; VitePress preview mode also applies noindex and disables sitemap generation. The root robots policy disallows the preview path. Robots directives are crawler guidance, not security controls.
-
-**Recommendation:** include the canonical production `/web/` application URL in the final production sitemap alongside documentation URLs. Keep all `/dev/` URLs, preview artifacts and non-canonical redirect routes out of that sitemap. Add a contract test for XML validity, canonical host/base, and zero dev-path entries. Preserve noindex metadata on every dev HTML entry point.
+Robots directives are crawler guidance, not access control. Preserve the existing production sitemap merge and preview noindex behaviour when changing build paths.
 
 ## Build pipeline assessment
 
@@ -71,7 +69,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 
 ## CI and release quality
 
-- The Node test workflow was successful at the immediately preceding dev source revision `2781bd3`; the audited revision `358fbef` changed only workflow expression escaping and requires its own run result.
+- The Node.js test/syntax workflow passed on audited `dev` commit `caccaf26b4415ae783959e888ff45e33becdadf6` ([run 42553842534](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842534)); the independent dev web build/publish also passed ([run 42553842533](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842533)). The docs/benchmark publishing workflow was in progress when checked ([run 42553842591](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842591)).
 - No manual browser QA, Lighthouse run, WCAG audit, CSP/header scan or external dependency/security scan was completed during this source review.
 - `npm ci` reports no installed dependencies beyond the project itself; VitePress is installed separately by the documentation build script without updating the lockfile. This is reproducible only to the extent that the VitePress version is pinned by the script.
 - Action references use version tags rather than immutable commit SHAs. Consider SHA pinning for higher supply-chain assurance, with automated update tooling.
@@ -81,7 +79,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 
 1. Keep the preview and production deployments serialized.
 2. Preserve the previous successful production artifact if a component build fails.
-3. Keep preview pages out of production sitemaps, disallow `/FD-Calculator/dev/` in the root robots policy, and set noindex on every preview HTML entry point.
+3. Preserve the verified crawler controls: keep preview pages out of production sitemaps, disallow `/FD-Calculator/dev/` in the root robots policy, and set noindex on every preview HTML entry point.
 4. Add a smoke test for generated URLs and worker/module loading under the project subpath.
-5. Merge the preview-aware Pages assembler to main before treating /dev as durable.
+5. Defer porting the preview-aware Pages assembler to `main` until main-branch work begins; the current delivery target is `dev`.
 6. Add a concise deployment runbook documenting how to inspect/roll back web, docs and dev artifact refs.
