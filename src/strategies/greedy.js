@@ -209,13 +209,6 @@ export class GreedyStrategy {
           id: account.id, bank_id: account.bank_id, bank_key: account.bank_key,
           label: account.label, balance: account.balance, supports_efd: account.supports_efd
         })]));
-        const plan = pickDailyGreedyPlan(
-          accounts, context.options, optionManager, parseISODate(view.date), context.end,
-          context.fee_config, context.consolidation_account_id,
-          this.compound, this.actual_leap_year, this.effective_ait_rate,
-          this.tenor_tiebreaker, this.plan_tenor_tiebreaker,
-          context.simulation?.mode === "goal", reservedBalances
-        );
         const reservedBalances = {};
         for (const item of view.pending_outflows ?? []) {
           const id = String(item.account_id);
@@ -228,6 +221,13 @@ export class GreedyStrategy {
             reservedBalances[id] = (reservedBalances[id] ?? 0) + Number(item.amount ?? 0);
           }
         }
+        const plan = pickDailyGreedyPlan(
+          accounts, context.options, optionManager, parseISODate(view.date), context.end,
+          context.fee_config, context.consolidation_account_id,
+          this.compound, this.actual_leap_year, this.effective_ait_rate,
+          this.tenor_tiebreaker, this.plan_tenor_tiebreaker,
+          context.simulation?.mode === "goal", reservedBalances
+        );
         const carries = (plan.carries || []).map(account => account.id);
         if (plan.type === "SPLIT") {
           return createStrategyDecision({
