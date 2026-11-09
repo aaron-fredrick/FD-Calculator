@@ -314,3 +314,14 @@ body{background:var(--bg)}
  .item-head{flex-wrap:wrap}
  .primary-radio{min-width:0;flex-wrap:wrap}
 }
+
+
+/* Keep help disclosures within the viewport on narrow screens. */
+@media(max-width:620px){
+ .help-tip::after{
+  left:auto;
+  right:0;
+  width:min(260px,calc(100vw - 40px));
+  transform:translateY(4px);
+ }
+}
