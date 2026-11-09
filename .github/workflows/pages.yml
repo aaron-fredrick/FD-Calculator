@@ -211,7 +211,11 @@ jobs:
           dev_docs_sha=""
           if [ -n "$dev_web_ref" ]; then dev_web_sha="$(git rev-parse "origin/$dev_web_ref")"; fi
           if [ -n "$dev_docs_ref" ]; then dev_docs_sha="$(git rev-parse "origin/$dev_docs_ref")"; fi
-          dev_sha="${dev_web_sha}:${dev_docs_sha}"
+          if [ -n "$legacy_dev_ref" ]; then
+            dev_sha="$(git rev-parse "origin/$legacy_dev_ref")"
+          else
+            dev_sha="${dev_web_sha}:${dev_docs_sha}"
+          fi
           if [ "$dev_sha" = ":" ]; then dev_sha=""; fi
           echo "dev_sha=$dev_sha" >> "$GITHUB_OUTPUT"
           if [ -n "$dev_web_ref" ] && [ -n "$dev_docs_ref" ]; then
