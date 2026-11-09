@@ -81,6 +81,8 @@ test("cash movement chart uses stable event-specific colors and separates FD pri
     inflow_summaries: [], outflow_summaries: [], bank_registry: { BANK_A: { name: "Bank A" } }
   };
   const html = generateHtmlReport(result, config);
+  assert.match(html, /<th scope="col">/, "report data tables must expose column headers to assistive technology");
+  assert.match(html, /@media print[\\s\\S]*min-width:0!important/, "print tables must release screen minimum widths");
   const json = html.match(/<script id="fd-report-data" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
   assert.ok(json, "report should embed chart data");
   const flows = JSON.parse(json).cashflows;
