@@ -148,13 +148,25 @@ test("report layout, decision accents, maturity colors and chart hover controls 
     account_id: "main", bank_id: "BANK_A", principal: 500, total_interest: 50,
     start: "2026-11-04", end: "2027-11-04", payout_type: "cumulative",
     cash_flows: [{ date: "2027-11-04", amount: 550 }],
-    option: { label: "Bank A FD", bank_identity: "BANK_A", annual_rate: 10 }
+    payout_type: "cumulative", total_interest: 50,
+    option: {
+      label: "Bank A FD", bank_identity: "BANK_A", annual_rate: 10,
+      period_str: "1 year", is_efd: false,
+      source_url: "https://bank.example/rates?product=fd&type=standard",
+      source_effective_date: "2026-10-01", source_type: "direct",
+      source_notes: "Official rate table; <do not assume> current availability.",
+      applyAITToCashFlows: (principal, flows) => flows
+    }
   };
   const result = {
     strategy_name: "Test", start_date: "2026-11-04", end_date: "2026-11-05",
     timeline: {
-      20261104: [{ event_type: "inflow", on_date: "2026-11-04", amount: 100,
-        account_id: "main", balance_after: 1100, label: "Deposit" }]
+      20261104: [
+        { event_type: "inflow", on_date: "2026-11-04", amount: 100,
+          account_id: "main", balance_after: 1100, label: "Deposit" },
+        { event_type: "booking", on_date: "2026-11-04", amount: -500,
+          account_id: "main", balance_after: 600, booking_ref: "FD-0001", label: "Booking FD-0001" }
+      ]
     },
     accounts: { main: account }, bookings: [booking], total_interest: 50,
     ait_withheld: 0, total_transfer_fees: 0, net_interest: 50, final_value: 1150,
