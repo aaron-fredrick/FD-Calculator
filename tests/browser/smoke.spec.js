@@ -185,7 +185,22 @@ test("a default scenario runs and produces an independently openable HTML report
       appShell: rect(document.querySelector(".app-shell")),
       main: rect(document.querySelector("main")),
       details: rect(details),
-      tableWrap: rect(tableWrap)
+      tableWrap: rect(tableWrap),
+      tableComputed: table ? {
+        width: getComputedStyle(table).width,
+        maxWidth: getComputedStyle(table).maxWidth,
+        layout: getComputedStyle(table).tableLayout,
+        display: getComputedStyle(table).display,
+        overflowWrap: getComputedStyle(table).overflowWrap
+      } : null,
+      cells: table ? [...table.querySelectorAll("th,td")].slice(0,8).map(cell => ({
+        width: cell.getBoundingClientRect().width,
+        minWidth: getComputedStyle(cell).minWidth,
+        maxWidth: getComputedStyle(cell).maxWidth,
+        whiteSpace: getComputedStyle(cell).whiteSpace,
+        overflowWrap: getComputedStyle(cell).overflowWrap,
+        wordBreak: getComputedStyle(cell).wordBreak
+      })) : []
     };
   });
   expect(printTableLayout.tableWrapDisplay).toBe("block");
