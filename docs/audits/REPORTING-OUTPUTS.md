@@ -53,9 +53,9 @@ The web metric reads `total_principal`, which the runtime sets to opening capita
 
 ### QA-REP-01 — Test the actual downloaded HTML, not only string fragments
 
-**Current status: OPEN.** Node assertions cover report structure, but no real-browser offline-open/print/accessibility check has been recorded.
+**Current status: PARTIAL — browser coverage exists, latest CI still fails one print-width assertion.** Playwright downloads and independently opens the generated report, checks column-header semantics and stresses long labels at a 320px viewport. The current latest run fails because the stressed table remains 433px wide in print emulation (expected at most 321px). A print CSS correction has been committed; rerun CI to verify it. Manual print/PDF, keyboard navigation, screen-reader and zoom checks remain open.
 
-The tests assert report markup, chart JSON and token contracts, but a browser test should open the downloaded report offline and verify chart initialization, collapsible tables, long content, print layout, keyboard access and no external network dependency.
+The browser test now opens the downloaded report independently and exercises long content and print layout. Still add explicit offline network-request assertions and chart initialization checks; complete manual keyboard, screen-reader, contrast and 200–400% zoom review.
 
 ## Recommended changes
 
