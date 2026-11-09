@@ -64,11 +64,16 @@ test("mobile viewport renders without document-level horizontal overflow", async
       const box = element.getBoundingClientRect();
       return { width: Math.round(box.width), scrollWidth: element.scrollWidth };
     };
-    const offenders = [...document.querySelectorAll("body *")].map(element => {
+    const offenders = [...document.querySelectorAll("body *")].filter(element => {
       const box = element.getBoundingClientRect();
-      return { tag: element.tagName.toLowerCase(), id: element.id, right: Math.round(box.right) };
-    }).filter(item => item.right > viewport + 1 &&
-      !document.querySelector(".rail")?.contains(document.querySelector(item.id ? "#" + item.id : "body *")));
+      return box.right > viewport + 1 && !element.closest(".rail") &&
+        !["auto", "scroll", "hidden", "clip"].includes(getComputedStyle(element).overflowX);
+    }).map(element => ({
+      tag: element.tagName.toLowerCase(),
+      id: element.id,
+      className: typeof element.className === "string" ? element.className : "",
+      right: Math.round(element.getBoundingClientRect().right)
+    }));
     return {
       viewport,
       main: rect("main"),
