@@ -47,7 +47,7 @@ test("HTML output encoding protects imported account IDs without changing their 
 
 test("selected bank cards disclose catalogue source status and review date", () => {
   assert.match(app, /function bankDisclosure\(bankId\)/);
-  assert.match(app, /dataset_reviewed_at\|\|"Review date not recorded"/);
+  assert.match(app, /getDatasetFreshness\(entry\.dataset_reviewed_at\)\.label/);
   assert.match(app, /data-bank-source/);
   assert.match(app, /c\.bank_dataset_registry=S\.index/);
   assert.match(page, /Secondary sources and missing review dates may be stale/);
