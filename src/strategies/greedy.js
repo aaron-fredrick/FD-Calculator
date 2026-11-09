@@ -31,7 +31,7 @@ export function selectBestOption(candidates, tenorTieBreaker = "shortest") {
   return rankOptions(candidates, tenorTieBreaker)[0] ?? null;
 }
 
-function nextStrictOutflows(outflows, today) {
+function upcomingStrictOutflows(outflows, today) {
   const due = new Map();
   const todayKey = formatISODate(today);
   for (const [date, entries] of Object.entries(outflows || {}).sort(([a], [b]) => a.localeCompare(b))) {
@@ -39,10 +39,11 @@ function nextStrictOutflows(outflows, today) {
     for (const entry of entries || []) {
       if (String(entry.payment_policy || "strict") !== "strict") continue;
       const accountId = String(entry.account_id);
-      const amount = Number(entry.amount);
-      const current = due.get(accountId);
-      if (!current || date < current.date) due.set(accountId, { date, amount });
-      else if (date === current.date) current.amount += amount;
+      const items = due.get(accountId) ?? [];
+      const existing = items.find(item => item.date === date);
+      if (existing) existing.amount += Number(entry.amount);
+      else items.push({ date, amount: Number(entry.amount) });
+      due.set(accountId, items);
     }
   }
   return due;
@@ -52,12 +53,14 @@ function investmentMaturesBy(option, today, dueDate) {
   return formatISODate(addPeriod(today, option.period_str)) <= dueDate;
 }
 
-function investmentPrincipalForOutflow(balance, option, obligation, today) {
-  if (!obligation) return balance;
-  const reservedPrincipal = balance - obligation.amount;
-  if (reservedPrincipal + EPS >= option.min_amount) return reservedPrincipal;
-  if (investmentMaturesBy(option, today, obligation.date)) return balance;
-  return null;
+function investmentPrincipalForOutflow(balance, option, obligations, today) {
+  if (!obligations?.length) return balance;
+  const maturityDate = formatISODate(addPeriod(today, option.period_str));
+  const reserved = obligations
+    .filter(obligation => obligation.date < maturityDate)
+    .reduce((total, obligation) => total + obligation.amount, 0);
+  const investable = balance - reserved;
+  return investable + EPS >= option.min_amount ? investable : null;
 }
 
 function planPreservesUpcomingStrictOutflows(plan, accounts, obligations, today) {
@@ -71,11 +74,15 @@ function planPreservesUpcomingStrictOutflows(plan, accounts, obligations, today)
   for (const booking of bookings) {
     projected.set(booking.account.id, (projected.get(booking.account.id) ?? 0) - booking.principal);
   }
-  for (const [accountId, obligation] of obligations) {
-    if ((projected.get(accountId) ?? 0) + EPS >= obligation.amount) continue;
+  for (const [accountId, accountObligations] of obligations) {
     const booking = bookings.find(item => item.account.id === accountId);
-    if (booking && investmentMaturesBy(booking.option, today, obligation.date)) continue;
-    return false;
+    const maturityDate = booking
+      ? formatISODate(addPeriod(today, booking.option.period_str))
+      : null;
+    const requiredCash = accountObligations
+      .filter(obligation => !maturityDate || obligation.date < maturityDate)
+      .reduce((total, obligation) => total + obligation.amount, 0);
+    if ((projected.get(accountId) ?? 0) + EPS < requiredCash) return false;
   }
   return true;
 }
@@ -120,7 +127,7 @@ function selectFastestGoalOption(candidates, principal, date, aitRate, compound,
 }
 
 export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker, goalMode = false, outflows = {}) {
-  const upcomingStrictOutflows = nextStrictOutflows(outflows, today);
+  const upcomingOutflows = upcomingStrictOutflows(outflows, today);
   const active = Object.values(accounts).filter(account => account.balance > EPS);
   if (!active.length) return { type: "CARRY", carries: [] };
   const splitBookings = [], splitCarries = [];
@@ -134,7 +141,7 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
     const safeEligible = rankOptions(eligible, tenorTieBreaker).map(option => ({
       option,
       principal: investmentPrincipalForOutflow(
-        account.balance, option, upcomingStrictOutflows.get(account.id), today
+        account.balance, option, upcomingOutflows.get(account.id), today
       )
     })).filter(item => item.principal !== null && item.principal > EPS);
     let selected = safeEligible[0] ?? null;
@@ -187,7 +194,7 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
     const eligible = optionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: end });
     for (const option of rankOptions(eligible, tenorTieBreaker)) {
       const principal = investmentPrincipalForOutflow(
-        deployable, option, upcomingStrictOutflows.get(target.id), today
+        deployable, option, upcomingOutflows.get(target.id), today
       );
       if (principal === null || principal <= EPS) continue;
       const gross = option.totalInterestOn(principal, today, compound, actualLeapYear);
@@ -223,7 +230,7 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
       if (credit) goalCandidates.push({ ...plan, credit });
     }
     const safeGoalCandidates = goalCandidates.filter(plan =>
-      planPreservesUpcomingStrictOutflows(plan, accounts, upcomingStrictOutflows, today)
+      planPreservesUpcomingStrictOutflows(plan, accounts, upcomingOutflows, today)
     );
     if (safeGoalCandidates.length) {
       safeGoalCandidates.sort(compareGoalPlans);
