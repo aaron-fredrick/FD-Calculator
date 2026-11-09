@@ -10,7 +10,7 @@ FD Cal has a solid foundation: the browser and CLI share the JavaScript engine; 
 
 The remediation pass has closed the two highest-risk defects: imported account IDs are now encoded at the DOM boundary, and result output distinguishes pre-withdrawal value from closing assets/liabilities/net worth. Absolute R+ now has finite browser defaults, cooperative time limits, cancellation and a worker watchdog. Bank source status/review dates are visible. The dev web/docs publishers are now independent.
 
-The remaining material gaps are installment-product contract semantics, product-level source metadata, privacy controls, and browser-level QA. Crawler controls are in place: the production sitemap includes the canonical root and `/web/` URLs, while preview output is excluded and marked noindex. The `dev` deployment pipeline now composes the preview under `/dev/`; porting that preservation behaviour to `main` is deliberately outside this pass and will be revisited when work moves to `main`. The project is still not financially certified or fully accessibility-verified.
+The remaining material gaps are installment-product contract semantics, privacy controls, and browser-level QA. Crawler controls are in place: the production sitemap includes the canonical root and `/web/` URLs, while preview output is excluded and marked noindex. The `dev` deployment pipeline now composes the preview under `/dev/`; porting that preservation behaviour to `main` is deliberately outside this pass and will be revisited when work moves to `main`. The project is still not financially certified or fully accessibility-verified.
 
 ## Priority findings
 
@@ -19,7 +19,7 @@ The remaining material gaps are installment-product contract semantics, product-
 | SEC-01 | **P1** | Imported account IDs reached HTML attributes without encoding | **Completed** — PR #75 | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
 | FIN-01 | **P1** | Pre-withdrawal value was presented as closing portfolio value | **Completed** — PR #75 | [results.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/results.js) |
 | FIN-02 | **P2** | Capital contributed was described as capital invested | **Completed** — PR #75 | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
-| FIN-03 | **P2** | Product-level source provenance is incomplete in reports | **Partial** | [html.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/reporting/html.js) |
+| FIN-03 | **P2** | Product-level source provenance in reports | **Implemented on this branch; CI passed, pending dev shipment** | [html.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/html.js) |
 | ENG-01 | **P2** | Installment payments may extend beyond nominal maturity | **Partial** — event order tested; product contract open | [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js) |
 | ENG-02 | **P2** | Elapsed-day interest uses the start-year 365/366 denominator | **Partial** — convention documented; source verification open | [interest.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/interest.js) |
 | ENG-03 | **P2** | Financial product invariants are distributed across model/load boundaries | **Open** | [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js) |
@@ -28,7 +28,7 @@ The remaining material gaps are installment-product contract semantics, product-
 | SEARCH-01 | **P2** | Browser Absolute R+ lacked finite default budgets and a post-start timeout | **Implemented** — benchmark calibration pending | [search-strategy-base.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/strategies/search-strategy-base.js) |
 | SEARCH-02 | **P3** | Large strategy modules concentrate independent responsibilities | **Open** | [search-strategy-base.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/strategies/search-strategy-base.js) |
 | SEARCH-03 | **P2/P3** | Independent planner logic needs continued runtime/parity protection | **Open / ongoing control** | [gss.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/strategies/gss.js) |
-| DATA-01 | **P2** | Source status and review-date disclosure is incomplete at product level | **Partial** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/app.js) |
+| DATA-01 | **P2** | Product-level source URL, effective date and caveat disclosure | **Implemented on this branch; CI passed, pending dev shipment** | [app.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js) |
 | DATA-02 | **Scope boundary** | Senior/minor toggles do not verify depositor eligibility | **Closed as owner-confirmed scope** | [configuration.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/configuration.js) |
 | DATA-03 | **Deferred** | Active FD model does not represent all special-product constraints | **Deferred** | [models.js](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/core/models.js) |
 | DATA-04 | **P3** | CSV parser did not enforce exact row field counts or strict quote placement | **Implemented on this branch; CI passed, pending dev shipment** | [csv.js](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/io/csv.js) |
@@ -53,7 +53,7 @@ The remaining material gaps are installment-product contract semantics, product-
 | **ENG-01** | Event order is intentional: cash inflows/FD cash flows first, outflows second, decision third | Preserve and test this order. It does not alone determine whether a final installment after nominal maturity matches a bank contract. Do not clamp dates until representative product terms establish the correct model. |
 | **ENG-02** | Project intends an actual elapsed-day/relative-delta basis | Keep the current formula for now; document the exact start-year 365/366 denominator and verify against representative bank terms before changing financial calculations. |
 | **SEARCH-01** | Finite defaults are required, but users may opt into unlimited work | **Implemented in PR #75.** Browser defaults are 10,000 expanded states and 30 seconds; explicit unlimited controls, cooperative stopping, cancellation, watchdog and diagnostics are present. Benchmark calibration remains. |
-| **DATA-01** | Show when each bank's dataset was last updated/reviewed and add a disclaimer | **Partially implemented in PR #75.** Bank-specific source status/review date and report disclosure exist; product-level source URLs/effective dates and full provenance remain. |
+| **DATA-01** | Implemented on this branch | Bank-level review/status disclosure remains; product source URL, effective date, source type and caveat now flow through web/CLI loaders and worker results into HTML and console reports. Missing effective dates are explicitly shown as not recorded. |
 | **DATA-02** | Eligibility verification is the user's responsibility; FD Cal is not a bank onboarding/security gate | Treat senior/minor toggles as inclusion filters. Retain a clear disclaimer; do not add age/guardian verification as part of this work. |
 | **DATA-03** | Scope not yet clear | Defer until the owner specifies which special-product constraints should be modelled. Keep products with unenforced critical terms out of the active catalogue. |
 | **DEPLOY-01** | Dev preview is intentionally public for users and contributors | **Completed for the current `dev` delivery path in PR #80.** Separate dev web/docs artifacts are assembled under `/dev/`; preview HTML is noindex and the root crawler policy disallows the subtree. Porting the assembler to `main` is deferred until main-branch work begins. |
@@ -76,7 +76,7 @@ The remaining material gaps are installment-product contract semantics, product-
 
 ## Recommended implementation order
 
-1. **DATA-01 / FIN-03:** complete product-level source URL/effective-date propagation and source caveats.
+1. **DATA-01 / FIN-03:** implemented on this branch with worker, HTML report and CLI report coverage; pending dev shipment.
 2. **ENG-01/ENG-02:** validate installment and elapsed-day conventions against representative bank terms before changing financial calculations.
 3. **DATA-04:** inventory current CSVs, then enforce exact row widths and strict quote handling.
 4. Preserve crawler controls: keep `/dev/` excluded by the root robots policy, keep preview HTML noindex, and ensure the production sitemap contains canonical production routes only.
