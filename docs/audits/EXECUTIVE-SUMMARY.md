@@ -27,7 +27,7 @@ The branch is not ready for final release sign-off. Remaining work is broader cr
 | ENG-04 | Lightweight versioned 10% AIT baseline and IRD source disclosure | **Implemented on this branch; contract tests pass** |
 | SEARCH-01 | Bounded browser search and explicit unlimited mode | **Implemented and calibrated; no optimality proof** |
 | SEARCH-02 | Strategy modules concentrate multiple responsibilities | **Deferred; staged decomposition plan only** |
-| SEARCH-03 | Independent planners require authoritative runtime/parity protection | **Partial; strict/deferred outflow parity across four strategies; broader cases remain** |
+| SEARCH-03 | Independent planners require authoritative runtime/parity protection | **Greedy strict-outflow reservation fixed and tested; broader cross-strategy planner parity remains** |
 | DATA-02 | Senior/minor selection is not eligibility verification | **Closed as owner-confirmed scope boundary** |
 | DATA-03 | Special-product caps/eligibility/tax constraints | **Deferred; special products remain research-only** |
 | DATA-04 | Strict CSV structural validation | **Completed — PR #81 merged to dev** |
@@ -61,7 +61,7 @@ Full evidence and source links are in [Owner-feedback research](OWNER-FEEDBACK-R
 2. **QA-REP-01:** Test offline behaviour, chart initialization and realistic large ledgers. Complete manual print/PDF pagination, keyboard, screen-reader, contrast and 200–400% zoom review on representative browsers/devices.
 3. **DATA-06 source review:** Recheck all 29 bank entries against official sources where possible. Populate `dataset_reviewed_at` only after an actual source review and `dataset_updated_at` only when an economic product input materially changed. Leave unknown dates blank.
 4. **WEB-SEC-02:** Inspect actual production and `/dev/` response headers; document which headers GitHub Pages cannot configure.
-5. **Release hygiene:** Keep the follow-up branch isolated from `dev` until the above acceptance gates are addressed or explicitly accepted as residual risks. The branch currently has no open PR.
+5. **Release hygiene:** Keep the follow-up branch isolated from `dev` until the remaining acceptance gates are addressed or explicitly accepted as residual risks. Existing PR #82 remains a draft.
 
 Keep SEARCH-02 refactoring, DATA-03 activation, richer DATA-05 channel modelling, main-branch preview integration and external legal counsel review deferred unless separately authorised.
 
@@ -74,15 +74,18 @@ The audit is a risk-based source review, not formal verification, financial-prod
 
 ## Latest follow-up checkpoint — 9 November 2026
 
-Cross-strategy test coverage was extended to exercise FD booking, installment cash flows, terminal maturity and transfer-fee accounting across all four strategies. Workflow [42585867964](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42585867964) passed all automated steps.
+The Greedy strategy now checks ranked, simulation-period-eligible FD options against future strict obligations. It reserves cumulative strict outflows due before candidate maturity, books only the residual amount when that residual meets the FD minimum, and otherwise skips the candidate unless it matures on or before the due date. Consolidation candidates are checked after transfer fees and account-level balance movements. The shared simulation runtime remains authoritative for settlement.
 
-SEARCH-03 remains **partial**: scheduled future-outflow liquidity reservation is not closed. An exploratory strict-outflow scenario exposed a Greedy planning gap; no strategy code change for that gap is retained. The next implementation gate is an agreed, tested reservation contract across Greedy, GSS, Absolute R and Absolute R+, preserving existing strategy migration tests. This checkpoint is therefore not a full financial-parity sign-off.
+Three focused regressions cover cash reservation, fallback to a shorter candidate that matures on the due date, and cumulative obligations before maturity. The legacy Greedy migration-parity fixture was narrowed to deferred outflows so it continues to test unchanged legacy behaviour without asserting parity across the newly introduced strict-reservation rule.
+
+Workflow [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354) passed all 268 Node tests, syntax checks, production/dev builds, six Chromium browser tests, documentation-preservation build and workflow YAML parsing.
+
+SEARCH-03 remains **partial**, but the specific Greedy future-strict-outflow defect is addressed. Broader cross-strategy planner parity across multi-account, transfer, inflow and multiple-obligation combinations remains open. This is not a full financial-parity or release sign-off.
 
 
 ## 9 November 2026 — ship-gate recheck
 
-- Current head: `22a191948611451b7853cf5bdf06142eee3e96e8`.
-- Latest full CI: [42586136672](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42586136672) — successful. The Node.js test job completed successfully; the preceding run [42586033663](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42586033663) also passed.
-- The added parity fixture covers eligible FD booking, installment cash flows, maturity and transfer-fee accounting. Existing strict/deferred outflow parity remains green.
-- **Do not mark ready to merge yet.** SEARCH-03 still has an identified Greedy future-obligation liquidity-reservation gap: funds needed for a later strict obligation may be invested before the due date. The attempted strategy-side adjustment did not preserve the established migration parity baseline and is not present in the current head. No fix is claimed.
-- Next bounded completion point: define and test future-obligation reservation semantics at the shared planning/runtime boundary, then add the smallest regression fixture that proves the Greedy issue is resolved without changing established strategy parity. Do not start broader strategy refactoring or unrelated QA/data-review phases in this step.
+- Current verified implementation head: `aa8684e0999a9554af3f6c0185a4eeb0d9e5a233`.
+- Full CI: [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354) — successful; 268 tests passed, with syntax, production/dev build, six Chromium browser smoke tests, documentation-preservation build and workflow YAML parsing all green.
+- The Greedy strict-outflow reservation gap is fixed within candidate selection; the shared runtime still owns authoritative outflow settlement.
+- **Keep PR #82 in draft.** Broader cross-strategy planner parity, extended report/accessibility QA, bank-source review and deployed response-header verification remain. Do not begin those later phases as part of this bounded fix.
