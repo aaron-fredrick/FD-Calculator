@@ -50,7 +50,7 @@ Each finding includes evidence, impact, and a concrete recommendation. A finding
 
 ## Verification boundary
 
-The source reviewed is `dev` commit `caccaf26b4415ae783959e888ff45e33becdadf6`. The previous CI run [42548666535](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42548666535) is historical evidence for an earlier source revision, not a fresh pass for this exact commit. No new CI run or browser automation was executed as part of this documentation re-audit. Static inspection does not verify screen-reader output, real-device layout, bank-product terms, or HTTP response behaviour.
+The source reviewed is `dev` commit `caccaf26b4415ae783959e888ff45e33becdadf6`. On the exact reviewed `dev` commit, the Node.js test/syntax workflow passed ([42553842534](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842534)) and the independent dev web build/publish passed ([42553842533](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842533)). The dev documentation/benchmark publishing workflow was still in progress when checked ([42553842591](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842591)). No browser automation was executed as part of this static re-audit. Static inspection does not verify screen-reader output, real-device layout, bank-product terms, or HTTP response behaviour.
 
 ## Planning status
 
