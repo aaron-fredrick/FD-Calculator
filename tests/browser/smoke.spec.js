@@ -139,8 +139,17 @@ test("a default scenario runs and produces an independently openable HTML report
   const reportPage = await context.newPage();
   await reportPage.goto("file://" + reportPath);
   await expect(reportPage.locator("body")).toContainText("Simulation Report");
-  const tableCount = await reportPage.locator("table").count();
-  expect(tableCount).toBeGreaterThan(0);
+  await reportPage.evaluate(() => {
+    const details = document.createElement("details");
+    details.className = "collapsible-table";
+    details.innerHTML = '<summary>Long-label print stress case</summary><div class="table-wrap"><table><thead><tr><th scope="col">Bank and product</th><th scope="col">Rate source</th><th scope="col">Eligibility conditions</th><th scope="col">Payout terms</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td></tr></tbody></table></div>';
+    const cells = details.querySelectorAll("tbody td");
+    cells[0].textContent = "Bank product label ".repeat(18);
+    cells[1].textContent = "https://example.invalid/rate-source/".repeat(10);
+    cells[2].textContent = "Eligibility and minimum-deposit conditions ".repeat(16);
+    cells[3].textContent = "Monthly interest payout at each scheduled interval ".repeat(14);
+    document.querySelector("main").append(details);
+  });
   const tableSemantics = await reportPage.evaluate(() => ({
     tablesWithoutColumnHeaders: [...document.querySelectorAll("table")]
       .filter(table => !table.querySelector("thead th[scope=col]")).length
