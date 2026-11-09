@@ -43,17 +43,20 @@ Do not imply that a category toggle is proof of eligibility.
 
 **Recommendation:** extend the domain model only when a real product requires it: maximum amount, per-customer/scheme-wide cap, tax treatment, required documentation/guardian and any renewal/eligibility conditions. Add validation and tests before moving a research-register row into the active product catalogue.
 
-## DATA-04 — CSV rows are not checked for exact field count
+## DATA-04 — CSV rows require strict structural validation
 
-**Current status: OPEN.** `src/io/csv.js` was not changed by the remediation PRs; strict row-width and malformed-quote validation remain outstanding.
+**Current status: IMPLEMENTED on this branch; CI passed.** The parser now rejects malformed quote placement, unterminated quoted fields, characters after a closing quote, and rows whose field count differs from the header. Errors include the source path and physical line number. The parser retains support for UTF-8 BOM, LF/CRLF, quoted commas, escaped quotes, multiline fields, and legitimate trailing empty cells.
 
-**Severity: P3**
+**Inventory and data corrections:** all 33 checked-in catalogue CSV files were inventoried and are covered by a regression test. The inventory found 93 malformed rows across three files:
+- `data/banks/banks.csv`: 26 rows had unquoted commas in `fee_basis`, which shifted/truncated `fee_source_url`.
+- `data/fd_options/banks/LK_COMMERCIAL_BANK_OF_CEYLON.csv`: 43 rows had unquoted commas in the final `notes` field.
+- `data/fd_options/banks/LK_DFCC_BANK.csv`: 24 rows had unquoted commas in the final `notes` field.
 
-**Evidence:** [src/io/csv.js L6](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/io/csv.js#L6) maps headers to values with `values[i] ?? ""`. Surplus values are silently ignored; missing values become empty strings.
+Those fields are now correctly quoted. The bank fee source URL and product provenance notes remain in their intended columns.
 
-**Impact:** a malformed or incorrectly quoted bank row may be partially accepted, with trailing data discarded or missing fields represented as blank. Downstream validation catches some missing financial fields but does not guarantee the row was structurally valid.
+**Implementation:** [strict parser](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/io/csv.js), [CSV regression tests](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/tests/js/csv.test.js), [bank metadata](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/data/banks/banks.csv).
 
-**Recommendation:** after parsing each row, require `values.length === headers.length`; reject malformed quote placement and include filename/row number in the error. Add fixtures for short rows, long rows, embedded commas, escaped quotes, multiline notes and unterminated quotes.
+**Acceptance:** exact row width and valid CSV quoting are enforced; all 33 current catalogue files parse; malformed input fails with actionable source/line context. Pending shipment from this working branch to `dev`.
 
 ## DATA-05 — Transfer-fee assumptions are not a full transfer-channel model
 
