@@ -102,6 +102,13 @@ function save(allow: boolean) {
   error.value = ''
 }
 
+function maskSearchInput(event: FocusEvent) {
+  const target = event.target
+  if (target instanceof HTMLInputElement && target.closest('.VPNavBarSearch, .VPLocalSearchBox')) {
+    target.classList.add('clarity-mask')
+  }
+}
+
 function syncFromStorage(event: StorageEvent) {
   if (event.key !== STORAGE_KEY) return
   const choice = readChoice()
@@ -119,7 +126,8 @@ function syncFromStorage(event: StorageEvent) {
 onMounted(() => {
   initialiseConsentQueue()
   // Clarity's default input masking is reinforced for the local documentation search UI.
-  document.querySelector('.VPNavBarSearch')?.classList.add('clarity-mask')
+  document.querySelectorAll('.VPNavBarSearch input, .VPLocalSearchBox input').forEach(input => input.classList.add('clarity-mask'))
+  document.addEventListener('focusin', maskSearchInput)
   const choice = readChoice()
   savedChoice.value = choice
   analytics.value = choice === true
@@ -128,7 +136,10 @@ onMounted(() => {
   window.addEventListener('storage', syncFromStorage)
 })
 
-onUnmounted(() => window.removeEventListener('storage', syncFromStorage))
+onUnmounted(() => {
+  window.removeEventListener('storage', syncFromStorage)
+  document.removeEventListener('focusin', maskSearchInput)
+})
 
 watch(() => route.path, () => trackPageView())
 </script>
