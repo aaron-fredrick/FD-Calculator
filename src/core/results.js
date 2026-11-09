@@ -65,6 +65,11 @@ export class SimResult {
   get net_interest_after_ait() { return this.net_interest; }
   get cash_retained() { return Object.values(this.accounts).reduce((sum, account) => sum + account.balance, 0); }
   get cash_flow_net_worth() { return this.cash_retained - this.outstanding_outflows.reduce((sum, item) => sum + Number(item.remaining ?? 0), 0); }
+  get contributed_capital() { return this.total_principal; }
+  get pre_withdrawal_value() { return this.final_value; }
+  get outstanding_liabilities() { return this.outstanding_outflows.reduce((sum, item) => sum + Number(item.remaining ?? 0), 0); }
+  get closing_assets() { return this.cash_retained; }
+  get closing_net_worth() { return this.closing_assets - this.outstanding_liabilities; }
   get total_outflows_due() { return this.total_outflows_paid + this.outstanding_outflows.reduce((sum, item) => sum + Number(item.remaining ?? 0), 0); }
   get total_idle() { return this.#sumEventType(EventType.IDLE); }
   get total_carry_forward() { return this.#sumEventType(EventType.CARRY_FORWARD); }

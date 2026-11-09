@@ -126,6 +126,21 @@ test("search strategies never place an eFD in an account without eFD capability"
   assert.ok(result.bookings.filter(booking => booking.option.is_efd).every(booking => efdEligible.has(booking.account_id)));
 });
 
+test("Absolute+ stops at a cooperative time budget and retains the Greedy baseline", () => {
+  const input = scenario();
+  const greedy = run(new GreedyStrategy({ ait_enabled: true }), input);
+  let now = 0;
+  const bounded = run(new AbsolutePlusStrategy({
+    ait_enabled: true, beam_width: 8, max_local_branches: 4,
+    max_decisions: null, time_limit_ms: 2, clock: () => ++now
+  }), input);
+  assert.equal(bounded.search_diagnostics.budget_stopped, true);
+  assert.equal(bounded.search_diagnostics.budget_stop_reason, "time_limit");
+  assert.equal(bounded.search_diagnostics.time_budget_ms, 2);
+  assert.equal(bounded.optimality_proven, false);
+  assert.ok(bounded.final_value >= greedy.final_value - 0.01);
+});
+
 test("Absolute+ marks a search that reaches its configured state cap as unproven", () => {
   const result = run(new AbsolutePlusStrategy({ beam_width: 8, max_local_branches: 4, max_decisions: 1 }), scenario());
   assert.equal(result.search_diagnostics.expanded_states, 1);

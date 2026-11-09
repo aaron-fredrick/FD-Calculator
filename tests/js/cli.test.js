@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCSV } from "../../src/io/csv.js";
-import { loadBankCatalogue, loadFDOptions } from "../../src/io/data-loader.js";
+import { loadBankCatalogue, loadFDOptions, loadConfigurationFromFile } from "../../src/io/data-loader.js";
 const root=resolve(fileURLToPath(new URL("../../",import.meta.url)));
 test("CSV parser preserves quoted commas, escaped quotes and embedded newlines",()=>{
  const rows=parseCSV('name,notes\r\n"Deposit, monthly","said ""hello"""\r\n"Two\nlines",ok\r\n');
@@ -19,6 +19,21 @@ test("root data catalogues load canonical banks and bank-specific FD products",a
  assert.ok(options.length>0);
  assert.ok(options.every(option=>option.bank_id==="LK_COMMERCIAL_BANK_OF_CEYLON"));
 });
+test("bank index exposes source status and unrecorded review dates without inventing metadata",async()=>{
+ const dir=await mkdtemp(join(tmpdir(),"fdcal-source-metadata-"));
+ const configPath=join(dir,"scenario.json");
+ try{
+  await writeFile(configPath,JSON.stringify({
+   strategy:"greedy",options_file:join(root,"data/fd_options/fd_options.csv"),
+   investment:{start_date:"2026-01-01",end_date:"2026-02-01"},
+   accounts:{main:{bank_id:"LK_COMMERCIAL_BANK_OF_CEYLON",balance:30000}}
+  }));
+  const loaded=await loadConfigurationFromFile(configPath);
+  assert.equal(loaded.bankDatasetRegistry.LK_COMMERCIAL_BANK_OF_CEYLON.research_status,"populated_direct");
+  assert.equal(loaded.bankDatasetRegistry.LK_COMMERCIAL_BANK_OF_CEYLON.dataset_reviewed_at,"");
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
 test("age eligibility research ledger preserves incomplete and verified bank rules",async()=>{
  const rows=parseCSV(await readFile(join(root,"data/fd_options/age_eligibility.csv"),"utf8"));
  const peoplesSenior=rows.find(row=>row.bank_id==="LK_PEOPLES_BANK"&&row.product_name==="Parinatha above 60");

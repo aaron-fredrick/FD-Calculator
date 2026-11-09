@@ -1,4 +1,5 @@
 import test from "node:test";
+import { escapeHtml } from "../../src/web/escape-html.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -23,4 +24,31 @@ test("specific-date cash flows use a bounded date picker and removable entries",
   assert.match(app, /value<start\|\|value>end/);
   assert.match(app, /String\(x\.dates\)\.split\(","\)/);
   assert.match(styles, /\.date-chip-list/);
+});
+
+test("browser search defaults are finite and unlimited modes are explicit", () => {
+  assert.match(page, /id="decision-cap"[^>]*value="10000"/);
+  assert.match(page, /id="time-limit-seconds"[^>]*value="30"/);
+  assert.match(page, /id="unlimited-decision-cap"/);
+  assert.match(page, /id="cancel-run"/);
+  assert.match(app, /time_limit_ms:Number\(\$\("time-limit-seconds"\)\.value\)\*1000/);
+});
+
+test("HTML output encoding protects imported account IDs without changing their data value", () => {
+  const payload = "\"><img src=x onerror=alert(1)>&'";
+  assert.equal(
+    escapeHtml(payload),
+    "&quot;&gt;&lt;img src=x onerror=alert(1)&gt;&amp;&#39;"
+  );
+  assert.match(app, /data-id=\"'\+esc\(a\.id\)\+'/);
+  assert.match(app, /value=\"'\+esc\(a\.id\)\+'/);
+  assert.match(app, /data-remove-account=\"'\+esc\(a\.id\)\+'/);
+});
+
+test("selected bank cards disclose catalogue source status and review date", () => {
+  assert.match(app, /function bankDisclosure\(bankId\)/);
+  assert.match(app, /dataset_reviewed_at\|\|"Review date not recorded"/);
+  assert.match(app, /data-bank-source/);
+  assert.match(app, /c\.bank_dataset_registry=S\.index/);
+  assert.match(page, /Secondary sources and missing review dates may be stale/);
 });

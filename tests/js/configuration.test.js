@@ -63,7 +63,7 @@ test("configuration exposes validated Python-compatible GAML settings", () => {
     bankKeyById: { BANK_A: "bank_a" }, options
   });
   assert.deepEqual(config.gaml_settings, {
-    beam_width: 512, max_local_branches: 64, max_decisions: null
+    beam_width: 512, max_local_branches: 64, max_decisions: null, time_limit_ms: 0
   });
   assert.throws(() => validateConfiguration({
     ...base, gaml_settings: { beam_width: 0 }
