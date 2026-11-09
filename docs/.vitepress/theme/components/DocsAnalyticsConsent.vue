@@ -6,6 +6,7 @@ const STORAGE_KEY = 'fd-cal:privacy-preferences:v1'
 const GTM_ID = 'GTM-TNC567R4'
 const CLARITY_ID = 'zb1y50hjaw'
 const route = useRoute()
+const privacyUrl = computed(() => new URL('../web/privacy.html', new URL(import.meta.env.BASE_URL, window.location.origin)).pathname)
 const visible = ref(false)
 const savedChoice = ref<boolean | null>(null)
 const analytics = ref(false)
@@ -161,7 +162,7 @@ watch(() => route.path, () => trackPageView())
             <li>General browser, device and page information.</li>
             <li>Interaction signals used by Microsoft Clarity to understand usability.</li>
           </ul>
-          <p>We do not send account labels, balances, deposits, cash flows or calculation results as analytics event data. <a href="/FD-Calculator/web/privacy.html">Privacy details</a>.</p>
+          <p>We do not send account labels, balances, deposits, cash flows or calculation results as analytics event data. <a  :href="privacyUrl">Privacy details</a>.</p>
         </details>
         <p class="docs-privacy-status">{{ choiceLabel }}</p>
         <p v-if="error" class="docs-privacy-error" role="alert">{{ error }}</p>
