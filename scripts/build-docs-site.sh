@@ -26,6 +26,8 @@ existing = {node.text for node in sitemap.findall(f"{{{namespace}}}url/{{{namesp
 for url in (
     "https://aaron-fredrick.github.io/FD-Calculator/",
     "https://aaron-fredrick.github.io/FD-Calculator/web/",
+    "https://aaron-fredrick.github.io/FD-Calculator/web/privacy.html",
+    "https://aaron-fredrick.github.io/FD-Calculator/web/terms.html",
 ):
     if url not in existing:
         item = ET.SubElement(sitemap, f"{{{namespace}}}url")
