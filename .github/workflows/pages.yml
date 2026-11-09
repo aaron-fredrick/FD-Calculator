@@ -177,20 +177,56 @@ jobs:
           echo "web_sha=$web_sha" >> "$GITHUB_OUTPUT"
           echo "docs_sha=$docs_sha" >> "$GITHUB_OUTPUT"
 
-          dev_ref=""
+          legacy_dev_ref=""
           if git ls-remote --exit-code origin refs/heads/dev_pages-preview-artifact >/dev/null 2>&1; then
-            dev_ref="dev_pages-preview-artifact"
-            git fetch --no-tags origin "refs/heads/$dev_ref:refs/remotes/origin/$dev_ref"
-            dev_sha="$(git rev-parse "origin/$dev_ref")"
+            legacy_dev_ref="dev_pages-preview-artifact"
+            git fetch --no-tags origin "refs/heads/$legacy_dev_ref:refs/remotes/origin/$legacy_dev_ref"
             mkdir -p site/dev
-            git archive "origin/$dev_ref" | tar -x -C site/dev
+            git archive "origin/$legacy_dev_ref" | tar -x -C site/dev
+          fi
+
+          dev_web_ref=""
+          dev_docs_ref=""
+          if git ls-remote --exit-code origin refs/heads/dev_pages-web-artifact >/dev/null 2>&1; then
+            dev_web_ref="dev_pages-web-artifact"
+          elif [ -n "$legacy_dev_ref" ]; then
+            dev_web_ref="$legacy_dev_ref"
+          fi
+          if git ls-remote --exit-code origin refs/heads/dev_pages-docs-artifact >/dev/null 2>&1; then
+            dev_docs_ref="dev_pages-docs-artifact"
+          elif [ -n "$legacy_dev_ref" ]; then
+            dev_docs_ref="$legacy_dev_ref"
+          fi
+
+          if [ -n "$dev_web_ref" ] && [ "$dev_web_ref" != "$legacy_dev_ref" ]; then
+            git fetch --no-tags origin "refs/heads/$dev_web_ref:refs/remotes/origin/$dev_web_ref"
+            git archive "origin/$dev_web_ref" | tar -x -C site/dev
+          fi
+          if [ -n "$dev_docs_ref" ] && [ "$dev_docs_ref" != "$legacy_dev_ref" ]; then
+            git fetch --no-tags origin "refs/heads/$dev_docs_ref:refs/remotes/origin/$dev_docs_ref"
+            git archive "origin/$dev_docs_ref" | tar -x -C site/dev
+          fi
+
+          dev_web_sha=""
+          dev_docs_sha=""
+          if [ -n "$dev_web_ref" ]; then dev_web_sha="$(git rev-parse "origin/$dev_web_ref")"; fi
+          if [ -n "$dev_docs_ref" ]; then dev_docs_sha="$(git rev-parse "origin/$dev_docs_ref")"; fi
+          if [ -n "$legacy_dev_ref" ]; then
+            dev_sha="$(git rev-parse "origin/$legacy_dev_ref")"
+          else
+            dev_sha="${dev_web_sha}:${dev_docs_sha}"
+          fi
+          if [ "$dev_sha" = ":" ]; then dev_sha=""; fi
+          echo "dev_sha=$dev_sha" >> "$GITHUB_OUTPUT"
+          if [ -n "$dev_web_ref" ] && [ -n "$dev_docs_ref" ]; then
             test -s site/dev/index.html
             test -s site/dev/web/index.html
             test -s site/dev/docs/index.html
           else
+            echo "::notice::No complete dev preview component pair is available yet; preserving production deployment."
             dev_sha=""
+            echo "dev_sha=" >> "$GITHUB_OUTPUT"
           fi
-          echo "dev_sha=$dev_sha" >> "$GITHUB_OUTPUT"
 
           git archive "origin/$web_ref" | tar -x -C site
           git archive "origin/$docs_ref" | tar -x -C site

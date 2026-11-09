@@ -250,3 +250,20 @@ body{background:var(--bg)}
 .subhead.separated{border-top:0;padding-top:8px;margin-top:18px}
 .hint{background:var(--panel2);border:0;border-left:2px solid var(--line);border-radius:4px;padding:9px 12px}
 .date-chip{border-radius:7px;background:var(--panel)}
+
+
+/* Keep the GAML unlimited-state checkbox compact instead of treating it as a full-width field. */
+#strategy label.toggle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+#strategy label.toggle input[type="checkbox"]{
+  flex:0 0 16px;
+  width:16px;
+  height:16px;
+  min-height:0;
+  padding:0;
+  accent-color:var(--purple);
+}
+#strategy label.toggle span{min-width:0}
