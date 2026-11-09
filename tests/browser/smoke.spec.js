@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { test, expect } from "@playwright/test";
 
 test("production web app loads and privacy preferences can be changed", async ({ page }) => {
@@ -135,6 +136,7 @@ test("a default scenario runs and produces an independently openable HTML report
   ]);
   const reportPath = await download.path();
   expect(reportPath).toBeTruthy();
+  const reportHtml = await readFile(reportPath, "utf8");
 
   const reportPage = await context.newPage();
   await reportPage.goto("file://" + reportPath);
@@ -204,10 +206,13 @@ test("a default scenario runs and produces an independently openable HTML report
       reportTableWidths: [...document.querySelectorAll("main .collapsible-table .table-wrap table")]
         .map(item => item.getBoundingClientRect().width),
       styleTail: document.querySelector("style")?.textContent.slice(-1200) ?? "no style",
+      headHtml: document.head.innerHTML.slice(0, 1800),
+      stylesheetCount: document.styleSheets.length,
       printRules: [...document.styleSheets].flatMap(sheet => {
         try { return [...sheet.cssRules].filter(rule => rule.cssText.includes("table-layout") || rule.cssText.includes("word-break")); }
         catch { return []; }
-      }).map(rule => rule.cssText)
+      }).map(rule => rule.cssText),
+      downloadedHtmlHead: reportHtml.slice(0, 2200)
     };
   });
   expect(printTableLayout.tableWrapDisplay).toBe("block");
