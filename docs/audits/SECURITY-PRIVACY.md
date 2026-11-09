@@ -30,15 +30,16 @@
 - The browser app uses a local static catalogue and does not require a backend account/session service.
 - No third-party analytics, advertising pixels or session-replay scripts were identified in the reviewed web template.
 
-## PRIV-01 — Local scenario drafts persist without an in-app clear/retention control
+## PRIV-01 — Local scenario draft deletion and retention
 
-**Current status: OPEN.** Drafts still use `localStorage`; no user-facing clear-saved-draft action or retention explanation was found in the current UI.
+**Current status: IMPLEMENTED on this branch; CI passed.** The UI states that draft data is stored only in the current browser until the user clears it. A visible `Clear saved draft` button requests confirmation and removes the `fd-cal:draft:v1` localStorage entry. The current form remains in the active tab; the status message explains that editing it will create a new saved draft. The click handler stops propagation so the surrounding form click-to-save handler cannot immediately recreate the deleted entry.
 
-**Evidence:** [app.js L10](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L10) defines a localStorage draft key; [app.js L89-L90](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/src/web/app.js#L89-L90) saves and restores the scenario.
+**Evidence:** [draft save/restore/clear logic](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js), [retention notice and control](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/index.html), [privacy regression contract](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/tests/js/web-controls-contract.test.js).
 
-**Impact:** account labels, balances, inflow/outflow schedules and other personal planning data remain in browser storage until overwritten or manually cleared through browser controls. The app accurately says the draft stays in the browser, but users are not given a clear in-app deletion path or retention explanation.
+**Boundary:** this control deletes FD Cal's saved draft key only. It does not clear browser history, downloads, exported JSON files, other sites' storage, or the currently displayed in-memory form. No scenario data transmission or analytics was added.
 
-**Recommendation:** add a visible “Clear saved draft” action with confirmation; explain that drafts remain in this browser profile until cleared. Keep export/import local and avoid transmitting scenario data. Do not add analytics or replay tools without a separate privacy review.
+**Acceptance:** met on this branch. Retention is explained; deletion is user-initiated and confirmed; the deleted draft is not re-saved by the same click. CI passed; pending shipment to `dev`.
+
 
 ## WEB-SEC-02 — Static hosting still needs an explicit security-header strategy
 
