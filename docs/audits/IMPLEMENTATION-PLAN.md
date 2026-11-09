@@ -44,7 +44,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **ENG-03** | **Implemented on follow-up branch** | FDOption constructor enforces core term invariants; browser/CLI loaders isolate invalid rows with diagnostics; maturity horizon remains enforced. |
 | **ENG-04** | **Implemented on follow-up branch — CI passed** | Lightweight AIT assumption ID/effective date/verification date and official IRD source link are present in the engine/UI; no broad tax-regime or individual relief engine. |
 | **SEARCH-01** | **Implemented — PR #75; calibration completed on follow-up branch** | The 5k/10k/20k/unlimited × 15/30/60s matrix returned identical financial results on the harder test; the 5k cap did not bind. Keep 10k/30s and explicit longer/unlimited controls. See [calibration report](SEARCH-BUDGET-CALIBRATION.md). |
-| **SEARCH-02 / SEARCH-03** | **SEARCH-02 deferred; SEARCH-03 partially implemented** | The staged module plan remains documentation-only. A new four-strategy outflow fixture checks strict/deferred settlement and outstanding-liability parity; booking/maturity/reserved-liquidity parity scenarios remain. |
+| **SEARCH-02 / SEARCH-03** | **SEARCH-02 deferred; SEARCH-03 improved, broader parity still open** | Greedy now reserves strict outflows due before candidate maturity, ranks eligible options and falls through to the next safe candidate. Regression tests cover retained cash, maturity-on-due-date fallback and cumulative obligations. Shared runtime settlement remains authoritative; broader planner/parity cases remain. |
 | **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
 | **DATA-03** | **Deferred** | Keep special products with unenforced caps/tax/eligibility constraints out of the active catalogue until the owner defines the supported scope. |
 | **DEPLOY-01** | **Completed on `dev` — PR #80** | Independent dev web/docs publishers and dev-side assembly publish a working preview under `/dev/`. Porting the assembler to `main` is deferred until main-branch work begins. |
@@ -426,13 +426,13 @@ This section supersedes stale status labels and sequencing notes elsewhere in th
 - **DATA-04 and UI-01/02/03:** these are already merged to `dev` through PR #81. Older phase labels saying “pending shipment to dev” are historical and must not be interpreted as current status.
 - **DEPLOY-01:** completed on `dev` through PR #80. Main-branch preview integration remains out of scope as directed.
 - **DATA-06:** the metadata contract is implemented. All 29 bank rows still have blank `dataset_reviewed_at` and `dataset_updated_at` values pending genuine bank-by-bank review. Do not fill them from commit, file, migration or deployment timestamps.
-- **SEARCH-03:** only strict/deferred outflow settlement parity across the four strategies is covered by the current added fixture. Eligible booking, maturity/installment payout, fee and future-obligation liquidity-reservation parity remains open.
+- **SEARCH-03:** four-strategy settlement and booking/maturity/installment/fee parity fixtures are present. Greedy's future strict-outflow reservation gap is fixed strategy-side: it reserves all strict obligations due before each candidate's maturity, checks ranked candidates in order, and falls through when a candidate cannot preserve liquidity. The shared runtime remains the authoritative settlement layer. Broader cross-strategy planner parity and edge-case review remain open.
 - **QA-REP-01:** automated smoke checks are green, but offline behaviour, chart initialization, realistic large-ledger behaviour and manual print/PDF/accessibility checks remain outstanding.
 - **WEB-SEC-02:** deployed production and `/dev/` response headers have not been verified in this audit; GitHub Pages remains the approved host.
 
 ### Corrected next-work sequence
 
-1. Add the missing SEARCH-03 financial parity fixtures without moving authoritative settlement out of the shared runtime.
+1. Extend SEARCH-03 planner parity across more multi-account, transfer, inflow and multi-obligation cases; keep authoritative settlement in the shared runtime.
 2. Complete extended report checks (offline, chart initialization, realistic large ledgers) and manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom review.
 3. Perform genuine source reviews for all 29 banks; record review dates and economic update dates independently and only when evidence supports them.
 4. Verify deployed production and dev response headers and record GitHub Pages limitations.
@@ -442,15 +442,25 @@ No merge, PR creation or deployment is authorised by this plan update.
 
 ### SEARCH-03 checkpoint — 9 November 2026
 
-A deterministic cross-strategy fixture now exercises eligible FD bookings, installment cash-flow events, terminal maturity events and transfer-fee accounting across Greedy, GSS, Absolute R and Absolute R+. The fixture is in `tests/js/cross-strategy-outflow-parity.test.js`. The full workflow [42585867964](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42585867964) passed, including all 265 Node test cases, syntax checks, production/dev builds, six Chromium browser tests, documentation-preservation build and workflow YAML parsing.
+Greedy now evaluates the ranked, simulation-period-eligible FD candidates against upcoming strict outflows before booking:
 
-**This is a partial SEARCH-03 checkpoint, not full parity closure.** Future strict/deferred obligation liquidity reservation is still unverified. A deliberately combined future-strict-outflow scenario exposed that Greedy can invest cash needed for a later strict payment; the initial fixture also exposed that the Absolute search strategy requires every configured account to have a compatible product. The temporary Greedy change was reverted because it broke the established Greedy migration parity contract. Do not treat that exploratory failure as a shipped fix. The next SEARCH-03 task is to define and implement an owner-consistent reservation contract across all four strategies, then add fixtures that prove scheduled future obligations remain funded without weakening the existing strategy migration baseline.
+- It reserves the total strict-outflow amount due in the account before a candidate's maturity, not just the first bill. This prevents a longer-tenor FD from consuming cash needed for a second bill due before maturity.
+- If the remaining cash meets the FD minimum, it books only the amount above the reserve.
+- If that residual cannot meet the minimum, it skips the candidate unless the FD matures on or before the relevant due date.
+- It tests candidates from highest to lowest rank and selects the first candidate that preserves the required liquidity. Consolidation plans are checked after transfer fees and account-level balance movements.
+- The shared runtime still owns actual outflow settlement and validity; no simulation-wide reservation boundary was added.
 
-Do not merge this checkpoint as final SEARCH-03 sign-off. The remaining QA, bank-source review and deployed-header verification gates also remain open.
+Regression coverage in `tests/js/cross-strategy-outflow-parity.test.js` proves (1) partial investment while retaining the next strict obligation, (2) skipping a higher-ranked unsafe tenor in favour of one maturing on the due date, and (3) reserving cumulative obligations due before maturity. The legacy Greedy migration-parity fixture now uses a deferred outflow for this distinct scenario; its purpose remains checking unchanged legacy behaviour outside the newly defined strict-reservation rule.
+
+Workflow [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354) passed all 268 Node tests, syntax checks, production/dev builds, six Chromium browser tests, documentation-preservation build and workflow YAML parsing.
+
+**SEARCH-03 is improved, not fully closed.** The identified Greedy strict-outflow reservation defect is addressed. Broader cross-strategy planner parity for more multi-account, transfer, inflow and obligation combinations remains. The existing shared-runtime settlement contract is unchanged.
+
+Do not treat this checkpoint as final release sign-off. Extended report/accessibility QA, bank-source review and deployed-header verification remain open.
 
 
 ## 9 November 2026 — bounded ship-gate decision
 
-The current branch head `22a191948611451b7853cf5bdf06142eee3e96e8` passes full CI in [workflow 42586136672](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42586136672). Do not confuse green CI with closure of SEARCH-03: a combined future-strict-outflow case shows Greedy can invest funds required by a later obligation. The exploratory Greedy-side change was not retained because it broke the established migration parity baseline.
+The current branch head `aa8684e0999a9554af3f6c0185a4eeb0d9e5a233` passes the complete CI workflow [42598559354](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42598559354). The Greedy strict-outflow liquidity-reservation gap is fixed and regression-tested. The fix remains inside Greedy's candidate-selection rules; the shared simulation runtime continues to settle outflows authoritatively.
 
-**Decision: hold this phase in draft; do not merge to dev yet.** The next completion point is narrowly scoped: define the shared future-obligation reservation contract, implement it at the correct planning/runtime boundary, and prove it with a regression test while retaining current strategy parity. Do not begin the remaining report QA, 29-bank source review, response-header verification or deferred architecture work as part of this phase. Those remain subsequent phases.
+**Decision: keep PR #82 in draft.** This bounded SEARCH-03 blocker is addressed, but broader cross-strategy planner parity and the separate report QA, bank-source review and deployed-header verification gates remain. Do not start those later phases as part of this change.
