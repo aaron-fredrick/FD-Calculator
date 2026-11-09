@@ -201,54 +201,48 @@ The UI and standalone report now disclose the start-year denominator and cross-y
 
 ### Phase 4 — SEARCH-01: bounded browser search with explicit unlimited mode
 
-**Status:** **Implemented** Browser defaults, cooperative stopping, watchdog, cancellation and regression tests are merged to `dev` in PR #75. Benchmark calibration remains a follow-up gate.  
+**Status:** **Implemented and calibrated on this follow-up branch.** The 10,000 expanded-state / 30-second browser defaults, explicit unlimited controls, cooperative time stopping, worker watchdog, cancellation and diagnostics are already implemented. The controlled matrix is complete; see [Search budget calibration](SEARCH-BUDGET-CALIBRATION.md).  
 **Priority:** P2  
 **Primary boundary:** configuration → search loop → worker lifecycle → UI diagnostics.
 
-#### Current state
+#### Current behaviour and calibration result
 
-Absolute R+ currently defaults `max_decisions` to `null`; the browser leaves the decision-cap input blank. The worker runner has a 10-second start-handshake timeout, but clears it after the worker acknowledges `started`. There is no post-start deadline. The runner already has a `cancel()` method, but the UI does not expose a cancellation control.
+- Browser default: 10,000 expanded states and 30 seconds.
+- Explicit unlimited state cap remains available; time limit 0 remains the unlimited-time representation.
+- Budget-limited results return the best feasible incumbent and must not be labelled as proven optimal.
+- The 24-month control and harder 60-month inflow/outflow scenario returned identical financial outputs across all 12 cap/time combinations. The 5,000-state cap did not bind; 15/30/60-second limits increased explored states but did not improve the candidate.
+- No run proved optimality. Identical results are evidence only for the tested scenarios, not a global optimality guarantee.
 
-#### Proposed behaviour
+#### Owner-approved recommendation
 
-- Add a finite default expanded-state budget and a finite default elapsed-time budget for browser Absolute R+ runs.
-- Initial candidate defaults for benchmarking: **10,000 expanded states** and **30 seconds**. These are starting values, not final constants; calibrate them against representative small, typical, and worst-case scenarios before locking them.
-- Let users choose an explicit unlimited decision budget. Preserve `null` as the configuration representation for unlimited expanded states.
-- Let users set the time limit to **0 for unlimited**. A missing time-limit field in an older configuration should receive the safe default; explicit zero should remain unlimited.
-- Make the distinction visible in the UI. Label the count accurately as expanded states/decisions, not a generic number of alternatives.
-- When the decision or cooperative time budget is reached, return the best feasible incumbent available, mark `optimality_proven: false`, and report the exact stopping reason, configured budget, expanded-state count, and elapsed time.
-- Add a hard worker watchdog as a last-resort safety net, slightly beyond the cooperative search deadline. It should terminate a worker that becomes unresponsive, not be the normal way the search budget is enforced.
-- Expose the existing cancellation capability while a run is active. Cancellation, timeout, and budget-completed-with-incumbent must have distinct status/error handling.
-- If both the decision budget is unlimited and timeout is zero, allow the user to request an unbounded run explicitly. The UI should make the resource implication clear.
+Keep 10,000 / 30 seconds as the default. Keep longer/unlimited controls for users who deliberately want extended searches. Do not lower the state cap or raise the default timeout based on the current limited scenario set. If quality improvements are pursued, benchmark beam width and local branch limits separately because pruning dominates expanded-state counts in the measured runs.
 
-#### Architecture and performance safeguards
+#### Regression and architecture safeguards
 
-1. Extend the validated strategy-settings contract deliberately; reject negative, fractional, NaN, and unsupported values.
-2. Keep the search deadline in the search loop, checking at bounded checkpoints and around expensive expansions. Use a monotonic clock and an injectable clock in tests.
-3. Reuse the existing budget-stop/optimality diagnostics where possible; add a reason field rather than creating a parallel result contract.
-4. Keep worker termination and timer cleanup in `SimulationWorkerRunner`; do not put browser timer APIs into core financial logic.
-5. Ensure a timed-out or cancelled worker cannot publish a stale result, and that the next submission works normally.
-6. Benchmark 5k/10k/20k/uncapped expansion limits and 15s/30s/60s time budgets on the same runner. Compare actual financial outputs and feasibility, not only elapsed time. Record whether the incumbent matches the uncapped result on scenarios that can complete uncapped in a reasonable time.
-7. Retain cache limits, beam width, pruning rules, and current strategy parity tests unless measurements justify a separate change.
+1. Keep validated strategy settings; reject negative, fractional, NaN and unsupported values.
+2. Keep search deadlines in the search loop, checked at bounded checkpoints using a monotonic clock.
+3. Keep worker termination/timer cleanup in the worker runner, outside core financial logic.
+4. Ensure a timed-out or cancelled worker cannot publish a stale result and the next submission remains usable.
+5. Preserve cache limits, pruning rules and cross-strategy parity tests unless separate measurements justify changes.
 
-**Acceptance:** ordinary browser runs terminate within a predictable budget; budget-limited results are never presented as proven optimal; users can explicitly opt into unlimited execution; cancellation and subsequent reuse remain reliable.
+**Acceptance:** ordinary browser runs terminate within a predictable budget; budget-limited results are never presented as proven optimal; users can explicitly opt into longer/unlimited execution; cancellation and subsequent reuse remain reliable.
 
 ### Phase 5 — DATA-01: catalogue freshness and source disclosure
 
-**Status:** **Implemented on this branch; CI passed.** Bank-level review dates/status remain visible; product URL, effective date, source type and notes are propagated through web and CLI loaders, worker booking snapshots, and both report formats. Pending shipment to `dev`.  
+**Status:** **Freshness policy implemented on follow-up branch; CI passed.** The existing `dataset_reviewed_at` field is used for bank-level freshness. Warnings appear after 180 days and become strong stale warnings at 365 days. All 29 indexed bank rows currently have no review date recorded, so they remain explicitly unverified until sources are actually rechecked.  
 **Priority:** P2  
 **Primary boundary:** bank/product index → bank selector → result/report disclosure.
 
 #### Data contract
 
-Add a per-bank ISO date field to the bank/product index, for example `dataset_updated_at`. It must represent the last date that bank's dataset was reviewed or materially updated in this repository. Maintain it per bank; do not derive it from the latest repository-wide commit, which may have changed an unrelated bank.
+Use the existing per-bank ISO `dataset_reviewed_at` field in `data/fd_options/fd_options.csv` as the source-review date. Do not populate it from Git merge/file-modification dates. A separate `dataset_updated_at` field is optional only if the UI later needs to expose repository-edit time independently.
 
 Keep this separate from product-level `source_effective_date`:
-- **Dataset last reviewed:** when FD Cal last checked/updated the bank's catalogue data.
+- **Dataset last reviewed:** when FD Cal last checked the bank's source and mapped terms. This is the freshness-policy input.
 - **Source effective date:** when the bank says the rate schedule itself takes effect.
 - **Source type/status:** official/direct, secondary, or no sufficiently verified public rate data.
 
-Do not invent dates for old rows. Backfill only when Git history or research notes establish a defensible date; otherwise show “Review date not recorded” until the bank is rechecked.
+Do not invent review dates for old rows. The current 29 index rows are blank; show “Review date not recorded / freshness unverified” until the source is rechecked. Apply a review-due warning at 180 days and a stronger stale warning at 365 days.
 
 #### UI/report plan
 
