@@ -8,7 +8,7 @@ Reviewed Greedy, GSS, Absolute R, Absolute R+, shared search primitives, search 
 
 ### SEARCH-01 — Scoped Absolute R+ has no default expansion budget or post-start execution timeout
 
-**Current status: IMPLEMENTED in PR #75.** Browser configuration now defaults to 10,000 expanded states and 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, optimality diagnostics, cancellation and a post-start worker watchdog. Regression coverage was added. The planned repeated 5k/10k/20k/uncapped benchmark calibration remains a follow-up; do not treat the candidate defaults as empirically optimal yet.
+**Current status: IMPLEMENTED in PR #75.** Browser configuration now defaults to 10,000 expanded states and 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, optimality diagnostics, cancellation and a post-start worker watchdog. Regression coverage was added. The owner confirmed these as the baseline defaults and requested a controlled 5k/10k/20k/uncapped comparison with 15/30/60-second budgets. Measure result quality, search diagnostics and runtime; the comparison has not yet been executed.
 
 **Severity: P2**
 
