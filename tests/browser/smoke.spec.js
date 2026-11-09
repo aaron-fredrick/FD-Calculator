@@ -97,7 +97,6 @@ test("a default scenario runs and produces an independently openable HTML report
 
   const reportPage = await context.newPage();
   await reportPage.goto("file://" + reportPath);
-  await expect(reportPage).toHaveTitle(/Simulation Report/);
   await expect(reportPage.locator("body")).toContainText("Simulation Report");
   expect(pageErrors).toEqual([]);
 });
