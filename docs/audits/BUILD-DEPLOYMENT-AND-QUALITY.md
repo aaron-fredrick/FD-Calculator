@@ -52,7 +52,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 
 ## QA-01 — The automated suite is strong on Node contracts but lacks browser-level coverage
 
-**Current status: APPROVED — implementation pending.** The owner selected browser-driven tests. Add a small Playwright smoke suite to CI for pushes and pull requests targeting `dev` or `main`; do not begin with a large screenshot-regression system.
+**Current status: IMPLEMENTED ON FOLLOW-UP BRANCH — CI PASSED.** A small Playwright Chromium smoke suite runs in the shared test workflow for pushes to `dev`/`main` and PRs targeting those branches. It covers app startup, privacy preferences, legal navigation, dev-preview noindex/path prefix, mobile content overflow, a real simulation and independently opened HTML report. Broader keyboard, screen-reader, contrast and zoom QA remains.
 
 **Evidence:** the repository contains tests for configuration, dates/foundations, cash-flow components, account provenance, runtime/ledger, strategy parity, search, worker contracts, report output, motion guidelines and Pages workflow contracts. The workflow runs `npm test`, syntax checks and static build checks.
 
