@@ -217,7 +217,7 @@ function buildExecution(result,accountDisplay) {
       const sourceType=sourceTypes[b.option.source_type]||b.option.source_type||"Source type not recorded";
       const sourceEffectiveDate=b.option.source_effective_date||"Not recorded";
       const sourceUrl=String(b.option.source_url||"").trim();
-      const sourceUrlHtml=/^https:\/\/[^\\s"'<>]+$/i.test(sourceUrl)
+      const sourceUrlHtml=/^https:\/\/[^\s"'<>]+$/i.test(sourceUrl)
         ? '<a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer">Open source</a>'
         : "Not recorded";
       const sourceNotes=String(b.option.source_notes||"").trim();
