@@ -53,8 +53,8 @@ Before implementation, capture deterministic baseline outputs for representative
 | **UI-02 / UI-03** | **Completed — PR #81 squash-merged to dev** | Native help disclosure buttons and field-associated validation errors are in dev; rendered assistive-technology QA remains. |
 | **PRIV-01** | **Completed — PR #81 squash-merged to dev** | Browser-local retention and confirmation-protected saved-draft deletion are in dev. |
 | **WEB-SEC-02** | **Open — GitHub Pages retained by owner decision** | Keep Pages; verify actual production/dev headers and document the response-header limitations. No proxy/CDN migration planned. |
-| **QA-01** | **Approved — implementation pending** | Add Playwright browser tests to CI for pushes and PRs targeting dev/main. |
-| **QA-REP-01** | **Open** | The downloaded standalone report has not been independently verified in a real browser. |
+| **QA-01** | **Implemented on follow-up branch — CI passed** | Playwright Chromium smoke suite runs for pushes and PRs targeting dev/main. |
+| **QA-REP-01** | **Partial — initial browser verification implemented** | Playwright downloads the generated HTML report, opens it independently via file URL, checks core content and print-media rendering. Large-table, long-label, keyboard and full print-layout checks remain. |
 | **DATA-05 / DATA-06** | **Research/implementation follow-up** | Keep simplified transfer fees; implement 180/365-day freshness warnings using actual source-review dates. Existing review-date fields are blank. |
 
 ## 2A. Owner feedback received on 9 November 2026
@@ -74,7 +74,7 @@ The following decisions supersede earlier open/deferred owner-decision language 
 | SEARCH-01 | Keep 10,000 expanded states / 30 seconds as baseline; compare 5k/10k/20k/uncapped with longer time budgets and measure quality, not runtime alone. | Benchmark matrix documented; controlled execution remains. |
 | SEARCH-02 | Prepare a staged module decomposition plan; no broad rewrite. | Decomposition boundaries documented; code refactor deferred until parity baselines. |
 | SEARCH-03 | Preserve cross-strategy parity, especially authoritative outflow execution and liquidity reservations. | Ongoing regression requirement; add fixtures with each relevant financial-rule change. |
-| QA-01 / QA-REP-01 | Add browser-driven tests to CI for pushes and PRs to `dev` and `main`; cover app, simulation, report, mobile and accessibility. | Initial Playwright suite and CI integration added; CI verification pending. |
+| QA-01 / QA-REP-01 | Add browser-driven tests to CI for pushes and PRs to `dev` and `main`; cover app, simulation, report, mobile and accessibility. | Initial Playwright suite, offline report check, mobile/reduced-motion/keyboard smoke tests and CI integration implemented; full accessibility/report QA remains. |
 | Legal/privacy | General non-sensitive support may use public issues; personal/privacy/security matters use `a.n.r.fredrick@gmail.com`. Use Sri Lanka as proposed governing law, subject to mandatory laws elsewhere. | Contact text and terms updated on this branch; legal status research recorded. Lawyer review still recommended before commercial operation. |
 
 ### Current source and scope notes
@@ -357,7 +357,7 @@ Recommended implementation sequence:
 4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
 5. **UI-01 / UI-02 / UI-03** — implemented on this branch with regression coverage; pending dev shipment and browser/assistive-technology verification.
 6. **WEB-SEC-02** — verify actual HTTP response headers on production and dev; choose a CDN/proxy or hosting migration only if required policy cannot be met on GitHub Pages.
-7. **QA-01 / QA-REP-01** — initial Playwright browser suite implemented and passing; expand keyboard, screen-reader, contrast, zoom and report-print verification.
+7. **QA-01 / QA-REP-01** — initial Playwright suite passes; expand screen-reader, contrast, 200–400% zoom, large-table and full report-print verification.
 8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
 9. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
 
