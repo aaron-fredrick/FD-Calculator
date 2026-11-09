@@ -94,21 +94,23 @@ test("users can delete the browser-local draft without the form click handler re
 });
 
 
-test("privacy preferences are persistent, editable, and analytics remains inert until implemented", () => {
+test("Google analytics is loaded only after explicit consent and sends no scenario data", () => {
   assert.match(page, /id="privacy-banner"/);
   assert.match(page, /id="open-privacy-preferences"/);
   assert.match(page, /id="privacy-analytics"/);
-  assert.match(page, /id="privacy-analytics"[^>]*>/);
   assert.match(page, /Strictly necessary storage/);
-  assert.match(page, /disabled aria-label="Strictly necessary storage always enabled"/);
-  assert.match(page, /does not currently set its own cookies/);
+  assert.match(page, /Analytics \(Google\)/);
+  assert.match(page, /does not intentionally set its own cookies/);
   assert.match(app, /fd-cal:privacy-preferences:v1/);
-  assert.match(app, /function readPrivacyPreferences\(\)/);
-  assert.match(app, /function savePrivacyPreferences\(analytics\)/);
-  assert.match(app, /function setupPrivacyControls\(\)/);
-  assert.match(app, /if\(!readPrivacyPreferences\(\)\)banner\.hidden=false/);
-  assert.match(app, /privacy-reject/);
-  assert.match(app, /privacy-save/);
+  assert.match(app, /GTM_CONTAINER_ID="GTM-TNC567R4"/);
+  assert.match(app, /analytics_storage:"denied"/);
+  assert.match(app, /analytics_storage:allowAnalytics\?"granted":"denied"/);
+  assert.match(app, /if\(!analyticsEnabled\)return/);
+  assert.match(app, /script\.src="https:\/\/www\.googletagmanager\.com\/gtm\.js\?id="/);
+  assert.match(app, /window\.gtag\("event","page_view"/);
+  assert.match(app, /trackAnalyticsEvent\("simulation_start"\)/);
+  assert.match(app, /trackAnalyticsEvent\("simulation_complete"\)/);
   assert.match(app, /setupPrivacyControls\(\);\s*init\(\)/);
-  assert.doesNotMatch(app, /gtag\(|google-analytics|googletagmanager|sendBeacon\(/i);
+  assert.doesNotMatch(page, /googletagmanager\.com\/gtm\.js/);
+  assert.doesNotMatch(app, /gtag\("event",[^)]*(?:raw\(|balance|cashflow|account)/i);
 });
