@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { test, expect } from "@playwright/test";
 
 test("production web app loads and privacy preferences can be changed", async ({ page }) => {
@@ -139,7 +140,7 @@ test("a default scenario runs and produces an independently openable HTML report
   const reportHtml = await readFile(reportPath, "utf8");
 
   const reportPage = await context.newPage();
-  await reportPage.goto("file://" + reportPath);
+  await reportPage.goto(pathToFileURL(reportPath).href);
   await expect(reportPage.locator("body")).toContainText("Simulation Report");
   await reportPage.evaluate(() => {
     const details = document.createElement("details");
@@ -212,7 +213,10 @@ test("a default scenario runs and produces an independently openable HTML report
         try { return [...sheet.cssRules].filter(rule => rule.cssText.includes("table-layout") || rule.cssText.includes("word-break")); }
         catch { return []; }
       }).map(rule => rule.cssText),
-      downloadedHtmlHead: downloadedHtml.slice(0, 2200)
+      downloadedHtmlHead: downloadedHtml.slice(0, 2200),
+      pageUrl: location.href,
+      pageTitle: document.title,
+      readyState: document.readyState
     };
   }, reportHtml);
   expect(printTableLayout.tableWrapDisplay).toBe("block");
