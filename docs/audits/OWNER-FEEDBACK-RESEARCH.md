@@ -193,7 +193,7 @@ Record:
 
 The browser must retain an explicit user-controlled longer/unlimited mode. A timeout is a resource stop, not proof that the best possible result was found. The default should balance responsiveness and useful result quality; no benchmark result should be extrapolated from a single runner or a single scenario.
 
-**Execution status:** benchmark matrix design is specified; a fresh controlled run has not yet been executed on this branch.
+**Execution status:** the 12-point matrix was run on a harder 60-month, three-bank scenario with monthly inflows and strict outflows, plus a 24-month baseline control. All 12 harder-scenario runs returned the same financial result; the 5k state cap did not bind, and 15/30/60-second budgets explored progressively more states without improving the candidate. No run proved optimality. See [Search budget calibration](SEARCH-BUDGET-CALIBRATION.md).
 
 ## 10. SEARCH-02 — strategy module decomposition plan
 
