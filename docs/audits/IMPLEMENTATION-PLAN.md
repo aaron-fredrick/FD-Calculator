@@ -53,8 +53,8 @@ Before implementation, capture deterministic baseline outputs for representative
 | **UI-02 / UI-03** | **Completed — PR #81 squash-merged to dev** | Native help disclosure buttons and field-associated validation errors are in dev; rendered assistive-technology QA remains. |
 | **PRIV-01** | **Completed — PR #81 squash-merged to dev** | Browser-local retention and confirmation-protected saved-draft deletion are in dev. |
 | **WEB-SEC-02** | **Open — GitHub Pages retained by owner decision** | Keep Pages; verify actual production/dev headers and document the response-header limitations. No proxy/CDN migration planned. |
-| **QA-01** | **Implemented; latest CI regression open** | Playwright runs on pushes to `dev`, `main` and audit branches and PRs targeting `dev`/`main`. Latest run 42571366220 has 5/6 browser tests passing; the standalone-report print-width assertion failed. A print CSS correction is committed and must be reverified. |
-| **QA-REP-01** | **Partial — print regression being corrected** | Scoped column headers and long-label browser stress coverage are present. Latest CI measured the stressed print table at 433px for a 321px viewport. A print CSS fix is committed; rerun the report test before calling automated print QA green. Manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom review remain. |
+| **QA-01** | **Implemented; CI verification in progress** | Playwright runs on pushes to `dev`, `main` and audit branches and PRs targeting `dev`/`main`. Run [42573696604](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573696604) exposed a missing `scope=col` on the standalone report's event-ledger headers; fixed in commit `6a15b8b`. Run [42573879316](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573879316) is verifying the correction. |
+| **QA-REP-01** | **Partial — automated report checks still under verification** | The downloaded report is opened independently and checked for semantic column headers, 320px overflow and print layout. Run 42573696604 found that the generated event-ledger table lacked `scope=col`; fixed in `6a15b8b`. An earlier run (42571366220) also measured the stressed print table at 433px against a 321px viewport; the print CSS constraint is present but still needs a successful assertion run. Offline/chart checks and manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom review remain. |
 | **DATA-05 / DATA-06** | **Research complete; metadata contract implemented; source review pending** | Transfer-fee model remains intentionally simplified. The bank options index now separates economic-data update date, source-review date and CSV schema version; all dates remain blank until verified bank-by-bank. Schema-only migrations must not advance data dates. |
 
 ## 2A. Owner feedback received on 9 November 2026
@@ -336,11 +336,11 @@ A Playwright Chromium smoke suite is now implemented in `tests/browser/` and run
 
 ## 3A. Current branch re-audit — 9 November 2026
 
-The implementation status below was checked against the working branch, not inferred from the plan. The branch remains based on `dev` at PR #81's squash merge. The latest CI run before the current print-CSS correction is [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220): Node tests, syntax checks and production/dev builds passed; five of six Playwright tests passed; the standalone report print-width assertion failed (433px table width against a 321px emulated viewport). The correction is committed, but a green rerun is still required.
+The implementation status below was checked against the working branch, not inferred from the plan. The branch remains based on `dev` at PR #81's squash merge. CI run [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220) passed Node tests, syntax checks and production/dev builds, but the report print-width assertion measured 433px against a 321px emulated viewport. The print CSS was subsequently constrained. Run [42573696604](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573696604) then reached the semantic-header assertion and found the event-ledger table's six headers lacked `scope=col`; this was corrected in commit `6a15b8b`. Workflow [42573879316](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42573879316) is the current verification run. Do not mark QA-01/QA-REP-01 green until it completes successfully.
 
 ### Remaining work, in priority order
 
-1. **Close the report print regression:** rerun CI after the print CSS change; if it still fails, inspect the actual report DOM/print computed widths and correct the implementation rather than weakening the assertion.
+1. **Close the report browser regressions:** confirm run 42573879316 passes semantic headers, mobile overflow and print-width assertions. If print still fails, inspect actual computed widths and correct the CSS rather than weakening the assertion.
 2. **Complete SEARCH-03 parity:** add deterministic cross-strategy scenarios with eligible bookings, maturity and installment payouts, transfer fees, and future-outflow reserved liquidity. Compare authoritative ledger, paid/outstanding obligations, ending balances and validity across Greedy, GSS, Absolute R and Absolute R+.
 3. **Complete report/browser QA:** test realistic large ledgers and long labels, offline operation and chart initialization; perform manual print/PDF, keyboard, screen-reader, contrast and 200–400% zoom checks.
 4. **Complete catalogue source review:** recheck each of the 29 bank entries against official source material where available; record defensible `dataset_reviewed_at` and only record `dataset_updated_at` when economic terms materially changed. Leave unverified dates blank.
@@ -348,7 +348,7 @@ The implementation status below was checked against the working branch, not infe
 6. **Keep SEARCH-02 deferred:** retain the staged decomposition plan; do not refactor strategy modules until parity baselines are complete.
 7. **Keep explicitly deferred scope deferred:** special-product constraint modelling (DATA-03), richer transfer-channel fee modelling (DATA-05), main-branch dev-preview assembler port, and external legal counsel review are not blockers for this dev-targeted branch.
 
-No PR, merge or deployment is part of this work. The branch is not ready to be called fully green until the browser regression is cleared.
+No PR, merge or deployment is part of this work. The branch is not ready to be called fully green until the current browser verification is green.
 
 ## 4. Visual and interaction guardrails
 
