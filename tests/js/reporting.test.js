@@ -197,7 +197,7 @@ test("report layout, decision accents, maturity colors and chart hover controls 
   });
   assert.match(consoleText, /Source: direct bank source/);
   assert.match(consoleText, /effective date: 2026-10-01/);
-  assert.match(consoleText, /https:\\/\\/bank\\.example\\/rates/);
+  assert.ok(consoleText.includes("https://bank.example/rates"));
   assert.match(consoleText, /Source notes: Official rate table/);
   assert.ok(html.includes("min(100%,150px)"), "overview tiles should use a compact responsive minimum width");
   assert.ok(html.includes("var(--decision-color,var(--blue))"), "decision accent should use event-derived color");
