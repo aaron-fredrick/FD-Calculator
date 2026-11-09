@@ -86,18 +86,38 @@ test("component build scripts consume generated data without fingerprint publica
 });
 
 
-test("dev preview is path-isolated and included in the shared Pages assembly", () => {
+test("dev preview publishes web and docs independently and remains path-isolated", () => {
   const pages = read(".github/workflows/pages.yml");
-  const preview = read(".github/workflows/dev-preview.yml");
+  const web = read(".github/workflows/dev-web-pages.yml");
+  const docs = read(".github/workflows/dev-docs-pages.yml");
+
   assert.match(pages, /dev_pages-preview-artifact/);
+  assert.match(pages, /dev_pages-web-artifact/);
+  assert.match(pages, /dev_pages-docs-artifact/);
   assert.match(pages, /mkdir -p site\/dev/);
   assert.match(pages, /dev_pages-deploy-state/);
   assert.match(pages, /site\/dev\/web\/index\.html/);
-  assert.match(preview, /branches: \[dev\]/);
-  assert.match(preview, /FD_CAL_PREVIEW: "true"/);
-  assert.match(preview, /name: dev-web-site/);
-  assert.match(preview, /name: dev-docs-site/);
-  assert.match(preview, /dev_pages-preview-artifact/);
-  assert.match(preview, /noindex,nofollow/);
-  assert.match(preview, /needs\.publish\.outputs\.published == 'true'/);
+  assert.match(pages, /site\/dev\/docs\/index\.html/);
+
+  assert.match(web, /branches: \[dev\]/);
+  assert.match(web, /FD_CAL_PREVIEW: "true"/);
+  assert.match(web, /name: dev_web-site/);
+  assert.match(web, /dev_pages-web-artifact/);
+  assert.match(web, /noindex,nofollow/);
+  assert.doesNotMatch(web, /strategy-sensitivity\.js|gaml-sensitivity\.js|docs\/strategies\/benchmarks/);
+
+  assert.match(docs, /branches: \[dev\]/);
+  assert.match(docs, /FD_CAL_PREVIEW: "true"/);
+  assert.match(docs, /dev_scoped-range-benchmark-data/);
+  assert.match(docs, /dev_absolute-r-plus-benchmark-data/);
+  assert.match(docs, /name: dev_docs-site/);
+  assert.match(docs, /dev_pages-docs-artifact/);
+  assert.match(docs, /noindex,nofollow/);
+  assert.match(docs, /dev-preview-artifact-publish/);
+
+  assert.match(web, /dev-preview-artifact-publish/);
+  assert.match(web, /Refresh the combined dev preview compatibility artifact/);
+  assert.match(docs, /Refresh the combined dev preview compatibility artifact/);
+  assert.doesNotMatch(web, /needs\.publish\.outputs\.published/);
+  assert.doesNotMatch(docs, /needs\.publish\.outputs\.published/);
 });
