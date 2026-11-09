@@ -172,7 +172,7 @@ Product-level `source_effective_date` remains separate: it is the effective date
 - Missing review date: show “Review date not recorded — freshness unverified”, not a fresh/green state.
 - Future or malformed review dates: show an invalid-metadata warning; do not silently treat them as current.
 
-These are catalogue-maintenance warnings, not claims that a bank's published rate has expired. A bank can change a rate the day after review; the source effective date remains a separate signal.
+Show a review-due warning after 180 days and a stronger stale warning after 365 days. These are catalogue-maintenance warnings, not claims that a bank's published rate has expired. A bank can change a rate the day after review; the source effective date remains a separate signal.
 
 ### Implementation and remaining work
 
