@@ -121,3 +121,17 @@ test("dev preview publishes web and docs independently and remains path-isolated
   assert.doesNotMatch(web, /needs\.publish\.outputs\.published/);
   assert.doesNotMatch(docs, /needs\.publish\.outputs\.published/);
 });
+
+
+test("production sitemap includes canonical app routes and excludes preview output", () => {
+  const docs = read("scripts/build-docs-site.sh");
+  const robots = read("robots.txt");
+
+  assert.match(docs, /FD_CAL_PREVIEW:-false.*!=.*true/);
+  assert.match(docs, /https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\//);
+  assert.match(docs, /https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\/web\//);
+  assert.match(docs, /cp site\/sitemap\.xml/);
+  assert.match(docs, /rm -f "\$output_dir\/docs\/sitemap\.xml"/);
+  assert.match(robots, /^Disallow: \/FD-Calculator\/dev\/$/m);
+  assert.match(robots, /^Sitemap: https:\/\/aaron-fredrick\.github\.io\/FD-Calculator\/sitemap\.xml$/m);
+});
