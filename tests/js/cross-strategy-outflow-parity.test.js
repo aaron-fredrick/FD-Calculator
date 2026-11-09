@@ -54,11 +54,11 @@ test("all strategies preserve the same authoritative outflow settlement and obli
     const result = engine.run(create(), scenario());
     const snapshot = obligationSnapshot(result);
     assert.equal(snapshot.valid, true, name + " should complete the strict obligation.");
-    assert.equal(snapshot.paid, 7000, name + " should settle 4,000 strict and 3,000 deferred.");
+    assert.equal(snapshot.paid, 4000, name + " should settle the 4,000 strict obligation; defer is all-or-nothing.");
     assert.deepEqual(snapshot.outstanding, [{
-      name: "Deferred bill", remaining: 2000, payment_policy: "defer"
+      name: "Deferred bill", remaining: 5000, payment_policy: "defer"
     }], name + " should retain the same deferred liability.");
-    assert.equal(snapshot.endingCash, 0, name + " should not lose or duplicate cash.");
+    assert.equal(snapshot.endingCash, 3000, name + " should retain the cash reserved for the deferred obligation.");
     assert.equal(snapshot.paid + snapshot.outstanding.reduce((sum, item) => sum + item.remaining, 0), 9000);
     return [name, snapshot];
   });
