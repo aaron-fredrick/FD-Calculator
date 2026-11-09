@@ -32,7 +32,7 @@ test("production web app loads and privacy preferences can be changed", async ({
 
 test("legal pages expose private contact details and can be navigated", async ({ page }) => {
   await page.goto("/web/");
-  await page.getByRole("link", { name: /privacy policy/i }).click();
+  await page.getByRole("link", { name: "Privacy policy", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Privacy Policy" })).toBeVisible();
   await expect(page.locator('a[href="mailto:a.n.r.fredrick@gmail.com"]')).toBeVisible();
 
@@ -55,11 +55,25 @@ test("mobile viewport renders without document-level horizontal overflow", async
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/web/");
   await expect(page.locator("#run")).toBeVisible();
-  const dimensions = await page.evaluate(() => ({
-    viewport: document.documentElement.clientWidth,
-    content: document.documentElement.scrollWidth,
-  }));
-  expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
+  const dimensions = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth;
+    const offenders = [...document.querySelectorAll("body *")].map(element => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        tag: element.tagName.toLowerCase(),
+        id: element.id,
+        className: typeof element.className === "string" ? element.className : "",
+        left: Math.round(rect.left),
+        right: Math.round(rect.right),
+        width: Math.round(rect.width),
+        overflowX: style.overflowX,
+      };
+    }).filter(item => item.right > viewport + 1 && !["auto", "scroll", "hidden", "clip"].includes(item.overflowX))
+      .sort((a, b) => b.right - a.right).slice(0, 12);
+    return { viewport, content: document.documentElement.scrollWidth, offenders };
+  });
+  expect(dimensions.content, JSON.stringify(dimensions.offenders)).toBeLessThanOrEqual(dimensions.viewport + 1);
 });
 
 test("a default scenario runs and produces an independently openable HTML report", async ({ page, context }) => {
@@ -68,6 +82,9 @@ test("a default scenario runs and produces an independently openable HTML report
 
   await page.goto("/web/");
   await expect(page.locator("#run")).toBeVisible();
+  await expect(page.locator("#accounts-list .account")).toHaveCount(1);
+  await page.locator("#accounts-list [data-balance]").fill("1000000");
+  await page.locator("#strategy-choice").selectOption("greedy");
   await page.locator("#run").click();
   await expect(page.locator("#results")).toBeVisible({ timeout: 25_000 });
 
