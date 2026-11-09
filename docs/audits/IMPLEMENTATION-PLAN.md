@@ -31,22 +31,29 @@ No phase may:
 
 Before implementation, capture deterministic baseline outputs for representative scenarios and record the audited source SHA. For engine/search changes, compare booking decisions, cash-flow dates and amounts, ending account balances, paid and outstanding outflows, fees, AIT, result metrics, validity, and optimality diagnostics. Run repeated same-runner timing measurements as well as output comparisons.
 
-## 2. Owner feedback and finding disposition
+## 2. Owner feedback and current finding disposition
 
-| Finding | Disposition | Plan |
+| Finding | Current status | Evidence / remaining work |
 |---|---|---|
-| **SEC-01** | Accepted — P1 | Fix unsafe account-ID rendering and audit adjacent selector/attribute use. Preserve valid imported IDs. |
-| **FIN-01** | Accepted — P1 | Correct result semantics and UI/report labels. Outflows already participate in runtime and search; do not reimplement them inside individual strategies. |
-| **ENG-01** | Clarify before changing — P2 | Preserve the date-boundary ordering: cash inflows and FD cash flows first, due outflows second, strategy decision third. Do not blindly clamp installment dates; confirm product payout semantics separately. |
-| **ENG-02** | Accepted as an explicit convention to document — P2 | Keep the current elapsed-day calculation and start-date year-base behaviour for now. Verify against representative bank terms before changing the formula. |
-| **SEARCH-01** | Accepted — P2 | Add finite browser defaults for expanded-state and elapsed-time budgets, with explicit unlimited controls. Preserve partial-result/optimality diagnostics. |
-| **DATA-01** | Accepted — P2 | Add per-bank dataset review/update dates, expose selected-bank status/date, and show a clear catalogue disclaimer. Keep source effective date distinct. |
-| **DATA-02** | Closed as intended scope | Senior/minor controls remain candidate-product inclusion filters, not depositor eligibility verification. Keep the existing disclosure; do not add age/guardian onboarding as part of this work. |
-| **DATA-03** | Deferred — owner decision required | No model extension or product activation until the owner clarifies which special-product constraints should be supported. |
-| **DEPLOY-01** | Accepted — P2 | Make the production Pages assembler preserve the public `/dev/` subtree on every normal deployment. |
-| **DATA-04** | Accepted — P3 | Harden CSV structural validation after inventorying all current catalogue files and preserving valid CSV behaviour. |
-| **UI-01** | Accepted — P3 | Route programmatic scrolling through a reduced-motion-aware helper. Preserve normal-motion behaviour and existing transitions. |
-| **QA-01** | Deferred — owner decision required | The finding means there is no automated real-browser end-to-end suite. Decide later whether to introduce Playwright or keep browser checks manual/smoke-only. |
+| **SEC-01** | **Completed — PR #75** | Imported account IDs are encoded at all three account-card attribute sinks; adversarial regression coverage is present. |
+| **FIN-01** | **Completed — PR #75** | Explicit pre-withdrawal and closing-position metrics are exposed in the result model, UI and report; paid/deferred outflow reconciliation is tested. |
+| **FIN-02** | **Completed — PR #75** | The metric is labelled “Capital contributed”, not “Capital invested”. |
+| **FIN-03 / DATA-01** | **Partial — PR #75** | Bank-level source status/review date and report disclosure exist. Product-level source URLs, effective dates and caveats are not yet propagated. |
+| **ENG-01** | **Partial** | Runtime event ordering is regression-tested. Installment payment dates can still extend beyond nominal maturity; verify contractual terms before changing the schedule model. |
+| **ENG-02** | **Partial** | The start-year 365/366 denominator is documented here. Formula remains unchanged; representative bank-term verification and user-facing explanation remain. |
+| **ENG-03 / ENG-04** | **Open** | Central product-term invariants and versioned AIT assumptions are not implemented. |
+| **SEARCH-01** | **Implemented — PR #75** | Browser defaults are 10,000 expanded states / 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, watchdog, cancellation and diagnostics. Benchmark calibration remains. |
+| **SEARCH-02 / SEARCH-03** | **Open / ongoing control** | Large modules remain; existing parity/replay tests are positive controls, but new financial rules need cross-strategy parity fixtures. |
+| **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
+| **DATA-03** | **Deferred** | Keep special products with unenforced caps/tax/eligibility constraints out of the active catalogue until the owner defines the supported scope. |
+| **DEPLOY-01** | **Partial — PR #80** | Dev web/docs publishers and dev-side assembly are split. The current main Pages assembler still omits /dev/; port and verify preview-aware assembly on main. |
+| **DATA-04** | **Open** | CSV parsing still accepts short/long rows by filling or ignoring fields; inventory and strict parsing remain. |
+| **UI-01** | **Open** | Direct smooth scrollIntoView calls remain in validation/result navigation. |
+| **UI-02 / UI-03** | **Open** | Tooltip help lacks a programmatic description/keyboard-touch interaction; field errors lack aria-describedby association. |
+| **PRIV-01 / WEB-SEC-02** | **Open** | Add local-draft clear/retention UX; document the static-hosting security-header boundary and any required hosting change. |
+| **QA-01** | **Deferred — owner decision required** | Decide whether to introduce Playwright smoke coverage or retain manual browser verification. |
+| **QA-REP-01** | **Open** | The downloaded standalone report has not been independently verified in a real browser. |
+| **DATA-05 / DATA-06** | **Open / partial** | Transfer-channel modelling remains out of scope; freshness/source warnings are only partially surfaced. |
 
 ## 3. Detailed workstreams
 
