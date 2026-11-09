@@ -58,7 +58,7 @@ jobs:
           console.log("Validated 324 observations across 108 Scoped Range scenarios.");
           NODE
       - name: Upload run-local Scoped Range data for the docs build
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: scoped-range-benchmark-data
           path: docs/strategies/benchmarks/results.json
@@ -108,7 +108,7 @@ jobs:
           console.log("Validated all 15 Absolute R+ parameter observations.");
           NODE
       - name: Upload run-local Absolute R+ data for the docs build
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: absolute-r-plus-benchmark-data
           path: docs/strategies/benchmarks/gaml-search-results.json
@@ -149,7 +149,7 @@ jobs:
         run: node scripts/validate-scoped-benchmark-data.js
       - name: Build documentation from the generated datasets
         run: bash scripts/build-docs-site.sh /tmp/docs-site
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: docs-site
           path: /tmp/docs-site

@@ -85,7 +85,7 @@ jobs:
           if [ ! -f goal-achievement-sensitivity-output.txt ]; then
             echo "Goal benchmark simulation skipped because the fingerprint and cached outputs were current." > goal-achievement-sensitivity-output.txt
           fi
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: goal-development-benchmarks

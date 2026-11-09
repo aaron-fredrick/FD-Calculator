@@ -34,7 +34,7 @@ jobs:
         run: set -o pipefail && node scripts/gaml-sensitivity.js | tee gaml-sensitivity-output.txt
       - name: Upload sensitivity results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: absolute-r-plus-sensitivity
           path: |
