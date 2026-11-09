@@ -350,3 +350,64 @@ test("strict outflows invalidate an underfunded account without draining another
   assert.equal(runtime.provenance.total("reserve"), 500);
   assert.equal(runtime.pending[0].remaining, 150);
 });
+
+
+test("installment payout events are filtered to the simulation window without extending it", () => {
+  const option = new FDOption({
+    label: "Five-month installment FD", period_str: "5m", annual_rate: 10,
+    min_amount: 25000, payout_type: "installment", payout_period_str: "2m",
+    bank_id: "BANK_A", bank_key: "a"
+  });
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-06-01",
+    options: [option],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    inflow_account_id: "main", consolidation_account_id: "main"
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  const view = runtime.planningView();
+  runtime.executeSignal(createStrategyDecision({
+    revision: view.revision, date: view.date,
+    action: StrategyDecisionType.SPLIT,
+    plan: { bookings: [{ account_id: "main", option_index: 0, principal: 100000 }], carries: [] }
+  }));
+
+  const cashFlows = Object.values(runtime.timeline).flat()
+    .filter(event => event.event_type === EventType.CASH_FLOW || event.event_type === EventType.MATURITY);
+  assert.deepEqual(cashFlows.map(event => event.on_date.toISOString().slice(0, 10)), [
+    "2026-03-01", "2026-05-01"
+  ]);
+  assert.equal(runtime.bookings[0].cash_flows.length, 3);
+  assert.equal(runtime.bookings[0].cash_flows[2].date.toISOString().slice(0, 10), "2026-07-01");
+  assert.equal(runtime.context.end_iso, "2026-06-01");
+  assert.ok(Object.keys(runtime.timeline).every(key => Number(key) <= 20260601));
+});
+
+test("installment events within a longer requested simulation window are retained", () => {
+  const option = new FDOption({
+    label: "Five-month installment FD", period_str: "5m", annual_rate: 10,
+    min_amount: 25000, payout_type: "installment", payout_period_str: "2m",
+    bank_id: "BANK_A", bank_key: "a"
+  });
+  const context = createSimulationContext({
+    start: "2026-01-01", end: "2026-07-01",
+    options: [option],
+    accounts: [new Account({ id: "main", bank_id: "BANK_A", bank_key: "a", balance: 100000 })],
+    inflow_account_id: "main", consolidation_account_id: "main"
+  });
+  const runtime = new SimulationRuntime(context);
+  runtime.processDate(runtime.nextEventDate());
+  const view = runtime.planningView();
+  runtime.executeSignal(createStrategyDecision({
+    revision: view.revision, date: view.date,
+    action: StrategyDecisionType.SPLIT,
+    plan: { bookings: [{ account_id: "main", option_index: 0, principal: 100000 }], carries: [] }
+  }));
+  const cashFlows = Object.values(runtime.timeline).flat()
+    .filter(event => event.event_type === EventType.CASH_FLOW || event.event_type === EventType.MATURITY);
+  assert.deepEqual(cashFlows.map(event => event.on_date.toISOString().slice(0, 10)), [
+    "2026-03-01", "2026-05-01", "2026-07-01"
+  ]);
+  assert.equal(runtime.context.end_iso, "2026-07-01");
+});
