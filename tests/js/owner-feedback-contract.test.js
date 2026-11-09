@@ -26,6 +26,8 @@ test("privacy and terms pages provide a private contact route", async () => {
   const terms = await read("../../src/web/terms.html");
   assert.match(privacy, /mailto:a\.n\.r\.fredrick@gmail\.com/);
   assert.match(privacy, /public issue/);
+  assert.match(privacy, /2498\\/16/);
+  assert.match(privacy, /1 January 2027/);
   assert.match(terms, /mailto:a\.n\.r\.fredrick@gmail\.com/);
   assert.match(terms, /laws of Sri Lanka/);
   assert.match(terms, /mandatory law/);
