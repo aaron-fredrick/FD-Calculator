@@ -42,8 +42,12 @@ test("security policy directs sensitive reports away from public issues", async 
 
 test("owner-approved interest and research decisions are documented", async () => {
   const interest = await read("../../docs/finance/INTEREST-DAY-COUNT.md");
+  const ui = await read("../../src/web/index.html");
+  const report = await read("../../src/reporting/html.js");
   const research = await read("../../docs/audits/OWNER-FEEDBACK-RESEARCH.md");
   assert.match(interest, /start-year denominator/);
+  assert.match(ui, /apply that denominator to the full term/);
+  assert.match(report, /same denominator applies to the full accrual interval/);
   assert.match(research, /only payout events whose dates fall inside the active simulation period/);
   assert.match(research, /180 days/);
   assert.match(research, /365 days/);
