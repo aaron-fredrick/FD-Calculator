@@ -1,4 +1,4 @@
-import { Account, FDOption, TransferFeeConfig } from "./models.js";
+import { Account, FDOption, TransferFeeConfig, AIT_RATE } from "./models.js";
 import { addPeriod, formatISODate, parseISODate, parsePeriod } from "./dates.js";
 import { validateConfigurationShape } from "./config-schema.js?v=gss-settings-2";
 
@@ -216,7 +216,7 @@ export function validateConfiguration(raw, { bankRegistry, bankKeyById, options,
     inflow_schedule: inflows.schedule, inflow_summaries: inflows.summaries,
     outflow_schedule: outflows.schedule, outflow_summaries: outflows.summaries,
     fee_config: feeConfig, strategy, gaml_settings: gamlSettings, greedy_settings: greedySettings, gss_settings: gssSettings, compound,
-    actual_leap_year: actualLeapYear, ait_enabled: aitEnabled, ait_rate: 0.10,
+    actual_leap_year: actualLeapYear, ait_enabled: aitEnabled, ait_rate: AIT_RATE,
     report_output_file: String(raw.report_output_file ?? "fd_cal_report.html").trim()
   };
 }
