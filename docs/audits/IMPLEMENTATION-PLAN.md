@@ -68,12 +68,12 @@ The following decisions supersede earlier open/deferred owner-decision language 
 | ENG-04 | Keep the current 10% Sri Lankan interest AIT assumption, with a lightweight version identifier, effective date and official source disclosure. Do not build a broad tax-regime engine now. | Version metadata and UI source disclosure added on this branch; tests/CI pending. |
 | DATA-03 | Research special FDs, but do not activate or implement them yet. | Research register added; implementation explicitly deferred. |
 | DATA-05 | Keep simplified transfer-fee modelling; research and document limitations only. | Research register added; model unchanged. |
-| DATA-06 | Use actual source-review date; warn at 180 days and strongly at 365 days. Missing dates remain explicitly unverified. Keep source-effective, source-review and repository-update dates distinct. | Existing `dataset_reviewed_at` field is present but blank in all 29 bank index rows. Freshness UI/data population remains. |
+| DATA-06 | Use actual source-review date; warn at 180 days and strongly at 365 days. Missing dates remain explicitly unverified. Keep source-effective, source-review and repository-update dates distinct. | Freshness classifier and bank-selector warnings added; `dataset_reviewed_at` remains blank in all 29 bank index rows, so source review/date population remains. |
 | WEB-SEC-02 | Retain GitHub Pages. | No hosting migration planned; verify deployed headers and document residual limits. |
 | SEARCH-01 | Keep 10,000 expanded states / 30 seconds as baseline; compare 5k/10k/20k/uncapped with longer time budgets and measure quality, not runtime alone. | Benchmark matrix documented; controlled execution remains. |
 | SEARCH-02 | Prepare a staged module decomposition plan; no broad rewrite. | Decomposition boundaries documented; code refactor deferred until parity baselines. |
 | SEARCH-03 | Preserve cross-strategy parity, especially authoritative outflow execution and liquidity reservations. | Ongoing regression requirement; add fixtures with each relevant financial-rule change. |
-| QA-01 / QA-REP-01 | Add browser-driven tests to CI for pushes and PRs to `dev` and `main`; cover app, simulation, report, mobile and accessibility. | Approved; Playwright suite/workflow implementation remains. |
+| QA-01 / QA-REP-01 | Add browser-driven tests to CI for pushes and PRs to `dev` and `main`; cover app, simulation, report, mobile and accessibility. | Initial Playwright suite and CI integration added; CI verification pending. |
 | Legal/privacy | General non-sensitive support may use public issues; personal/privacy/security matters use `a.n.r.fredrick@gmail.com`. Use Sri Lanka as proposed governing law, subject to mandatory laws elsewhere. | Contact text and terms updated on this branch; legal status research recorded. Lawyer review still recommended before commercial operation. |
 
 ### Current source and scope notes
