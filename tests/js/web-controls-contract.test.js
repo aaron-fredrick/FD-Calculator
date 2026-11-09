@@ -56,7 +56,7 @@ test("selected bank cards disclose catalogue source status and review date", () 
 
 test("unlimited expanded states uses a compact checkbox control", () => {
   assert.match(page, /<label class="toggle"><input id="unlimited-decision-cap" type="checkbox"><span>Unlimited expanded states<\/span><\/label>/);
-  assert.match(styles, /#strategy label\\.toggle\\s*\\{[^}]*display:flex/s);
-  assert.match(styles, /#strategy label\\.toggle input\\[type="checkbox"\\]\\s*\\{[^}]*width:16px/s);
-  assert.match(styles, /#strategy label\\.toggle input\\[type="checkbox"\\]\\s*\\{[^}]*min-height:0/s);
+  assert.match(styles, /#strategy label\.toggle\s*\{[^}]*display:flex/s);
+  assert.match(styles, /#strategy label\.toggle input\[type="checkbox"\]\s*\{[^}]*width:16px/s);
+  assert.match(styles, /#strategy label\.toggle input\[type="checkbox"\]\s*\{[^}]*min-height:0/s);
 });
