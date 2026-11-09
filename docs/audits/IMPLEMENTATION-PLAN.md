@@ -47,7 +47,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **DATA-02** | **Closed as owner-confirmed scope** | Senior/minor options are candidate-product filters; FD Cal does not verify depositor age or guardian eligibility. Keep the disclosure. |
 | **DATA-03** | **Deferred** | Keep special products with unenforced caps/tax/eligibility constraints out of the active catalogue until the owner defines the supported scope. |
 | **DEPLOY-01** | **Completed on `dev` — PR #80** | Independent dev web/docs publishers and dev-side assembly publish a working preview under `/dev/`. Porting the assembler to `main` is deferred until main-branch work begins. |
-| **DATA-04** | **Open** | CSV parsing still accepts short/long rows by filling or ignoring fields; inventory and strict parsing remain. |
+| **DATA-04** | **Implemented on this branch; CI passed** | All 33 catalogue CSVs are inventoried; 93 rows with unquoted comma-containing metadata were repaired across three files; parser enforces strict quotes and exact row width with source/line diagnostics. Pending dev shipment. |
 | **UI-01** | **Implemented on this branch; pending dev shipment** | A shared scroll helper checks the current reduced-motion preference and selects non-animated or smooth scrolling accordingly; unit tests cover both branches. |
 | **UI-02 / UI-03** | **Open** | Tooltip help lacks a programmatic description/keyboard-touch interaction; field errors lack aria-describedby association. |
 | **PRIV-01 / WEB-SEC-02** | **Open** | Add local-draft clear/retention UX; document the static-hosting security-header boundary and any required hosting change. |
@@ -263,24 +263,23 @@ The current delivery target is `dev`. Do not block this work on changes to `main
 
 ### Phase 7 — DATA-04: strict CSV structural validation
 
-**Status:** **Open** No parser hardening has been applied.  
+**Status:** **Implemented on this branch; CI passed.** Pending shipment to `dev`.  
 **Priority:** P3  
 **Primary boundary:** CSV text → parsed row objects → catalogue loaders.
 
-The current parser rejects unterminated quoted fields and duplicate/empty headers, but maps each data row to the header list using `values[i] ?? ""`. That silently fills missing columns with empty strings and ignores surplus columns. It also needs explicit tests for invalid quote placement and characters after a closing quote.
+The previous parser silently filled missing columns and ignored surplus fields. The strict parser now uses explicit field/quoted/after-quote states, rejects malformed quote placement and mismatched row widths, and reports the source and physical line number. The inventory identified 93 rows with unquoted comma-containing metadata in three files; those values were repaired and correctly quoted before strict validation was enabled.
 
 #### Implementation plan
 
-1. Inventory every current CSV in `data/` and record its header count, row count, empty-line patterns, and any intentional empty trailing fields before enforcing strict row width.
-2. Confirm the parser's supported dialect from the repository data: UTF-8 BOM, CRLF/LF, quoted commas, escaped quotes, multiline quoted values, and trailing empty columns.
-3. Implement a small explicit parser state machine with clear states for unquoted, quoted, and after-closing-quote input. Reject malformed quote placement and unexpected characters after a closing quote.
-4. Require each non-blank data row to have exactly the header field count. Preserve legitimate empty cells; do not silently discard surplus values.
-5. Include source filename and physical/logical row context in errors. Keep the generic parser reusable by both browser and CLI loaders; pass source context from the loader rather than hard-coding file paths into the parser.
-6. Decide and test how fully blank lines are treated; do not accidentally treat a row containing the required number of empty fields as a blank line.
-7. Add fixtures for short rows, long rows, embedded commas, escaped quotes, multiline notes, CRLF, BOM, empty final fields, malformed quotes, and blank lines.
-8. Run the full catalogue inventory and all Node tests before accepting the stricter parser.
+1. Inventory all 33 checked-in CSV files, including headers, row counts, empty files and row-width anomalies.
+2. Repair the 93 affected rows in `banks.csv`, Commercial Bank's product file and DFCC's product file by quoting comma-containing metadata without changing its meaning.
+3. Implement strict field/quoted/after-quote parser states; reject malformed quote placement, unterminated fields, unexpected post-quote characters and row-width mismatches.
+4. Preserve UTF-8 BOM, LF/CRLF, quoted commas, escaped quotes, multiline fields, trailing empty cells and the existing blank-line policy.
+5. Pass source path from the web catalogue loader so errors identify the file and physical line.
+6. Add parser fixtures and an inventory regression test that parses every CSV under `data/`, plus assertions that fee-source URLs and product notes remain in their intended fields.
+7. Run the complete Node suite, syntax checks, web build and documentation-preservation build.
 
-**Acceptance:** malformed rows fail loudly with actionable file/row errors; every current production CSV parses without data loss or accidental rejection.
+**Acceptance:** met on this branch. Malformed rows fail with actionable source/line errors; all 33 current production CSVs parse under the strict grammar without field shifts or data loss. CI passed; pending dev shipment.
 
 ### Phase 8 — UI-01: reduced-motion-aware programmatic scrolling
 
@@ -336,7 +335,7 @@ Recommended implementation sequence:
 
 1. **DATA-01 / FIN-03** — complete product-level source URL/effective-date propagation into the UI and standalone report.
 3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
-4. **DATA-04** — inventory current CSVs, then enforce strict row width/quoting with actionable errors.
+4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
 5. **UI-02 / UI-03** — accessible tooltip semantics and field-error associations. UI-01 is implemented on this branch.
 6. **PRIV-01 / WEB-SEC-02** — local draft deletion/retention control and static-hosting security-header strategy.
 7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
