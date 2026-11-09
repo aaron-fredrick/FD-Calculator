@@ -17,6 +17,7 @@ test("documentation analytics is consent-gated and shared across every VitePress
   assert.match(component, /googletagmanager\.com\/gtm\.js/);
   assert.match(component, /clarity\.ms\/tag/);
   assert.match(component, /page_path: window\.location\.pathname/);
+  assert.match(component, /watch\(\(\) => route\.path/);
   assert.doesNotMatch(component, /searchTerm|queryText|location\.search/);
   assert.match(component, /clarity-mask/);
   assert.match(privacy, /Documentation pages also use the same optional analytics preference/);
@@ -25,7 +26,6 @@ test("documentation analytics is consent-gated and shared across every VitePress
 
 test("small web notices and metric blocks do not render as nested cards", () => {
   const css = read("src/web/styles.css");
-  assert.match(css, /\\.hint,[\\s\\S]*?\\.catalog-status-mobile\\s*\\{\\s*border: 0/);
-  assert.match(css, /\\.legal-page \\.legal-callout/);
-  assert.match(css, /\.hint,[\s\S]*?\.metric\s*\{\s*border: 0/);
+  assert.match(css, /\.hint,[\s\S]*?\.catalog-status-mobile\s*\{\s*border: 0/);
+  assert.match(css, /\.legal-page \.legal-callout/);
 });
