@@ -49,10 +49,18 @@ export class TransferFeeConfig {
 
 export class FDOption {
   constructor({ label, period_str, annual_rate, min_amount = 25000, payout_type = CUMULATIVE, payout_period_str = "", bank_key = "", is_efd = false, bank_id = "", customer_segment = "general", min_age = null, max_age = null, min_age_inclusive = true, max_age_inclusive = true, guardian_required = null, source_url = "", source_effective_date = "", source_type = "", source_notes = "" }) {
-    this.label = label;
-    this.period_str = period_str;
-    this.annual_rate = annual_rate;
-    this.min_amount = min_amount;
+    this.label = String(label ?? "").trim();
+    if (!this.label) throw new TypeError("FD option label is required.");
+    this.period_str = String(period_str ?? "").trim();
+    this.annual_rate = Number(annual_rate);
+    if (annual_rate === "" || annual_rate === null || annual_rate === undefined ||
+        !Number.isFinite(this.annual_rate) || this.annual_rate < 0) {
+      throw new RangeError("FD annual_rate must be finite and non-negative.");
+    }
+    this.min_amount = Number(min_amount);
+    if (!Number.isFinite(this.min_amount) || this.min_amount < 0) {
+      throw new RangeError("FD min_amount must be finite and non-negative.");
+    }
     const aliases = { periodic: PERIODIC_INTEREST, monthly_interest: PERIODIC_INTEREST, emi: INSTALLMENT, lump: CUMULATIVE, maturity: CUMULATIVE };
     this.payout_type = aliases[String(payout_type).toLowerCase()] || String(payout_type).toLowerCase();
     if (![CUMULATIVE, PERIODIC_INTEREST, INSTALLMENT].includes(this.payout_type)) throw new RangeError(`Invalid payout type: ${payout_type}`);
@@ -74,8 +82,15 @@ export class FDOption {
     this.source_effective_date = String(source_effective_date ?? "").trim();
     this.source_type = String(source_type ?? "").trim().toLowerCase();
     this.source_notes = String(source_notes ?? "").trim();
-    this.days = parsePeriodDays(period_str);
+    this.days = parsePeriodDays(this.period_str);
+    if (!Number.isFinite(this.days) || this.days <= 0) {
+      throw new RangeError("FD tenor must be a positive period.");
+    }
     this.payout_period_days = payout_period_str ? parsePeriodDays(payout_period_str) : this.days;
+    if (this.payout_type !== CUMULATIVE &&
+        (!Number.isFinite(this.payout_period_days) || this.payout_period_days <= 0)) {
+      throw new RangeError("FD payout interval must be a positive period.");
+    }
   }
   get bank_identity() { return this.bank_id || this.bank_key; }
   get economic_terms_key() {
