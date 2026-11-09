@@ -268,3 +268,5 @@ body{background:var(--bg)}
   accent-color:var(--purple);
 }
 #strategy label.toggle span{min-width:0}
+
+.draft-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}.draft-controls small{color:var(--muted);max-width:72ch}
