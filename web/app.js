@@ -5,11 +5,11 @@ import {addPeriod,formatISODate} from "../core/dates.js";
 import {validateConfiguration,resolveDate} from "../core/configuration.js?v=age-eligibility-1";
 import {validateConfigurationShape} from "../core/config-schema.js?v=age-eligibility-1";
 import {SimulationWorkerRunner,simulationFingerprint,catalogueFingerprint,createWorkerPayload,rehydrateSimulationResult} from "./simulation-runner.js";
-import {animateRemoval,animateNewRows,animateEntrance,transitionStrategySettings} from "./motion.js";
+import {animateRemoval,animateNewRows,animateEntrance,transitionStrategySettings,scrollElementIntoView} from "./motion.js";
 import {generateHtmlReport} from "../reporting/html.js";
 const DATA_ROOT=new URL(import.meta.url).pathname.includes("/src/web/")?"../../data/":"../data/";
 const $=id=>document.getElementById(id),STORAGE_KEY="fd-cal:draft:v1",S={banks:{},index:{},keys:{},cache:new Map(),lastSimulationKey:null,accounts:[],inflows:[],outflows:[],url:null,raw:null,workerRunner:new SimulationWorkerRunner(),activeRunId:0,submissionSequence:0,isPreparing:false,formEditedWhileRunning:false,computeStartedAt:null,computeTimer:null};
-const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));
+const nextPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>resolve()));let fieldErrorSequence=0;
 function elapsedLabel(milliseconds){const total=Math.max(0,Math.floor(milliseconds/1000)),hours=Math.floor(total/3600),minutes=Math.floor((total%3600)/60),seconds=total%60;return hours?[hours,minutes,seconds].map(value=>String(value).padStart(2,"0")).join(":"):[minutes,seconds].map(value=>String(value).padStart(2,"0")).join(":")}
 function updateElapsedTimer(){if(S.computeStartedAt===null)return;const timer=$("simulation-elapsed");timer.textContent="Elapsed "+elapsedLabel(performance.now()-S.computeStartedAt)}
 function startElapsedTimer(restart=false){if(restart)stopElapsedTimer();if(S.computeTimer!==null)return;S.computeStartedAt=performance.now();$("simulation-elapsed").hidden=false;updateElapsedTimer();S.computeTimer=setInterval(updateElapsedTimer,250)}
@@ -31,8 +31,35 @@ function renderSimulationMode(){$("simulation-mode").value="scoped";$("scoped-en
 const id=()=>Math.random().toString(36).slice(2,9),err=m=>{$("error").textContent=m;$("error").hidden=!m};
 function setCatalogStatus(message,state){for(const status of [$("catalog-status"),$("catalog-status-mobile")]){status.textContent=message;status.classList.remove("is-loading","is-ready","is-error");if(state)status.classList.add("is-"+state)}}
 function setCatalogueReady(ready){const form=$("scenario-form");form.setAttribute("aria-busy",String(!ready));form.querySelectorAll("input,select,button").forEach(control=>{control.disabled=!ready});$("import-config").disabled=!ready;$("export-config").disabled=!ready}
-function clearFieldErrors(){document.querySelectorAll(".field-error").forEach(n=>n.remove());document.querySelectorAll(".invalid-field").forEach(n=>n.classList.remove("invalid-field"));document.querySelectorAll('[aria-invalid="true"]').forEach(n=>n.removeAttribute("aria-invalid"))}
-function markField(el,message){if(!el)return;const label=el.closest("label")||el.parentElement;if(!label)return;label.classList.add("invalid-field");el.setAttribute("aria-invalid","true");const note=document.createElement("small");note.className="field-error";note.textContent=message;label.append(note);el.focus({preventScroll:true});el.scrollIntoView({behavior:"smooth",block:"center"})}
+function clearFieldErrors(){
+ const notes=[...document.querySelectorAll(".field-error")];
+ const noteIds=new Set(notes.map(note=>note.id).filter(Boolean));
+ document.querySelectorAll("[aria-describedby]").forEach(el=>{
+  const remaining=(el.getAttribute("aria-describedby")||"").split(/\s+/).filter(id=>id&&!noteIds.has(id));
+  if(remaining.length)el.setAttribute("aria-describedby",remaining.join(" "));
+  else el.removeAttribute("aria-describedby");
+ });
+ notes.forEach(note=>note.remove());
+ document.querySelectorAll(".invalid-field").forEach(n=>n.classList.remove("invalid-field"));
+ document.querySelectorAll("[aria-invalid=true]").forEach(n=>n.removeAttribute("aria-invalid"));
+}
+function markField(el,message){
+ if(!el)return;
+ const label=el.closest("label")||el.parentElement;
+ if(!label)return;
+ label.classList.add("invalid-field");
+ el.setAttribute("aria-invalid","true");
+ const note=document.createElement("small");
+ note.className="field-error";
+ note.id="field-error-"+(++fieldErrorSequence);
+ note.textContent=message;
+ const describedBy=(el.getAttribute("aria-describedby")||"").split(/\s+/).filter(Boolean);
+ if(!describedBy.includes(note.id))describedBy.push(note.id);
+ el.setAttribute("aria-describedby",describedBy.join(" "));
+ label.append(note);
+ el.focus({preventScroll:true});
+ scrollElementIntoView(el,{block:"center"});
+}
 function safeSimulationError(error){
  const message=String(error?.message||error||"");
  if(/^(Complete the dates|Add at least one account|No investable capital|Every account needs|The strategy could not satisfy|Invalid |Unknown |Outflow |Inflow |Account |Investment |No compatible FD products|No FD option|No FD product rows|Unable to load)/i.test(message))return message;
@@ -48,9 +75,9 @@ function showError(message,displayMessage=message){clearFieldErrors();err(displa
  if(!target){for(const kind of ["inflow","outflow"]){const item=S[kind+"s"].find(x=>detail.startsWith(kind+" "+x.name+" "));if(item){const row=document.querySelector('.schedule[data-id="'+item.id+'"]');target=row?.querySelector(detail.includes("amount")?"[data-amount]":detail.includes("account")?"[data-account]":detail.includes("interval")?"[data-interval]":detail.includes("payment_policy")?"[data-policy]":item.type==="scheduled"?"[data-date-entry]":"[data-end]");break}}}
  if(!target&&/unknown bank_id|no compatible FD products|no FD option index|no FD product rows/i.test(detail)){const idMatch=detail.match(/Account ([^ ]+)/i);const row=idMatch&&[...document.querySelectorAll(".account")].find(n=>n.dataset.id===idMatch[1]);target=row?.querySelector("[data-bank]")}
  if(!target&&/investment|date/i.test(detail))target=$("end-date");
- if(target)markField(target,detail);else $("error").scrollIntoView({behavior:"smooth",block:"center"})
+ if(target)markField(target,detail);else scrollElementIntoView($("error"),{block:"center"})
 }
-async function csv(path){let r=await fetch(path);if(!r.ok)throw Error("Unable to load "+path+" ("+r.status+")");return parseCSV(await r.text())}
+async function csv(path){let r=await fetch(path);if(!r.ok)throw Error("Unable to load "+path+" ("+r.status+")");return parseCSV(await r.text(),path)}
 async function init(){setCatalogueReady(false);setCatalogStatus("Loading bank catalogue…","loading");try{
  $("start-date").value=today();let end=new Date();end.setFullYear(end.getFullYear()+1);$("end-date").value=[end.getFullYear(),String(end.getMonth()+1).padStart(2,"0"),String(end.getDate()).padStart(2,"0")].join("-");renderSimulationMode();
  const [banks,index]=await Promise.all([csv(DATA_ROOT+"banks/banks.csv"),csv(DATA_ROOT+"fd_options/fd_options.csv")]);
@@ -70,7 +97,7 @@ function renderAccounts(){const existingIds=new Set([...$("accounts-list").query
 function syncAccounts(){document.querySelectorAll(".account").forEach(c=>{let a=S.accounts.find(x=>x.id===c.dataset.id);if(a){a.bank_id=c.querySelector("[data-bank]").value;a.label=c.querySelector("[data-label]").value.trim();a.balance=c.querySelector("[data-balance]").value;a.efd=c.querySelector("[data-efd]").checked}})}
 function addAccount(bank=Object.keys(S.banks).find(k=>S.index[k]?.research_status!=="no_public_rate_verified")){if(!bank)return;S.accounts.push({id:"account_"+id(),bank_id:bank,label:S.banks[bank].name+" account",balance:0,efd:false,primary:!S.accounts.length});renderAccounts();renderSchedules()}
 function scheduleDates(value){return (Array.isArray(value)?value:String(value??"").split(",")).map(v=>String(v).trim()).filter(Boolean)}
-function renderOne(kind){const container=$(kind+"s-list"),existingIds=new Set([...container.querySelectorAll(".schedule")].map(card=>card.dataset.id));let list=S[kind+"s"];container.innerHTML=list.map((x,i)=>'<article class="schedule" data-kind="'+kind+'" data-id="'+x.id+'"><div class="item-head"><b>'+(kind==="inflow"?"Inflow ":"Outflow ")+(i+1)+'</b><button class="remove-icon" data-remove="'+x.id+'" type="button" aria-label="Remove '+(kind==="inflow"?"inflow":"outflow")+'" title="Remove '+(kind==="inflow"?"inflow":"outflow")+'" ><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="schedule-fields"><label>Name<input data-name value="'+esc(x.name)+'"></label><label>Amount (LKR)<input data-amount type="number" min=".01" step=".01" value="'+esc(x.amount)+'"></label><label>Account<select data-account>'+accountOptions(x.account_id)+'</select></label><label>Schedule<select data-type><option value="recurring" '+(x.type==="recurring"?"selected":"")+'>Recurring</option><option value="scheduled" '+(x.type==="scheduled"?"selected":"")+'>Specific dates</option></select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Interval</span><select data-interval>'+["1m","2m","3m","6m","1y"].map((v,j)=>'<option value="'+v+'" '+(x.interval===v?"selected":"")+'>'+["Monthly","Every 2 months","Quarterly","Every 6 months","Yearly"][j]+'</option>').join("")+'</select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>First date</span><input data-start type="date" value="'+esc(x.start_date)+'"></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Last date</span><input data-end type="date" value="'+esc(x.end_date)+'"></label><label class="wide" data-scheduled '+(x.type!=="scheduled"?"hidden":"")+'><span>Specific dates</span><div class="date-entry-row"><input data-date-entry type="date" min="'+esc($("start-date").value)+'" max="'+esc(effectiveEndDate())+'" aria-label="Choose a cash-flow date"><button class="secondary small" type="button" data-add-date>Add date</button></div><input data-dates type="hidden" value="'+esc(x.dates||"")+'"><div class="date-chip-list" data-date-chips>'+(scheduleDates(x.dates).map(date=>'<span class="date-chip '+(date<$("start-date").value||date>effectiveEndDate()?"is-outside":"")+'">'+esc(date)+'<button type="button" data-remove-date="'+esc(date)+'" aria-label="Remove date '+esc(date)+'">×</button></span>').join("")||'<span class="muted date-empty">No dates added</span>')+'</div><small>Add one or more dates with the date picker. Dates must be within the simulation period.</small></label>'+(kind==="outflow"?'<label><span class="field-label">Payment policy<span class="help-tip" tabindex="0" role="img" aria-label="Outflow payment policy help" data-tooltip="Strict: fail if the account cannot pay the full amount. Defer: carry the full unpaid amount forward. Best effort: pay what is available and carry any remainder forward.">?</span></span><select data-policy>'+["strict","defer","best_effort"].map(v=>'<option value="'+v+'" '+(x.policy===v?"selected":"")+'>'+({strict:"Strict",defer:"Defer",best_effort:"Best effort"}[v])+'</option>').join("")+'</select></label>':"")+'</div></article>').join("");animateNewRows(container,".schedule",existingIds)}
+function renderOne(kind){const container=$(kind+"s-list"),existingIds=new Set([...container.querySelectorAll(".schedule")].map(card=>card.dataset.id));let list=S[kind+"s"];container.innerHTML=list.map((x,i)=>'<article class="schedule" data-kind="'+kind+'" data-id="'+x.id+'"><div class="item-head"><b>'+(kind==="inflow"?"Inflow ":"Outflow ")+(i+1)+'</b><button class="remove-icon" data-remove="'+x.id+'" type="button" aria-label="Remove '+(kind==="inflow"?"inflow":"outflow")+'" title="Remove '+(kind==="inflow"?"inflow":"outflow")+'" ><svg viewBox="0 0 24 24" aria-hidden="true"><path class="trash-lid" d="M4 6.5h16M9 6.5V4h6v2.5"/><path d="M6.5 7.5 7.5 20h9l1-12.5M10 10.5v6M14 10.5v6"/></svg></button></div><div class="schedule-fields"><label>Name<input data-name value="'+esc(x.name)+'"></label><label>Amount (LKR)<input data-amount type="number" min=".01" step=".01" value="'+esc(x.amount)+'"></label><label>Account<select data-account>'+accountOptions(x.account_id)+'</select></label><label>Schedule<select data-type><option value="recurring" '+(x.type==="recurring"?"selected":"")+'>Recurring</option><option value="scheduled" '+(x.type==="scheduled"?"selected":"")+'>Specific dates</option></select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Interval</span><select data-interval>'+["1m","2m","3m","6m","1y"].map((v,j)=>'<option value="'+v+'" '+(x.interval===v?"selected":"")+'>'+["Monthly","Every 2 months","Quarterly","Every 6 months","Yearly"][j]+'</option>').join("")+'</select></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>First date</span><input data-start type="date" value="'+esc(x.start_date)+'"></label><label data-recurring '+(x.type!=="recurring"?"hidden":"")+'><span>Last date</span><input data-end type="date" value="'+esc(x.end_date)+'"></label><label class="wide" data-scheduled '+(x.type!=="scheduled"?"hidden":"")+'><span>Specific dates</span><div class="date-entry-row"><input data-date-entry type="date" min="'+esc($("start-date").value)+'" max="'+esc(effectiveEndDate())+'" aria-label="Choose a cash-flow date"><button class="secondary small" type="button" data-add-date>Add date</button></div><input data-dates type="hidden" value="'+esc(x.dates||"")+'"><div class="date-chip-list" data-date-chips>'+(scheduleDates(x.dates).map(date=>'<span class="date-chip '+(date<$("start-date").value||date>effectiveEndDate()?"is-outside":"")+'">'+esc(date)+'<button type="button" data-remove-date="'+esc(date)+'" aria-label="Remove date '+esc(date)+'">×</button></span>').join("")||'<span class="muted date-empty">No dates added</span>')+'</div><small>Add one or more dates with the date picker. Dates must be within the simulation period.</small></label>'+(kind==="outflow"?'<label><span class="field-label">Payment policy<button class="help-tip" type="button" aria-label="Help: Strict: fail if the account cannot pay the full amount. Defer: carry the full unpaid amount forward. Best effort: pay what is available and carry any remainder forward." aria-expanded="false" data-tooltip="Strict: fail if the account cannot pay the full amount. Defer: carry the full unpaid amount forward. Best effort: pay what is available and carry any remainder forward.">?</button></span><select data-policy>'+["strict","defer","best_effort"].map(v=>'<option value="'+v+'" '+(x.policy===v?"selected":"")+'>'+({strict:"Strict",defer:"Defer",best_effort:"Best effort"}[v])+'</option>').join("")+'</select></label>':"")+'</div></article>').join("");animateNewRows(container,".schedule",existingIds)}
 function renderSchedules(){renderOne("inflow");renderOne("outflow")}
 function updateDateEntryBounds(){const start=$("start-date").value,end=effectiveEndDate();document.querySelectorAll("[data-date-entry]").forEach(input=>{input.min=start;input.max=end});document.querySelectorAll(".schedule[data-kind]").forEach(card=>{card.querySelectorAll("[data-date-chips] .date-chip").forEach(chip=>{const date=chip.firstChild?.textContent?.trim();chip.classList.toggle("is-outside",!!date&&(date<start||date>end))})})}
 function syncSchedules(){for(let kind of ["inflow","outflow"])document.querySelectorAll('.schedule[data-kind="'+kind+'"]').forEach(c=>{let x=S[kind+"s"].find(v=>v.id===c.dataset.id);if(!x)return;let v=s=>c.querySelector(s)?.value;Object.assign(x,{name:v("[data-name]"),amount:v("[data-amount]"),account_id:v("[data-account]"),type:v("[data-type]"),interval:v("[data-interval]"),start_date:v("[data-start]"),end_date:v("[data-end]"),dates:v("[data-dates]"),policy:v("[data-policy]")||"strict"})})}
@@ -81,7 +108,7 @@ function raw(){syncAccounts();syncSchedules();let accounts={};S.accounts.forEach
  let schedule=(arr,kind)=>arr.map(x=>({name:x.name,amount:Number(x.amount),account_id:x.account_id,type:x.type,...(x.type==="recurring"?{interval:x.interval,start_date:x.start_date||start,...(x.end_date||end?{end_date:x.end_date||end}:{})}:{dates:String(x.dates).split(",").map(s=>s.trim()).filter(Boolean)}),...(kind==="outflow"?{payment_policy:x.policy}:{})}));
  return {fd_eligibility:{include_senior:$("include-senior-fds").checked,include_minor:$("include-minor-fds").checked},strategy:$("strategy-choice").value,simulation,investment,accounts,consolidation_account_id:(S.accounts.find(a=>a.primary)||S.accounts[0])?.id,inflows:schedule(S.inflows,"inflow"),outflows:schedule(S.outflows,"outflow"),transfer_fees:{default_inter_bank_fee:$("inter-fee").value.trim()===""?null:Number($("inter-fee").value),same_bank_fee:$("same-fee").value.trim()===""?null:Number($("same-fee").value),custom_fees:[]},compound:$("compound").checked,ait_enabled:$("ait").checked,actual_leap_year:$("leap-year").checked,gaml_settings:{beam_width:Number($("beam-width").value),max_local_branches:$("local-branches").value===""?null:Number($("local-branches").value),max_decisions:$("unlimited-decision-cap").checked?null:Number($("decision-cap").value),time_limit_ms:Number($("time-limit-seconds").value)*1000},greedy_settings:{tenor_tiebreaker:$("tenor-tiebreaker").value,plan_tenor_tiebreaker:$("plan-tenor-tiebreaker").value},gss_settings:{small_period_days:Number($("small-period-days").value||30)}}
 }
-async function getOptions(ids){let out=[];for(let bank of [...new Set(ids)]){if(!S.cache.has(bank)){let row=S.index[bank];if(!row)throw Error("No FD option index entry for "+bank);let rows=await csv(DATA_ROOT+"fd_options/"+row.options_file),key=String(row.bank_key).toLowerCase(),fallback=({commercial:25000,dfcc:10000})[key]??25000;let opts=rows.map(r=>new FDOption({label:r.name,period_str:r.period,annual_rate:Number(r.annual_rate),min_amount:r.min_amount?Number(r.min_amount):fallback,payout_type:r.payout_type||"cumulative",payout_period_str:r.payout_period||"",bank_key:key,bank_id:bank,is_efd:String(r.eFD).toLowerCase()==="true",customer_segment:r.customer_segment||"general",min_age:r.min_age===""?null:r.min_age,max_age:r.max_age===""?null:r.max_age,min_age_inclusive:r.min_age_inclusive===""||r.min_age_inclusive==null?true:String(r.min_age_inclusive).toLowerCase()==="true",max_age_inclusive:r.max_age_inclusive===""||r.max_age_inclusive==null?true:String(r.max_age_inclusive).toLowerCase()==="true",guardian_required:r.guardian_required===""||r.guardian_required==null?null:String(r.guardian_required).toLowerCase()==="true"}));S.cache.set(bank,opts)}let opts=S.cache.get(bank);if(!opts.length)throw Error((S.banks[bank]?.name||bank)+" has no FD product rows in the current dataset. Choose a bank with configured rates.");out.push(...opts)}return out}
+async function getOptions(ids){let out=[];for(let bank of [...new Set(ids)]){if(!S.cache.has(bank)){let row=S.index[bank];if(!row)throw Error("No FD option index entry for "+bank);let rows=await csv(DATA_ROOT+"fd_options/"+row.options_file),key=String(row.bank_key).toLowerCase(),fallback=({commercial:25000,dfcc:10000})[key]??25000;let opts=rows.map(r=>new FDOption({label:r.name,period_str:r.period,annual_rate:Number(r.annual_rate),min_amount:r.min_amount?Number(r.min_amount):fallback,payout_type:r.payout_type||"cumulative",payout_period_str:r.payout_period||"",bank_key:key,bank_id:bank,is_efd:String(r.eFD).toLowerCase()==="true",customer_segment:r.customer_segment||"general",min_age:r.min_age===""?null:r.min_age,max_age:r.max_age===""?null:r.max_age,min_age_inclusive:r.min_age_inclusive===""||r.min_age_inclusive==null?true:String(r.min_age_inclusive).toLowerCase()==="true",max_age_inclusive:r.max_age_inclusive===""||r.max_age_inclusive==null?true:String(r.max_age_inclusive).toLowerCase()==="true",guardian_required:r.guardian_required===""||r.guardian_required==null?null:String(r.guardian_required).toLowerCase()==="true",source_url:r.source_url||"",source_effective_date:r.source_effective_date||"",source_type:r.source_type||"",source_notes:r.notes||""}));S.cache.set(bank,opts)}let opts=S.cache.get(bank);if(!opts.length)throw Error((S.banks[bank]?.name||bank)+" has no FD product rows in the current dataset. Choose a bank with configured rates.");out.push(...opts)}return out}
 function applyConfig(x){if(!x||typeof x!=="object"||!x.investment||!x.accounts)throw Error("Invalid scenario configuration.");x.gaml_settings=x.gaml_settings??x.gaml??x.strategy_settings?.gaml??{};x.greedy_settings=x.greedy_settings??x.greedy??x.strategy_settings?.greedy??{};x.gss_settings=x.gss_settings??x.gss??x.strategy_settings?.gss??{};
  if(x.simulation?.mode==="goal")throw Error("Goal-based mode is under development and is not available in the browser yet. Use a scoped date range.");
  const startDate=x.investment.start_date==="today"?today():x.investment.start_date,legacyTimeBased=x.simulation?.mode==="time_based",mode="scoped",endDate=legacyTimeBased?formatISODate(addPeriod(startDate,x.simulation.duration)):x.investment.end_date;
@@ -94,6 +121,18 @@ function applyConfig(x){if(!x||typeof x!=="object"||!x.investment||!x.accounts)t
  $("include-senior-fds").checked=x.fd_eligibility?.include_senior===true;$("include-minor-fds").checked=x.fd_eligibility?.include_minor===true;$("strategy-choice").value=["greedy","gaml","gss"].includes(x.strategy)?x.strategy:"gaml";syncStrategySettings();$("inter-fee").value=x.transfer_fees?.default_inter_bank_fee??30;$("same-fee").value=x.transfer_fees?.same_bank_fee??0;$("compound").checked=!!x.compound;$("ait").checked=x.ait_enabled??true;$("leap-year").checked=x.actual_leap_year??true;$("beam-width").value=x.gaml_settings?.beam_width??256;$("local-branches").value=x.gaml_settings?.max_local_branches??128;const hasCap=Object.prototype.hasOwnProperty.call(x.gaml_settings,"max_decisions")||Object.prototype.hasOwnProperty.call(x.gaml_settings,"state_cap");const configuredCap=Object.prototype.hasOwnProperty.call(x.gaml_settings,"max_decisions")?x.gaml_settings.max_decisions:x.gaml_settings.state_cap??10000;$("unlimited-decision-cap").checked=hasCap&&configuredCap===null;$("decision-cap").disabled=hasCap&&configuredCap===null;$("decision-cap").value=configuredCap===null?10000:configuredCap;$("time-limit-seconds").value=(x.gaml_settings?.time_limit_ms??30000)/1000;$("tenor-tiebreaker").value=x.greedy_settings?.tenor_tiebreaker??"shortest";$("plan-tenor-tiebreaker").value=x.greedy_settings?.plan_tenor_tiebreaker??"shortest";$("small-period-days").value=x.gss_settings?.small_period_days??30;renderAccounts();renderSchedules();clearFieldErrors();err("")}
 function saveDraft(){try{const draft=raw();localStorage.setItem(STORAGE_KEY,JSON.stringify(draft));S.raw=draft}catch(e){console.warn("FD Cal draft could not be saved:",e)}}
 function restoreDraft(){try{const saved=localStorage.getItem(STORAGE_KEY);if(!saved)return false;applyConfig(JSON.parse(saved));return true}catch(e){console.warn("FD Cal saved draft could not be restored:",e);try{localStorage.removeItem(STORAGE_KEY)}catch{}return false}}
+function clearSavedDraft(event){
+ event.stopPropagation();
+ if(!window.confirm("Clear the saved FD Cal draft from this browser? Current inputs will remain in this tab."))return;
+ try{
+  localStorage.removeItem(STORAGE_KEY);
+  S.raw=null;
+  $("draft-storage-status").textContent="Saved draft cleared from this browser. Current inputs remain in this tab; editing them will save a new draft.";
+ }catch(error){
+  console.warn("FD Cal saved draft could not be cleared:",error);
+  $("draft-storage-status").textContent="The saved draft could not be cleared. Check this browser’s site-storage permissions.";
+ }
+}
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)}
 function exportRaw(){download(new Blob([JSON.stringify(raw(),null,2)],{type:"application/json"}),"fd-cal-config.json")}
 function results(r,c,html){
@@ -127,9 +166,51 @@ function results(r,c,html){
  $("open-report").onclick=()=>window.open(S.url,"_blank","noopener");
  $("download-result-config").onclick=exportRaw;
  $("results").hidden=false;animateEntrance($("results"));
- $("results").scrollIntoView({behavior:"smooth"});
+ scrollElementIntoView($("results"));
+}
+const PRIVACY_STORAGE_KEY="fd-cal:privacy-preferences:v1";
+function readPrivacyPreferences(){
+ try{const value=JSON.parse(localStorage.getItem(PRIVACY_STORAGE_KEY)||"null");if(value&&value.version===1)return{necessary:true,analytics:value.analytics===true};}catch(error){console.warn("FD Cal privacy preferences could not be read:",error)}
+ return null;
+}
+function savePrivacyPreferences(analytics){
+ const value={version:1,necessary:true,analytics:analytics===true};
+ try{localStorage.setItem(PRIVACY_STORAGE_KEY,JSON.stringify(value));return true}
+ catch(error){console.warn("FD Cal privacy preferences could not be saved:",error);return false}
+}
+function setupPrivacyControls(){
+ const banner=$("privacy-banner"),dialog=$("privacy-preferences-dialog"),analytics=$("privacy-analytics");
+ const closeDialog=()=>{dialog.hidden=true;$("open-privacy-preferences").focus()};
+ const openDialog=()=>{const saved=readPrivacyPreferences();analytics.checked=saved?.analytics===true;dialog.hidden=false;analytics.focus()};
+ const commit=allowAnalytics=>{
+  if(!savePrivacyPreferences(allowAnalytics)){alert("Your preference could not be saved in this browser. Check site-storage permissions and try again.");return}
+  banner.hidden=true;dialog.hidden=true;
+ };
+ if(!readPrivacyPreferences())banner.hidden=false;
+ $("privacy-reject").addEventListener("click",()=>commit(false));
+ $("privacy-accept").addEventListener("click",()=>commit(true));
+ $("privacy-customise").addEventListener("click",openDialog);
+ $("open-privacy-preferences").addEventListener("click",openDialog);
+ $("privacy-close").addEventListener("click",closeDialog);
+ $("privacy-dialog-reject").addEventListener("click",()=>commit(false));
+ $("privacy-save").addEventListener("click",()=>commit(analytics.checked));
+ dialog.addEventListener("click",event=>{if(event.target===dialog)closeDialog()});
+ document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!dialog.hidden)closeDialog()});
 }
 function wire(){
+ $("clear-draft").addEventListener("click",clearSavedDraft);
+ document.addEventListener("click",event=>{
+  const tip=event.target.closest?.(".help-tip")||null;
+  document.querySelectorAll('.help-tip[aria-expanded="true"]').forEach(openTip=>{
+   if(openTip!==tip)openTip.setAttribute("aria-expanded","false");
+  });
+  if(tip)tip.setAttribute("aria-expanded",String(tip.getAttribute("aria-expanded")!=="true"));
+ });
+ document.addEventListener("keydown",event=>{
+  if(event.key!=="Escape")return;
+  const tip=document.querySelector('.help-tip[aria-expanded="true"]');
+  if(tip){tip.setAttribute("aria-expanded","false");tip.focus();}
+ });
  $("scenario-form").addEventListener("input",()=>{clearFieldErrors();err("");if(["start-date","simulation-mode"].includes(document.activeElement?.id))renderSimulationMode();updateDateEntryBounds();markFormEdited();saveDraft()});$("scenario-form").addEventListener("change",()=>{clearFieldErrors();err("");renderSimulationMode();updateDateEntryBounds();markFormEdited();saveDraft()});$("scenario-form").addEventListener("click",saveDraft);
  $("add-account").onclick=()=>{syncAccounts();syncSchedules();addAccount()};$("accounts-list").onchange=e=>{if(e.target.name==="primary"){S.accounts.forEach(a=>a.primary=a.id===e.target.value);document.querySelectorAll(".account").forEach(card=>card.classList.toggle("is-consolidation",card.dataset.id===e.target.value))}if(e.target.matches("[data-bank]")){syncAccounts();syncSchedules();let a=S.accounts.find(x=>x.id===e.target.closest(".account").dataset.id);a.bank_id=e.target.value;a.label=S.banks[a.bank_id].name+" account";renderAccounts();renderSchedules()}};
  $("accounts-list").onclick=e=>{let button=e.target.closest("button[data-remove-account]");if(!button)return;let key=button.dataset.removeAccount,card=button.closest(".account");if(!card||card.classList.contains("is-removing"))return;syncAccounts();syncSchedules();animateRemoval(button,card,()=>{S.accounts=S.accounts.filter(a=>a.id!==key);S.inflows=S.inflows.filter(x=>x.account_id!==key);S.outflows=S.outflows.filter(x=>x.account_id!==key);if(S.accounts.length&&!S.accounts.some(a=>a.primary))S.accounts[0].primary=true;renderAccounts();renderSchedules();saveDraft()})};
@@ -221,4 +302,5 @@ $("strategy-choice").addEventListener("change",()=>syncStrategySettings());$("si
  window.addEventListener("pagehide",()=>{S.workerRunner.cancel("Page is closing.");stopElapsedTimer()},{once:true});
  $("export-config").onclick=()=>{try{exportRaw()}catch(e){err(e.message)}};$("import-config").onclick=()=>$("config-file").click();$("config-file").onchange=async e=>{let f=e.target.files?.[0];if(!f)return;try{let x=validateConfigurationShape(JSON.parse(await f.text()));if((x.strategy??"absolute")==="absolute")throw Error("Absolute R is CLI-only. Select Greedy or Absolute R+ in the CLI configuration before importing into the browser.");const ids=Object.values(x.accounts).map(a=>a.bank_id);const options=await getOptions(ids);validateConfiguration(x,{bankRegistry:S.banks,bankKeyById:S.keys,options,today:today()});applyConfig(x);saveDraft()}catch(ex){showError(ex.message||String(ex),"Import failed: "+(ex.message||String(ex)))}e.target.value=""};
 }
+setupPrivacyControls();
 init();
