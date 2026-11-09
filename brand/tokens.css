@@ -1,0 +1,42 @@
+/* FD Cal brand system — canonical design tokens.
+ * Keep shared brand values here; web and documentation themes consume this file.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Core surfaces */
+  --fd-color-bg: #0b0e13;
+  --fd-color-bg-raised: #10151d;
+  --fd-color-panel: #131923;
+  --fd-color-panel-raised: #192230;
+  --fd-color-panel-inset: #0e141d;
+  --fd-color-border: #293445;
+  --fd-color-border-strong: #344256;
+
+  /* Text */
+  --fd-color-text: #e8edf5;
+  --fd-color-text-muted: #9ba8b8;
+  --fd-color-text-subtle: #738195;
+  --fd-color-text-soft: #c4d0df;
+
+  /* Semantic accents */
+  --fd-color-accent: #56b4e9;
+  --fd-color-accent-strong: #28577a;
+  --fd-color-accent-border: #3e789f;
+  --fd-color-accent-hover: #326b93;
+  --fd-color-accent-surface: #172433;
+  --fd-color-positive: #55c99a;
+  --fd-color-danger: #ef7777;
+  --fd-color-warning: #e9ad58;
+  --fd-color-strategy: #bd93f9;
+
+  /* Typography */
+  --fd-font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --fd-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  /* Shared geometry and motion */
+  --fd-radius-control: 8px;
+  --fd-radius-card: 15px;
+  --fd-motion-fast: 160ms ease;
+}

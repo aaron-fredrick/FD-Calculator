@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">FD Cal — Fixed Deposit Portfolio Optimiser</title>
+  <desc id="desc">Plan and compare Sri Lankan bank fixed deposits with multi-strategy portfolio simulation.</desc>
+  <rect width="1200" height="630" fill="#0b0e13"/>
+  <rect x="64" y="64" width="1072" height="502" rx="28" fill="#131923" stroke="#293445" stroke-width="2"/>
+  <path d="M112 142h20v74h-20zM112 142h92v20h-92z" fill="#56b4e9"/>
+  <text x="236" y="198" fill="#e8edf5" font-family="Inter,Arial,sans-serif" font-size="54" font-weight="700" letter-spacing="5">FD CAL</text>
+  <text x="112" y="326" fill="#e8edf5" font-family="Inter,Arial,sans-serif" font-size="58" font-weight="700">Fixed Deposit</text>
+  <text x="112" y="397" fill="#e8edf5" font-family="Inter,Arial,sans-serif" font-size="58" font-weight="700">Portfolio Optimiser</text>
+  <text x="114" y="465" fill="#9ba8b8" font-family="Inter,Arial,sans-serif" font-size="26">Compare banks · Model cash flows · Evaluate strategies</text>
+  <path d="M875 490V420h48v70m28 0V350h48v140m28 0V280h48v210" fill="none" stroke="#56b4e9" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="899" cy="400" r="9" fill="#55c99a"/><circle cx="927" cy="330" r="9" fill="#bd93f9"/>
+</svg>
