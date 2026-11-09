@@ -1,21 +1,34 @@
 # Build, deployment and quality audit
 
-## DEPLOY-01 — The dev preview and production share one GitHub Pages deployment
+## DEPLOY-01 — Dev web/docs publishing and `/dev/` assembly
 
-**Current status: PARTIAL in PR #80.** Dev web/docs publishing is now independent, and the `dev` Pages assembler composes the two dev components under `/dev/`. However, the current `main` `.github/workflows/pages.yml` still assembles only production web/docs artifacts and does not extract the dev preview. A production deployment from `main` can therefore still remove `/dev/` until the preview-aware assembler is ported and tested on `main`.
+**Current status: COMPLETED for the active `dev` delivery path in PR #80.** Dev web and documentation are published independently to `dev_pages-web-artifact` and `dev_pages-docs-artifact`; the dev Pages assembler composes them beneath `site/dev/`. The user confirmed that the merged preview works. Main-branch integration is intentionally deferred until work moves to `main`; it is not a blocker for the current dev workflow.
 
-**Severity: P2**
+**Severity:** P2 (historical deployment-isolation concern; current dev acceptance is met).
 
-**Evidence:** GitHub Pages project hosting publishes one site tree at the project root. The new dev workflow publishes a separate branch `dev_pages-preview-artifact`, and the dev version of [pages.yml](https://github.com/aaron-fredrick/FD-Calculator/blob/a455462a959f37db757970d0a3078a4d9a3ef028/.github/workflows/pages.yml) assembles that tree under `site/dev/` alongside the production web/docs artifact branches.
+**Evidence:** [dev pages assembler](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/.github/workflows/pages.yml), [dev web publisher](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/.github/workflows/dev-web-pages.yml), [dev docs publisher](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/.github/workflows/dev-docs-pages.yml).
 
-**Impact:** the path is isolated in the deployed file tree, but it is not a separate Pages environment or independent deployment target. A dev deployment re-deploys the complete assembled site. More importantly, the current **main** version of `pages.yml` does not include the dev artifact. After the preview-aware workflow deploys, a later production deployment using the old main assembler can remove `/dev/`.
+**Current controls:**
+- Independent dev web/docs publishing avoids making web changes wait for benchmark generation.
+- The assembler extracts dev components beneath `site/dev/` and asserts the root, web and docs entry points exist.
+- Dev output uses the `/FD-Calculator/dev/` base, noindex metadata and a visible preview banner.
+- Persistent dev artifact/state refs use the `dev_` prefix.
+- The Pages deployment concurrency group serializes site deployments.
+- The production root `robots.txt` disallows the dev subtree.
 
-**Recommendation:**
-1. Keep the dev artifact/state branches separate and prefixed `dev_`.
-2. Preserve the shared Pages deployment concurrency group to avoid production/dev deploy races.
-3. Merge the preview-aware assembler to main before relying on the preview path long-term, or move preview hosting to a genuinely separate host/environment.
-4. Add a deployment contract test proving that a main deployment includes the current dev preview artifact when one exists and leaves the production root component SHAs unchanged.
-5. Verify that the dev artifact contains root-level preview files before extracting it into `site/dev/`.
+**Deferred follow-up:** when work moves to `main`, port and verify the preview-aware assembler there so a main deployment also retains the latest dev subtree. Do not change or block the current dev pipeline for that future task.
+
+## SEO-01 — Sitemap omits the public web application route
+
+**Current status: OPEN.** The root `robots.txt` allows general crawling, disallows `/FD-Calculator/dev/`, and declares `https://aaron-fredrick.github.io/FD-Calculator/sitemap.xml`. The production VitePress configuration generates a sitemap for the documentation base; the separate public app page at `/FD-Calculator/web/` has canonical/index metadata but is not represented in the generated docs sitemap.
+
+**Severity:** P2/P3.
+
+**Evidence:** [robots.txt](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/robots.txt), [VitePress config](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/docs/.vitepress/config.mts), [web page metadata](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/src/web/index.html), [web build script](https://github.com/aaron-fredrick/FD-Calculator/blob/dev/scripts/build-web-site.sh).
+
+**Positive controls:** the web build copies root `robots.txt`; the dev web build rewrites app/root canonicals to the dev path and applies `noindex,nofollow`; VitePress preview mode also applies noindex and disables sitemap generation. The root robots policy disallows the preview path. Robots directives are crawler guidance, not security controls.
+
+**Recommendation:** include the canonical production `/web/` application URL in the final production sitemap alongside documentation URLs. Keep all `/dev/` URLs, preview artifacts and non-canonical redirect routes out of that sitemap. Add a contract test for XML validity, canonical host/base, and zero dev-path entries. Preserve noindex metadata on every dev HTML entry point.
 
 ## Build pipeline assessment
 
@@ -30,7 +43,7 @@
 
 ### Verification still required
 
-The dev-preview build/deploy run for the audited source revision is still in progress ([run 42509949422](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42509949422)). Earlier attempts exposed three pipeline defects that have been corrected on `dev`: preview metadata was not injected because of shell-variable escaping; the workflow expressions were escaped incorrectly; and the artifact upload searched a runner-temp path that was not found, so build outputs now live under the workspace. Do not call the preview live until the current run publishes `dev_pages-preview-artifact` and the Pages deployment succeeds.
+The current `dev` source revision contains the split publisher and assembler. The user confirmed the merged preview is working. The earlier in-progress deployment note has been superseded and is not current status.
 
 After deployment, verify these paths:
 - `/FD-Calculator/dev/`
@@ -68,7 +81,7 @@ Check that each page uses noindex metadata, all relative assets/data/worker requ
 
 1. Keep the preview and production deployments serialized.
 2. Preserve the previous successful production artifact if a component build fails.
-3. Keep preview pages out of production sitemaps and set noindex on every preview HTML entry point.
+3. Keep preview pages out of production sitemaps, disallow `/FD-Calculator/dev/` in the root robots policy, and set noindex on every preview HTML entry point.
 4. Add a smoke test for generated URLs and worker/module loading under the project subpath.
 5. Merge the preview-aware Pages assembler to main before treating /dev as durable.
 6. Add a concise deployment runbook documenting how to inspect/roll back web, docs and dev artifact refs.
