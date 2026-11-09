@@ -1,5 +1,5 @@
 import { Account } from "../core/models.js";
-import { parseISODate } from "../core/dates.js";
+import { addPeriod, formatISODate, parseISODate } from "../core/dates.js";
 import { createStrategyDecision, StrategyDecisionType } from "../core/strategy-contracts.js";
 import { FDOptionManager } from "../fd-options/index.js";
 
@@ -12,9 +12,9 @@ const validateTenorTieBreaker = (value, name) => {
   return value;
 };
 
-export function selectBestOption(candidates, tenorTieBreaker = "shortest") {
+export function rankOptions(candidates, tenorTieBreaker = "shortest") {
   validateTenorTieBreaker(tenorTieBreaker, "tenor_tiebreaker");
-  if (!candidates.length) return null;
+  if (!candidates.length) return [];
   return [...candidates].sort((a, b) => {
     const tenorOrder = tenorTieBreaker === "shortest"
       ? Number(a.days) - Number(b.days)
@@ -24,7 +24,52 @@ export function selectBestOption(candidates, tenorTieBreaker = "shortest") {
       // Prefer eFD only when economic terms are otherwise equivalent.
       (a.economic_terms_key === b.economic_terms_key
         ? Number(Boolean(b.is_efd)) - Number(Boolean(a.is_efd)) : 0);
-  })[0] ?? null;
+  });
+}
+
+export function selectBestOption(candidates, tenorTieBreaker = "shortest") {
+  return rankOptions(candidates, tenorTieBreaker)[0] ?? null;
+}
+
+function nextStrictOutflows(outflows, today) {
+  const due = new Map();
+  const todayKey = formatISODate(today);
+  for (const [date, entries] of Object.entries(outflows || {}).sort(([a], [b]) => a.localeCompare(b))) {
+    if (date <= todayKey) continue;
+    for (const entry of entries || []) {
+      if (String(entry.payment_policy || "strict") !== "strict") continue;
+      const accountId = String(entry.account_id);
+      const amount = Number(entry.amount);
+      const current = due.get(accountId);
+      if (!current || date < current.date) due.set(accountId, { date, amount });
+      else if (date === current.date) current.amount += amount;
+    }
+  }
+  return due;
+}
+
+function investmentMaturesBy(option, today, dueDate) {
+  return formatISODate(addPeriod(today, option.period_str)) <= dueDate;
+}
+
+function planPreservesUpcomingStrictOutflows(plan, accounts, obligations, today) {
+  const projected = new Map(Object.values(accounts).map(account => [account.id, account.balance]));
+  for (const transfer of plan.transfers || []) {
+    projected.set(transfer.src.id, (projected.get(transfer.src.id) ?? 0) - transfer.amount);
+    projected.set(transfer.tgt.id, (projected.get(transfer.tgt.id) ?? 0) + transfer.amount - transfer.fee);
+  }
+  const bookings = [...(plan.bookings || [])];
+  if (plan.booking) bookings.push(plan.booking);
+  for (const booking of bookings) {
+    projected.set(booking.account.id, (projected.get(booking.account.id) ?? 0) - booking.principal);
+  }
+  for (const [accountId, obligation] of obligations) {
+    if ((projected.get(accountId) ?? 0) + EPS >= obligation.amount) continue;
+    const booking = bookings.find(item => item.account.id === accountId);
+    if (booking && investmentMaturesBy(booking.option, today, obligation.date)) continue;
+    return false;
+  }
+  return true;
 }
 
 export function compareGreedyPlans(a, b, tenorTieBreaker = "shortest") {
@@ -66,7 +111,8 @@ function selectFastestGoalOption(candidates, principal, date, aitRate, compound,
   )[0]?.option ?? null;
 }
 
-export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker, goalMode = false) {
+export function pickDailyGreedyPlan(accounts, options, optionManager, today, end, feeConfig, consolidationId, compound, actualLeapYear, aitRate, tenorTieBreaker, planTenorTieBreaker, goalMode = false, outflows = {}) {
+  const upcomingStrictOutflows = nextStrictOutflows(outflows, today);
   const active = Object.values(accounts).filter(account => account.balance > EPS);
   if (!active.length) return { type: "CARRY", carries: [] };
   const splitBookings = [], splitCarries = [];
@@ -77,9 +123,13 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
       continue;
     }
     const eligible = optionManager.getEligibleOptions({ account, amount: account.balance, investmentDate: today, simulationEndDate: end });
+    const safeEligible = rankOptions(eligible, tenorTieBreaker).filter(option => {
+      const obligation = upcomingStrictOutflows.get(account.id);
+      return !obligation || EPS >= obligation.amount || investmentMaturesBy(option, today, obligation.date);
+    });
     const option = goalMode
-      ? selectFastestGoalOption(eligible, account.balance, today, aitRate, compound, actualLeapYear)
-      : selectBestOption(eligible, tenorTieBreaker);
+      ? selectFastestGoalOption(safeEligible, account.balance, today, aitRate, compound, actualLeapYear)
+      : safeEligible[0] ?? null;
     if (!option) { splitCarries.push(account); continue; }
     const interest = option.totalInterestOn(account.balance, today, compound, actualLeapYear);
     splitBookings.push({ account, option, principal: account.balance, interest, rate: option.annual_rate, days: option.days });
@@ -113,19 +163,17 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
     }
     if (!transfers.length) continue;
     const eligible = optionManager.getEligibleOptions({ account: target, amount: deployable, investmentDate: today, simulationEndDate: end });
-    const option = goalMode && target.id === consolidationId
-      ? selectFastestGoalOption(eligible, deployable, today, aitRate, compound, actualLeapYear)
-      : selectBestOption(eligible, tenorTieBreaker);
-    if (!option) continue;
-    const gross = option.totalInterestOn(deployable, today, compound, actualLeapYear);
-    const net = gross * (1 - aitRate) - feesEval;
-    if (net <= 0) continue;
-    consolidationPlans.push({
-      type: "CONSOLIDATE", target_account: target, option, transfers,
-      booking: { account: target, option, principal: deployable }, carries,
-      rate: option.annual_rate, days: option.days, fees_today: feesToday,
-      fees_eval: feesEval, gross_interest: gross, net_interest: net
-    });
+    for (const option of rankOptions(eligible, tenorTieBreaker)) {
+      const gross = option.totalInterestOn(deployable, today, compound, actualLeapYear);
+      const net = gross * (1 - aitRate) - feesEval;
+      if (net <= 0) continue;
+      consolidationPlans.push({
+        type: "CONSOLIDATE", target_account: target, option, transfers,
+        booking: { account: target, option, principal: deployable }, carries,
+        rate: option.annual_rate, days: option.days, fees_today: feesToday,
+        fees_eval: feesEval, gross_interest: gross, net_interest: net
+      });
+    }
   }
 
   if (goalMode) {
@@ -148,9 +196,12 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
       );
       if (credit) goalCandidates.push({ ...plan, credit });
     }
-    if (goalCandidates.length) {
-      goalCandidates.sort(compareGoalPlans);
-      return goalCandidates[0];
+    const safeGoalCandidates = goalCandidates.filter(plan =>
+      planPreservesUpcomingStrictOutflows(plan, accounts, upcomingStrictOutflows, today)
+    );
+    if (safeGoalCandidates.length) {
+      safeGoalCandidates.sort(compareGoalPlans);
+      return safeGoalCandidates[0];
     }
   }
 
@@ -172,7 +223,9 @@ export function pickDailyGreedyPlan(accounts, options, optionManager, today, end
   candidates.sort((a, b) =>
     compareGreedyPlans(a, b, planTenorTieBreaker) ||
     equivalentEfdCount(b) - equivalentEfdCount(a));
-  return candidates[0];
+  return candidates.find(plan =>
+    planPreservesUpcomingStrictOutflows(plan, accounts, upcomingStrictOutflows, today)
+  ) ?? { type: "CARRY", carries: active };
 }
 
 export class GreedyStrategy {
@@ -204,7 +257,7 @@ export class GreedyStrategy {
           context.fee_config, context.consolidation_account_id,
           this.compound, this.actual_leap_year, this.effective_ait_rate,
           this.tenor_tiebreaker, this.plan_tenor_tiebreaker,
-          context.simulation?.mode === "goal"
+          context.simulation?.mode === "goal", context.outflows
         );
         const carries = (plan.carries || []).map(account => account.id);
         if (plan.type === "SPLIT") {
