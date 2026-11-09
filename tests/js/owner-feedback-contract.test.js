@@ -42,7 +42,7 @@ test("owner-approved interest and research decisions are documented", async () =
   const interest = await read("../../docs/finance/INTEREST-DAY-COUNT.md");
   const research = await read("../../docs/audits/OWNER-FEEDBACK-RESEARCH.md");
   assert.match(interest, /start-year denominator/);
-  assert.match(research, /filter generated payout events to the active simulation window/);
+  assert.match(research, /only payout events whose dates fall inside the active simulation period/);
   assert.match(research, /180 days/);
   assert.match(research, /365 days/);
   assert.match(research, /do not activate or implement them yet/i);
