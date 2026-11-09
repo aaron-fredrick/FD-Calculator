@@ -38,7 +38,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **SEC-01** | **Completed — PR #75** | Imported account IDs are encoded at all three account-card attribute sinks; adversarial regression coverage is present. |
 | **FIN-01** | **Completed — PR #75** | Explicit pre-withdrawal and closing-position metrics are exposed in the result model, UI and report; paid/deferred outflow reconciliation is tested. |
 | **FIN-02** | **Completed — PR #75** | The metric is labelled “Capital contributed”, not “Capital invested”. |
-| **FIN-03 / DATA-01** | **Partial — PR #75** | Bank-level source status/review date and report disclosure exist. Product-level source URLs, effective dates and caveats are not yet propagated. |
+| **FIN-03 / DATA-01** | **Implemented on this branch; CI passed** | Product source URL, effective date, source type and notes are loaded by web/CLI paths, restored after worker execution, and displayed in HTML and console reports. Missing dates are labelled not recorded. Pending dev shipment. |
 | **ENG-01** | **Partial** | Runtime event ordering is regression-tested. Installment payment dates can still extend beyond nominal maturity; verify contractual terms before changing the schedule model. |
 | **ENG-02** | **Partial** | The start-year 365/366 denominator is documented here. Formula remains unchanged; representative bank-term verification and user-facing explanation remain. |
 | **ENG-03 / ENG-04** | **Open** | Central product-term invariants and versioned AIT assumptions are not implemented. |
@@ -210,7 +210,7 @@ Absolute R+ currently defaults `max_decisions` to `null`; the browser leaves the
 
 ### Phase 5 — DATA-01: catalogue freshness and source disclosure
 
-**Status:** **Partial** Bank review dates/source status and report disclosure are merged to `dev`; product-level source URLs/effective dates are not yet propagated.  
+**Status:** **Implemented on this branch; CI passed.** Bank-level review dates/status remain visible; product URL, effective date, source type and notes are propagated through web and CLI loaders, worker booking snapshots, and both report formats. Pending shipment to `dev`.  
 **Priority:** P2  
 **Primary boundary:** bank/product index → bank selector → result/report disclosure.
 
@@ -333,7 +333,7 @@ The earlier audit implementation was delivered on this same branch and merged to
 
 Recommended implementation sequence:
 
-1. **DATA-01 / FIN-03** — complete product-level source URL/effective-date propagation into the UI and standalone report.
+1. **DATA-01 / FIN-03** — implemented on this branch; pending dev shipment.
 3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
 4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
 5. **UI-01 / UI-02 / UI-03** — implemented on this branch with regression coverage; pending dev shipment and browser/assistive-technology verification.
