@@ -36,9 +36,10 @@ for (const bankId of BANK_IDS) {
   }
 }
 
+const startingBalances = [333333, 333333, 333334];
 const accounts = BANK_IDS.map((bankId, i) => new Account({
   id: "account_" + (i + 1), bank_id: bankId, bank_key: index.get(bankId).bank_key,
-  label: banks.get(bankId).name, balance: 100000, supports_efd: true
+  label: banks.get(bankId).name, balance: startingBalances[i], supports_efd: true
 }));
 const bankFees = Object.fromEntries(BANK_IDS.map(id => {
   const bank = banks.get(id);
@@ -47,10 +48,22 @@ const bankFees = Object.fromEntries(BANK_IDS.map(id => {
     Number(bank.domestic_inter_bank_transfer_fee || 25)
   ]];
 }));
+const horizonMonths = 60;
+const end = formatISODate(addPeriod(START, horizonMonths + "m"));
+const inflowSchedule = {};
+const outflowSchedule = {};
+for (let month = 1; month <= horizonMonths; month++) {
+  const date = formatISODate(addPeriod(START, "1m", month));
+  inflowSchedule[date] = { [accounts[0].id]: 10000 };
+  outflowSchedule[date] = [{
+    account_id: accounts[0].id, amount: 5000, payment_policy: "strict",
+    name: "Monthly planned outflow"
+  }];
+}
 const input = {
-  options, start: START, end: formatISODate(addPeriod(START, "24m")), accounts,
+  options, start: START, end, accounts,
   inflow_account_id: accounts[0].id, consolidation_account_id: accounts[0].id,
-  inflow_schedule: {}, outflow_schedule: {},
+  inflow_schedule: inflowSchedule, outflow_schedule: outflowSchedule,
   fee_config: new TransferFeeConfig({ default_inter_bank_fee: 25, same_bank_fee: 0, bank_fees: bankFees })
 };
 const engine = new SimulationEngine();
@@ -107,8 +120,9 @@ for (const stateCap of stateCaps) {
 const output = {
   generated_at: new Date().toISOString(),
   scenario: {
-    start: START, horizon_months: 24, total_starting_capital_lkr: 300000,
-    accounts: 3, banks: BANK_IDS, inflows: "none", outflows: "none",
+    start: START, horizon_months: horizonMonths, total_starting_capital_lkr: 1000000,
+    accounts: 3, banks: BANK_IDS, monthly_inflow_lkr: 10000, monthly_outflow_lkr: 5000,
+    cash_flow_account: accounts[0].id,
     ait_enabled: true, compound: false
   },
   fixed_search_settings: { beam_width: 256, max_local_branches: 128 },
