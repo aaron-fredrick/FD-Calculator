@@ -51,7 +51,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **UI-01** | **Implemented on this branch; pending dev shipment** | A shared scroll helper checks the current reduced-motion preference and selects non-animated or smooth scrolling accordingly; unit tests cover both branches. |
 | **UI-02 / UI-03** | **Implemented on this branch; CI passed** | Help controls are native disclosure buttons with accessible names and touch/keyboard operation; generated field errors are associated through `aria-describedby` and cleaned up without removing unrelated descriptions. Pending dev shipment. |
 | **PRIV-01** | **Implemented on this branch; CI passed** | Browser-local retention is disclosed; a confirmation-protected action removes the saved draft without re-saving it from the form click handler. Pending dev shipment. |
-| **WEB-SEC-02** | **Open** | Document the static-hosting security-header boundary and any required hosting change. |
+| **WEB-SEC-02** | **Open — hosting decision required** | GitHub.com Pages does not provide a repository-controlled response-header policy. The boundary and options are documented; verify actual production/dev response headers and decide whether a CDN/proxy or hosting migration is justified. |
 | **QA-01** | **Deferred — owner decision required** | Decide whether to introduce Playwright smoke coverage or retain manual browser verification. |
 | **QA-REP-01** | **Open** | The downloaded standalone report has not been independently verified in a real browser. |
 | **DATA-05 / DATA-06** | **Open / partial** | Transfer-channel modelling remains out of scope; freshness/source warnings are only partially surfaced. |
@@ -338,7 +338,7 @@ Recommended implementation sequence:
 3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
 4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
 5. **UI-01 / UI-02 / UI-03** — implemented on this branch with regression coverage; pending dev shipment and browser/assistive-technology verification.
-6. **PRIV-01 / WEB-SEC-02** — local draft deletion/retention control and static-hosting security-header strategy.
+6. **WEB-SEC-02** — verify actual HTTP response headers on production and dev; choose a CDN/proxy or hosting migration only if required policy cannot be met on GitHub Pages.
 7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
 8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
 9. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
