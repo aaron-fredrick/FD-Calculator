@@ -49,7 +49,7 @@ Before implementation, capture deterministic baseline outputs for representative
 | **DEPLOY-01** | **Completed on `dev` — PR #80** | Independent dev web/docs publishers and dev-side assembly publish a working preview under `/dev/`. Porting the assembler to `main` is deferred until main-branch work begins. |
 | **DATA-04** | **Implemented on this branch; CI passed** | All 33 catalogue CSVs are inventoried; 93 rows with unquoted comma-containing metadata were repaired across three files; parser enforces strict quotes and exact row width with source/line diagnostics. Pending dev shipment. |
 | **UI-01** | **Implemented on this branch; pending dev shipment** | A shared scroll helper checks the current reduced-motion preference and selects non-animated or smooth scrolling accordingly; unit tests cover both branches. |
-| **UI-02 / UI-03** | **Open** | Tooltip help lacks a programmatic description/keyboard-touch interaction; field errors lack aria-describedby association. |
+| **UI-02 / UI-03** | **Implemented on this branch; CI passed** | Help controls are native disclosure buttons with accessible names and touch/keyboard operation; generated field errors are associated through `aria-describedby` and cleaned up without removing unrelated descriptions. Pending dev shipment. |
 | **PRIV-01 / WEB-SEC-02** | **Open** | Add local-draft clear/retention UX; document the static-hosting security-header boundary and any required hosting change. |
 | **QA-01** | **Deferred — owner decision required** | Decide whether to introduce Playwright smoke coverage or retain manual browser verification. |
 | **QA-REP-01** | **Open** | The downloaded standalone report has not been independently verified in a real browser. |
@@ -336,7 +336,7 @@ Recommended implementation sequence:
 1. **DATA-01 / FIN-03** — complete product-level source URL/effective-date propagation into the UI and standalone report.
 3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
 4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
-5. **UI-02 / UI-03** — accessible tooltip semantics and field-error associations. UI-01 is implemented on this branch.
+5. **UI-01 / UI-02 / UI-03** — implemented on this branch with regression coverage; pending dev shipment and browser/assistive-technology verification.
 6. **PRIV-01 / WEB-SEC-02** — local draft deletion/retention control and static-hosting security-header strategy.
 7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
 8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
