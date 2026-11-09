@@ -51,3 +51,10 @@ The `/dev/` subtree is a public preview, not an indexable production destination
 ## Latest verification checkpoint
 
 Workflow [42585867964](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42585867964) passed the expanded cross-strategy booking/installment/maturity/fee fixture and the complete automated pipeline. Future strict/deferred obligation liquidity reservation remains an open SEARCH-03 item; this checkpoint does not close financial parity.
+
+
+## 9 November 2026 — ship-gate recheck
+
+Current branch head `22a191948611451b7853cf5bdf06142eee3e96e8` passes [workflow 42586136672](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42586136672). The added tests exercise booking, installment cash flows, maturity and transfer fees, alongside existing strict/deferred settlement parity.
+
+The branch is **not merge-ready**: SEARCH-03 still exposes a Greedy future-strict-outflow reservation gap. An attempted strategy-side adjustment broke the established migration parity baseline and was not retained. The existing draft [PR #82](https://github.com/aaron-fredrick/FD-Calculator/pull/82) remains a draft and accurately records this blocker. The next phase is limited to defining/testing reservation semantics at the shared planning/runtime boundary and proving the regression fix; other audit work remains queued.
