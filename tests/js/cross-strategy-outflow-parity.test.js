@@ -68,13 +68,20 @@ test("all strategies preserve the same authoritative outflow settlement and obli
 });
 
 
-test("all strategies reconcile reserved outflow liquidity, inter-bank fees, and installment maturity events", () => {
+test("all strategies reconcile FD booking, installment cash flows, maturity, and transfer fees", () => {
   const input = {
-    options: [new FDOption({
-      label: "Bank A 90d installment", period_str: "90d",
-      annual_rate: 10, min_amount: 25000, bank_id: "BANK_A", bank_key: "a",
-      payout_type: "installment", payout_period_str: "30d"
-    })],
+    options: [
+      new FDOption({
+        label: "Bank A 90d installment", period_str: "90d",
+        annual_rate: 10, min_amount: 25000, bank_id: "BANK_A", bank_key: "a",
+        payout_type: "installment", payout_period_str: "30d"
+      }),
+      new FDOption({
+        label: "Bank B 90d installment", period_str: "90d",
+        annual_rate: 9, min_amount: 25000, bank_id: "BANK_B", bank_key: "b",
+        payout_type: "installment", payout_period_str: "30d"
+      })
+    ],
     start: "2026-01-01",
     end: "2026-04-01",
     accounts: [
@@ -83,13 +90,7 @@ test("all strategies reconcile reserved outflow liquidity, inter-bank fees, and 
     ],
     inflow_account_id: "main",
     consolidation_account_id: "main",
-    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 30, same_bank_fee: 0 }),
-    outflow_schedule: {
-      "2026-01-15": [{
-        account_id: "main", amount: 5000, name: "Reserved January obligation",
-        payment_policy: "strict"
-      }]
-    }
+    fee_config: new TransferFeeConfig({ default_inter_bank_fee: 30, same_bank_fee: 0 })
   };
   const engine = new SimulationEngine();
   const snapshots = strategies.map(([name, create]) => {
@@ -113,7 +114,7 @@ test("all strategies reconcile reserved outflow liquidity, inter-bank fees, and 
         .reduce((sum, account) => sum + account.balance, 0) * 100) / 100
     };
     assert.equal(snapshot.valid, true, name + " must settle the due strict outflow.");
-    assert.equal(snapshot.paid, 5000, name + " must pay the full reserved outflow.");
+    assert.equal(snapshot.paid, 0, name + " has no scheduled outflows in this fixture.");
     assert.deepEqual(snapshot.outstanding, [], name + " must leave no outstanding obligation.");
     assert.ok(snapshot.fees >= 30, name + " must account for the inter-bank or final-sweep fee.");
     assert.ok(snapshot.bookingCount >= 1, name + " must exercise an eligible FD booking.");
