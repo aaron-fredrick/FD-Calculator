@@ -421,7 +421,7 @@ Before any implementation PR is considered complete:
 This section supersedes stale status labels and sequencing notes elsewhere in this plan where they conflict with the current branch evidence.
 
 - **Current baseline:** `dev` at `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a` (PR #81 squash merge).
-- **Current working branch:** `audit/owner-feedback-followups`. It is 139 commits ahead of `dev`, with no behind commits. The branch comparison reports 40 changed paths. No open PR currently targets this branch.
+- **Current working branch:** `audit/owner-feedback-followups`. It is 142 commits ahead of `dev`, with no behind commits. The branch comparison reports 40 changed paths. No open PR currently targets this branch.
 - **QA-01 / QA-REP-01:** workflow [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592) completed successfully. The Node.js job passed all steps, including unit tests, syntax checks, production/dev builds, six Chromium browser tests, documentation-preservation build and workflow YAML parsing. The earlier print-width failure in [42571366220](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42571366220) is superseded. Do not describe the current automated print-width assertion as failing or make clearing that old regression the next task.
 - **DATA-04 and UI-01/02/03:** these are already merged to `dev` through PR #81. Older phase labels saying “pending shipment to dev” are historical and must not be interpreted as current status.
 - **DEPLOY-01:** completed on `dev` through PR #80. Main-branch preview integration remains out of scope as directed.
