@@ -23,6 +23,7 @@ const SEARCH_CACHE_LIMIT = 10000;
 const SEARCH_STATE_MEMO_LIMIT = 50000;
 const SEARCH_EXPANSION_CACHE_LIMIT = 4096;
 const SEARCH_BUDGET_CHECKPOINT_INTERVAL = 500;
+const defaultMonotonicNow = () => globalThis.performance?.now?.() ?? Date.now();
 const STATE_KEY_CACHE = new WeakMap();
 
 function cachedValue(cache, key, compute, stats) {
@@ -1150,9 +1151,12 @@ function updateScopedBest(value, state, node, counters) {
   counters.alternatives.length = Math.min(10, counters.alternatives.length);
 }
 
-function runAbsolute(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
+function runAbsolute(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null, budget = null) {
   let bestNode = null, bestGoalScore = initialGoalScore, goalPrunedByAchievement = 0;
+  let budgetStopped = false, budgetStopReason = null;
+  const timeExpired = () => budget?.deadlineAt != null && budget.now() >= budget.deadlineAt;
   function visit(rawState, parentNode = null) {
+    if (timeExpired()) { budgetStopped = true; budgetStopReason = "time_limit"; return; }
     const path = evaluateGoal && parentNode ? nodePath(parentNode) : null;
     if (path && goalPathCanCredit(path, context.consolidationId)) {
       const score = evaluateGoal(path, null);
@@ -1169,6 +1173,7 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
     const expanded = expandState(
       rawState, context, settings, "absolute", counters, parentNode?.operation_count ?? 0
     );
+    if (timeExpired()) { budgetStopped = true; budgetStopReason = "time_limit"; }
     if (expanded.terminal) {
       if (evaluateGoal) {
         const score = evaluateGoal(path ?? nodePath(parentNode), expanded.value);
@@ -1179,19 +1184,20 @@ function runAbsolute(initial, context, settings, counters, evaluateGoal = null, 
       bestNode = counters.bestNode;
       return;
     }
+    if (budgetStopped) return;
     for (const child of expanded.children) {
       const node = child.action ? makeNode(parentNode, child.action, child.date, parentNode?.root_signature ? null : child.root_signature) : parentNode;
       visit(child.state, node);
     }
   }
   visit(initial, makeNode(null, null, context.start));
-  const optimalityProven = evaluateGoal
+  const optimalityProven = !budgetStopped && (evaluateGoal
     ? counters.localPruned === 0 && counters.boundPruned === 0 && counters.memoPruned === 0
-    : true;
-  return { bestNode, bestGoalScore, goalPrunedByAchievement, optimalityProven };
+    : true);
+  return { bestNode, bestGoalScore, goalPrunedByAchievement, budgetStopped, budgetStopReason, optimalityProven };
 }
 
-function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null) {
+function runGaml(initial, context, settings, counters, evaluateGoal = null, initialGoalScore = null, budget = null) {
   let bestNode = null, bestGoalScore = initialGoalScore, sequence = 0;
   let goalPrunedByAchievement = 0;
   const goalMode = context.simulation?.mode === "goal";
@@ -1200,7 +1206,8 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     priority: goalMode ? makeGoalPriority(initial, context) : makeUpperBound(initial, context, true),
     sequence: sequence++
   }];
-  let budgetStopped = false, beamPruned = 0, beamDuplicatePruned = 0, rootPeak = 0;
+  let budgetStopped = false, budgetStopReason = null, beamPruned = 0, beamDuplicatePruned = 0, rootPeak = 0;
+  const timeExpired = () => budget?.deadlineAt != null && budget.now() >= budget.deadlineAt;
   let budgetFrontier = [];
   const budgetFrontierCheckpoints = [];
   const candidateKey = candidate => goalMode
@@ -1274,6 +1281,13 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
       }
       if (settings.maxDecisions != null && counters.expanded >= settings.maxDecisions) {
         budgetStopped = true;
+        budgetStopReason = "expanded_state_limit";
+        candidates.push(...beam.slice(beamIndex));
+        break;
+      }
+      if (timeExpired()) {
+        budgetStopped = true;
+        budgetStopReason = "time_limit";
         candidates.push(...beam.slice(beamIndex));
         break;
       }
@@ -1289,7 +1303,19 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
           updateScopedBest(expanded.value, expanded.state, entry.node, counters);
           bestNode = counters.bestNode;
         }
-        if (!goalMode && settings.maxDecisions != null && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
+        if (timeExpired()) {
+          budgetStopped = true;
+          budgetStopReason = "time_limit";
+          candidates.push(...beam.slice(beamIndex + 1));
+          break;
+        }
+        if (timeExpired()) {
+        budgetStopped = true;
+        budgetStopReason = "time_limit";
+        candidates.push(...beam.slice(beamIndex + 1));
+        break;
+      }
+      if (!goalMode && settings.maxDecisions != null && counters.expanded % SEARCH_BUDGET_CHECKPOINT_INTERVAL === 0) {
           const checkpoint = selectBeam(candidates, rootBest, beam.slice(beamIndex + 1));
           rootPeak = Math.max(rootPeak, checkpoint.diversitySize);
           budgetFrontierCheckpoints.push([...checkpoint.selected]
@@ -1333,7 +1359,7 @@ function runGaml(initial, context, settings, counters, evaluateGoal = null, init
     }
   }
   return {
-    bestNode, bestGoalScore, beamPruned, beamDuplicatePruned, rootPeak, budgetStopped, budgetFrontier,
+    bestNode, bestGoalScore, beamPruned, beamDuplicatePruned, rootPeak, budgetStopped, budgetStopReason, budgetFrontier,
     budgetFrontierCheckpoints, goalPrunedByAchievement,
     optimalityProven: !budgetStopped && (settings.maxDecisions == null || counters.expanded < settings.maxDecisions) && beamPruned === 0 && counters.localPruned === 0
   };
@@ -1350,9 +1376,12 @@ export class SearchStrategyBase {
     this.effective_ait_rate = ait_enabled ? ait_rate : 0;
     this.outflow_account_tiebreak = true;
     this.max_decisions = settings.max_decisions ?? settings.state_cap ?? null;
+    this.time_limit_ms = settings.time_limit_ms ?? 0;
+    this.clock = typeof settings.clock === "function" ? settings.clock : defaultMonotonicNow;
     this.max_local_branches = settings.max_local_branches === undefined ? 128 : settings.max_local_branches;
     this.beam_width = settings.beam_width === undefined ? 256 : settings.beam_width;
     if (this.max_decisions != null && (!Number.isInteger(this.max_decisions) || this.max_decisions < 1)) throw new RangeError("max_decisions must be at least 1.");
+    if (!Number.isInteger(this.time_limit_ms) || this.time_limit_ms < 0) throw new RangeError("time_limit_ms must be a non-negative integer.");
     if (this.max_local_branches != null && (!Number.isInteger(this.max_local_branches) || this.max_local_branches < 1)) throw new RangeError("max_local_branches must be at least 1 or null.");
     if (!Number.isInteger(this.beam_width) || this.beam_width < 1) throw new RangeError("beam_width must be at least 1.");
   }
@@ -1436,17 +1465,21 @@ export class SearchStrategyBase {
     const goalSearchBudget = goalMode ? (this.max_decisions ?? 5000) : this.max_decisions;
     const settings = {
       maxDecisions: goalSearchBudget, maxLocalBranches: this.max_local_branches,
-      beamWidth: this.beam_width, endDate: context.endDate
+      beamWidth: this.beam_width, ...(this.time_limit_ms > 0 ? { timeLimitMs: this.time_limit_ms } : {}), endDate: context.endDate
     };
+    const searchStartedAt = this.clock();
+    const budget = { deadlineAt: this.time_limit_ms > 0 ? searchStartedAt + this.time_limit_ms : null, now: this.clock };
     const search = this.mode === "absolute"
-      ? runAbsolute(initial, context, settings, counters, evaluateGoal, initialGoalScore)
-      : runGaml(initial, context, settings, counters, evaluateGoal, initialGoalScore);
+      ? runAbsolute(initial, context, settings, counters, evaluateGoal, initialGoalScore, budget)
+      : runGaml(initial, context, settings, counters, evaluateGoal, initialGoalScore, budget);
     const diagnostics = {
       expanded_states: counters.expanded, leaves: counters.leaves,
       bound_pruned: counters.boundPruned, memo_pruned: counters.memoPruned,
       beam_pruned: search.beamPruned || 0, beam_duplicate_pruned: search.beamDuplicatePruned || 0, local_combination_pruned: counters.localPruned,
       root_strategy_peak: search.rootPeak || 0,
       budget_stopped: Boolean(search.budgetStopped),
+      ...(search.budgetStopped ? { budget_stop_reason: search.budgetStopReason ?? "expanded_state_limit" } : {}),
+      ...(this.time_limit_ms > 0 ? { time_budget_ms: this.time_limit_ms } : {}),
       budget_frontier_states: search.budgetFrontier?.length ?? 0,
       budget_frontier_checkpoints: search.budgetFrontierCheckpoints?.length ?? 0,
       state_memo_size: counters.memo.size,
