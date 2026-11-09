@@ -39,8 +39,8 @@ Before implementation, capture deterministic baseline outputs for representative
 | **FIN-01** | **Completed — PR #75** | Explicit pre-withdrawal and closing-position metrics are exposed in the result model, UI and report; paid/deferred outflow reconciliation is tested. |
 | **FIN-02** | **Completed — PR #75** | The metric is labelled “Capital contributed”, not “Capital invested”. |
 | **FIN-03 / DATA-01** | **Completed — PR #81 squash-merged to dev** | Product source URL, effective date, source type and notes flow through web/CLI, worker and reports. |
-| **ENG-01** | **Partial** | Runtime event ordering is regression-tested. Installment payment dates can still extend beyond nominal maturity; verify contractual terms before changing the schedule model. |
-| **ENG-02** | **Partial** | The start-year 365/366 denominator is documented here. Formula remains unchanged; representative bank-term verification and user-facing explanation remain. |
+| **ENG-01** | **Implemented on follow-up branch** | Generated contractual payout events are filtered to the active simulation window; the simulation end is never extended and no final payout is clamped to maturity. Regression coverage passes. |
+| **ENG-02** | **Implemented on follow-up branch** | Formula retained; start-year 365/366 basis documented in a concise note and disclosed in the UI and standalone report. Reviewed public bank sources do not establish a universal day-count basis. |
 | **ENG-03** | **Implemented on follow-up branch** | FDOption constructor enforces core term invariants; browser/CLI loaders isolate invalid rows with diagnostics; maturity horizon remains enforced. |
 | **ENG-04** | **Implemented on follow-up branch** | Lightweight AIT assumption ID/effective date/source metadata and UI reference added; no broad tax-regime engine. |
 | **SEARCH-01** | **Implemented — PR #75** | Browser defaults are 10,000 expanded states / 30 seconds, with explicit unlimited controls, cooperative time-budget stopping, watchdog, cancellation and diagnostics. Benchmark calibration remains. |
@@ -173,34 +173,31 @@ Do not redefine `final_value` in place. It is used outside the display layer, in
 
 **Acceptance:** users can distinguish what the plan generated before withdrawals from what remains at the end; the strategy engine's outflow behaviour and objective are unchanged unless separately approved.
 
-### Phase 3 — ENG-01 and ENG-02: clarify financial timing conventions
+### Phase 3 — ENG-01 and ENG-02: financial timing conventions
 
-**Status:** **Partial** Event-order regression coverage and the start-year denominator explanation are present; installment contract validation and bank-term verification remain. No financial formula or payout date was changed.  
+**Status:** **Implemented on follow-up branch; Node, build and browser CI passed.** The owner's simulation-window rule is implemented, and the retained interest denominator is documented in the UI and report.  
 **Priority:** P2  
 **Primary boundary:** FD product terms → cash-flow model → date/interest calculation.
 
-#### ENG-01 — payout dates and event ordering
+#### ENG-01 — installment payout event window
 
-Owner-confirmed event ordering is:
+The product generates its contractual installment sequence independently of the selected simulation period. The authoritative runtime now filters the generated net payout events to the selected simulation start/end dates before scheduling them. It does not extend the simulation, move a late installment to maturity, or alter the product's generated schedule.
 
-1. Credit all same-date inflows, FD cash flows, and maturities.
-2. Add and settle all due outflows according to their payment policies.
-3. Present the post-settlement balances and obligations to the strategy.
+Product maturity remains a separate eligibility constraint and must fit within the simulation period. Full contractual flows remain attached to the booking for contract-level disclosure; the runtime event ledger contains only in-window events. Regression tests cover a five-month tenor / two-month payout interval with five- and six-month simulation windows, including the month-six event being excluded from a five-month run.
+
+Preserve the existing same-date event ordering:
+1. Credit same-date inflows, FD cash flows and maturities.
+2. Add and settle due outflows according to their payment policies.
+3. Present post-settlement balances and obligations to the strategy.
 4. Execute the strategy decision for that date.
 
-This is already the order in the authoritative runtime. Preserve it and add an explicit regression test; do not move outflow handling into strategies.
-
-This ordering does **not**, by itself, settle the separate product-term question in the audit: an `INSTALLMENT` product with a five-month tenor and two-month payout interval currently generates dates at months 2, 4, and 6. Do not blindly clamp the last payment to month 5. First establish what the catalogue's tenor and payout interval mean for the actual bank product:
-- If the contractual final installment is due at maturity, the generated final cash flow should be aligned to maturity.
-- If the contract genuinely pays the final installment after the stated tenor, model the final settlement date explicitly and ensure eligibility/horizon checks use the last contractual cash-flow date rather than assuming maturity and final receipt are identical.
-
-Audit representative source terms and catalogue rows before choosing either model. Add 5m/2m, 5m/6m, exact-divisor, and payout-after-horizon fixtures. Assert that all cash-flow dates are within the contractually modelled availability horizon. Do not change cumulative or periodic-interest schedules as part of this fix.
+Do not move authoritative outflow handling into strategy planners.
 
 #### ENG-02 — elapsed-day interest basis
 
-The current implementation calculates interest using the actual elapsed day count, divided by a 365/366 base selected from the accrual start date's calendar year when the leap-year option is enabled. It does not split a multi-year interval into separate calendar-year segments.
+The current implementation calculates actual elapsed days divided by a 365/366 base selected from the accrual start date's calendar year when leap-year handling is enabled. That one denominator applies to the full interval; multi-year intervals are not split into calendar-year segments. The owner confirmed this is intentional. The formula remains unchanged.
 
-Owner feedback indicates that the intended approach is a relative elapsed-day delta, consistent with the convention the project intends to model. Keep the formula unchanged during this plan. Document it precisely in the UI/report and verify it against representative published bank product terms. Do not silently switch to calendar-segment Actual/Actual or another basis. If source evidence later requires a different convention, treat that as a separately reviewed financial-model change with before/after expected-value fixtures.
+The UI and standalone report now disclose the start-year denominator and cross-year treatment. Reviewed Sri Lankan bank product pages and key-facts documents publish rates, tenors and payout choices but do not establish a universal day-count basis. FD Cal must describe this as its own calculation convention, not as a universal bank convention. See [Interest day-count convention](../finance/INTEREST-DAY-COUNT.md).
 
 ### Phase 4 — SEARCH-01: bounded browser search with explicit unlimited mode
 
@@ -362,11 +359,11 @@ The earlier audit implementation was delivered on this same branch and merged to
 Recommended implementation sequence:
 
 1. **DATA-01 / FIN-03** — implemented on this branch; pending dev shipment.
-3. **ENG-01 / ENG-02** — verify payout and elapsed-day conventions against representative bank terms; change financial behaviour only with explicit evidence and fixtures.
+3. **ENG-01 / ENG-02** — implemented on this branch with event-window and cross-year day-count regression coverage.
 4. **DATA-04** — implemented on this branch; all 33 CSVs pass strict parsing and regression tests, pending dev shipment.
 5. **UI-01 / UI-02 / UI-03** — implemented on this branch with regression coverage; pending dev shipment and browser/assistive-technology verification.
 6. **WEB-SEC-02** — verify actual HTTP response headers on production and dev; choose a CDN/proxy or hosting migration only if required policy cannot be met on GitHub Pages.
-7. **QA-01 / QA-REP-01** — decide on browser automation and verify app/report behaviour in a real browser.
+7. **QA-01 / QA-REP-01** — initial Playwright browser suite implemented and passing; expand keyboard, screen-reader, contrast, zoom and report-print verification.
 8. **Main integration (later)** — port the preview-aware assembler to `main` only when main-branch work begins; it is outside the current dev delivery scope.
 9. **Secondary follow-ups** — product-term validation, versioned AIT, transfer-channel/freshness policy, and search-module cohesion/parity.
 
