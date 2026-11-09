@@ -1,16 +1,18 @@
 # FD Cal — engineering audit
 
 **Re-audit date:** 9 November 2026  
-**Audited source:** `dev` at `caccaf26b4415ae783959e888ff45e33becdadf6` (tree `8044397ede661a22c0014bb646b09df0abcc2e77`)  
+**Audited source:** `dev` at squash merge `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a`  
 **Ruleset:** [aaron-fredrick/RULESETS](https://github.com/aaron-fredrick/RULESETS) `main` at `79d7dd4f0c0d544ba85abeb19286ef2cae34bf89`  
-**Status:** Static RULESETS re-audit of the active `dev` codebase after PRs [#75](https://github.com/aaron-fredrick/FD-Calculator/pull/75) and [#80](https://github.com/aaron-fredrick/FD-Calculator/pull/80). The deployment scope for this pass is `dev`; `main` integration is explicitly deferred. Findings and remaining work are tracked below.
+**Status:** Updated after PR [#81](https://github.com/aaron-fredrick/FD-Calculator/pull/81) was squash-merged to `dev`. Owner feedback and current research are recorded in the [owner-feedback research register](OWNER-FEEDBACK-RESEARCH.md); remaining implementation and QA work is tracked in the [implementation plan](IMPLEMENTATION-PLAN.md).
 
 ## Reports
 
 | Report | Coverage |
 |---|---|
 | [Executive summary](EXECUTIVE-SUMMARY.md) | Priority-ranked findings, owner dispositions and remediation order |
-| [Implementation plan](IMPLEMENTATION-PLAN.md) | Detailed analysis, implementation phases, acceptance criteria and non-regression guardrails |
+| [Implementation plan](IMPLEMENTATION-PLAN.md) | Detailed analysis, owner decisions, implementation phases, acceptance criteria and non-regression guardrails |
+| [Owner-feedback research](OWNER-FEEDBACK-RESEARCH.md) | Bank product, AIT, transfer-fee, data freshness, search architecture, QA and legal research with owner-approved scope |
+| [Interest day-count note](../finance/INTEREST-DAY-COUNT.md) | Concise explanation of the retained start-year 365/366 elapsed-day convention |
 | [Engine and financial core](ENGINE-CORE.md) | Dates, interest, FD cash flows, simulation lifecycle, balances and results |
 | [Strategies and search](STRATEGIES-AND-SEARCH.md) | Greedy, GSS, Absolute R, Absolute R+, search budgets, parity and architecture |
 | [Web UI, UX and accessibility](WEB-UI-UX-ACCESSIBILITY.md) | Form flows, responsive layout, motion, keyboard and screen-reader semantics |
@@ -33,13 +35,10 @@ This is a risk-based source audit against all applicable Coding, UI and Web rule
 
 | Status | Findings | Meaning |
 |---|---|---|
-| **Completed** | SEC-01, FIN-01, FIN-02, ENG-05, DEPLOY-01 | Implemented on `dev`; applicable regression/contract coverage is present. |
-| **Implemented on this branch** | UI-01, UI-02, UI-03, DATA-01, DATA-04, FIN-03, PRIV-01 | Accessible interaction fixes, strict CSV parsing, product-level provenance and local draft deletion are implemented with regression coverage; pending shipment to `dev`. |
-| **Implemented; follow-up gate** | SEARCH-01 | Core behaviour and tests are in place; benchmark calibration remains. |
-| **Partial** | ENG-01, ENG-02, DATA-06 | Part of the requirement is delivered; a specific contract or source gap remains. |
-| **Open** | ENG-03/04, DATA-05, SEARCH-02/03, WEB-SEC-02, QA-REP-01 | Not yet resolved. |
-| **Scope closed** | DATA-02 | Owner-confirmed product scope; no eligibility-verification feature planned. |
-| **Deferred** | DATA-03, QA-01 | Requires a separate owner decision. |
+| **Completed on dev** | SEC-01, FIN-01, FIN-02, ENG-05, DEPLOY-01, UI-01/02/03, DATA-01/04, FIN-03, PRIV-01/02 | Implemented and included in PR #81 squash merge; rendered browser QA remains for UI/report/legal presentation. |
+| **Owner-approved implementation pending** | ENG-01, ENG-03, DATA-06, QA-01, QA-REP-01 | Simulation-window payout filtering, central product validation, source-review freshness and browser-driven tests remain. |
+| **Owner-approved scope / research only** | ENG-02, ENG-04, DATA-03, DATA-05, SEARCH-01, SEARCH-02/03, WEB-SEC-02 | Keep the interest formula; lightweight AIT source metadata; special FD and transfer research only; preserve search defaults pending benchmark; plan staged decomposition/parity; retain GitHub Pages. |
+| **Scope closed** | DATA-02 | Age-segment toggles remain candidate filters, not eligibility verification. |
 
 ## Severity
 
@@ -51,15 +50,15 @@ Each finding includes evidence, impact, and a concrete recommendation. A finding
 
 ## Verification boundary
 
-The source reviewed is `dev` commit `caccaf26b4415ae783959e888ff45e33becdadf6`. On the exact reviewed `dev` commit, the Node.js test/syntax workflow passed ([42553842534](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842534)) and the independent dev web build/publish passed ([42553842533](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842533)). The dev documentation/benchmark publishing workflow was still in progress when checked ([42553842591](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842591)). No browser automation was executed as part of this static re-audit. Static inspection does not verify screen-reader output, real-device layout, bank-product terms, or HTTP response behaviour.
+The original static re-audit was against `caccaf26b4415ae783959e888ff45e33becdadf6`; PR #81 was subsequently squash-merged to `dev` at `85f2043c4d06ac4f7bcd65ec5aa18452c98ff38a`. The current owner-feedback follow-up branch is based on that merged state. On the exact reviewed `dev` commit, the Node.js test/syntax workflow passed ([42553842534](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842534)) and the independent dev web build/publish passed ([42553842533](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842533)). The dev documentation/benchmark publishing workflow was still in progress when checked ([42553842591](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42553842591)). No browser automation was executed as part of this static re-audit. Static inspection does not verify screen-reader output, real-device layout, bank-product terms, or HTTP response behaviour.
 
 ## Planning status
 
-See the [implementation plan](IMPLEMENTATION-PLAN.md) for phase-level status. **Completed on `dev`:** SEC-01, FIN-01, FIN-02, ENG-05 and DEPLOY-01. **Implemented with follow-up gate:** SEARCH-01. **Partial:** ENG-01, ENG-02 and DATA-06. **Open:** DATA-05, WEB-SEC-02 and the remaining subsystem findings. **Implemented on this branch, pending dev shipment:** UI-01, UI-02, UI-03, DATA-01, DATA-04, FIN-03 and PRIV-01. **Closed as scope decision:** DATA-02. **Deferred:** DATA-03, QA-01 and any `main`-branch deployment integration.
+See the [implementation plan](IMPLEMENTATION-PLAN.md) and [owner-feedback research register](OWNER-FEEDBACK-RESEARCH.md) for current phase-level status. PR #81's legal pages, privacy controls, provenance, strict CSV checks, UI fixes and earlier audit remediations are now merged to `dev`. The remaining work is focused on simulation-window payout filtering, product invariants, freshness warnings, browser automation, report QA, search benchmarks and the approved architecture plan.
 
 PR #75 delivered the core security, result-semantics, bounded-search and catalogue-disclosure work. PR #80 split dev web/docs publishing and added dev-side assembly. The remaining code work should proceed in focused branches from the current `dev` baseline; this branch is being retained for the audit and plan.
 
 
 ## Crawler and release-path policy
 
-The `/dev/` subtree is a public preview for review, not an indexable production destination. The production root `robots.txt` must disallow `/FD-Calculator/dev/`; every generated dev HTML entry point must carry `noindex,nofollow`; and the production sitemap must contain only canonical production URLs, never preview URLs. `robots.txt` is crawler guidance, not access control. The production docs build merges the canonical site root and `/web/` application URL into the documentation sitemap and publishes the assembled sitemap at the site root. Preview builds omit sitemap output, while dev HTML is marked `noindex,nofollow`; this is a verified positive control, not an open finding.
+The `/dev/` subtree is a public preview for review, not an indexable production destination. The root `robots.txt` must allow crawlers to fetch preview pages so they can observe `noindex,nofollow`; every generated dev HTML entry point must carry that directive; and the production sitemap must contain only canonical production URLs, never preview URLs. `robots.txt` is crawler guidance, not access control. The production docs build merges the canonical site root and `/web/` application URL into the documentation sitemap and publishes the assembled sitemap at the site root. Preview builds omit sitemap output, while dev HTML is marked `noindex,nofollow`; this is a verified positive control, not an open finding.
