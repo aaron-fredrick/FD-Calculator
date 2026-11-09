@@ -1,0 +1,7 @@
+.venv/
+
+**/__pycache__/
+
+plots/
+decision_log.txt
+fd_cal_report.html

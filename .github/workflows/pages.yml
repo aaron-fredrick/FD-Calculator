@@ -1,0 +1,353 @@
+name: Assemble and deploy the independent Pages components
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  deployments: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      deployments: read
+    outputs:
+      ready: ${{ steps.assemble.outputs.ready }}
+      changed: ${{ steps.assemble.outputs.changed }}
+      web_sha: ${{ steps.assemble.outputs.web_sha }}
+      docs_sha: ${{ steps.assemble.outputs.docs_sha }}
+      dev_sha: ${{ steps.assemble.outputs.dev_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/configure-pages@v6
+      - name: Find the last successfully deployed source revision
+        id: live
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: "github-pages",
+              per_page: 100
+            });
+
+            for (const deployment of deployments) {
+              const statuses = await github.paginate(github.rest.repos.listDeploymentStatuses, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id,
+                per_page: 100
+              });
+              if (statuses[0]?.state === "success") {
+                core.setOutput("sha", deployment.sha);
+                core.info(`Using last successful Pages source revision ${deployment.sha} for docs preservation.`);
+                return;
+              }
+            }
+
+            core.setOutput("sha", "");
+            core.notice("No successful Pages deployment record was found; docs baseline bootstrap may be unavailable.");
+
+      - name: Bootstrap missing component baselines from the last deployed site
+        env:
+          PUBLISHED_SOURCE_SHA: ${{ steps.live.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branch_exists() {
+            git ls-remote --exit-code origin "refs/heads/$1" >/dev/null 2>&1
+          }
+
+          web_needed=false
+          docs_needed=false
+          web_baseline_built=false
+          docs_baseline_built=false
+          if ! branch_exists pages-web-artifact && ! branch_exists pages-web-baseline; then
+            web_needed=true
+          fi
+          if ! branch_exists pages-docs-artifact && ! branch_exists pages-docs-baseline; then
+            docs_needed=true
+          fi
+
+          if [ "$web_needed" = "true" ] || [ "$docs_needed" = "true" ]; then
+            if [ -n "$PUBLISHED_SOURCE_SHA" ]; then
+              git fetch --no-tags origin "$PUBLISHED_SOURCE_SHA"
+              git worktree add --detach /tmp/published-source "$PUBLISHED_SOURCE_SHA"
+              mkdir -p /tmp/published-source/scripts
+              cp scripts/build-web-site.sh /tmp/published-source/scripts/build-web-site.sh
+              cp scripts/build-docs-preservation.sh /tmp/published-source/scripts/build-docs-preservation.sh
+              if [ "$web_needed" = "true" ]; then
+                if (cd /tmp/published-source && bash scripts/build-web-site.sh /tmp/web-baseline); then
+                  web_baseline_built=true
+                  echo "Built the preserved web baseline."
+                else
+                  echo "::warning::Could not build the preserved web baseline; waiting for the web producer."
+                fi
+              fi
+              if [ "$docs_needed" = "true" ]; then
+                if (cd /tmp/published-source && bash scripts/build-docs-preservation.sh /tmp/docs-baseline); then
+                  docs_baseline_built=true
+                  echo "Built the preserved docs baseline."
+                else
+                  echo "::warning::Could not build the preserved docs baseline; waiting for a validated docs publication."
+                fi
+              fi
+              git worktree remove --force /tmp/published-source
+            else
+              echo "::notice::No successful Pages deployment source is available; missing component baselines will wait for validated component publication."
+            fi
+          fi
+
+          publish_baseline() {
+            local branch="$1"
+            local directory="$2"
+            if branch_exists "$branch"; then
+              echo "Baseline $branch was created by another publisher; preserving it."
+              return
+            fi
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+            git clean -fd
+            cp -R "$directory"/. .
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            if ! git diff --cached --quiet; then
+              git commit -m "pages: seed $branch from the last successful deployment"
+              git push origin "HEAD:refs/heads/$branch"
+            fi
+          }
+
+          if [ "$web_baseline_built" = "true" ]; then
+            publish_baseline pages-web-baseline /tmp/web-baseline
+          fi
+          if [ "$docs_baseline_built" = "true" ]; then
+            publish_baseline pages-docs-baseline /tmp/docs-baseline
+          fi
+
+      - name: Assemble the latest published web and docs components
+        id: assemble
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+
+          select_component_ref() {
+            local actual="$1"
+            local baseline="$2"
+            if git ls-remote --exit-code origin "refs/heads/$actual" >/dev/null 2>&1; then
+              echo "$actual"
+            elif git ls-remote --exit-code origin "refs/heads/$baseline" >/dev/null 2>&1; then
+              echo "$baseline"
+            else
+              echo ""
+            fi
+          }
+
+          web_ref="$(select_component_ref pages-web-artifact pages-web-baseline)"
+          docs_ref="$(select_component_ref pages-docs-artifact pages-docs-baseline)"
+          if [ -z "$web_ref" ] || [ -z "$docs_ref" ]; then
+            echo "::notice::Both web and docs must have a published or preserved baseline before Pages can deploy."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags origin "refs/heads/$web_ref:refs/remotes/origin/$web_ref"
+          git fetch --no-tags origin "refs/heads/$docs_ref:refs/remotes/origin/$docs_ref"
+          web_sha="$(git rev-parse "origin/$web_ref")"
+          docs_sha="$(git rev-parse "origin/$docs_ref")"
+          echo "web_sha=$web_sha" >> "$GITHUB_OUTPUT"
+          echo "docs_sha=$docs_sha" >> "$GITHUB_OUTPUT"
+
+          legacy_dev_ref=""
+          if git ls-remote --exit-code origin refs/heads/dev_pages-preview-artifact >/dev/null 2>&1; then
+            legacy_dev_ref="dev_pages-preview-artifact"
+            git fetch --no-tags origin "refs/heads/$legacy_dev_ref:refs/remotes/origin/$legacy_dev_ref"
+            mkdir -p site/dev
+            git archive "origin/$legacy_dev_ref" | tar -x -C site/dev
+          fi
+
+          dev_web_ref=""
+          dev_docs_ref=""
+          if git ls-remote --exit-code origin refs/heads/dev_pages-web-artifact >/dev/null 2>&1; then
+            dev_web_ref="dev_pages-web-artifact"
+          elif [ -n "$legacy_dev_ref" ]; then
+            dev_web_ref="$legacy_dev_ref"
+          fi
+          if git ls-remote --exit-code origin refs/heads/dev_pages-docs-artifact >/dev/null 2>&1; then
+            dev_docs_ref="dev_pages-docs-artifact"
+          elif [ -n "$legacy_dev_ref" ]; then
+            dev_docs_ref="$legacy_dev_ref"
+          fi
+
+          if [ -n "$dev_web_ref" ] && [ "$dev_web_ref" != "$legacy_dev_ref" ]; then
+            git fetch --no-tags origin "refs/heads/$dev_web_ref:refs/remotes/origin/$dev_web_ref"
+            git archive "origin/$dev_web_ref" | tar -x -C site/dev
+          fi
+          if [ -n "$dev_docs_ref" ] && [ "$dev_docs_ref" != "$legacy_dev_ref" ]; then
+            git fetch --no-tags origin "refs/heads/$dev_docs_ref:refs/remotes/origin/$dev_docs_ref"
+            git archive "origin/$dev_docs_ref" | tar -x -C site/dev
+          fi
+
+          dev_web_sha=""
+          dev_docs_sha=""
+          if [ -n "$dev_web_ref" ]; then dev_web_sha="$(git rev-parse "origin/$dev_web_ref")"; fi
+          if [ -n "$dev_docs_ref" ]; then dev_docs_sha="$(git rev-parse "origin/$dev_docs_ref")"; fi
+          if [ -n "$legacy_dev_ref" ]; then
+            dev_sha="$(git rev-parse "origin/$legacy_dev_ref")"
+          else
+            dev_sha="${dev_web_sha}:${dev_docs_sha}"
+          fi
+          if [ "$dev_sha" = ":" ]; then dev_sha=""; fi
+          echo "dev_sha=$dev_sha" >> "$GITHUB_OUTPUT"
+          if [ -n "$dev_web_ref" ] && [ -n "$dev_docs_ref" ]; then
+            test -s site/dev/index.html
+            test -s site/dev/web/index.html
+            test -s site/dev/docs/index.html
+          else
+            echo "::notice::No complete dev preview component pair is available yet; preserving production deployment."
+            dev_sha=""
+            echo "dev_sha=" >> "$GITHUB_OUTPUT"
+          fi
+
+          git archive "origin/$web_ref" | tar -x -C site
+          git archive "origin/$docs_ref" | tar -x -C site
+          touch site/.nojekyll
+
+          test -s site/index.html
+          test -s site/web/index.html
+          test -s site/docs/index.html
+          test -s site/sitemap.xml
+
+          previous_web_sha=""
+          previous_docs_sha=""
+          previous_dev_sha=""
+          state_branch="dev_pages-deploy-state"
+          if git ls-remote --exit-code origin "refs/heads/$state_branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$state_branch:refs/remotes/origin/$state_branch"
+            if git show "origin/$state_branch:deployment.json" > /tmp/pages-deployment-state.json 2>/dev/null; then
+              previous_web_sha="$(jq -r '.web_artifact_sha // empty' /tmp/pages-deployment-state.json)"
+              previous_docs_sha="$(jq -r '.docs_artifact_sha // empty' /tmp/pages-deployment-state.json)"
+              previous_dev_sha="$(jq -r '.dev_preview_sha // empty' /tmp/pages-deployment-state.json)"
+            fi
+          fi
+
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          if [ "$web_sha" = "$previous_web_sha" ] && [ "$docs_sha" = "$previous_docs_sha" ] && [ "$dev_sha" = "$previous_dev_sha" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Both component revisions are already deployed; skipping duplicate Pages deployment."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Assembled web $web_ref ($web_sha), docs $docs_ref ($docs_sha), and dev preview ${dev_ref:-none} ($dev_sha)."
+          fi
+
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.assemble.outputs.ready == 'true' && steps.assemble.outputs.changed == 'true'
+        with:
+          path: site
+
+  deploy:
+    needs: assemble
+    if: needs.assemble.outputs.ready == 'true' && needs.assemble.outputs.changed == 'true'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy the assembled site
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+  record:
+    needs: [assemble, deploy]
+    if: needs.deploy.result == 'success' && needs.assemble.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      deployments: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Record the deployed component revisions
+        shell: bash
+        env:
+          WEB_SHA: ${{ needs.assemble.outputs.web_sha }}
+          DOCS_SHA: ${{ needs.assemble.outputs.docs_sha }}
+          DEV_SHA: ${{ needs.assemble.outputs.dev_sha }}
+        run: |
+          set -euo pipefail
+          branch="dev_pages-deploy-state"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            git checkout -B "$branch" "refs/remotes/origin/$branch"
+          else
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          git clean -fd
+          printf '{\n  "web_artifact_sha": "%s",\n  "docs_artifact_sha": "%s",\n  "dev_preview_sha": "%s"\n}\n' "$WEB_SHA" "$DOCS_SHA" "$DEV_SHA" > deployment.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deployment.json
+          if ! git diff --cached --quiet; then
+            git commit -m "pages: record deployed component revisions"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+      - name: Remove superseded Pages deployment records
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const deployments = await github.paginate(github.rest.repos.listDeployments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              environment: "github-pages",
+              per_page: 100
+            });
+
+            for (const deployment of deployments) {
+              if (deployment.sha === context.sha) continue;
+              const statuses = await github.paginate(github.rest.repos.listDeploymentStatuses, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id,
+                per_page: 100
+              });
+              if (statuses[0]?.state !== "inactive") {
+                await github.rest.repos.createDeploymentStatus({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  deployment_id: deployment.id,
+                  state: "inactive",
+                  description: "Superseded by a newer assembled Pages deployment."
+                });
+              }
+              await github.rest.repos.deleteDeployment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.id
+              });
+            }

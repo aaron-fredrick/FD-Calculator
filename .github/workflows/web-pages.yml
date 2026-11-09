@@ -1,0 +1,110 @@
+name: Build and publish FD Cal web component
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/web/**"
+      - "src/brand/**"
+      - "src/core/**"
+      - "src/fd-options/**"
+      - "src/strategies/**"
+      - "src/io/csv.js"
+      - "src/reporting/**"
+      - "schema/**"
+      - "data/**"
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "robots.txt"
+      - "scripts/build-web-site.sh"
+      - ".github/workflows/web-pages.yml"
+      - ".github/workflows/pages.yml"
+      - "scripts/build-docs-preservation.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Capture web dependency revision
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Build the web component only
+        run: bash scripts/build-web-site.sh /tmp/web-site
+      - uses: actions/upload-artifact@v6
+        with:
+          name: web-site
+          path: /tmp/web-site
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: pages-artifact-web
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/download-artifact@v6
+        with:
+          name: web-site
+          path: /tmp/web-site
+      - name: Publish the web component without touching documentation
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if ! git diff --quiet "$SOURCE_SHA" origin/main -- src/web src/brand src/core src/fd-options src/strategies src/io/csv.js src/reporting schema data README.md CONTRIBUTING.md robots.txt scripts/build-web-site.sh; then
+            echo "::notice::Web dependencies changed after this artifact was built; a newer web run owns publication."
+            exit 0
+          fi
+          branch="pages-web-artifact"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            git checkout -B "$branch" "refs/remotes/origin/$branch"
+          else
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          git clean -fd
+          cp -R /tmp/web-site/. .
+          touch .nojekyll
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The web artifact branch already contains this component."
+          else
+            git commit -m "pages: publish web component from ${GITHUB_SHA}"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+
+  deploy:
+    needs: publish
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+      deployments: write

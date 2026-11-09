@@ -1,0 +1,216 @@
+name: Benchmark and publish FD Cal documentation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Every main push gets its own benchmark run. The component publisher and
+# reusable Pages deployer have their own non-cancelling concurrency controls.
+concurrency:
+  group: docs-benchmark-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  scoped-range-benchmark:
+    if: github.ref == 'refs/heads/main'
+    name: Scoped Range page benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Run the Scoped Range strategy matrix
+        shell: bash
+        run: set -o pipefail && node scripts/strategy-sensitivity.js | tee scoped-range-benchmark-output.txt
+      - name: Validate Scoped Range observations
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+
+          const data = JSON.parse(readFileSync("docs/strategies/benchmarks/results.json", "utf8"));
+          const rows = data.results;
+          const strategies = ["Greedy", "Absolute R+", "GSS"];
+          const groups = new Map();
+          for (const row of rows) {
+            const key = row.category + "|" + row.value;
+            groups.set(key, [...(groups.get(key) ?? []), row]);
+          }
+
+          assert.equal(rows.length, 324, "Expected 324 Scoped Range observations.");
+          assert.equal(groups.size, 108, "Expected 108 distinct Scoped Range scenarios.");
+          for (const [key, group] of groups) {
+            assert.deepEqual(
+              group.map(row => row.strategy).sort(),
+              [...strategies].sort(),
+              key + " must contain exactly one result for every strategy."
+            );
+          }
+
+          console.log("Validated 324 observations across 108 Scoped Range scenarios.");
+          NODE
+      - name: Upload run-local Scoped Range data for the docs build
+        uses: actions/upload-artifact@v6
+        with:
+          name: scoped-range-benchmark-data
+          path: docs/strategies/benchmarks/results.json
+          if-no-files-found: error
+          retention-days: 1
+
+  absolute-r-plus-benchmark:
+    if: github.ref == 'refs/heads/main'
+    name: Absolute R+ page benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Run Absolute R+ search-parameter sensitivity
+        shell: bash
+        run: set -o pipefail && node scripts/gaml-sensitivity.js | tee absolute-r-plus-benchmark-output.txt
+      - name: Validate Absolute R+ parameter observations
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+
+          const data = JSON.parse(readFileSync("docs/strategies/benchmarks/gaml-search-results.json", "utf8"));
+          assert.equal(data.results.length, 15, "Expected 15 Absolute R+ parameter observations.");
+          assert.deepEqual(data.baseline, {
+            beam_width: 96,
+            max_local_branches: 48,
+            max_decisions: 5000
+          });
+          const expected = {
+            beam_width: [32, 64, 96, 192, 256],
+            local_branch_limit: [16, 32, 48, 96, 128],
+            decision_cap: [500, 1000, 2500, 5000, 10000]
+          };
+          for (const [sweep, values] of Object.entries(expected)) {
+            assert.deepEqual(
+              data.results.filter(row => row.sweep === sweep).map(row => row.value),
+              values,
+              sweep + " must contain the complete parameter sweep."
+            );
+          }
+          console.log("Validated all 15 Absolute R+ parameter observations.");
+          NODE
+      - name: Upload run-local Absolute R+ data for the docs build
+        uses: actions/upload-artifact@v6
+        with:
+          name: absolute-r-plus-benchmark-data
+          path: docs/strategies/benchmarks/gaml-search-results.json
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    if: github.ref == 'refs/heads/main'
+    name: Build docs using this run's benchmark data
+    needs: [scoped-range-benchmark, absolute-r-plus-benchmark]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Capture the exact source revision
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Restore this run's Scoped Range data
+        uses: actions/download-artifact@v6
+        with:
+          name: scoped-range-benchmark-data
+          path: docs/strategies/benchmarks
+      - name: Restore this run's Absolute R+ data
+        uses: actions/download-artifact@v6
+        with:
+          name: absolute-r-plus-benchmark-data
+          path: docs/strategies/benchmarks
+      - name: Validate both page datasets together
+        run: node scripts/validate-scoped-benchmark-data.js
+      - name: Build documentation from the generated datasets
+        run: bash scripts/build-docs-site.sh /tmp/docs-site
+      - uses: actions/upload-artifact@v6
+        with:
+          name: docs-site
+          path: /tmp/docs-site
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    if: github.ref == 'refs/heads/main' && needs.build.result == 'success'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: pages-artifact-docs
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v6
+        with:
+          name: docs-site
+          path: /tmp/docs-site
+      - name: Publish documentation without touching the web component
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          latest_main_sha="$(git rev-parse origin/main)"
+          if [ "$SOURCE_SHA" != "$latest_main_sha" ]; then
+            echo "::notice::main advanced from $SOURCE_SHA to $latest_main_sha while benchmarks were running; this run will not replace a newer docs artifact."
+            exit 0
+          fi
+          branch="pages-docs-artifact"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "refs/heads/$branch:refs/remotes/origin/$branch"
+            git checkout -B "$branch" "refs/remotes/origin/$branch"
+          else
+            git switch --orphan "$branch"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+          git clean -fd
+          cp -R /tmp/docs-site/. .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The documentation artifact branch already contains this component."
+          else
+            git commit -m "pages: publish docs built from main ${SOURCE_SHA}"
+            git push origin "HEAD:refs/heads/$branch"
+          fi
+
+  deploy:
+    needs: publish
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+      deployments: write
