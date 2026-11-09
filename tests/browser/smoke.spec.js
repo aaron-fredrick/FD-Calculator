@@ -79,12 +79,20 @@ test("mobile viewport renders without document-level horizontal overflow", async
       main: rect("main"),
       content: rect(".content"),
       form: rect("#scenario-form"),
-      offenders
+      offenders,
+      internalOverflow: [...document.querySelector(".content").querySelectorAll("*")]
+        .filter(element => element.scrollWidth > element.clientWidth + 1)
+        .map(element => ({
+          tag: element.tagName.toLowerCase(), id: element.id,
+          className: typeof element.className === "string" ? element.className : "",
+          width: element.clientWidth, scrollWidth: element.scrollWidth,
+          overflowX: getComputedStyle(element).overflowX
+        })).slice(0, 20)
     };
   });
   // The section rail is intentionally horizontally scrollable; main content is not.
   expect(dimensions.main.width).toBeLessThanOrEqual(dimensions.viewport + 1);
-  expect(dimensions.content.scrollWidth).toBeLessThanOrEqual(dimensions.content.width + 1);
+  expect(dimensions.content.scrollWidth, JSON.stringify(dimensions)).toBeLessThanOrEqual(dimensions.content.width + 1);
   expect(dimensions.form.scrollWidth).toBeLessThanOrEqual(dimensions.content.width + 1);
   expect(dimensions.offenders).toEqual([]);
 });
