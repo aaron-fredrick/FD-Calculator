@@ -97,6 +97,26 @@ test("mobile viewport renders without document-level horizontal overflow", async
   expect(dimensions.offenders).toEqual([]);
 });
 
+test("keyboard focus and reduced-motion preferences are respected", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/web/");
+  await page.keyboard.press("Tab");
+
+  const focus = await page.evaluate(() => {
+    const element = document.activeElement;
+    return {
+      tag: element?.tagName ?? "",
+      name: element?.getAttribute("aria-label") || element?.textContent?.trim() || element?.getAttribute("title") || ""
+    };
+  });
+  expect(focus.tag).not.toBe("BODY");
+  expect(focus.name.length).toBeGreaterThan(0);
+
+  const scrollBehavior = await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior);
+  expect(scrollBehavior).toBe("auto");
+  await expect(page.locator("#accounts-list .account")).not.toHaveClass(/is-entering/);
+});
+
 test("a default scenario runs and produces an independently openable HTML report", async ({ page, context }) => {
   const pageErrors = [];
   page.on("pageerror", error => pageErrors.push(error.message));
@@ -119,5 +139,8 @@ test("a default scenario runs and produces an independently openable HTML report
   const reportPage = await context.newPage();
   await reportPage.goto("file://" + reportPath);
   await expect(reportPage.locator("body")).toContainText("Simulation Report");
+  await reportPage.emulateMedia({ media: "print" });
+  expect(await reportPage.evaluate(() => window.matchMedia("print").matches)).toBe(true);
+  await expect(reportPage.locator("body")).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
