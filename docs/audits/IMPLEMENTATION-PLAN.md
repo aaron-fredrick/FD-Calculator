@@ -439,3 +439,11 @@ This section supersedes stale status labels and sequencing notes elsewhere in th
 5. Keep SEARCH-02 decomposition, DATA-03 special products, richer DATA-05 fee-channel modelling, main-branch preview integration and external legal review deferred.
 
 No merge, PR creation or deployment is authorised by this plan update.
+
+### SEARCH-03 checkpoint — 9 November 2026
+
+A deterministic cross-strategy fixture now exercises eligible FD bookings, installment cash-flow events, terminal maturity events and transfer-fee accounting across Greedy, GSS, Absolute R and Absolute R+. The fixture is in `tests/js/cross-strategy-outflow-parity.test.js`. The full workflow [42585867964](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42585867964) passed, including all 265 Node test cases, syntax checks, production/dev builds, six Chromium browser tests, documentation-preservation build and workflow YAML parsing.
+
+**This is a partial SEARCH-03 checkpoint, not full parity closure.** Future strict/deferred obligation liquidity reservation is still unverified. A deliberately combined future-strict-outflow scenario exposed that Greedy can invest cash needed for a later strict payment; the initial fixture also exposed that the Absolute search strategy requires every configured account to have a compatible product. The temporary Greedy change was reverted because it broke the established Greedy migration parity contract. Do not treat that exploratory failure as a shipped fix. The next SEARCH-03 task is to define and implement an owner-consistent reservation contract across all four strategies, then add fixtures that prove scheduled future obligations remain funded without weakening the existing strategy migration baseline.
+
+Do not merge this checkpoint as final SEARCH-03 sign-off. The remaining QA, bank-source review and deployed-header verification gates also remain open.
