@@ -69,3 +69,18 @@ Do not treat a `_headers` file or workflow-generated artifact as proof that GitH
 - The standalone report is generated client-side and can be saved as a local HTML file.
 - No remote analytics or session replay was found in the reviewed source.
 - A concise privacy notice should explain local storage, file import/export, local report generation, network requests for static catalogue assets, and how to clear saved data. Avoid generic legal boilerplate that does not match the actual product.
+
+
+## PRIV-02 — Public privacy notice, terms and preference management
+
+**Current status: IMPLEMENTED on this branch; CI validation pending.**
+
+- Added public Privacy Policy and Terms & Conditions pages under the web application.
+- Added a first-visit privacy banner. A saved preference suppresses the banner on subsequent visits.
+- Added a footer control so users can reopen and change their preferences.
+- Necessary browser storage is displayed as always enabled. FD Cal currently uses local storage rather than setting its own cookies; the UI and policy distinguish these accurately.
+- Optional analytics preference is stored locally but is not connected to any analytics provider or tracking code. Selecting it does not enable collection. Any future analytics integration must identify its provider and data practices and honour the saved preference before sending optional analytics requests.
+- The legal pages explain local scenario processing, the local draft's indefinite retention until user deletion/browser clearing, in-memory worker execution, client-generated reports and exports, static asset requests, hosting-layer request logs, and the absence of a current FD Cal analytics integration.
+- The production sitemap includes both legal pages; the web build copies them with the application assets.
+
+**Verification boundary:** this is a product-accurate informational notice based on the current repository implementation, not a legal opinion. Operator identity/contact details and applicable jurisdictional language should be reviewed before production publication. Browser-level visual and keyboard testing remains required.
