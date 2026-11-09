@@ -168,6 +168,35 @@ function results(r,c,html){
  $("results").hidden=false;animateEntrance($("results"));
  scrollElementIntoView($("results"));
 }
+const PRIVACY_STORAGE_KEY="fd-cal:privacy-preferences:v1";
+function readPrivacyPreferences(){
+ try{const value=JSON.parse(localStorage.getItem(PRIVACY_STORAGE_KEY)||"null");if(value&&value.version===1)return{necessary:true,analytics:value.analytics===true};}catch(error){console.warn("FD Cal privacy preferences could not be read:",error)}
+ return null;
+}
+function savePrivacyPreferences(analytics){
+ const value={version:1,necessary:true,analytics:analytics===true};
+ try{localStorage.setItem(PRIVACY_STORAGE_KEY,JSON.stringify(value));return true}
+ catch(error){console.warn("FD Cal privacy preferences could not be saved:",error);return false}
+}
+function setupPrivacyControls(){
+ const banner=$("privacy-banner"),dialog=$("privacy-preferences-dialog"),analytics=$("privacy-analytics");
+ const closeDialog=()=>{dialog.hidden=true;$("open-privacy-preferences").focus()};
+ const openDialog=()=>{const saved=readPrivacyPreferences();analytics.checked=saved?.analytics===true;dialog.hidden=false;analytics.focus()};
+ const commit=allowAnalytics=>{
+  if(!savePrivacyPreferences(allowAnalytics)){alert("Your preference could not be saved in this browser. Check site-storage permissions and try again.");return}
+  banner.hidden=true;dialog.hidden=true;
+ };
+ if(!readPrivacyPreferences())banner.hidden=false;
+ $("privacy-reject").addEventListener("click",()=>commit(false));
+ $("privacy-accept").addEventListener("click",()=>commit(true));
+ $("privacy-customise").addEventListener("click",openDialog);
+ $("open-privacy-preferences").addEventListener("click",openDialog);
+ $("privacy-close").addEventListener("click",closeDialog);
+ $("privacy-dialog-reject").addEventListener("click",()=>commit(false));
+ $("privacy-save").addEventListener("click",()=>commit(analytics.checked));
+ dialog.addEventListener("click",event=>{if(event.target===dialog)closeDialog()});
+ document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!dialog.hidden)closeDialog()});
+}
 function wire(){
  $("clear-draft").addEventListener("click",clearSavedDraft);
  document.addEventListener("click",event=>{
@@ -273,4 +302,5 @@ $("strategy-choice").addEventListener("change",()=>syncStrategySettings());$("si
  window.addEventListener("pagehide",()=>{S.workerRunner.cancel("Page is closing.");stopElapsedTimer()},{once:true});
  $("export-config").onclick=()=>{try{exportRaw()}catch(e){err(e.message)}};$("import-config").onclick=()=>$("config-file").click();$("config-file").onchange=async e=>{let f=e.target.files?.[0];if(!f)return;try{let x=validateConfigurationShape(JSON.parse(await f.text()));if((x.strategy??"absolute")==="absolute")throw Error("Absolute R is CLI-only. Select Greedy or Absolute R+ in the CLI configuration before importing into the browser.");const ids=Object.values(x.accounts).map(a=>a.bank_id);const options=await getOptions(ids);validateConfiguration(x,{bankRegistry:S.banks,bankKeyById:S.keys,options,today:today()});applyConfig(x);saveDraft()}catch(ex){showError(ex.message||String(ex),"Import failed: "+(ex.message||String(ex)))}e.target.value=""};
 }
+setupPrivacyControls();
 init();
