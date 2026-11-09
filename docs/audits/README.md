@@ -12,6 +12,7 @@
 | [Executive summary](EXECUTIVE-SUMMARY.md) | Priority-ranked findings, owner dispositions and remediation order |
 | [Implementation plan](IMPLEMENTATION-PLAN.md) | Detailed analysis, owner decisions, implementation phases, acceptance criteria and non-regression guardrails |
 | [Owner-feedback research](OWNER-FEEDBACK-RESEARCH.md) | Bank product, AIT, transfer-fee, data freshness, search architecture, QA and legal research with owner-approved scope |
+| [Search budget calibration](SEARCH-BUDGET-CALIBRATION.md) | Controlled 5k/10k/20k/unlimited × 15/30/60s comparison and recommendation |
 | [Interest day-count note](../finance/INTEREST-DAY-COUNT.md) | Concise explanation of the retained start-year 365/366 elapsed-day convention |
 | [Engine and financial core](ENGINE-CORE.md) | Dates, interest, FD cash flows, simulation lifecycle, balances and results |
 | [Strategies and search](STRATEGIES-AND-SEARCH.md) | Greedy, GSS, Absolute R, Absolute R+, search budgets, parity and architecture |
