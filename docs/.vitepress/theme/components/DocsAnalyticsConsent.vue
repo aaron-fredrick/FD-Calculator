@@ -6,7 +6,7 @@ const STORAGE_KEY = 'fd-cal:privacy-preferences:v1'
 const GTM_ID = 'GTM-TNC567R4'
 const CLARITY_ID = 'zb1y50hjaw'
 const route = useRoute()
-const privacyUrl = computed(() => new URL('../web/privacy.html', new URL(import.meta.env.BASE_URL, window.location.origin)).pathname)
+const privacyUrl = `${import.meta.env.BASE_URL.replace(/docs\/$/, '')}web/privacy.html`
 const visible = ref(false)
 const savedChoice = ref<boolean | null>(null)
 const analytics = ref(false)
