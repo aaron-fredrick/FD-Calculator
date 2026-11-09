@@ -50,7 +50,8 @@ Before implementation, capture deterministic baseline outputs for representative
 | **DATA-04** | **Implemented on this branch; CI passed** | All 33 catalogue CSVs are inventoried; 93 rows with unquoted comma-containing metadata were repaired across three files; parser enforces strict quotes and exact row width with source/line diagnostics. Pending dev shipment. |
 | **UI-01** | **Implemented on this branch; pending dev shipment** | A shared scroll helper checks the current reduced-motion preference and selects non-animated or smooth scrolling accordingly; unit tests cover both branches. |
 | **UI-02 / UI-03** | **Implemented on this branch; CI passed** | Help controls are native disclosure buttons with accessible names and touch/keyboard operation; generated field errors are associated through `aria-describedby` and cleaned up without removing unrelated descriptions. Pending dev shipment. |
-| **PRIV-01 / WEB-SEC-02** | **Open** | Add local-draft clear/retention UX; document the static-hosting security-header boundary and any required hosting change. |
+| **PRIV-01** | **Implemented on this branch; CI passed** | Browser-local retention is disclosed; a confirmation-protected action removes the saved draft without re-saving it from the form click handler. Pending dev shipment. |
+| **WEB-SEC-02** | **Open** | Document the static-hosting security-header boundary and any required hosting change. |
 | **QA-01** | **Deferred — owner decision required** | Decide whether to introduce Playwright smoke coverage or retain manual browser verification. |
 | **QA-REP-01** | **Open** | The downloaded standalone report has not been independently verified in a real browser. |
 | **DATA-05 / DATA-06** | **Open / partial** | Transfer-channel modelling remains out of scope; freshness/source warnings are only partially surfaced. |
