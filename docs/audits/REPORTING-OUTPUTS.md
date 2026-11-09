@@ -42,11 +42,14 @@ For the scoped mode, reconcile the closing value against ending account balances
 
 The web metric reads `total_principal`, which the runtime sets to opening capital plus all inflows. That is capital contributed/available over the horizon, not necessarily the sum of principal actually placed into fixed deposits. Rename the metric to “Capital contributed” or add a separate actual-FD-principal total.
 
-### FIN-03 — The report needs source provenance beside each simulated product
+### FIN-03 — Product-level source provenance beside simulated products
 
-**Current status: PARTIAL in PR #75.** The report now includes selected-bank source status and dataset review date. Product-level source URLs, source effective dates and per-product research caveats are not yet carried through the result/report model.
+**Current status: IMPLEMENTED on this branch; CI passed.** The HTML booking instruction now shows product source type, source effective date, an HTTPS-only source link, and collapsible product caveats/notes. The console booking ledger prints the same source metadata. Missing effective dates and invalid/non-HTTPS URLs are labelled not recorded. Notes are escaped in HTML; source metadata is retained across the web/CLI loaders and worker booking reconstruction.
 
-The product report includes name, rate, tenor, payout and catalogue eligibility, but not the source URL, source effective date, research status or source type. See [DATA-01](DATA-AND-FINANCIAL-ASSUMPTIONS.md#data-01--source-provenance-is-not-visible-in-the-simulation).
+**Evidence:** [HTML report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/html.js), [console report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/console.js), [worker metadata restoration](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/simulation-task.js), [report tests](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/tests/js/reporting.test.js).
+
+**Remaining verification:** browser-level presentation and manual report review remain part of the overall QA gate. Pending shipment to `dev`.
+
 
 ### QA-REP-01 — Test the actual downloaded HTML, not only string fragments
 
