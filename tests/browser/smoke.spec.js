@@ -141,7 +141,7 @@ test("a default scenario runs and produces an independently openable HTML report
   await expect(reportPage.locator("body")).toContainText("Simulation Report");
   await reportPage.evaluate(() => {
     const details = document.createElement("details");
-    details.className = "collapsible-table";
+    details.className = "collapsible-table print-stress-case";
     details.innerHTML = '<summary>Long-label print stress case</summary><div class="table-wrap"><table><thead><tr><th scope="col">Bank and product</th><th scope="col">Rate source</th><th scope="col">Eligibility conditions</th><th scope="col">Payout terms</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td></tr></tbody></table></div>';
     const cells = details.querySelectorAll("tbody td");
     cells[0].textContent = "Bank product label ".repeat(18);
@@ -166,7 +166,7 @@ test("a default scenario runs and produces an independently openable HTML report
   await reportPage.emulateMedia({ media: "print" });
   expect(await reportPage.evaluate(() => window.matchMedia("print").matches)).toBe(true);
   const printTableLayout = await reportPage.evaluate(() => {
-    const details = document.querySelector("details.collapsible-table");
+    const details = document.querySelector("details.print-stress-case");
     const tableWrap = details?.querySelector(".table-wrap");
     const table = tableWrap?.querySelector("table");
     const rect = element => element ? {
@@ -200,7 +200,9 @@ test("a default scenario runs and produces an independently openable HTML report
         whiteSpace: getComputedStyle(cell).whiteSpace,
         overflowWrap: getComputedStyle(cell).overflowWrap,
         wordBreak: getComputedStyle(cell).wordBreak
-      })) : []
+      })) : [],
+      reportTableWidths: [...document.querySelectorAll("main .collapsible-table .table-wrap table")]
+        .map(item => item.getBoundingClientRect().width)
     };
   });
   expect(printTableLayout.tableWrapDisplay).toBe("block");
