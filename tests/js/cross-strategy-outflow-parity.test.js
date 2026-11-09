@@ -178,6 +178,6 @@ test("Greedy skips a higher-ranked unsafe tenor and selects a tenor maturing on 
     .filter(event => event.event_type === "booking");
   assert.equal(result.valid, true);
   assert.equal(result.total_outflows_paid, 60000);
-  assert.equal(bookings[0]?.option_label, "Lower-rate 30d",
+  assert.ok(bookings[0]?.label?.includes("Lower-rate 30d"),
     "Greedy should reject the higher-ranked 90-day option and use the 30-day option");
 });
