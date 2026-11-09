@@ -104,7 +104,7 @@ test("Google analytics is loaded only after explicit consent and sends no scenar
   assert.match(app, /fd-cal:privacy-preferences:v1/);
   assert.match(app, /GTM_CONTAINER_ID="GTM-TNC567R4"/);
   assert.match(app, /analytics_storage:"denied"/);
-  assert.match(app, /analytics_storage:allowAnalytics\?"granted":"denied"/);
+  assert.match(app, /analytics_storage:consent\?"granted":"denied"/);
   assert.match(app, /if\(!analyticsEnabled\)return/);
   assert.match(app, /script\.src="https:\/\/www\.googletagmanager\.com\/gtm\.js\?id="/);
   assert.match(app, /window\.gtag\("event","page_view"/);
@@ -113,4 +113,19 @@ test("Google analytics is loaded only after explicit consent and sends no scenar
   assert.match(app, /setupPrivacyControls\(\);\s*init\(\)/);
   assert.doesNotMatch(page, /googletagmanager\.com\/gtm\.js/);
   assert.doesNotMatch(app, /gtag\("event",[^)]*(?:raw\(|balance|cashflow|account)/i);
+  assert.match(app, /CLARITY_PROJECT_ID="zb1y50hjaw"/);
+  assert.match(app, /analytics_Storage:"granted",ad_Storage:"denied"/);
+  assert.match(app, /analytics_Storage:"denied",ad_Storage:"denied"/);
+  assert.match(app, /script\.src="https:\/\/www\.clarity\.ms\/tag\/"+CLARITY_PROJECT_ID/);
+  assert.match(page, /Microsoft Clarity load only if you allow analytics/);
+  assert.match(page, /Microsoft Clarity/);
+  for (const legalPage of ["privacy.html", "terms.html"]) {
+    const html = readFileSync(new URL("../../src/web/" + legalPage, import.meta.url), "utf8");
+    assert.match(html, /fd-cal:privacy-preferences:v1/);
+    assert.match(html, /GTM-TNC567R4/);
+    assert.match(html, /zb1y50hjaw/);
+    assert.match(html, /analytics_Storage:"granted",ad_Storage:"denied"/);
+    assert.match(html, /analytics_storage:"denied"/);
+  }
+
 });
