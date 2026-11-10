@@ -20,7 +20,7 @@ test("documentation analytics is consent-gated and shared across every VitePress
   assert.match(component, /watch\(\(\) => route\.path/);
   assert.doesNotMatch(component, /searchTerm|queryText|location\.search/);
   assert.match(component, /clarity-mask/);
-  assert.match(component, /A little insight\\. Your choice\\./);
+  assert.match(component, /A little insight\. Your choice\./);
   assert.match(component, /What we collect/);
   assert.match(component, /No Thanks/);
   assert.match(component, /Allow analytics/);
