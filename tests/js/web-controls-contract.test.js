@@ -120,7 +120,7 @@ test("Google analytics is loaded only after explicit consent and sends no scenar
   assert.match(app, /analytics_Storage:"granted",ad_Storage:"denied"/);
   assert.match(app, /analytics_Storage:"denied",ad_Storage:"denied"/);
   assert.match(app, /script\.src="https:\/\/www\.clarity\.ms\/tag\/"\+CLARITY_PROJECT_ID/);
-  assert.match(page, /Microsoft Clarity load only if you allow analytics/);
+  assert.match(page, /It is loaded only after you allow analytics/);
   assert.match(page, /Microsoft Clarity/);
   for (const legalPage of ["privacy.html", "terms.html"]) {
     const html = readFileSync(new URL("../../src/web/" + legalPage, import.meta.url), "utf8");
