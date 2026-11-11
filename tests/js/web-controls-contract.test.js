@@ -114,6 +114,8 @@ test("Google analytics is loaded only after explicit consent and sends no scenar
   assert.match(app, /trackAnalyticsEvent\("simulation_start"\)/);
   assert.match(app, /trackAnalyticsEvent\("simulation_complete"\)/);
   assert.match(app, /setupPrivacyControls\(\);\s*init\(\)/);
+  assert.doesNotMatch(app, /privacy-customise/, "removed consent action must not leave a null event-listener binding");
+  assert.match(app, /\$\("open-privacy-preferences"\)\.addEventListener\("click",openDialog\)/);
   assert.doesNotMatch(page, /googletagmanager\.com\/gtm\.js/);
   assert.doesNotMatch(app, /gtag\("event",[^)]*(?:raw\(|balance|cashflow|account)/i);
   assert.match(app, /CLARITY_PROJECT_ID="zb1y50hjaw"/);
