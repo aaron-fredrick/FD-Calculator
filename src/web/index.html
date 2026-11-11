@@ -62,8 +62,20 @@
 <div id="simulation-status" class="simulation-status" role="status" aria-live="polite" hidden></div><span id="simulation-elapsed" class="simulation-elapsed" role="timer" aria-live="off" hidden></span><small id="simulation-edit-note" class="simulation-edit-note" hidden>Inputs changed. This run still uses the configuration submitted when it started.</small><div class="form-footer"><div><b>Ready to simulate?</b><small>Run the selected strategy locally in this browser.</small></div><button id="cancel-run" class="quiet" type="button" hidden>Cancel run</button><button id="run" class="primary" type="submit">▶ Run simulation</button></div></form>
 <div id="error" class="error" role="alert" hidden></div><section id="results" class="card" hidden><h2>Portfolio result</h2><p id="result-period"></p><div id="metrics" class="metrics"></div><div class="actions"><button id="download-report" class="primary">Download HTML report</button><button id="open-report" class="secondary">Open report</button><button id="download-result-config" class="quiet">Download config JSON</button></div><div class="hint">The report works offline. FD Cal does not execute transfers or open deposits.</div></section><footer class="site-footer"><span>FD Cal · Sri Lankan bank catalogue · Not financial or tax advice</span><nav aria-label="Legal and privacy"><span id="draft-storage-status" class="footer-status" role="status" aria-live="polite">Draft saved locally in this browser.</span><button type="button" class="footer-link" id="clear-draft">Clear saved draft</button><a href="./privacy.html">Privacy policy</a><a href="./terms.html">Terms &amp; conditions</a><button type="button" class="footer-link" id="open-privacy-preferences">Cookie &amp; storage preferences</button></nav></footer>
 <section id="privacy-banner" class="privacy-banner" role="region" aria-label="Privacy preferences" hidden>
-  <div class="privacy-banner-copy"><strong>Privacy preferences</strong><p>FD Cal uses necessary browser storage for your saved draft and preferences. Optional Google Analytics and Microsoft Clarity load only if you allow analytics. <a href="./privacy.html">Read the privacy policy</a>.</p></div>
-  <div class="privacy-banner-actions"><button type="button" class="quiet" id="privacy-reject">Reject optional</button><button type="button" class="secondary" id="privacy-customise">Customise</button><button type="button" class="primary" id="privacy-accept">Accept all</button></div>
+  <div class="privacy-banner-copy">
+    <strong id="privacy-banner-title">A little insight. Your choice.</strong>
+    <p>Optional visitor stats help us improve FD Cal. Analytics stays off until you allow it.</p>
+    <details class="privacy-what-we-collect">
+      <summary>What we collect</summary>
+      <ul>
+        <li>Page views and basic feature-usage events.</li>
+        <li>General browser, device and page information.</li>
+        <li>Interaction signals used by Microsoft Clarity to understand usability.</li>
+      </ul>
+      <p>We do not send your account labels, balances, deposits, cash flows or calculation results as analytics event data. <a href="./privacy.html">Privacy details</a>.</p>
+    </details>
+  </div>
+  <div class="privacy-banner-actions"><button type="button" class="quiet" id="privacy-reject">No Thanks</button><button type="button" class="primary" id="privacy-accept">Allow analytics</button></div>
 </section>
 <div id="privacy-preferences-dialog" class="privacy-dialog-backdrop" hidden>
   <section class="privacy-dialog" role="dialog" aria-modal="true" aria-labelledby="privacy-dialog-title" aria-describedby="privacy-dialog-description">

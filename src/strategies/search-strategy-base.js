@@ -1602,7 +1602,7 @@ export class SearchStrategyBase {
         compound: this.compound, actual_leap_year: this.actual_leap_year,
         ait_enabled: this.ait_enabled, ait_rate: this.ait_rate
       }).createSession(engineContext);
-      fallback.resultMetadata = { ...resultMetadata, strategy_name: "Greedy" };
+      fallback.resultMetadata = { ...resultMetadata, strategy_name: this.name };
       return fallback;
     }
 
