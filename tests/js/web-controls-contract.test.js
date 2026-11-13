@@ -114,13 +114,15 @@ test("Google analytics is loaded only after explicit consent and sends no scenar
   assert.match(app, /trackAnalyticsEvent\("simulation_start"\)/);
   assert.match(app, /trackAnalyticsEvent\("simulation_complete"\)/);
   assert.match(app, /setupPrivacyControls\(\);\s*init\(\)/);
+  assert.doesNotMatch(app, /privacy-customise/, "removed consent action must not leave a null event-listener binding");
+  assert.match(app, /\$\("open-privacy-preferences"\)\.addEventListener\("click",openDialog\)/);
   assert.doesNotMatch(page, /googletagmanager\.com\/gtm\.js/);
   assert.doesNotMatch(app, /gtag\("event",[^)]*(?:raw\(|balance|cashflow|account)/i);
   assert.match(app, /CLARITY_PROJECT_ID="zb1y50hjaw"/);
   assert.match(app, /analytics_Storage:"granted",ad_Storage:"denied"/);
   assert.match(app, /analytics_Storage:"denied",ad_Storage:"denied"/);
   assert.match(app, /script\.src="https:\/\/www\.clarity\.ms\/tag\/"\+CLARITY_PROJECT_ID/);
-  assert.match(page, /Microsoft Clarity load only if you allow analytics/);
+  assert.match(page, /It is loaded only after you allow analytics/);
   assert.match(page, /Microsoft Clarity/);
   for (const legalPage of ["privacy.html", "terms.html"]) {
     const html = readFileSync(new URL("../../src/web/" + legalPage, import.meta.url), "utf8");
