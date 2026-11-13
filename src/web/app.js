@@ -276,7 +276,6 @@ function setupPrivacyControls(){
  else if(saved.analytics)applyAnalyticsConsent(true);
  $("privacy-reject").addEventListener("click",()=>commit(false));
  $("privacy-accept").addEventListener("click",()=>commit(true));
- $("privacy-customise").addEventListener("click",openDialog);
  $("open-privacy-preferences").addEventListener("click",openDialog);
  $("privacy-close").addEventListener("click",closeDialog);
  $("privacy-dialog-reject").addEventListener("click",()=>commit(false));
