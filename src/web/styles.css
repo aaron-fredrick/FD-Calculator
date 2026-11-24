@@ -327,7 +327,6 @@ body{background:var(--bg)}
  }
 }
 
-
 /* Keep the local-draft status legible alongside footer actions. */
 .footer-status{color:var(--fd-color-text-muted);font-size:11px}
 
@@ -372,3 +371,4 @@ body{background:var(--bg)}
   column-gap: 22px;
   row-gap: 10px;
 }
+
