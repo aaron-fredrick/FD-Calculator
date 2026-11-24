@@ -1,3 +1,5 @@
+> **Status note — 25 November 2026:** This file began as a dated implementation plan for the `audit/owner-feedback-followups` branch. That work was merged into `dev` through PR #91; the branch is not active and the plan below is retained as historical decision/implementation context, not as a live branch or delivery status report. The current source baseline is [`cbdc6b25b9119f6db564281a97adfcc8958d43a0`](https://github.com/aaron-fredrick/FD-Calculator/commit/cbdc6b25b9119f6db564281a97adfcc8958d43a0); the latest verified CI run is [45472055379](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/45472055379). For present-day finding status and remaining work, use [the audit index](README.md) and [executive summary](EXECUTIVE-SUMMARY.md). Old references below to “this branch”, pending shipment to `dev`, PR #82 as a current draft, or a branch being ahead of `dev` are historical statements from the original checkpoint and must not be read as current state.
+
 # FD Cal — implementation plan from the engineering audit
 
 **Plan date:** 9 November 2026  
