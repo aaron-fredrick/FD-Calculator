@@ -117,7 +117,7 @@ for (const [name, Strategy, mode, settings] of [
     const expected = normalize(legacy);
     assert.ok(legacy.bookings.length >= 1);
     assert.equal(migrated.search_diagnostics.result_selection.selected, "Greedy");
-    assert.equal(migrated.strategy_name, "Greedy");
+    assert.equal(migrated.strategy_name, mode === "gaml" ? "Absolute R+" : "Absolute R");
     for (const field of [
       "valid", "total_principal", "total_interest", "total_transfer_fees",
       "total_outflows_paid", "outstanding_outflows", "accounts", "bookings"

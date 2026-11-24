@@ -161,7 +161,7 @@ test("report layout, decision accents, maturity colors and chart hover controls 
     }
   };
   const result = {
-    strategy_name: "Test", start_date: "2026-11-04", end_date: "2026-11-05",
+    strategy_name: "Absolute R+", search_diagnostics: { result_selection: { selected: "Greedy", completion_mode: "greedy_fallback" } }, start_date: "2026-11-04", end_date: "2026-11-05",
     timeline: {
       20261104: [
         { event_type: "inflow", on_date: "2026-11-04", amount: 100,
@@ -182,6 +182,7 @@ test("report layout, decision accents, maturity colors and chart hover controls 
     inflow_summaries: [], outflow_summaries: [], bank_registry: { BANK_A: { name: "Bank A" } }
   };
   const html = generateHtmlReport(result, config);
+  assert.match(html, /<strong>Absolute R\+<\/strong><p>Executed path: Greedy fallback<\/p>/, "report must distinguish the requested optimiser from the greedy fallback actually replayed");
   const json = html.match(/<script id="fd-report-data" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
   assert.ok(json, "report should embed chart data");
   const charts = JSON.parse(json);

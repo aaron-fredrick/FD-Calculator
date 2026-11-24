@@ -53,6 +53,12 @@ jobs:
         run: |
           bash scripts/build-docs-preservation.sh "$RUNNER_TEMP/docs-baseline"
           test -s "$RUNNER_TEMP/docs-baseline/docs/index.html"
+      - name: Build production and dev documentation
+        run: |
+          bash scripts/build-docs-site.sh "$RUNNER_TEMP/docs-site"
+          FD_CAL_PREVIEW=true bash scripts/build-docs-site.sh "$RUNNER_TEMP/dev-docs-site"
+          test -s "$RUNNER_TEMP/docs-site/docs/index.html"
+          test -s "$RUNNER_TEMP/dev-docs-site/docs/index.html"
       - name: Parse all GitHub Actions workflow YAML files
         run: |
           ruby -e 'require "yaml"; ARGV.each { |file| YAML.load_file(file, aliases: true); puts "Validated #{file}" }' .github/workflows/pages.yml .github/workflows/web-pages.yml .github/workflows/docs-pages.yml .github/workflows/strategy-sensitivity.yml .github/workflows/dev-web-pages.yml .github/workflows/dev-docs-pages.yml .github/workflows/search-budget-calibration.yml .github/workflows/tests.yml

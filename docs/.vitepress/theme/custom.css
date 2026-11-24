@@ -76,3 +76,32 @@
     max-width: 100%;
   }
 }
+
+/* Keep documentation callouts informational rather than card-like. */
+.VPDoc .custom-block {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--vp-c-bg-soft);
+}
+.VPDoc .custom-block-title {
+  font-weight: 650;
+}
+.VPDoc .custom-block p {
+  line-height: 1.65;
+}
+
+
+/* Keep documentation callouts informational rather than card-like. */
+.VPDoc .custom-block {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--vp-c-bg-soft);
+}
+.VPDoc .custom-block-title {
+  font-weight: 650;
+}
+.VPDoc .custom-block p {
+  line-height: 1.65;
+}

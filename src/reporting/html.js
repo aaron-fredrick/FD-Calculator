@@ -287,9 +287,11 @@ export function generateHtmlReport(result,config) {
   const fee=config.fee_config||{};
   const xirrValue=xirr(result),gross=Number(result.total_interest||0),ait=Number(result.ait_withheld||0),fees=Number(result.total_transfer_fees||0),net=Number(result.net_interest??result.net_interest_after_ait??gross-ait-fees);
   const totalCapital=Number(result.contributed_capital??result.total_principal??0),preWithdrawalValue=Number(result.pre_withdrawal_value??result.final_value??0),outflowsPaid=Number(result.total_outflows_paid||0),closingAssets=Number(result.closing_assets??result.cash_retained??0),outstandingLiabilities=Number(result.outstanding_liabilities??(result.outstanding_outflows||[]).reduce((sum,item)=>sum+Number(item.remaining||0),0)),closingNetWorth=Number(result.closing_net_worth??result.cash_flow_net_worth??closingAssets-outstandingLiabilities),yieldPct=totalCapital?net/totalCapital*100:0;
+  const selectedStrategy=result.search_diagnostics?.result_selection?.selected;
+  const strategyDetail=selectedStrategy&&selectedStrategy!==result.strategy_name?("Executed path: "+selectedStrategy+(result.search_diagnostics?.result_selection?.completion_mode==="greedy_fallback"?" fallback":"")):"Selected simulation path";
   const overview='<div class="overview-grid">'+
     '<article class="panel"><small>Simulation window</small><strong>'+start+' → '+end+'</strong><p>'+days+' calendar days</p></article>'+
-    '<article class="panel"><small>Strategy</small><strong>'+esc(result.strategy_name)+'</strong><p>Selected simulation path</p></article>'+
+    '<article class="panel"><small>Strategy</small><strong>'+esc(result.strategy_name)+'</strong><p>'+esc(strategyDetail)+'</p></article>'+
     '<article class="panel"><small>Interest calculation</small><strong>'+(config.compound?"Compound":"Simple")+'</strong><p>'+(config.actual_leap_year?"Actual elapsed days ÷ start-year 365/366 denominator; the same denominator applies to the full accrual interval, including cross-year terms.":"Actual elapsed days ÷ 365 denominator.")+'</p></article>'+
     '<article class="panel"><small>Tax treatment</small><strong>'+(result.ait_enabled?"AIT · "+(result.ait_rate*100).toFixed(1)+"%":"AIT disabled")+'</strong><p>Applied to interest payouts</p></article>'+
     '<article class="panel"><small>Consolidation account</small><strong>'+esc(accountDisplay[config.consolidation_account_id]||config.consolidation_account_id||"—")+'</strong><p>Terminal cash destination</p></article>'+
