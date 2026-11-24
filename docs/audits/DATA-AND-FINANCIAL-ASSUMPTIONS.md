@@ -2,7 +2,7 @@
 
 ## DATA-01 — Product-source provenance in the user-facing workflow
 
-**Current status: IMPLEMENTED on this branch; CI passed.** Bank-level `research_status` and `dataset_reviewed_at` remain visible beside the bank selector and in the generated report. Product-level `source_url`, `source_effective_date`, `source_type` and source notes now flow from CSV rows through both web and CLI loaders, the `FDOption` metadata fields, worker booking snapshots and report generation. Source metadata is non-economic: it does not enter the financial economic-terms key or strategy decision logic.
+**Current status: IMPLEMENTED on dev via PR #91.** Bank-level `research_status` and `dataset_reviewed_at` remain visible beside the bank selector and in the generated report. Product-level `source_url`, `source_effective_date`, `source_type` and source notes now flow from CSV rows through both web and CLI loaders, the `FDOption` metadata fields, worker booking snapshots and report generation. Source metadata is non-economic: it does not enter the financial economic-terms key or strategy decision logic.
 
 **Report behaviour:**
 - HTML booking instructions show source type, effective date and an HTTPS-only source link.
@@ -12,7 +12,7 @@
 
 **Implementation:** [FDOption metadata](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/core/models.js), [web loader](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/app.js), [CLI loader](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/io/data-loader.js), [worker metadata restoration](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/simulation-task.js), [HTML report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/html.js), [console report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/console.js).
 
-**Verification:** worker round-trip tests assert product metadata survives; report tests assert source details, escaped notes and rejection of unsafe URL schemes; CLI loader tests verify the catalogue provenance fields. CI passed on the current implementation commit. Pending shipment to `dev`.
+**Verification:** worker round-trip tests assert product metadata survives; report tests assert source details, escaped notes and rejection of unsafe URL schemes; CLI loader tests verify the catalogue provenance fields. CI passed on the current implementation commit. Merged to `dev` through PR #91.
 
 ## DATA-02 — Senior/minor selection is not an actual depositor eligibility check
 
@@ -42,7 +42,7 @@ Do not imply that a category toggle is proof of eligibility.
 
 ## DATA-04 — CSV rows require strict structural validation
 
-**Current status: IMPLEMENTED on this branch; CI passed.** The parser now rejects malformed quote placement, unterminated quoted fields, characters after a closing quote, and rows whose field count differs from the header. Errors include the source path and physical line number. The parser retains support for UTF-8 BOM, LF/CRLF, quoted commas, escaped quotes, multiline fields, and legitimate trailing empty cells.
+**Current status: IMPLEMENTED on dev via PR #91.** The parser now rejects malformed quote placement, unterminated quoted fields, characters after a closing quote, and rows whose field count differs from the header. Errors include the source path and physical line number. The parser retains support for UTF-8 BOM, LF/CRLF, quoted commas, escaped quotes, multiline fields, and legitimate trailing empty cells.
 
 **Inventory and data corrections:** all 33 checked-in catalogue CSV files were inventoried and are covered by a regression test. The inventory found 93 malformed rows across three files:
 - `data/banks/banks.csv`: 26 rows had unquoted commas in `fee_basis`, which shifted/truncated `fee_source_url`.
