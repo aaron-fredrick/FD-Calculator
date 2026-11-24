@@ -1,12 +1,8 @@
-# Configuration guides
+# Archived configuration guides
 
-Detailed guides for configuring cash flows in FD Calculator:
+These guides belong to the legacy Python implementation preserved under `archive/`. They are historical reference material, not the active JavaScript application's configuration documentation.
 
-- [Inflows](inflows.md) — configure recurring contributions and scheduled credits.
-- [Outflows](outflows.md) — configure recurring expenses, scheduled payments, and payment policies.
+For current behaviour and configuration, use the repository's top-level [documentation](../../docs/) and [README](../../README.md). Archived examples may differ from the current schema and should not be copied into a live scenario without checking the active documentation.
 
-See the repository [README](../README.md) for setup, investment accounts, FD options, fees, and simulation settings.
-
-Standalone JSON examples are available in the [examples](../examples/) directory:
-- [inflows.example.json](../examples/inflows.example.json)
-- [outflows.example.json](../examples/outflows.example.json)
+- [Inflows](inflows.md) — legacy recurring contributions and scheduled credits.
+- [Outflows](outflows.md) — legacy recurring expenses, scheduled payments and payment policies.
