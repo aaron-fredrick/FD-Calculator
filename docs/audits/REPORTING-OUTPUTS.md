@@ -2,7 +2,7 @@
 
 ## FIN-01 — “Final value” is not the closing portfolio value after withdrawals
 
-**Current status: COMPLETED in PR #75.** The result model exposes `contributed_capital`, `pre_withdrawal_value`, `closing_assets`, `outstanding_liabilities` and `closing_net_worth`; web and standalone report output now distinguish these measures. `tests/js/results.test.js` covers paid, deferred and partially unpaid outflows.
+**Current status: COMPLETED on dev.** The result model exposes `contributed_capital`, `pre_withdrawal_value`, `closing_assets`, `outstanding_liabilities` and `closing_net_worth`; web and standalone report output now distinguish these measures. `tests/js/results.test.js` covers paid, deferred and partially unpaid outflows.
 
 **Severity: P1**
 
@@ -44,16 +44,16 @@ The web metric reads `total_principal`, which the runtime sets to opening capita
 
 ### FIN-03 — Product-level source provenance beside simulated products
 
-**Current status: IMPLEMENTED on this branch; CI passed.** The HTML booking instruction now shows product source type, source effective date, an HTTPS-only source link, and collapsible product caveats/notes. The console booking ledger prints the same source metadata. Missing effective dates and invalid/non-HTTPS URLs are labelled not recorded. Notes are escaped in HTML; source metadata is retained across the web/CLI loaders and worker booking reconstruction.
+**Current status: IMPLEMENTED on dev via PR #91.** The HTML booking instruction now shows product source type, source effective date, an HTTPS-only source link, and collapsible product caveats/notes. The console booking ledger prints the same source metadata. Missing effective dates and invalid/non-HTTPS URLs are labelled not recorded. Notes are escaped in HTML; source metadata is retained across the web/CLI loaders and worker booking reconstruction.
 
 **Evidence:** [HTML report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/html.js), [console report](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/reporting/console.js), [worker metadata restoration](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/src/web/simulation-task.js), [report tests](https://github.com/aaron-fredrick/FD-Calculator/blob/audit/rulesets-codebase-review/tests/js/reporting.test.js).
 
-**Remaining verification:** browser-level presentation and manual report review remain part of the overall QA gate. Pending shipment to `dev`.
+**Remaining verification:** browser-level presentation and manual report review remain part of the overall QA gate. Merged to `dev` through PR #91.
 
 
 ### QA-REP-01 — Test the actual downloaded HTML, not only string fragments
 
-**Current status: AUTOMATED SMOKE QA PASSED; extended QA remains.** Workflow [42574353592](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/42574353592) passed the standalone report checks: independent opening, scoped column headers, 320px document-width containment and print table width. The fixes address the event-ledger header semantics, mobile section navigation overflow and print table constraints. Offline network-request checks, chart initialization, realistic large ledgers, actual print/PDF pagination, keyboard navigation, screen-reader, contrast and zoom checks remain open.
+**Current status: AUTOMATED SMOKE QA PASSED; extended QA remains.** The latest verified workflow [45472055379](https://github.com/aaron-fredrick/FD-Calculator/actions/runs/45472055379) is successful on current `dev`; automated standalone-report checks include: independent opening, scoped column headers, 320px document-width containment and print table width. The fixes address the event-ledger header semantics, mobile section navigation overflow and print table constraints. Offline network-request checks, chart initialization, realistic large ledgers, actual print/PDF pagination, keyboard navigation, screen-reader, contrast and zoom checks remain open.
 
 The browser test now opens the downloaded report independently and exercises long content and print layout. Still add explicit offline network-request assertions and chart initialization checks; complete manual keyboard, screen-reader, contrast and 200–400% zoom review.
 
